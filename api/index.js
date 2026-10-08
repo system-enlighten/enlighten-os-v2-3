@@ -1,6 +1,7 @@
-const APPS_SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycbzsB8YOAO0J8WY7h7sxThnG9Tz8r-ojaXJbMtPjcfCCQy4t5HVTVLMQKylZPsybHXH8/exec";
 
+const APPS_SCRIPT_URL =
+  "https://script.google.com/macros/s/AKfycbzGv61Bh4uJL2RUMPv7FAQp26mEBNXzCbPFl6TSndx768_kzaBV74GGinUnqPocH93P/exec";
+  
 async function fetchAppsScript(url, options, maxRedirects = 8) {
   let currentUrl = url;
   let currentOptions = { ...options };
