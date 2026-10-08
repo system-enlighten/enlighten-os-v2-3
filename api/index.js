@@ -2,7 +2,44 @@
 const APPS_SCRIPT_URL =
   "https://script.google.com/macros/s/AKfycbzGv61Bh4uJL2RUMPv7FAQp26mEBNXzCbPFl6TSndx768_kzaBV74GGinUnqPocH93P/exec";
   
+
 async function fetchAppsScript(url, options, maxRedirects = 8) {
+  let currentUrl = url;
+  let currentOptions = { ...options };
+
+  for (let i = 0; i <= maxRedirects; i++) {
+    const response = await fetch(currentUrl, {
+      ...currentOptions,
+      redirect: "manual"
+    });
+
+    if (![301, 302, 303, 307, 308].includes(response.status)) {
+      return response;
+    }
+
+    const location = response.headers.get("location");
+    if (!location) return response;
+
+    currentUrl = new URL(location, currentUrl).toString();
+
+    // Switch POST to GET when following 301, 302 or 303.
+    // Preserve the method for 307 and 308.
+    if (
+      response.status === 303 ||
+      ((response.status === 301 || response.status === 302) &&
+        currentOptions.method?.toUpperCase() === "POST")
+    ) {
+      currentOptions = {
+        ...currentOptions,
+        method: "GET",
+        body: undefined
+      };
+    }
+  }
+
+  throw new Error("Too many redirects while contacting Google Apps Script.");
+}
+
   let currentUrl = url;
   let currentOptions = { ...options };
   for (let i = 0; i <= maxRedirects; i++) {
