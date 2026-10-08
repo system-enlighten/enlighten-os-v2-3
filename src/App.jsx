@@ -2492,7 +2492,7 @@ function contactsObjectToRows(project, contacts) {
     role,
     name: (c.name || "").trim(),
     email: (c.email || "").trim(),
-    mobile: (c.mobile || "").trim(),
+    mobile: String(c.mobile ?? "").trim(),
     company: (c.company || "").trim(),
     rating: c.rating || ""
   }));
@@ -3630,7 +3630,7 @@ function ProjectOnboarding({ state, persist, selectedId, setSelectedId }) {
     if (!draft.name.trim()) return;
     const cleanContacts = {};
     Object.entries(draft.contacts).forEach(([role, c]) => {
-      if (c && (c.name || "").trim()) cleanContacts[role] = { name: c.name.trim(), email: (c.email || "").trim(), mobile: (c.mobile || "").trim() };
+      if (c && (c.name || "").trim()) cleanContacts[role] = { name: c.name.trim(), email: (c.email || "").trim(), mobile: String(c.mobile ?? "").trim() };
     });
     const ownerName = (cleanContacts.Owner?.name || "").trim();
     const architectName = (cleanContacts.Architect?.name || "").trim();
@@ -3864,7 +3864,7 @@ function ProjectTeamView({ state, persist, selectedId }) {
     const clean={};
     Object.entries(draft||{}).forEach(([role,c])=>{
       if((c?.name||"").trim())clean[role]={
-        name:(c.name||"").trim(),email:(c.email||"").trim(),mobile:(c.mobile||"").trim(),
+        name:(c.name||"").trim(),email:(c.email||"").trim(),mobile:String(c.mobile ?? "").trim(),
         company:(c.company||"").trim(),rating:c.rating||""
       };
     });
@@ -5189,11 +5189,11 @@ function ProjectView({ state, persist }) {
     const currentScope = scopeFor(current);
     const cleanContacts = {};
     Object.entries(editDraft.contacts || {}).forEach(([role, c]) => {
-      if (c && ((c.name || "").trim() || (c.email || "").trim() || (c.mobile || "").trim())) {
+      if (c && ((c.name || "").trim() || (c.email || "").trim() || String(c.mobile ?? "").trim())) {
         cleanContacts[role] = {
           name: (c.name || "").trim(),
           email: (c.email || "").trim(),
-          mobile: (c.mobile || "").trim()
+          mobile: String(c.mobile ?? "").trim()
         };
       }
     });
