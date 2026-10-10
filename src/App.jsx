@@ -2424,14 +2424,15 @@ async function apiRequest(action, payload = {}, method = "POST") {
   let response;
   if (method === "GET") {
     const qs = new URLSearchParams({ action, ...Object.fromEntries(Object.entries(payload).map(([k,v]) => [k, String(v)])) });
-    response = await fetch(`${ENLIGHTEN_API_URL}?${qs.toString()}`);
+    response = await fetch(`${ENLIGHTEN_API_URL}?${qs.toString()}`,{headers:{Authorization:`Bearer ${AUTH_ID_TOKEN}`}});
   } else {
     response = await fetch(ENLIGHTEN_API_URL, {
       method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      headers: { "Content-Type": "text/plain;charset=utf-8", Authorization:`Bearer ${AUTH_ID_TOKEN}` },
       body: JSON.stringify({ action, payload })
     });
   }
+  if(response.status===401){AUTH_ID_TOKEN="";window.dispatchEvent(new Event("enlighten-auth-expired"));}
   const raw = await response.text();
   let json;
   try { json = JSON.parse(raw); }
@@ -2655,6 +2656,7 @@ function useStudioState() {
       try {
         const user = await projectApi.getCurrentUser();
         setCurrentUser(user);
+        localState={...localState,currentUser:user};
         if (!user?.authorized) {
           setBackendErr(user?.message || "Admin access required.");
           localState = { ...localState, currentUser: user, accessDenied: true };
@@ -2662,6 +2664,18 @@ function useStudioState() {
           return;
         }
 
+        if(user.appAccess.toLowerCase()!=="admin"){
+          const [remote,contacts,work,zones]=await Promise.all([projectApi.listAll(),projectApi.listContacts(),projectApi.listLineOfWork(),projectApi.listFloorZones()]);
+          const projects=(remote||[]).map(r=>{
+            const base=backendProjectToFrontend(r,{}),id=String(r.projectId);
+            const profile=contactRowsToObject((contacts||[]).filter(c=>String(c.projectId)===id));
+            const plan=(work||[]).filter(x=>String(x.projectId)===id).map(x=>({...x,id:x.lineWorkId}));
+            const areas=(zones||[]).filter(x=>String(x.projectId)===id);
+            return {...base,contacts:profile,lineOfWorkResidence:plan,lineOfWork:plan,floorZones:areas};
+          });
+          localState={projects,people:[user.name],teamMaster:[{userId:user.userId,name:user.name,active:true}],templates:[],intakes:[],tasks:[],ratings:{},meetings:[],siteVisits:[],scopeSheet:[],currentUser:user};
+          setState(localState);return;
+        }
         const [remote, remoteContacts, remoteLineOfWork, remoteFloorZones, remoteTeam, remoteDepartments, remoteDesignations, remoteDrawingTaskMaster] = await Promise.all([
           projectApi.listAll(),
           projectApi.listContacts().catch(() => []),
@@ -2720,7 +2734,8 @@ function useStudioState() {
         }
         setBackendErr("");
       } catch (err) {
-        setBackendErr(err?.message || "Could not connect to Google Sheets backend");
+        localState={projects:[],people:[],tasks:[],intakes:[],currentUser:null,accessDenied:true};
+        setBackendErr(err?.message || "Could not verify access to the backend");
       } finally {
         setState(localState);
         setLoading(false);
@@ -2729,11 +2744,12 @@ function useStudioState() {
   }, []);
 
   const persist = useCallback(async (next) => {
+    if(currentUser?.appAccess?.toLowerCase()!=="admin")throw new Error("Projects are view only.");
     setState(next);
     const ok = await localStateSet(STORE_KEY, JSON.stringify(next));
     setSaveErr(!ok);
     return next;
-  }, []);
+  }, [currentUser]);
 
   return { state, loading, saveErr, backendErr, currentUser, persist };
 }
@@ -3150,9 +3166,11 @@ function ClassifyView({ state, persist }) {
    VIEW: TIMESHEET
 --------------------------------------------------------------- */
 function TimesheetView({ state, persist }) {
+  const canAssign=state.currentUser?.appAccess?.toLowerCase()==="admin";
+  const canWork=canAssign||state.currentUser?.permissions?.wih==="own-edit";
   const [person, setPerson] = useState("All");
   const [taskSection, setTaskSection] = useState("Pending");
-  const WIH_CACHE_KEY = "enlighten_wih_cache_workflow_v21114";
+  const WIH_CACHE_KEY = "enlighten_wih_permissions_v21115:"+String(state.currentUser?.userId||state.currentUser?.googleSubject||"anonymous");
   const WIH_CACHE_MS = 30000;
   const readWihCache = () => {
     try {
@@ -3184,6 +3202,7 @@ function TimesheetView({ state, persist }) {
     if (!remoteTasks.length) setLoadingRemote(true);
     setSyncingRemote(true);
     try{
+      // Only admins may augment WIH with project-wide dashboard records.
       // WIH must show EVERY real Design Task / Design No. across every active project.
       // getWIH can contain only tasks that already have a WIH/timesheet row, so merge it
       // with each project's authoritative Design Dashboard task IDs from Google Sheets.
@@ -3204,9 +3223,9 @@ function TimesheetView({ state, persist }) {
         {id:"furnitureTaskId",no:"furnitureDesignNo",st:"furnitureStatus",title:"Furniture / Joinery",drawingType:"Detail"}
       ];
       const projects=(state.projects||[]).filter(p=>!p.completed&&!/completed/i.test(String(p.projectStatus||p.status||"")));
-      const dashboards=await Promise.all(projects.map(async p=>{
+      const dashboards=canAssign?await Promise.all(projects.map(async p=>{
         try{return {p,payload:await projectApi.getDesignDashboard(p.id)};}catch(e){console.warn("WIH dashboard sync failed",p.id,e);return {p,payload:null};}
-      }));
+      })):[];
       dashboards.forEach(({p,payload})=>{
         const rows=Array.isArray(payload?.rows)?payload.rows:[];
         rows.forEach(r=>taskDefs.forEach(d=>{
@@ -3333,21 +3352,22 @@ function TimesheetView({ state, persist }) {
       <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>
         <span style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginRight:4}}>TASK SECTION</span>
         {["Pending","Completed","Unallotted","All"].map(x=><Chip key={x} active={taskSection===x} onClick={()=>setTaskSection(x)}>{x} ({sectionCounts[x]})</Chip>)}
-        <button onClick={openBulkAssign} disabled={!bulkProjects.length} style={{...smallBtn,background:T.navy,color:"#fff",padding:"9px 13px",marginLeft:"auto"}}>PROJECT-WISE ASSIGNMENT</button>
+        {canAssign&&<button onClick={openBulkAssign} disabled={!bulkProjects.length} style={{...smallBtn,background:T.navy,color:"#fff",padding:"9px 13px",marginLeft:"auto"}}>PROJECT-WISE ASSIGNMENT</button>}
       </div>
       <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
         <span style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginRight:4}}>EMPLOYEE</span>
-        <Chip active={person==="All"} onClick={()=>setPerson("All")}>All Employees</Chip>{people.map(p=><Chip key={p} active={person===p} onClick={()=>setPerson(p)}>{p}</Chip>)}
+        {canAssign&&<><Chip active={person==="All"} onClick={()=>setPerson("All")}>All Employees</Chip>{people.map(p=><Chip key={p} active={person===p} onClick={()=>setPerson(p)}>{p}</Chip>)}</>}
+        {!canAssign&&<span>{state.currentUser?.name} · Own tasks only</span>}
       </div>
     </div>
     {loadingRemote&&remoteTasks.length===0&&<div style={{fontFamily:FONT_BODY,color:T.inkDim,padding:"10px 0"}}>Loading WIH tasks for the first time…</div>}
     {!loadingRemote&&tasks.length===0&&<div style={{color:T.inkDim,fontFamily:FONT_BODY,fontSize:13,padding:"20px 0"}}>No WIH tasks yet. Received drawings create tasks automatically.</div>}
     <div style={{display:"flex",flexDirection:"column",gap:8}}>{tasks.map(t=><div key={t.id} style={{background:"#fff",border:`1px solid ${T.line}`,borderRadius:8,padding:"12px 14px",display:"grid",gridTemplateColumns:"1.5fr 1fr 150px 90px 230px",gap:10,alignItems:"center"}}>
       <div><div style={{fontFamily:FONT_BODY,fontSize:13,fontWeight:700}}>{t.title}</div>{t.milestone&&<div style={{fontFamily:FONT_BODY,fontSize:11,color:T.blue,marginTop:3}}>{t.milestone} → {t.parentTask}</div>}{t.drawingReviewRequired&&<div style={{fontSize:11,color:T.orange,marginTop:3}}>Additional / revised drawing received — review scope</div>}{isBlocked(t.status)&&<div style={{fontSize:11,color:T.inkDim,marginTop:3}}>Waiting for preceding subtask</div>}<div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginTop:3}}>{t.projectName} · {t.floor||"—"} · {t.area||"—"} · {t.drawingType||"—"}</div>{t.designNo&&<div style={{fontFamily:FONT_MONO,fontSize:11,color:T.blue,fontWeight:800,marginTop:3}}>{t.designNo}</div>}</div>
-      <select disabled={!t.designTaskId||busyId===t.designTaskId||isDone(t.status)} value={t.assignee||""} onChange={e=>assign(t,e.target.value)} style={{...inputStyle,padding:"7px 8px",fontSize:12}}><option value="">Assign team member</option>{people.map(n=><option key={n}>{n}</option>)}</select>
+      {canAssign?<select disabled={!t.designTaskId||busyId===t.designTaskId||isDone(t.status)} value={t.assignee||""} onChange={e=>assign(t,e.target.value)} style={{...inputStyle,padding:"7px 8px",fontSize:12}}><option value="">Assign team member</option>{people.map(n=><option key={n}>{n}</option>)}</select>:<span style={{fontSize:12}}>{t.assignee}</span>}
       <StatusPill status={isDone(t.status)?"Done":isBlocked(t.status)?"Blocked":isProgress(t.status)?"In progress":"To do"}/>
       <div style={{fontFamily:FONT_MONO,fontSize:12}}>{Number(t.hours||0).toFixed(2)} h</div>
-      <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{t.optional&&!isDone(t.status)&&!isBlocked(t.status)&&<button disabled={busyId===t.designTaskId} onClick={()=>action(t,"skip")} style={smallBtn}>SKIP OPTIONAL STEP</button>}{t.drawingReviewRequired&&<button disabled={busyId===t.designTaskId} onClick={()=>action(t,"review")} style={smallBtn}>MARK DRAWING REVIEWED</button>}{!isDone(t.status)&&!isProgress(t.status)&&!isPaused(t.status)&&<button disabled={!t.assignee||busyId===t.designTaskId||isBlocked(t.status)} onClick={()=>action(t,"start")} style={smallBtn}>START</button>}{isProgress(t.status)&&<button disabled={busyId===t.designTaskId} onClick={()=>action(t,"pause")} style={smallBtn}>PAUSE</button>}{isPaused(t.status)&&<button disabled={busyId===t.designTaskId} onClick={()=>action(t,"resume")} style={smallBtn}>RESUME</button>}{!isDone(t.status)&&<button disabled={!t.assignee||busyId===t.designTaskId||isBlocked(t.status)} onClick={()=>setCompleteEditor({task:t,file:null,actualHours:t.hours||"",notes:""})} style={{...smallBtn,background:T.navy,color:"#fff"}}>COMPLETE / UPLOAD</button>}</div>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{canWork&&t.optional&&!isDone(t.status)&&!isBlocked(t.status)&&<button disabled={busyId===t.designTaskId} onClick={()=>action(t,"skip")} style={smallBtn}>SKIP OPTIONAL STEP</button>}{canWork&&t.drawingReviewRequired&&<button disabled={busyId===t.designTaskId} onClick={()=>action(t,"review")} style={smallBtn}>MARK DRAWING REVIEWED</button>}{canWork&&!isDone(t.status)&&!isProgress(t.status)&&!isPaused(t.status)&&<button disabled={!t.assignee||busyId===t.designTaskId||isBlocked(t.status)} onClick={()=>action(t,"start")} style={smallBtn}>START</button>}{canWork&&isProgress(t.status)&&<button disabled={busyId===t.designTaskId} onClick={()=>action(t,"pause")} style={smallBtn}>PAUSE</button>}{canWork&&isPaused(t.status)&&<button disabled={busyId===t.designTaskId} onClick={()=>action(t,"resume")} style={smallBtn}>RESUME</button>}{canWork&&!isDone(t.status)&&<button disabled={!t.assignee||busyId===t.designTaskId||isBlocked(t.status)} onClick={()=>setCompleteEditor({task:t,file:null,actualHours:t.hours||"",notes:""})} style={{...smallBtn,background:T.navy,color:"#fff"}}>COMPLETE / UPLOAD</button>}</div>
     </div>)}</div>
     {bulkAssignOpen&&<div style={{position:"fixed",inset:0,zIndex:13900,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}><div style={{width:"min(760px,96vw)",maxHeight:"88vh",overflow:"auto",background:T.paper,border:`1px solid ${T.line}`}}><div style={{background:T.navy,color:"#fff",padding:15,fontFamily:FONT_DISPLAY,fontSize:19}}>Project-wise Task Assignment</div><div style={{padding:16}}><div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,marginBottom:14}}>Select one project, then assign each task type once. The selected team member will be applied to every open task of that type in this project.</div><Field label="PROJECT"><select value={bulkProjectId} onChange={e=>{setBulkProjectId(e.target.value);setBulkAssignments({});}} style={inputStyle}>{bulkProjects.map(p=><option key={p.id} value={p.id}>{p.no||p.projectNo||"—"} — {p.name}</option>)}</select></Field>{bulkTaskGroups.length===0?<div style={{fontFamily:FONT_BODY,color:T.inkDim,padding:"14px 0"}}>No open WIH tasks for this project.</div>:<div style={{border:`1px solid ${T.line}`}}>{bulkTaskGroups.map(g=><div key={g.title} style={{display:"grid",gridTemplateColumns:"1.4fr 90px 1fr",gap:10,alignItems:"center",padding:"11px 12px",borderBottom:`1px solid ${T.line}`,background:"#fff"}}><div><div style={{fontFamily:FONT_BODY,fontWeight:700,fontSize:13}}>{g.title}</div><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim}}>{g.tasks.length} open task{g.tasks.length===1?"":"s"}</div></div><div style={{fontFamily:FONT_MONO,fontSize:11,color:T.inkDim}}>{[...new Set(g.tasks.map(t=>t.floor).filter(Boolean))].join(", ")||"—"}</div><select value={bulkAssignments[g.title]||""} onChange={e=>setBulkAssignments(x=>({...x,[g.title]:e.target.value}))} style={{...inputStyle,padding:"7px 8px",fontSize:12}}><option value="">Keep current / unassigned</option>{people.map(n=><option key={n}>{n}</option>)}</select></div>)}</div>}<div style={{marginTop:12,fontFamily:FONT_MONO,fontSize:11,color:T.inkDim}}>{bulkProjectTasks.length} total open task{bulkProjectTasks.length===1?"":"s"} in selected project.</div></div><div style={{padding:14,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}><button disabled={bulkSaving} onClick={()=>setBulkAssignOpen(false)} style={{...smallBtn,background:"#fff"}}>Cancel</button><button disabled={bulkSaving||!bulkTaskGroups.length} onClick={saveBulkAssignments} style={{...smallBtn,background:T.navy,color:"#fff",padding:"9px 14px"}}>{bulkSaving?"SAVING…":"SAVE PROJECT ASSIGNMENTS"}</button></div></div></div>}
     {completeEditor&&<div style={{position:"fixed",inset:0,zIndex:14000,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}><div style={{width:"min(650px,96vw)",background:T.paper,border:`1px solid ${T.line}`}}><div style={{background:T.navy,color:"#fff",padding:14,fontFamily:FONT_DISPLAY,fontSize:18}}>Complete WIH Task · {completeEditor.task.designNo||completeEditor.task.title}</div><div style={{padding:16}}><Field label={completeEditor.task.completionUploadRequired===false?"Output / meeting record (optional)":"Completed drawing / output file *"}><input type="file" style={{...inputStyle,padding:8}} onChange={e=>setCompleteEditor(x=>({...x,file:e.target.files?.[0]||null}))}/></Field><Field label="Actual time taken (hours) *"><input type="number" min="0.01" step="0.25" value={completeEditor.actualHours} onChange={e=>setCompleteEditor(x=>({...x,actualHours:e.target.value}))} style={inputStyle}/></Field><Field label="Completion remarks"><textarea value={completeEditor.notes} onChange={e=>setCompleteEditor(x=>({...x,notes:e.target.value}))} style={{...inputStyle,minHeight:70}}/></Field></div><div style={{padding:14,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}><button onClick={()=>setCompleteEditor(null)} style={{...smallBtn,background:"#fff"}}>Cancel</button><button onClick={finish} style={{...smallBtn,background:T.navy,color:"#fff"}}>Upload & Complete Task</button></div></div></div>}
@@ -5800,7 +5820,7 @@ function SettingsView({ state, persist }) {
   const moveDrawingTask=(i,k,d)=>setDrawingTemplates(x=>x.map((t,j)=>{if(j!==i)return t;const a=[...(t.tasks||[])],z=k+d;if(z<0||z>=a.length)return t;[a[k],a[z]]=[a[z],a[k]];return {...t,tasks:a};}));
   const set = (k,v)=>setForm(f=>({...f,[k]:v}));
   return <div>
-    <div style={{marginBottom:20}}><h2 style={{fontFamily:FONT_DISPLAY,fontSize:24,margin:"0 0 5px"}}>Team Master</h2><div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim}}>Enter each employee once. The Gmail ID is the login identity. Set <b>App Access = Admin</b> for administrators; active team members automatically become selectable in Responsible Person / Assignee dropdowns.</div></div>
+    <div style={{marginBottom:20}}><h2 style={{fontFamily:FONT_DISPLAY,fontSize:24,margin:"0 0 5px"}}>Team Master</h2><div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim}}>Enter each employee once. The Gmail ID is the login identity. Set <b>App Access = Admin</b> for administrators; User = Projects view only + own WIH editing; Viewer = Projects + own WIH view only. Active team members automatically become selectable in Responsible Person / Assignee dropdowns.</div></div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:20}}>
       {[["Department Master",departments,newDepartment,setNewDepartment,"department"],["Designation / Role Master",designations,newDesignation,setNewDesignation,"designation"]].map(([title,items,newValue,setNewValue,kind])=>
         <div key={kind} style={{background:"#fff",border:`1px solid ${T.line}`,padding:14}}>
@@ -5861,7 +5881,7 @@ const NAV = [
   { id: "settings", label: "Team & Tasks", icon: Settings2, group: "ADMIN" },
 ];
 
-export default function App() {
+function StudioApp() {
   const { state, loading, saveErr, backendErr, currentUser, persist } = useStudioState();
   const [view, setView] = useState("project");
 
@@ -5878,16 +5898,18 @@ export default function App() {
     return (
       <div style={{ minHeight: 560, background: T.paper, display: "flex", alignItems: "center", justifyContent: "center", padding: 28, fontFamily: FONT_BODY }}>
         <div style={{ width: "min(620px, 94vw)", background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 28, boxShadow: "0 10px 30px rgba(8,25,45,.08)" }}>
-          <div style={{ fontFamily: FONT_MONO, fontSize: 10, letterSpacing: ".12em", color: T.cyan }}>STUDIO TRACKER · ADMIN ACCESS</div>
-          <h2 style={{ fontFamily: FONT_DISPLAY, margin: "8px 0 8px", color: T.ink }}>Admin access required</h2>
-          <div style={{ color: T.inkDim, fontSize: 13, lineHeight: 1.6 }}>{backendErr || "Your Gmail ID is not authorised for the Admin panel."}</div>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 10, letterSpacing: ".12em", color: T.cyan }}>STUDIO TRACKER · ACCOUNT ACCESS</div>
+          <h2 style={{ fontFamily: FONT_DISPLAY, margin: "8px 0 8px", color: T.ink }}>Account access required</h2>
+          <div style={{ color: T.inkDim, fontSize: 13, lineHeight: 1.6 }}>{backendErr || "Your Google account is not registered or does not have access."}</div>
           {currentUser?.email && <div style={{ marginTop: 14, padding: 12, background: T.paperDim, border: `1px solid ${T.line}`, fontFamily: FONT_MONO, fontSize: 12 }}>{currentUser.email}</div>}
-          <div style={{ marginTop: 16, fontSize: 12, color: T.inkDim }}>Add this Gmail ID in <b>Team & Tasks → Team Master</b> and set <b>App Access = Admin</b> and <b>Status = Active</b>.</div>
+          <div style={{ marginTop: 16, fontSize: 12, color: T.inkDim }}>Add this Gmail ID in <b>Team & Tasks → Team Master</b> and set the appropriate <b>App Access</b> and <b>Status = Active</b>.</div>
         </div>
       </div>
     );
   }
 
+  const isAdmin=currentUser?.appAccess?.toLowerCase()==="admin";
+  const allowedNav=isAdmin?NAV:NAV.filter(n=>["project","timesheet"].includes(n.id));
   const pendingCount = state.intakes.filter((i) => !i.classified).length;
   const viewLabel = NAV.find((n) => n.id === view)?.label;
 
@@ -5904,10 +5926,10 @@ export default function App() {
           </div>
           <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.cyan, opacity: 0.7, marginTop: 4 }}>lighting design · intake → task → timesheet</div>
         </div>
-        {NAV.map((n, idx) => {
+        {allowedNav.map((n, idx) => {
           const Icon = n.icon;
           const active = view === n.id;
-          const showGroup = idx === 0 || NAV[idx - 1].group !== n.group;
+          const showGroup = idx === 0 || allowedNav[idx - 1].group !== n.group;
           return (
             <React.Fragment key={n.id}>
               {showGroup && <div style={{ padding: "10px 20px 5px", fontFamily: FONT_MONO, fontSize: 9, letterSpacing: "0.12em", color: T.cyan, opacity: 0.6 }}>{n.group}</div>}
@@ -5929,7 +5951,7 @@ export default function App() {
           );
         })}
         <div style={{ padding: "20px", marginTop: 20, fontFamily: FONT_MONO, fontSize: 10, color: T.cyan, opacity: 0.7 }}>
-          <div style={{ marginBottom: 6 }}>ADMIN · {currentUser?.name || "Admin"}</div>
+          <div style={{ marginBottom: 6 }}>{currentUser?.appAccess} · {currentUser?.name || ""}</div>
           <div style={{ opacity: 0.7, wordBreak: "break-all" }}>{currentUser?.email || ""}</div>
           <div style={{ marginTop: 10, opacity: 0.6 }}>enLIGHTen OS · project → scope → team → line of work → WIH</div>
         </div>
@@ -5949,20 +5971,57 @@ export default function App() {
           </div>
         )}
         <div style={{ padding: "28px 32px", overflowY: "auto" }}>
-          {view === "project" && <ProjectView state={state} persist={persist} />}
-          {view === "designLineOfWork" && <DesignLineOfWorkView state={state} persist={persist} />}
-          {view === "design" && <DesignFlowView state={state} persist={persist} />}
+          {view === "project" && (isAdmin?<ProjectView state={state} persist={persist} />:<MemberProjectsView state={state}/>)}
+          {isAdmin && view === "designLineOfWork" && <DesignLineOfWorkView state={state} persist={persist} />}
+          {isAdmin && view === "design" && <DesignFlowView state={state} persist={persist} />}
           
-          {view === "dashboard" && <DashboardView state={state} persist={persist} />}
-          {view === "upload" && <UploadView state={state} persist={persist} />}
-          {view === "classify" && <ClassifyView state={state} persist={persist} />}
+          {isAdmin && view === "dashboard" && <DashboardView state={state} persist={persist} />}
+          {isAdmin && view === "upload" && <UploadView state={state} persist={persist} />}
+          {isAdmin && view === "classify" && <ClassifyView state={state} persist={persist} />}
           {view === "timesheet" && <TimesheetView state={state} persist={persist} />}
-          {view === "meetings" && <MeetingsView state={state} persist={persist} />}
-          {view === "executionMain" && <ExecutionMainView state={state} persist={persist} />}
-          {view === "site" && <SitePunchInView state={state} persist={persist} />}
-          {view === "settings" && <SettingsView state={state} persist={persist} />}
+          {isAdmin && view === "meetings" && <MeetingsView state={state} persist={persist} />}
+          {isAdmin && view === "executionMain" && <ExecutionMainView state={state} persist={persist} />}
+          {isAdmin && view === "site" && <SitePunchInView state={state} persist={persist} />}
+          {isAdmin && view === "settings" && <SettingsView state={state} persist={persist} />}
         </div>
       </div>
     </div>
   );
+}
+
+function MemberProjectsView({state}) {
+  const projects=state.projects||[];
+  const [selected,setSelected]=useState(projects[0]?.id||'');
+  const [tab,setTab]=useState('scope');
+  const p=projects.find(p=>String(p.id)===String(selected))||projects[0];
+  if(!p)return <div>No projects available.</div>;
+  const workflow=p.lineOfWorkResidence||p.lineOfWork||[];
+  return <div>
+    <div style={{display:'flex',justifyContent:'space-between',gap:12,flexWrap:'wrap',marginBottom:18}}><div><h2 style={{fontFamily:FONT_DISPLAY,margin:0}}>Projects</h2><div style={{fontSize:12,color:T.inkDim,marginTop:6}}>View only · Project information, contacts and planned work</div></div><select aria-label="View project" style={{...inputStyle,minWidth:260}} value={p.id} onChange={e=>setSelected(e.target.value)}>{projects.map(x=><option key={x.id} value={x.id}>{x.no} · {x.name}</option>)}</select></div>
+    <div style={{display:'flex',gap:8,marginBottom:16}}>{[['scope','Projects & Scope'],['team','Teams & Ratings'],['line','Line of Work']].map(([id,label])=><Btn key={id} variant={tab===id?'dark':'ghost'} onClick={()=>setTab(id)}>{label}</Btn>)}</div>
+    {tab==='scope'&&<><table style={{borderCollapse:'collapse',width:'100%'}}><tbody>{[['Project',p.name],['Number',p.no],['Client',p.client||p.contacts?.Owner?.name],['Architect',p.architect||p.contacts?.Architect?.name],['Address',p.address],['Type',p.type],['Status',p.status],['Start',p.startDate],['End',p.endDate]].map(([label,value])=><tr key={label}><td style={{...tdStyle,textAlign:'left',width:170,color:T.inkDim}}>{label}</td><td style={{...tdStyle,textAlign:'left'}}>{String(value??'—')}</td></tr>)}</tbody></table><div style={{marginTop:18,fontFamily:FONT_BODY,fontSize:13}}><strong>Project scope</strong><div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:10}}>{Object.entries(p.scope||{}).filter(([,v])=>v===true).map(([k])=><span key={k} style={{background:T.paperDim,padding:'7px 10px'}}>{k.replace(/_/g,' ')}</span>)}</div></div></>}
+    {tab==='team'&&<>{ROLE_CATEGORIES.map(({category,roles})=>{const entries=roles.filter(r=>p.contacts?.[r]);return entries.length?<div key={category} style={{marginBottom:20}}><div style={{fontFamily:FONT_MONO,color:categoryColor(category),marginBottom:8}}>{category}</div><table style={{width:'100%',borderCollapse:'collapse'}}><tbody>{entries.map(r=><tr key={r}>{[r,p.contacts[r].name,p.contacts[r].email,p.contacts[r].mobile].map((v,i)=><td key={i} style={{...tdStyle,textAlign:'left'}}>{String(v??'—')||'—'}</td>)}</tr>)}</tbody></table></div>:null;})}</>}
+    {tab==='line'&&<>{workflowGroups(workflow.filter(r=>String(r.workflowVersion)==='1')).map(g=><details key={g.first.lineWorkId||g.first.id} open style={{border:`1px solid ${T.line}`,marginBottom:12}}><summary style={{padding:12,background:T.paperDim}}><strong>{g.first.milestone}</strong> · {g.first.tasks}</summary><table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Step','Subtask','Responsible','Estimated hours'].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{g.rows.map((r,i)=><tr key={r.lineWorkId||r.id}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{r.subtask}</td><td style={tdStyle}>{r.responsible||'Unassigned'}</td><td style={tdStyle}>{r.hours||'—'}</td></tr>)}</tbody></table></details>)}{!workflow.some(r=>String(r.workflowVersion)==='1')&&<div style={{color:T.inkDim}}>The admin has not saved the detailed workflow for this project.</div>}</>}
+  </div>;
+}
+let AUTH_ID_TOKEN='';
+function clearStudioCaches(){try{for(let i=localStorage.length-1;i>=0;i--){const k=localStorage.key(i);if(k&&/enlighten/i.test(k))localStorage.removeItem(k);}}catch(_){}}
+export default function App(){
+  const [token,setToken]=useState('');
+  const [config,setConfig]=useState(null);
+  const [error,setError]=useState('');
+  const buttonRef=useRef(null);
+  const signOut=()=>{AUTH_ID_TOKEN='';clearStudioCaches();setToken('');window.google?.accounts?.id?.disableAutoSelect();};
+  useEffect(()=>{const expired=()=>{signOut();setError('Your sign-in expired. Sign in again.');};window.addEventListener('enlighten-auth-expired',expired);fetch('/api?action=authConfig').then(r=>r.json()).then(r=>{if(!r.data?.clientId)throw Error('Admin setup required: configure GOOGLE_CLIENT_ID in Vercel.');setConfig(r.data);}).catch(e=>setError(e.message));return()=>window.removeEventListener('enlighten-auth-expired',expired);},[]);
+  useEffect(()=>{
+    if(!config||token)return;
+    let active=true;
+    const renderButton=()=>{if(!active||!buttonRef.current)return;window.google.accounts.id.initialize({client_id:config.clientId,auto_select:false,callback:response=>{if(!active||!response.credential)return;AUTH_ID_TOKEN=response.credential;clearStudioCaches();setError('');setToken(response.credential);}});window.google.accounts.id.renderButton(buttonRef.current,{theme:'outline',size:'large',width:280,text:'signin_with'});};
+    if(window.google?.accounts?.id){renderButton();return()=>{active=false;};}
+    let script=document.getElementById('enlighten-google-login');if(!script){script=document.createElement('script');script.id='enlighten-google-login';script.src='https://accounts.google.com/gsi/client';script.async=true;document.head.appendChild(script);}
+    script.addEventListener('load',renderButton);const failed=()=>setError('Google sign-in could not load. Check your connection.');script.addEventListener('error',failed);
+    return()=>{active=false;script.removeEventListener('load',renderButton);script.removeEventListener('error',failed);};
+  },[config,token]);
+  if(token)return <><div style={{background:T.navy,color:'#fff',padding:'8px 18px',display:'flex',justifyContent:'space-between',fontFamily:FONT_BODY,fontSize:12}}><span>Signed in with Google</span><button onClick={signOut} style={{...smallBtn,background:'#fff'}}>Sign out / switch account</button></div><StudioApp/></>;
+  return <div style={{minHeight:'90vh',background:T.paper,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:FONT_BODY,padding:24}}><div style={{background:'#fff',border:`1px solid ${T.line}`,padding:32,width:360,maxWidth:'100%'}}><h1 style={{fontFamily:FONT_DISPLAY,color:T.navy,fontSize:24}}>enLIGHTen OS</h1><p style={{fontSize:13,color:T.inkDim,lineHeight:1.6}}>Sign in with the Google account registered in Team Master.</p><div ref={buttonRef}/>{!config&&!error&&<p>Loading sign-in…</p>}{error&&<p role="alert" style={{fontSize:12,color:T.redline}}>{error}</p>}</div></div>;
 }

@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.11.14-area-workflow",
+  "version": "2.11.15-team-permissions",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,7 +11,8 @@
   "dependencies": {
     "lucide-react": "0.468.0",
     "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "react-dom": "18.3.1",
+    "google-auth-library": "^10.0.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "4.3.4",
