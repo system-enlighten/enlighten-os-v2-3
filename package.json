@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.11.13-windows-api-fix",
+  "version": "2.11.14-area-workflow",
   "type": "module",
   "scripts": {
     "dev": "vite",
