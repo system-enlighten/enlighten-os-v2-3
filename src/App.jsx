@@ -2330,7 +2330,7 @@ function blankContacts() {
 // Stable key for a contact — used to attach a rating that survives even
 // though the directory itself is rebuilt fresh from project data each time.
 function contactKey(name, mobile) {
-  return ((name || "").trim() + "|" + (mobile || "").trim()).toLowerCase();
+  return (String(name ?? "").trim() + "|" + String(mobile ?? "").trim()).toLowerCase();
 }
 
 // Builds the vendor/contractor/designer directory by de-duplicating every
@@ -2340,13 +2340,13 @@ function contactKey(name, mobile) {
 // looked up separately since they're something you add after the fact.
 function buildDirectory(projects, ratings) {
   const byKey = new Map();
-  projects.forEach((p) => {
+  (Array.isArray(projects) ? projects : []).filter(Boolean).forEach((p) => {
     const contacts = p.contacts || {};
     Object.entries(contacts).forEach(([role, c]) => {
-      if (!c || !c.name || !c.name.trim()) return;
+      if (!c || !String(c.name ?? "").trim()) return;
       const key = contactKey(c.name, c.mobile);
       if (!byKey.has(key)) {
-        byKey.set(key, { key, name: c.name.trim(), email: c.email || "", mobile: c.mobile || "", roles: new Set(), projects: [] });
+        byKey.set(key, { key, name: String(c.name ?? "").trim(), email: String(c.email ?? ""), mobile: String(c.mobile ?? ""), company: String(c.company ?? ""), roles: new Set(), projects: [] });
       }
       const entry = byKey.get(key);
       entry.roles.add(role);
@@ -2454,7 +2454,11 @@ const projectApi = {
   complete: projectId => apiRequest("completeProject", { projectId }),
   listContacts: projectId => apiRequest("listProjectContacts", projectId ? { projectId } : {}, "GET"),
   saveContacts: (projectId, contacts) => apiRequest("saveProjectContacts", { projectId, contacts }),
+  getWorkflowCapabilities: () => apiRequest("getWorkflowCapabilities",{},"GET"),
   listLineOfWork: projectId => apiRequest("listLineOfWork", projectId ? { projectId } : {}, "GET"),
+  skipWorkflowSubtask: designTaskId => apiRequest("skipWorkflowSubtask",{designTaskId}),
+  acknowledgeWorkflowDrawing: designTaskId => apiRequest("acknowledgeWorkflowDrawing",{designTaskId}),
+  queueWorkflowTask: payload => apiRequest("queueWorkflowTask", payload),
   saveLineOfWork: (projectId, rows) => apiRequest("saveLineOfWork", { projectId, rows }),
   listFloorZones: projectId => apiRequest("listFloorZones", projectId ? { projectId } : {}, "GET"),
   saveFloorZones: (projectId, rows) => apiRequest("saveFloorZones", { projectId, rows }),
@@ -2484,25 +2488,20 @@ function contactCategoryForRole(role) {
 }
 
 function contactsObjectToRows(project, contacts) {
-  return Object.entries(contacts || {}).filter(([,c]) => c && (c.name || "").trim()).map(([role,c]) => ({
-    projectId: project.id,
-    projectNo: project.no || "",
-    projectName: project.name || "",
-    category: contactCategoryForRole(role),
-    role,
-    name: (c.name || "").trim(),
-    email: (c.email || "").trim(),
-    mobile: String(c.mobile ?? "").trim(),
-    company: (c.company || "").trim(),
-    rating: c.rating || ""
+  return Object.entries(contacts || {}).filter(([,c]) => c && String(c.name ?? "").trim()).map(([role,c]) => ({
+    projectId: project.id, projectNo: project.no || "", projectName: project.name || "",
+    category: contactCategoryForRole(role), role,
+    name: String(c.name ?? "").trim(), email: String(c.email ?? "").trim(),
+    mobile: String(c.mobile ?? "").trim(), company: String(c.company ?? "").trim(), rating: c.rating || ""
   }));
 }
 
 function contactRowsToObject(rows) {
   const out = {};
-  (rows || []).forEach(r => {
-    if (!r?.role || !r?.name) return;
-    out[r.role] = {name:r.name||"", email:r.email||"", mobile:r.mobile||"", company:r.company||"", rating:r.rating||""};
+  (Array.isArray(rows) ? rows : []).forEach(r => {
+    if (!r?.role || !String(r.name ?? "").trim()) return;
+    out[String(r.role)] = {...r, name:String(r.name ?? ""), email:String(r.email ?? ""),
+      mobile:String(r.mobile ?? ""), company:String(r.company ?? ""), rating:r.rating || ""};
   });
   return out;
 }
@@ -3016,7 +3015,7 @@ function ClassifyView({ state, persist }) {
   const intake = state.intakes.find((i) => i.id === selectedId);
   const lockedDrawingType = canonicalDrawingType(intake?.drawingType || drawingType);
   const project = intake && state.projects.find((p) => p.id === intake.projectId);
-  const letters = project ? sortedZoneLetters(project).filter(z => !intake?.floor || String(project.zones?.[z]?.floor||"") === String(intake.floor)) : [];
+  const letters = project ? sortedZoneLetters(project) : [];
 
   const submit = async () => {
     if (!selectedId || zones.length === 0 || !lockedDrawingType) return;
@@ -3038,9 +3037,13 @@ function ClassifyView({ state, persist }) {
 
     try {
       const areaNames = zones.map(z => project.zones?.[z]?.room || z);
+      if(new Set(zones.map(z=>project.zones?.[z]?.floor||intake.floor)).size>1){
+        let capabilities;try{capabilities=await projectApi.getWorkflowCapabilities();}catch(_){throw new Error("Install the updated Apps Script backend before classifying a package across multiple floors.");}
+        if(!capabilities?.multiFloorCoverage)throw new Error("The connected backend does not support multi-floor drawing packages.");
+      }
       const saved = await projectApi.classifyDrawing({
         drawingId: selectedId, projectId: project.id, floor: intake.floor,
-        areas: areaNames, drawingType:lockedDrawingType
+        areas: areaNames, coverage:zones.map(z=>({floor:project.zones?.[z]?.floor||intake.floor,area:project.zones?.[z]?.room||z})), drawingType:lockedDrawingType
       });
       const backendTasks = Array.isArray(saved?.tasks) ? saved.tasks.map(t => ({
         id:t.designTaskId||uid(), designTaskId:t.designTaskId, designNo:t.designNo,
@@ -3058,6 +3061,8 @@ function ClassifyView({ state, persist }) {
   };
 
   const activeTemplate = state.templates.find((t) => drawingTypeKey(t.drawingType) === drawingTypeKey(lockedDrawingType));
+  const workflowTriggers = [...new Map((project?.lineOfWorkResidence||project?.lineOfWork||[]).filter(r=>String(r.workflowVersion)==="1"&&r.scope!=="Project"&&drawingTypeKey(r.triggerDrawingType)===drawingTypeKey(lockedDrawingType)).filter((r,i,all)=>all.findIndex(x=>x.triggerTaskType===r.triggerTaskType)===i).map(r=>[r.triggerTaskType,{title:r.triggerTaskType,assignee:r.responsible||"Unassigned"}])).values()];
+  const previewTasks = [...(activeTemplate?.tasks||[]),...workflowTriggers.filter(t=>!(activeTemplate?.tasks||[]).some(x=>x.title===t.title))].map(t=>({...t,assignee:workflowTriggers.find(x=>x.title===t.title)?.assignee||t.assignee}));
 
   if (pending.length === 0) {
     return (
@@ -3095,7 +3100,7 @@ function ClassifyView({ state, persist }) {
         <div style={{ fontFamily: FONT_BODY, fontSize: 13, color: T.inkDim, marginBottom: 6 }}><strong>{project?.no || "—"} — {project?.name || "Unknown project"}</strong></div>
         <div style={{ fontFamily: FONT_BODY, fontSize: 13, color: T.inkDim, marginBottom: 20 }}>{intake?.fileName} · Uploaded {fmtDateTime(intake?.uploadedAt || intake?.createdAt || intake?.date)}</div>
 
-        <Field label={`Zone(s) — select which lettered zones this drawing covers`}>
+        <Field label={`Zone(s) — select every floor / area this drawing package covers`}>
           {letters.length === 0 ? (
             <div style={{ fontFamily: FONT_BODY, fontSize: 13, color: T.redline, background: T.redlineBg, padding: "10px 12px", borderRadius: 6 }}>
               This project has no zones mapped yet on the Floor | Zone sheet — add its floor/zone breakdown there first.
@@ -3120,10 +3125,10 @@ function ClassifyView({ state, persist }) {
           <div style={{fontFamily:FONT_MONO,fontSize:10,color:T.green,marginTop:5}}>LOCKED FROM UPLOAD — select Zone / Area below/above to classify.</div>
         </Field>
 
-        {activeTemplate && (
+        {previewTasks.length > 0 && (
           <div style={{ background: T.paperDim, border: `1px solid ${T.line}`, borderRadius: 8, padding: "12px 14px", marginBottom: 20 }}>
             <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: T.inkDim, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.06em" }}>Will auto-open</div>
-            {activeTemplate.tasks.map((t, idx) => (
+            {previewTasks.map((t, idx) => (
               <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontFamily: FONT_BODY, fontSize: 13, padding: "4px 0" }}>
                 <span>{t.title}</span>
                 <span style={{ color: T.blue, fontFamily: FONT_MONO, fontSize: 12 }}>{t.assignee}</span>
@@ -3147,7 +3152,7 @@ function ClassifyView({ state, persist }) {
 function TimesheetView({ state, persist }) {
   const [person, setPerson] = useState("All");
   const [taskSection, setTaskSection] = useState("Pending");
-  const WIH_CACHE_KEY = "enlighten_wih_cache_v2108";
+  const WIH_CACHE_KEY = "enlighten_wih_cache_workflow_v21114";
   const WIH_CACHE_MS = 30000;
   const readWihCache = () => {
     try {
@@ -3211,9 +3216,9 @@ function TimesheetView({ state, persist }) {
           const key=taskId||designNo;
           const existing=byId.get(key)||base.find(x=>String(x?.task?.designNo||"")===designNo);
           if(existing){
-            byId.set(key,{...existing,designTaskId:taskId||existing.designTaskId,projectId:p.id,task:{...(existing.task||{}),taskType:d.title,projectName:p.name,floor:r.floor||existing.task?.floor||"",area:r.area||existing.task?.area||"",dependencyDrawingType:d.drawingType,designNo:designNo||existing.task?.designNo||"",status:r?.[d.st]||existing.task?.status||existing.status||"Not Started"},status:r?.[d.st]||existing.status||existing.task?.status||"Not Started"});
+            byId.set(key,{...existing,designTaskId:taskId||existing.designTaskId,projectId:p.id,task:{...(existing.task||{}),taskType:existing.task?.taskType || d.title,projectName:p.name,floor:r.floor||existing.task?.floor||"",area:r.area||existing.task?.area||"",dependencyDrawingType:d.drawingType,designNo:designNo||existing.task?.designNo||"",status:r?.[d.st]||existing.task?.status||existing.status||"Not Started"},status:r?.[d.st]||existing.status||existing.task?.status||"Not Started"});
           }else{
-            byId.set(key,{designTaskId:taskId||key,projectId:p.id,assigneeName:"",totalMinutes:0,status:String(r?.[d.st]||"Not Started"),task:{taskType:d.title,projectName:p.name,floor:r.floor||"",area:r.area||"",dependencyDrawingType:d.drawingType,designNo:designNo||key,status:String(r?.[d.st]||"Not Started")}});
+            byId.set(key,{designTaskId:taskId||key,projectId:p.id,assigneeName:"",totalMinutes:0,status:String(r?.[d.st]||"Not Started"),task:{taskType:existing.task?.taskType || d.title,projectName:p.name,floor:r.floor||"",area:r.area||"",dependencyDrawingType:d.drawingType,designNo:designNo||key,status:String(r?.[d.st]||"Not Started")}});
           }
         }));
       });
@@ -3245,6 +3250,10 @@ function TimesheetView({ state, persist }) {
     designTaskId:r.designTaskId,
     projectId:r.projectId,
     title:r.task?.taskType||"Design Task",
+    optional:r.task?.optional===true||String(r.task?.optional)==="true",
+    drawingReviewRequired:r.task?.drawingReviewRequired===true||String(r.task?.drawingReviewRequired)==="true",
+    milestone:r.task?.milestone||"", parentTask:r.task?.parentTask||"", parentDesignTaskId:r.task?.parentDesignTaskId||"",
+    predecessorTaskId:r.task?.predecessorTaskId||"", completionUploadRequired:r.completionUploadRequired !== false && String(r.completionUploadRequired)!=="false",
     projectName:(state.projects||[]).find(p=>String(p.id)===String(r.projectId))?.name||r.task?.projectName||"",
     floor:r.task?.floor||"",
     area:r.task?.area||"",
@@ -3257,6 +3266,7 @@ function TimesheetView({ state, persist }) {
   const isDone=s=>/completed|done/i.test(String(s));
   const isProgress=s=>/in progress/i.test(String(s));
   const isPaused=s=>/paused/i.test(String(s));
+  const isBlocked=s=>/blocked/i.test(String(s));
   const sectionCounts={
     Pending:displayTasks.filter(t=>!isDone(t.status)&&!!t.assignee).length,
     Completed:displayTasks.filter(t=>isDone(t.status)).length,
@@ -3304,20 +3314,20 @@ function TimesheetView({ state, persist }) {
   const action=async(t,kind)=>{
     if(!t.designTaskId)return;
     setBusyId(t.designTaskId);
-    try{if(kind==="start")await projectApi.startTask(t.designTaskId);if(kind==="pause")await projectApi.pauseTask(t.designTaskId);if(kind==="resume")await projectApi.resumeTask(t.designTaskId );await refresh(true);}
+    try{if(kind==="start")await projectApi.startTask(t.designTaskId);if(kind==="pause")await projectApi.pauseTask(t.designTaskId);if(kind==="resume")await projectApi.resumeTask(t.designTaskId );if(kind==="review")await projectApi.acknowledgeWorkflowDrawing(t.designTaskId);if(kind==="skip")await projectApi.skipWorkflowSubtask(t.designTaskId);await refresh(true);}
     catch(e){alert(`Task update failed: ${e?.message||e}`);}finally{setBusyId("");}
   };
   const fileToBase64=f=>new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result||"").split(",")[1]||"");r.onerror=reject;r.readAsDataURL(f);});
   const finish=async()=>{
-    const x=completeEditor;if(!x?.file)return alert("Please upload the completed drawing/file.");
+    const x=completeEditor;if(!x)return; if(x.task.completionUploadRequired!==false&&!x.file)return alert("Please upload the completed drawing/file.");
     const hrs=Number(x.actualHours);if(!hrs||hrs<=0)return alert("Please enter actual time taken in hours.");
     setBusyId(x.task.designTaskId);
-    try{const fileBase64=await fileToBase64(x.file);await projectApi.completeTask({designTaskId:x.task.designTaskId,fileName:x.file.name,mimeType:x.file.type||"application/octet-stream",fileBase64,actualHours:hrs,notes:x.notes||""});setCompleteEditor(null );await refresh(true);}
+    try{const upload=x.file?{fileName:x.file.name,mimeType:x.file.type||"application/octet-stream",fileBase64:await fileToBase64(x.file)}:{};await projectApi.completeTask({designTaskId:x.task.designTaskId,...upload,actualHours:hrs,notes:x.notes||""});setCompleteEditor(null );await refresh(true);}
     catch(e){alert(`Task completion failed: ${e?.message||e}`);}finally{setBusyId("");}
   };
   return <div>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18,flexWrap:"wrap",gap:10}}>
-      <div><h2 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:0,color:T.ink}}>WIH Sheet</h2><div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,marginTop:4}}>Assigned drawing tasks appear here. Completion requires output upload + actual time taken. <span style={{fontFamily:FONT_MONO,fontSize:10,color:syncingRemote?T.orange:T.green}}>{syncingRemote?"• Syncing Google Sheets…":"• Synced"}</span></div></div>
+      <div><h2 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:0,color:T.ink}}>WIH Sheet</h2><div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,marginTop:4}}>Assigned area tasks and workflow subtasks appear here. Starting a parent task opens its subtasks; the next subtask unlocks after completion. <span style={{fontFamily:FONT_MONO,fontSize:10,color:syncingRemote?T.orange:T.green}}>{syncingRemote?"• Syncing Google Sheets…":"• Synced"}</span></div></div>
     </div>
     <div style={{background:"#fff",border:`1px solid ${T.line}`,borderRadius:8,padding:"12px 14px",marginBottom:14}}>
       <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>
@@ -3333,14 +3343,14 @@ function TimesheetView({ state, persist }) {
     {loadingRemote&&remoteTasks.length===0&&<div style={{fontFamily:FONT_BODY,color:T.inkDim,padding:"10px 0"}}>Loading WIH tasks for the first time…</div>}
     {!loadingRemote&&tasks.length===0&&<div style={{color:T.inkDim,fontFamily:FONT_BODY,fontSize:13,padding:"20px 0"}}>No WIH tasks yet. Received drawings create tasks automatically.</div>}
     <div style={{display:"flex",flexDirection:"column",gap:8}}>{tasks.map(t=><div key={t.id} style={{background:"#fff",border:`1px solid ${T.line}`,borderRadius:8,padding:"12px 14px",display:"grid",gridTemplateColumns:"1.5fr 1fr 150px 90px 230px",gap:10,alignItems:"center"}}>
-      <div><div style={{fontFamily:FONT_BODY,fontSize:13,fontWeight:700}}>{t.title}</div><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginTop:3}}>{t.projectName} · {t.floor||"—"} · {t.area||"—"} · {t.drawingType||"—"}</div>{t.designNo&&<div style={{fontFamily:FONT_MONO,fontSize:11,color:T.blue,fontWeight:800,marginTop:3}}>{t.designNo}</div>}</div>
+      <div><div style={{fontFamily:FONT_BODY,fontSize:13,fontWeight:700}}>{t.title}</div>{t.milestone&&<div style={{fontFamily:FONT_BODY,fontSize:11,color:T.blue,marginTop:3}}>{t.milestone} → {t.parentTask}</div>}{t.drawingReviewRequired&&<div style={{fontSize:11,color:T.orange,marginTop:3}}>Additional / revised drawing received — review scope</div>}{isBlocked(t.status)&&<div style={{fontSize:11,color:T.inkDim,marginTop:3}}>Waiting for preceding subtask</div>}<div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginTop:3}}>{t.projectName} · {t.floor||"—"} · {t.area||"—"} · {t.drawingType||"—"}</div>{t.designNo&&<div style={{fontFamily:FONT_MONO,fontSize:11,color:T.blue,fontWeight:800,marginTop:3}}>{t.designNo}</div>}</div>
       <select disabled={!t.designTaskId||busyId===t.designTaskId||isDone(t.status)} value={t.assignee||""} onChange={e=>assign(t,e.target.value)} style={{...inputStyle,padding:"7px 8px",fontSize:12}}><option value="">Assign team member</option>{people.map(n=><option key={n}>{n}</option>)}</select>
-      <StatusPill status={isDone(t.status)?"Done":isProgress(t.status)?"In progress":"To do"}/>
+      <StatusPill status={isDone(t.status)?"Done":isBlocked(t.status)?"Blocked":isProgress(t.status)?"In progress":"To do"}/>
       <div style={{fontFamily:FONT_MONO,fontSize:12}}>{Number(t.hours||0).toFixed(2)} h</div>
-      <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{!isDone(t.status)&&!isProgress(t.status)&&!isPaused(t.status)&&<button disabled={!t.assignee||busyId===t.designTaskId} onClick={()=>action(t,"start")} style={smallBtn}>START</button>}{isProgress(t.status)&&<button disabled={busyId===t.designTaskId} onClick={()=>action(t,"pause")} style={smallBtn}>PAUSE</button>}{isPaused(t.status)&&<button disabled={busyId===t.designTaskId} onClick={()=>action(t,"resume")} style={smallBtn}>RESUME</button>}{!isDone(t.status)&&<button disabled={!t.assignee||busyId===t.designTaskId} onClick={()=>setCompleteEditor({task:t,file:null,actualHours:t.hours||"",notes:""})} style={{...smallBtn,background:T.navy,color:"#fff"}}>COMPLETE / UPLOAD</button>}</div>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{t.optional&&!isDone(t.status)&&!isBlocked(t.status)&&<button disabled={busyId===t.designTaskId} onClick={()=>action(t,"skip")} style={smallBtn}>SKIP OPTIONAL STEP</button>}{t.drawingReviewRequired&&<button disabled={busyId===t.designTaskId} onClick={()=>action(t,"review")} style={smallBtn}>MARK DRAWING REVIEWED</button>}{!isDone(t.status)&&!isProgress(t.status)&&!isPaused(t.status)&&<button disabled={!t.assignee||busyId===t.designTaskId||isBlocked(t.status)} onClick={()=>action(t,"start")} style={smallBtn}>START</button>}{isProgress(t.status)&&<button disabled={busyId===t.designTaskId} onClick={()=>action(t,"pause")} style={smallBtn}>PAUSE</button>}{isPaused(t.status)&&<button disabled={busyId===t.designTaskId} onClick={()=>action(t,"resume")} style={smallBtn}>RESUME</button>}{!isDone(t.status)&&<button disabled={!t.assignee||busyId===t.designTaskId||isBlocked(t.status)} onClick={()=>setCompleteEditor({task:t,file:null,actualHours:t.hours||"",notes:""})} style={{...smallBtn,background:T.navy,color:"#fff"}}>COMPLETE / UPLOAD</button>}</div>
     </div>)}</div>
     {bulkAssignOpen&&<div style={{position:"fixed",inset:0,zIndex:13900,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}><div style={{width:"min(760px,96vw)",maxHeight:"88vh",overflow:"auto",background:T.paper,border:`1px solid ${T.line}`}}><div style={{background:T.navy,color:"#fff",padding:15,fontFamily:FONT_DISPLAY,fontSize:19}}>Project-wise Task Assignment</div><div style={{padding:16}}><div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,marginBottom:14}}>Select one project, then assign each task type once. The selected team member will be applied to every open task of that type in this project.</div><Field label="PROJECT"><select value={bulkProjectId} onChange={e=>{setBulkProjectId(e.target.value);setBulkAssignments({});}} style={inputStyle}>{bulkProjects.map(p=><option key={p.id} value={p.id}>{p.no||p.projectNo||"—"} — {p.name}</option>)}</select></Field>{bulkTaskGroups.length===0?<div style={{fontFamily:FONT_BODY,color:T.inkDim,padding:"14px 0"}}>No open WIH tasks for this project.</div>:<div style={{border:`1px solid ${T.line}`}}>{bulkTaskGroups.map(g=><div key={g.title} style={{display:"grid",gridTemplateColumns:"1.4fr 90px 1fr",gap:10,alignItems:"center",padding:"11px 12px",borderBottom:`1px solid ${T.line}`,background:"#fff"}}><div><div style={{fontFamily:FONT_BODY,fontWeight:700,fontSize:13}}>{g.title}</div><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim}}>{g.tasks.length} open task{g.tasks.length===1?"":"s"}</div></div><div style={{fontFamily:FONT_MONO,fontSize:11,color:T.inkDim}}>{[...new Set(g.tasks.map(t=>t.floor).filter(Boolean))].join(", ")||"—"}</div><select value={bulkAssignments[g.title]||""} onChange={e=>setBulkAssignments(x=>({...x,[g.title]:e.target.value}))} style={{...inputStyle,padding:"7px 8px",fontSize:12}}><option value="">Keep current / unassigned</option>{people.map(n=><option key={n}>{n}</option>)}</select></div>)}</div>}<div style={{marginTop:12,fontFamily:FONT_MONO,fontSize:11,color:T.inkDim}}>{bulkProjectTasks.length} total open task{bulkProjectTasks.length===1?"":"s"} in selected project.</div></div><div style={{padding:14,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}><button disabled={bulkSaving} onClick={()=>setBulkAssignOpen(false)} style={{...smallBtn,background:"#fff"}}>Cancel</button><button disabled={bulkSaving||!bulkTaskGroups.length} onClick={saveBulkAssignments} style={{...smallBtn,background:T.navy,color:"#fff",padding:"9px 14px"}}>{bulkSaving?"SAVING…":"SAVE PROJECT ASSIGNMENTS"}</button></div></div></div>}
-    {completeEditor&&<div style={{position:"fixed",inset:0,zIndex:14000,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}><div style={{width:"min(650px,96vw)",background:T.paper,border:`1px solid ${T.line}`}}><div style={{background:T.navy,color:"#fff",padding:14,fontFamily:FONT_DISPLAY,fontSize:18}}>Complete WIH Task · {completeEditor.task.designNo||completeEditor.task.title}</div><div style={{padding:16}}><Field label="Completed drawing / output file *"><input type="file" style={{...inputStyle,padding:8}} onChange={e=>setCompleteEditor(x=>({...x,file:e.target.files?.[0]||null}))}/></Field><Field label="Actual time taken (hours) *"><input type="number" min="0.01" step="0.25" value={completeEditor.actualHours} onChange={e=>setCompleteEditor(x=>({...x,actualHours:e.target.value}))} style={inputStyle}/></Field><Field label="Completion remarks"><textarea value={completeEditor.notes} onChange={e=>setCompleteEditor(x=>({...x,notes:e.target.value}))} style={{...inputStyle,minHeight:70}}/></Field></div><div style={{padding:14,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}><button onClick={()=>setCompleteEditor(null)} style={{...smallBtn,background:"#fff"}}>Cancel</button><button onClick={finish} style={{...smallBtn,background:T.navy,color:"#fff"}}>Upload & Complete Task</button></div></div></div>}
+    {completeEditor&&<div style={{position:"fixed",inset:0,zIndex:14000,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}><div style={{width:"min(650px,96vw)",background:T.paper,border:`1px solid ${T.line}`}}><div style={{background:T.navy,color:"#fff",padding:14,fontFamily:FONT_DISPLAY,fontSize:18}}>Complete WIH Task · {completeEditor.task.designNo||completeEditor.task.title}</div><div style={{padding:16}}><Field label={completeEditor.task.completionUploadRequired===false?"Output / meeting record (optional)":"Completed drawing / output file *"}><input type="file" style={{...inputStyle,padding:8}} onChange={e=>setCompleteEditor(x=>({...x,file:e.target.files?.[0]||null}))}/></Field><Field label="Actual time taken (hours) *"><input type="number" min="0.01" step="0.25" value={completeEditor.actualHours} onChange={e=>setCompleteEditor(x=>({...x,actualHours:e.target.value}))} style={inputStyle}/></Field><Field label="Completion remarks"><textarea value={completeEditor.notes} onChange={e=>setCompleteEditor(x=>({...x,notes:e.target.value}))} style={{...inputStyle,minHeight:70}}/></Field></div><div style={{padding:14,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}><button onClick={()=>setCompleteEditor(null)} style={{...smallBtn,background:"#fff"}}>Cancel</button><button onClick={finish} style={{...smallBtn,background:T.navy,color:"#fff"}}>Upload & Complete Task</button></div></div></div>}
   </div>;
 }
 
@@ -3630,7 +3640,7 @@ function ProjectOnboarding({ state, persist, selectedId, setSelectedId }) {
     if (!draft.name.trim()) return;
     const cleanContacts = {};
     Object.entries(draft.contacts).forEach(([role, c]) => {
-      if (c && (c.name || "").trim()) cleanContacts[role] = { name: c.name.trim(), email: (c.email || "").trim(), mobile: String(c.mobile ?? "").trim() };
+      if (c && (c.name || "").trim()) cleanContacts[role] = { name: c.name.trim(), email: (c.email || "").trim(), mobile: (c.mobile || "").trim() };
     });
     const ownerName = (cleanContacts.Owner?.name || "").trim();
     const architectName = (cleanContacts.Architect?.name || "").trim();
@@ -3832,97 +3842,76 @@ function ProjectScopeView({ state, persist, selectedId }) {
   </div>;
 }
 
-function ProjectTeamView({ state, persist, selectedId }) {
-  const [editingId,setEditingId]=useState("");
-  const [draft,setDraft]=useState({});
-  const [saving,setSaving]=useState(false);
-  const seen=new Set();
-  const projects=(state.projects||[]).filter(p=>{
-    if(p.completed)return false;
-    const k=String(p.id||p.no||p.name||"").trim().toLowerCase();
-    if(!k||seen.has(k))return false; seen.add(k); return true;
-  });
-  const project=projects.find(p=>String(p.id)===String(editingId));
-
-  const openEditor=(p)=>{
-    const c={...(p.contacts||{})};
-    if(!c.Owner?.name&&p.client)c.Owner={...(c.Owner||{}),name:p.client};
-    if(!c.Architect?.name&&p.architect)c.Architect={...(c.Architect||{}),name:p.architect};
-    setDraft(c);
-    setEditingId(String(p.id));
-    projectApi.listContacts(p.id).then(rows=>{
-      const sheet=contactRowsToObject(rows||[]);
-      if(Object.keys(sheet).length)setDraft(current=>({...current,...sheet}));
-    }).catch(err=>console.warn("ProjectContacts background load failed",err));
-  };
-
-  const closeEditor=()=>{if(!saving){setEditingId("");setDraft({});}};
-  const setField=(role,field,value)=>setDraft(d=>({...d,[role]:{...(d[role]||{}),[field]:value}}));
-
-  const save=async()=>{
-    if(!project||saving)return;
-    const clean={};
-    Object.entries(draft||{}).forEach(([role,c])=>{
-      if((c?.name||"").trim())clean[role]={
-        name:(c.name||"").trim(),email:(c.email||"").trim(),mobile:String(c.mobile ?? "").trim(),
-        company:(c.company||"").trim(),rating:c.rating||""
-      };
-    });
-    setSaving(true);
-    try{
-      await projectApi.saveContacts(project.id,contactsObjectToRows(project,clean));
-      const next={...project,contacts:clean,client:clean.Owner?.name||project.client||"",architect:clean.Architect?.name||project.architect||""};
-      try{await projectApi.update(frontendProjectToBackend(next,true));}catch(e){console.warn("Project client/architect sync failed",e);}
-      await persist({...state,projects:(state.projects||[]).map(p=>p.id===project.id?next:p)});
-      setEditingId(""); setDraft({});
-    }catch(err){alert(`Google Sheets contact save failed: ${err?.message||err}`);}
-    finally{setSaving(false);}
-  };
-
-  return <div>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-      <div><h2 style={{fontFamily:FONT_DISPLAY,margin:"0 0 4px"}}>Team & Ratings</h2>
-      <div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>Project-wise team master. Click EDIT to open that project's contacts.</div></div>
-    </div>
-    <div style={{border:`1px solid ${T.line}`,background:"#fff",overflowX:"auto"}}>
-      <table style={{width:"100%",borderCollapse:"collapse",fontFamily:FONT_BODY,fontSize:12}}>
-        <thead><tr style={{background:T.paper2}}>{["S. No","Project No.","Project","Client / Owner","Architect","Action"].map(h=><th key={h} style={{textAlign:"left",padding:"10px 12px",borderBottom:`1px solid ${T.line}`}}>{h}</th>)}</tr></thead>
-        <tbody>{projects.map((p,i)=><tr key={p.id||`${p.no}-${i}`}>
-          <td style={{padding:10,borderBottom:`1px solid ${T.line}`}}>{i+1}</td>
-          <td style={{padding:10,borderBottom:`1px solid ${T.line}`,fontFamily:FONT_MONO}}>{p.no||"—"}</td>
-          <td style={{padding:10,borderBottom:`1px solid ${T.line}`,fontWeight:600}}>{p.name}</td>
-          <td style={{padding:10,borderBottom:`1px solid ${T.line}`}}>{p.contacts?.Owner?.name||p.client||"—"}</td>
-          <td style={{padding:10,borderBottom:`1px solid ${T.line}`}}>{p.contacts?.Architect?.name||p.architect||"—"}</td>
-          <td style={{padding:10,borderBottom:`1px solid ${T.line}`}}><button type="button" onClick={()=>openEditor(p)} style={{...smallBtn,background:"#fff",cursor:"pointer"}}>EDIT</button></td>
-        </tr>)}</tbody>
-      </table>
-    </div>
-
-    {project&&<div onMouseDown={e=>{if(e.target===e.currentTarget)closeEditor();}} style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
-      <div style={{width:"min(1180px,96vw)",maxHeight:"90vh",overflowY:"auto",background:T.paper,border:`1px solid ${T.line}`,boxShadow:"0 20px 60px rgba(0,0,0,.28)"}}>
-        <div style={{position:"sticky",top:0,zIndex:2,background:T.navy,color:"#fff",padding:"14px 18px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <div><div style={{fontFamily:FONT_MONO,fontSize:10,opacity:.7}}>EDIT PROJECT TEAM</div><div style={{fontFamily:FONT_DISPLAY,fontSize:18}}>{project.no} · {project.name}</div></div>
-          <button type="button" onClick={closeEditor} style={{...smallBtn,background:"#fff",cursor:"pointer"}}>CLOSE</button>
-        </div>
-        <div style={{padding:18}}>
-          {ROLE_CATEGORIES.map(group=><div key={group.category} style={{marginBottom:18}}>
-            <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".08em",textTransform:"uppercase",color:T.cyan,borderBottom:`1px solid ${T.line}`,paddingBottom:6,marginBottom:8}}>{group.category}</div>
-            {group.roles.map(role=><div key={role} style={{display:"grid",gridTemplateColumns:"190px 1fr 1fr 1fr",gap:10,alignItems:"center",marginBottom:8}}>
-              <div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>{role}</div>
-              <input value={draft[role]?.name||""} onChange={e=>setField(role,"name",e.target.value)} placeholder="Name" style={inputStyle}/>
-              <input value={draft[role]?.email||""} onChange={e=>setField(role,"email",e.target.value)} placeholder="Email" style={inputStyle}/>
-              <input value={draft[role]?.mobile||""} onChange={e=>setField(role,"mobile",e.target.value)} placeholder="Mobile" style={inputStyle}/>
-            </div>)}
-          </div>)}
-          <div style={{display:"flex",gap:10,position:"sticky",bottom:0,background:T.paper,padding:"12px 0 4px",borderTop:`1px solid ${T.line}`}}>
-            <button type="button" disabled={saving} onClick={save} style={{...smallBtn,background:T.navy,color:"#fff",cursor:saving?"wait":"pointer",padding:"9px 16px"}}>{saving?"Saving…":"Save Contacts"}</button>
-            <button type="button" disabled={saving} onClick={closeEditor} style={{...smallBtn,background:"#fff",cursor:"pointer",padding:"9px 16px"}}>Cancel</button>
-          </div>
-        </div>
-      </div>
-    </div>}
+function ProjectTeamContactFields({contacts, onChange}) {
+  return <div style={{display:"flex",flexDirection:"column",gap:18,marginBottom:16}}>
+    {ROLE_CATEGORIES.map(({category,roles}) => <div key={category}>
+      <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".08em",textTransform:"uppercase",color:categoryColor(category),marginBottom:8}}>{category}</div>
+      <div style={{borderTop:`2px solid ${T.ink}`}}>{roles.map(role => <div key={role} style={{display:"grid",gridTemplateColumns:"170px 1fr 1fr 1fr",gap:8,padding:"10px 0",borderBottom:`1px solid ${T.line}`,alignItems:"center"}}>
+        <div style={{fontFamily:FONT_MONO,fontSize:11.5,color:T.inkDim}}>{role}</div>
+        {[["name","Name"],["email","Email"],["mobile","Mobile"]].map(([field,label]) => <input key={field} aria-label={`${role} ${label}`} style={inputStyle} placeholder={label} value={contacts[role]?.[field] || ""} onChange={e=>onChange(role,field,e.target.value)}/>)}
+      </div>)}</div>
+    </div>)}
   </div>;
 }
+
+function ProjectTeamView({ state, persist, selectedId }) {
+  const project = (state.projects || []).find(p => String(p.id) === String(selectedId)) || (state.projects || [])[0];
+  const [editing, setEditing] = useState(false);
+  const [directoryMode, setDirectoryMode] = useState(false);
+  const [roleFilter, setRoleFilter] = useState("All");
+  const [draft, setDraft] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [loadedContacts, setLoadedContacts] = useState(null);
+  useEffect(() => {
+    let active = true;
+    setEditing(false);
+    setLoadedContacts(null);
+    if (project) projectApi.listContacts(project.id).then(rows => {
+      const contacts = contactRowsToObject(rows || []);
+      if (active && Object.keys(contacts).length) setLoadedContacts(contacts);
+    }).catch(err => console.warn("ProjectContacts background load failed", err));
+    return () => { active = false; };
+  }, [project?.id]);
+  if (!project) return <div style={{color:T.inkDim}}>No project available.</div>;
+  const contacts = Object.fromEntries(Object.entries(loadedContacts || project.contacts || {}).filter(([,c]) => c && String(c.name ?? "").trim()).map(([role,c]) => [role, {...c,
+    name:String(c.name ?? ""), email:String(c.email ?? ""), mobile:String(c.mobile ?? ""), company:String(c.company ?? "")}]));
+  const directoryProjects = (state.projects || []).map(p => p.id === project.id ? {...p, contacts} : p);
+  const start = () => {
+    const next = JSON.parse(JSON.stringify(contacts));
+    if (!next.Owner?.name && project.client) next.Owner = {name:String(project.client), email:"", mobile:""};
+    if (!next.Architect?.name && project.architect) next.Architect = {name:String(project.architect), email:"", mobile:""};
+    setDraft(next); setDirectoryMode(false); setEditing(true);
+  };
+  const save = async () => {
+    if (saving) return;
+    const clean = {};
+    Object.entries(draft).forEach(([role,c]) => {
+      if (c && String(c.name ?? "").trim()) clean[role] = {...c, name:String(c.name ?? "").trim(), email:String(c.email ?? "").trim(), mobile:String(c.mobile ?? "").trim()};
+    });
+    setSaving(true);
+    try {
+      await projectApi.saveContacts(project.id, contactsObjectToRows(project, clean));
+      const next = {...project, contacts:clean, client:clean.Owner?.name || project.client || "", architect:clean.Architect?.name || project.architect || ""};
+      try { await projectApi.update(frontendProjectToBackend(next, true)); }
+      catch (err) { console.warn("Project client/architect sync failed", err); }
+      await persist({...state, projects:(state.projects || []).map(p => p.id === project.id ? next : p)});
+      setLoadedContacts(clean);
+      setEditing(false);
+    } catch (err) { alert(`Google Sheets contact save failed: ${err?.message || err}`); }
+    finally { setSaving(false); }
+  };
+  const directory = buildDirectory(directoryProjects, state.ratings || {});
+  const filtered = roleFilter === "All" ? directory : directory.filter(d=>d.roles.includes(roleFilter));
+  const roles = Array.from(new Set(directory.flatMap(d=>d.roles))).sort();
+  return <div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}><div><h2 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:0,color:T.ink}}>Team & Ratings</h2><div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim,marginTop:4}}>Project contacts are shown here by default. Turn on Directory to see the consolidated directory view.</div></div><div style={{display:"flex",gap:8}}>{!editing && <Btn variant="ghost" onClick={start}>Edit / add contacts</Btn>}<Btn variant="ghost" style={directoryMode ? {borderColor:"transparent"} : undefined} disabled={saving} onClick={()=>{setEditing(false);setDirectoryMode(v=>!v);}}>{directoryMode?"Directory On":"Directory"}</Btn></div></div>
+    {directoryMode ? <div>
+      <div style={{display:"flex",gap:0,borderBottom:`1px solid ${T.ink}`,marginBottom:12,flexWrap:"wrap"}}>{["All",...roles].map(f=><button key={f} onClick={()=>setRoleFilter(f)} style={{border:"none",borderRight:`1px solid ${T.line}`,borderRadius:0,padding:"8px 12px",background:roleFilter===f?T.navy:T.paperDim,color:roleFilter===f?"#fff":T.ink,cursor:"pointer",fontFamily:FONT_MONO,fontSize:10}}>{f}</button>)}</div>
+      <table style={{borderCollapse:"collapse",width:"100%",border:`1px solid ${T.line}`}}><thead><tr>{["Name","Company","Role","Projects","Rating"].map(h=><th key={h} style={{...thStyle,background:T.paperDim,color:T.ink,textAlign:"left",borderRadius:0}}>{h}</th>)}</tr></thead><tbody>{filtered.map((d,i)=><tr key={i}><td style={tdStyle}>{d.name}</td><td style={tdStyle}>{d.company||"—"}</td><td style={tdStyle}>{d.roles.join(", ")}</td><td style={tdStyle}>{d.projects.map(p => typeof p === "string" ? p : p.name || p.no || p.id).join(", ")}</td><td style={tdStyle}>{d.rating||"—"}</td></tr>)}</tbody></table>
+    </div> : editing ? <><ProjectTeamContactFields contacts={draft} onChange={(role,field,value)=>setDraft(d=>({...d,[role]:{...(d[role]||{}),[field]:value}}))}/><div style={{display:"flex",gap:8}}><Btn disabled={saving} onClick={save}><ClipboardCheck size={14}/> {saving ? "Saving…" : "Save contacts"}</Btn><Btn disabled={saving} variant="ghost" onClick={()=>setEditing(false)}>Cancel</Btn></div></> : <div style={{display:"flex",flexDirection:"column",gap:16}}>{ROLE_CATEGORIES.map(({category,roles})=>{const entries=roles.filter(r=>contacts?.[r]);if(!entries.length)return null;return <div key={category}><div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".08em",textTransform:"uppercase",color:categoryColor(category),marginBottom:8}}>{category}</div><div style={{borderTop:`2px solid ${T.ink}`,borderBottom:`1px solid ${T.line}`}}>{entries.map((role,idx)=>{const c=contacts[role];return <div key={role} style={{display:"grid",gridTemplateColumns:"170px 1fr 1fr 1fr",padding:"10px 0",borderTop:idx===0?"none":`1px solid ${T.line}`}}><div style={{fontFamily:FONT_MONO,fontSize:11.5,color:T.inkDim}}>{role}</div><div style={{fontFamily:FONT_BODY,fontSize:13}}>{c.name}</div><div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>{c.email||"—"}</div><div style={{fontFamily:FONT_MONO,fontSize:12,color:T.blue}}>{c.mobile||"—"}</div></div>})}</div></div>})}{Object.keys(contacts).length===0&&<div style={{color:T.inkDim}}>No contacts on file.</div>}</div>}
+  </div>;
+}
+
 
 function residenceLineOfWorkDefaults(project, people) {
   const existing = (project?.lineOfWorkResidence?.length ? project.lineOfWorkResidence : project?.lineOfWork);
@@ -3960,141 +3949,150 @@ function splitDesignExecutionRows(project, people){
     sequence:r.sequence||i+1,
     milestoneStatus:r.milestoneStatus||"Not Started"
   }));
+  if (all.some(r => String(r.workflowVersion) === "1")) return {design:all.filter(r=>String(r.workflowVersion)==="1"),execution:all.filter(r=>String(r.workflowVersion)!=="1" && r.milestone)};
   const firstMilestone = all.findIndex(r=>String(r.milestone||"").trim());
   if(firstMilestone < 0) return {design:all, execution:[]};
   return {design:all.slice(0,firstMilestone), execution:all.slice(firstMilestone)};
 }
 
-function ProjectLineOfWorkView({ state, persist, selectedId }) {
-  const [editingId,setEditingId]=useState("");
-  const [rows,setRows]=useState([]);
-  const [saving,setSaving]=useState(false);
-  const seen=new Set();
-  const projects=(state.projects||[]).filter(p=>{
-    if(p.completed)return false;
-    const k=String(p.id||p.no||p.name||"").trim().toLowerCase();
-    if(!k||seen.has(k))return false;
-    seen.add(k); return true;
+const DESIGN_WORKFLOW_PDF_TEMPLATE = [{"id": "PDF-01-01", "workflowVersion": "1", "milestone": "Onboarding", "tasks": "Onboarding / Receive Layout", "subtask": "Folder Setup", "triggerDrawingType": "MANUAL", "triggerTaskType": "Onboarding", "scope": "Project", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-01-02", "workflowVersion": "1", "milestone": "Onboarding", "tasks": "Onboarding / Receive Layout", "subtask": "Sheet Setup", "triggerDrawingType": "MANUAL", "triggerTaskType": "Onboarding", "scope": "Project", "responsible": "", "hours": "", "subtaskOrder": 2, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-01-03", "workflowVersion": "1", "milestone": "Onboarding", "tasks": "Onboarding / Receive Layout", "subtask": "Zoning & Keypad Location", "triggerDrawingType": "MANUAL", "triggerTaskType": "Onboarding", "scope": "Project", "responsible": "", "hours": "", "subtaskOrder": 3, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-01-04", "workflowVersion": "1", "milestone": "Onboarding", "tasks": "Onboarding / Receive Layout", "subtask": "Technical Table Setup", "triggerDrawingType": "MANUAL", "triggerTaskType": "Onboarding", "scope": "Project", "responsible": "", "hours": "", "subtaskOrder": 4, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-01-05", "workflowVersion": "1", "milestone": "Onboarding", "tasks": "Onboarding / Receive Layout", "subtask": "Zone Table with Area and Status", "triggerDrawingType": "MANUAL", "triggerTaskType": "Onboarding", "scope": "Project", "responsible": "", "hours": "", "subtaskOrder": 5, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-02-01", "workflowVersion": "1", "milestone": "Brief from Client & Architect", "tasks": "Brief from Client & Architect", "subtask": "Meeting", "triggerDrawingType": "MANUAL", "triggerTaskType": "Client / Architect Brief", "scope": "Project", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": false, "executionNote": "", "optional": false}, {"id": "PDF-03-01", "workflowVersion": "1", "milestone": "Concept", "tasks": "Concept / Freeze Products", "subtask": "Initial Concept", "triggerDrawingType": "LAYOUT", "triggerTaskType": "Concept | 2D", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-03-02", "workflowVersion": "1", "milestone": "Concept", "tasks": "Concept / Freeze Products", "subtask": "Meeting with CL / Architect to understand Theme", "triggerDrawingType": "LAYOUT", "triggerTaskType": "Concept | 2D", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 2, "completionUploadRequired": false, "executionNote": "", "optional": false}, {"id": "PDF-03-03", "workflowVersion": "1", "milestone": "Concept", "tasks": "Concept / Freeze Products", "subtask": "Present & Discuss with CL / Architect", "triggerDrawingType": "LAYOUT", "triggerTaskType": "Concept | 2D", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 3, "completionUploadRequired": false, "executionNote": "", "optional": false}, {"id": "PDF-04-01", "workflowVersion": "1", "milestone": "Concept", "tasks": "Preliminary Budgeting", "subtask": "Preliminary Budgeting", "triggerDrawingType": "LAYOUT", "triggerTaskType": "Preliminary Budgeting", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-05-01", "workflowVersion": "1", "milestone": "Control Finalisation", "tasks": "Control Finalisation", "subtask": "Showcase Wireless / Wired Options with budget", "triggerDrawingType": "LAYOUT", "triggerTaskType": "Control Finalisation", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": false, "executionNote": "Conduiting and box fixing at civil stage", "optional": false}, {"id": "PDF-05-02", "workflowVersion": "1", "milestone": "Control Finalisation", "tasks": "Control Finalisation", "subtask": "Showroom Visits [if required]", "triggerDrawingType": "LAYOUT", "triggerTaskType": "Control Finalisation", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 2, "completionUploadRequired": false, "executionNote": "Conduiting and box fixing at civil stage", "optional": true}, {"id": "PDF-05-03", "workflowVersion": "1", "milestone": "Control Finalisation", "tasks": "Control Finalisation", "subtask": "Discuss & Close", "triggerDrawingType": "LAYOUT", "triggerTaskType": "Control Finalisation", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 3, "completionUploadRequired": false, "executionNote": "Conduiting and box fixing at civil stage", "optional": false}, {"id": "PDF-06-01", "workflowVersion": "1", "milestone": "Wall Electrical | LUI", "tasks": "Keypad & Lamp Socket Locations", "subtask": "Meeting with Controls Vendor / CL / Architect [if required]", "triggerDrawingType": "WE", "triggerTaskType": "Wall Electrical Drawings", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": false, "executionNote": "", "optional": true}, {"id": "PDF-06-02", "workflowVersion": "1", "milestone": "Wall Electrical | LUI", "tasks": "Keypad & Lamp Socket Locations", "subtask": "Lighting User Interface / Draw", "triggerDrawingType": "WE", "triggerTaskType": "Wall Electrical Drawings", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 2, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-06-03", "workflowVersion": "1", "milestone": "Wall Electrical | LUI", "tasks": "Keypad & Lamp Socket Locations", "subtask": "Issue & Discuss / Revision / Approval Final", "triggerDrawingType": "WE", "triggerTaskType": "Wall Electrical Drawings", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 3, "completionUploadRequired": false, "executionNote": "", "optional": false}, {"id": "PDF-07-01", "workflowVersion": "1", "milestone": "False Ceiling Corrections", "tasks": "False Ceiling Corrections", "subtask": "Design Development / Freeze Product", "triggerDrawingType": "FC", "triggerTaskType": "False Ceiling Drawings", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": true, "executionNote": "Issue - brief & review", "optional": false}, {"id": "PDF-07-02", "workflowVersion": "1", "milestone": "False Ceiling Corrections", "tasks": "False Ceiling Corrections", "subtask": "Typical Section Detail / Draw", "triggerDrawingType": "FC", "triggerTaskType": "False Ceiling Drawings", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 2, "completionUploadRequired": true, "executionNote": "Issue - brief & review", "optional": false}, {"id": "PDF-07-03", "workflowVersion": "1", "milestone": "False Ceiling Corrections", "tasks": "False Ceiling Corrections", "subtask": "Issue & Discuss / Revision / Approval Final", "triggerDrawingType": "FC", "triggerTaskType": "False Ceiling Drawings", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 3, "completionUploadRequired": false, "executionNote": "Issue - brief & review", "optional": false}, {"id": "PDF-08-01", "workflowVersion": "1", "milestone": "Night Renders", "tasks": "Night Renders", "subtask": "3D Renders", "triggerDrawingType": "3D", "triggerTaskType": "3D Renders", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-08-02", "workflowVersion": "1", "milestone": "Night Renders", "tasks": "Night Renders", "subtask": "Product Assessment / Mockup / Freeze", "triggerDrawingType": "3D", "triggerTaskType": "3D Renders", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 2, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-09-01", "workflowVersion": "1", "milestone": "Wiring Drawings & Documentation", "tasks": "Lighting Layout / RCP / CIR", "subtask": "RCP / FLR / CIR / Draw", "triggerDrawingType": "FC WITH AC / FAN", "triggerTaskType": "Lighting Layout / Wiring", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-09-02", "workflowVersion": "1", "milestone": "Wiring Drawings & Documentation", "tasks": "Lighting Layout / RCP / CIR", "subtask": "Issue & Discuss / Revision / Approval Final", "triggerDrawingType": "FC WITH AC / FAN", "triggerTaskType": "Lighting Layout / Wiring", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 2, "completionUploadRequired": false, "executionNote": "", "optional": false}, {"id": "PDF-10-01", "workflowVersion": "1", "milestone": "Wiring Drawings & Documentation", "tasks": "Technical Table", "subtask": "Documentation / Tech Table", "triggerDrawingType": "FC WITH AC / FAN", "triggerTaskType": "Technical Table / Documentation", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-10-02", "workflowVersion": "1", "milestone": "Wiring Drawings & Documentation", "tasks": "Technical Table", "subtask": "Documentation / Luminaire Schedule", "triggerDrawingType": "FC WITH AC / FAN", "triggerTaskType": "Technical Table / Documentation", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 2, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-10-03", "workflowVersion": "1", "milestone": "Wiring Drawings & Documentation", "tasks": "Technical Table", "subtask": "Internal Review", "triggerDrawingType": "FC WITH AC / FAN", "triggerTaskType": "Technical Table / Documentation", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 3, "completionUploadRequired": false, "executionNote": "", "optional": false}, {"id": "PDF-10-04", "workflowVersion": "1", "milestone": "Wiring Drawings & Documentation", "tasks": "Technical Table", "subtask": "External Review", "triggerDrawingType": "FC WITH AC / FAN", "triggerTaskType": "Technical Table / Documentation", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 4, "completionUploadRequired": false, "executionNote": "", "optional": false}, {"id": "PDF-11-01", "workflowVersion": "1", "milestone": "Finalise Architectural Lighting", "tasks": "Finalise Architectural Lighting", "subtask": "External Review / Mockup / Discuss BOQ", "triggerDrawingType": "MANUAL", "triggerTaskType": "Finalise Architectural Lighting", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": false, "executionNote": "", "optional": false}, {"id": "PDF-11-02", "workflowVersion": "1", "milestone": "Finalise Architectural Lighting", "tasks": "Finalise Architectural Lighting", "subtask": "Arranging samples for CL Review", "triggerDrawingType": "MANUAL", "triggerTaskType": "Finalise Architectural Lighting", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 2, "completionUploadRequired": false, "executionNote": "", "optional": false}, {"id": "PDF-11-03", "workflowVersion": "1", "milestone": "Finalise Architectural Lighting", "tasks": "Finalise Architectural Lighting", "subtask": "Present final BOQ with colour test / Close", "triggerDrawingType": "MANUAL", "triggerTaskType": "Finalise Architectural Lighting", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 3, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-11-04", "workflowVersion": "1", "milestone": "Finalise Architectural Lighting", "tasks": "Finalise Architectural Lighting", "subtask": "Light Marking Sheet / Arrange All Samples", "triggerDrawingType": "MANUAL", "triggerTaskType": "Finalise Architectural Lighting", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 4, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-11-05", "workflowVersion": "1", "milestone": "Finalise Architectural Lighting", "tasks": "Finalise Architectural Lighting", "subtask": "Site Execution Sheet", "triggerDrawingType": "MANUAL", "triggerTaskType": "Finalise Architectural Lighting", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 5, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-12-01", "workflowVersion": "1", "milestone": "Bathroom Stone", "tasks": "Bathroom / Wall Elevation", "subtask": "3D Renders", "triggerDrawingType": "DETAIL", "triggerTaskType": "Bathroom Elevation", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-12-02", "workflowVersion": "1", "milestone": "Bathroom Stone", "tasks": "Bathroom / Wall Elevation", "subtask": "Design Development / Freeze Product", "triggerDrawingType": "DETAIL", "triggerTaskType": "Bathroom Elevation", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 2, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-12-03", "workflowVersion": "1", "milestone": "Bathroom Stone", "tasks": "Bathroom / Wall Elevation", "subtask": "Typical Section Detail / Draw", "triggerDrawingType": "DETAIL", "triggerTaskType": "Bathroom Elevation", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 3, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-12-04", "workflowVersion": "1", "milestone": "Bathroom Stone", "tasks": "Bathroom / Wall Elevation", "subtask": "CL Meeting / Revision / Approval Final", "triggerDrawingType": "DETAIL", "triggerTaskType": "Bathroom Elevation", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 4, "completionUploadRequired": false, "executionNote": "", "optional": false}, {"id": "PDF-13-01", "workflowVersion": "1", "milestone": "Facade", "tasks": "Facade / Wall Elevation", "subtask": "3D Renders", "triggerDrawingType": "FACADE", "triggerTaskType": "Facade Elevation Drawings", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-13-02", "workflowVersion": "1", "milestone": "Facade", "tasks": "Facade / Wall Elevation", "subtask": "Design Development / Freeze Product", "triggerDrawingType": "FACADE", "triggerTaskType": "Facade Elevation Drawings", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 2, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-13-03", "workflowVersion": "1", "milestone": "Facade", "tasks": "Facade / Wall Elevation", "subtask": "Typical Section Detail / Draw", "triggerDrawingType": "FACADE", "triggerTaskType": "Facade Elevation Drawings", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 3, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-13-04", "workflowVersion": "1", "milestone": "Facade", "tasks": "Facade / Wall Elevation", "subtask": "CL Meeting / Revision / Approval Final", "triggerDrawingType": "FACADE", "triggerTaskType": "Facade Elevation Drawings", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 4, "completionUploadRequired": false, "executionNote": "", "optional": false}, {"id": "PDF-14-01", "workflowVersion": "1", "milestone": "Furniture", "tasks": "Furniture / Wall Elevation", "subtask": "Design Development / Freeze Products", "triggerDrawingType": "FURNITURE", "triggerTaskType": "Furniture / Joinery", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-14-02", "workflowVersion": "1", "milestone": "Furniture", "tasks": "Furniture / Wall Elevation", "subtask": "Typical Section Detail / Draw", "triggerDrawingType": "FURNITURE", "triggerTaskType": "Furniture / Joinery", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 2, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-14-03", "workflowVersion": "1", "milestone": "Furniture", "tasks": "Furniture / Wall Elevation", "subtask": "Arranging samples for production", "triggerDrawingType": "FURNITURE", "triggerTaskType": "Furniture / Joinery", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 3, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-14-04", "workflowVersion": "1", "milestone": "Furniture", "tasks": "Furniture / Wall Elevation", "subtask": "Meeting with Furniture Vendor / Architect", "triggerDrawingType": "FURNITURE", "triggerTaskType": "Furniture / Joinery", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 4, "completionUploadRequired": false, "executionNote": "", "optional": false}, {"id": "PDF-14-05", "workflowVersion": "1", "milestone": "Furniture", "tasks": "Furniture / Wall Elevation", "subtask": "Freeze Documentation", "triggerDrawingType": "FURNITURE", "triggerTaskType": "Furniture / Joinery", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 5, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-15-01", "workflowVersion": "1", "milestone": "Decorative Lights / Art Curator", "tasks": "Concept & Decorative Selection", "subtask": "Initial Concept", "triggerDrawingType": "LAYOUT", "triggerTaskType": "Decorative Selection", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-15-02", "workflowVersion": "1", "milestone": "Decorative Lights / Art Curator", "tasks": "Concept & Decorative Selection", "subtask": "Meeting with CL / Architect to understand Theme", "triggerDrawingType": "LAYOUT", "triggerTaskType": "Decorative Selection", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 2, "completionUploadRequired": false, "executionNote": "", "optional": false}, {"id": "PDF-15-03", "workflowVersion": "1", "milestone": "Decorative Lights / Art Curator", "tasks": "Concept & Decorative Selection", "subtask": "Present & Discuss with CL / Architect", "triggerDrawingType": "LAYOUT", "triggerTaskType": "Decorative Selection", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 3, "completionUploadRequired": false, "executionNote": "", "optional": false}, {"id": "PDF-15-04", "workflowVersion": "1", "milestone": "Decorative Lights / Art Curator", "tasks": "Concept & Decorative Selection", "subtask": "Preliminary Budgeting", "triggerDrawingType": "LAYOUT", "triggerTaskType": "Decorative Selection", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 4, "completionUploadRequired": true, "executionNote": "", "optional": false}];
+
+function workflowGroups(rows) {
+  const groups = new Map();
+  rows.forEach(r => {
+    const key = [r.milestone,r.tasks,r.triggerDrawingType,r.triggerTaskType,r.scope].join("|");
+    if (!groups.has(key)) groups.set(key, {key,first:r,rows:[]});
+    groups.get(key).rows.push(r);
   });
-  const project=projects.find(p=>String(p.id)===String(editingId));
-
-  const peopleFor=(p)=>{
-    const names=[];
-    Object.values(p?.contacts||{}).forEach(c=>{if(c?.name&&!names.includes(c.name))names.push(c.name);});
-    (state.team||[]).forEach(x=>{const n=x?.name||x;if(n&&!names.includes(n))names.push(n);});
-    return names.length?names:[""];
+  return [...groups.values()];
+}
+function ProjectLineOfWorkView({state,persist,selectedId}) {
+  const projects = (state.projects || []).filter(p => p.completed!==true && ![p.status,p.projectStatus,p.projectControl?.projectStatus].some(v=>String(v||"").toLowerCase()==="completed"));
+  const [projectId,setProjectId] = useState(selectedId || projects[0]?.id || "");
+  const project = projects.find(p => String(p.id) === String(projectId)) || projects[0];
+  const [rows,setRows] = useState([]);
+  const [legacy,setLegacy] = useState([]);
+  const [instances,setInstances] = useState([]);
+  const [editing,setEditing] = useState(false);
+  const [busy,setBusy] = useState(false);
+  const [loading,setLoading] = useState(false);
+  const [error,setError] = useState("");
+  const [tab,setTab] = useState("template");
+  const [areaKey,setAreaKey] = useState("");
+  const [message,setMessage] = useState("");
+  const [savedRows,setSavedRows] = useState([]);
+  const revision = useRef(0);
+  const rowId = r => String(r.lineWorkId || r.id);
+  const setProjectRows = all => {
+    const workflow = all.filter(r => String(r.workflowVersion) === "1").map(r => ({...r,id:r.lineWorkId || r.id}));
+    setRows(workflow); setSavedRows(workflow); setLegacy(all.filter(r => String(r.workflowVersion) !== "1"));
   };
-
-  const openEditor=(p)=>{
-    const people=peopleFor(p);
-    const all=residenceLineOfWorkDefaults(p,people);
-    const split=splitDesignExecutionRows({...p,lineOfWorkResidence:all},people);
-    setRows((split.design||[]).map(r=>({...r})));
-    setEditingId(String(p.id));
-    projectApi.listLineOfWork(p.id).then(sheetRows=>{
-      if(!Array.isArray(sheetRows)||!sheetRows.length)return;
-      const normalized=sheetRows.map(r=>({...r,id:r.lineWorkId||r.id}));
-      const fresh=splitDesignExecutionRows({...p,lineOfWorkResidence:normalized},people);
-      setRows((fresh.design||[]).map(r=>({...r})));
-    }).catch(err=>console.warn("LineOfWork background load failed",err));
+  useEffect(() => {
+    let active = true; revision.current += 1;
+    setEditing(false);setAreaKey("");setError("");setMessage("");setInstances([]);
+    if (!project) {setProjectRows([]);return;}
+    setProjectRows(project.lineOfWorkResidence || project.lineOfWork || []);
+    setLoading(true);
+    Promise.all([projectApi.listLineOfWork(project.id),projectApi.getWIH(true,project.id)]).then(([all,wih]) => {
+      if (!active) return;
+      setProjectRows(Array.isArray(all)?all:[]);setInstances(Array.isArray(wih)?wih:[]);
+    }).catch(e => {if(active)setError(`Could not load workflow: ${e.message || e}`);}).finally(()=>{if(active)setLoading(false);});
+    return () => {active=false;};
+  },[project?.id]);
+  const refresh = async () => {
+    const token=revision.current;setBusy(true);setError("");
+    try {const wih=await projectApi.getWIH(true,project.id);if(token===revision.current)setInstances(Array.isArray(wih)?wih:[]);}
+    catch(e){if(token===revision.current)setError(e.message || String(e));}
+    finally{setBusy(false);}
   };
-  const closeEditor=()=>{if(!saving){setEditingId("");setRows([]);}};
-  const updateRow=(id,key,value)=>setRows(rs=>rs.map(r=>r.id===id?{...r,[key]:value}:r));
-  const addRow=()=>setRows(rs=>[...rs,{id:uid(),sourceRow:rs.length+1,drawings:"",tasks:"",time:"",hours:"",plannedStart:"",plannedCompletion:"",responsible:"",status:"Not Started",milestone:"",floor:"",visits:"",visitBy:""}]);
-  const removeRow=id=>setRows(rs=>rs.filter(r=>r.id!==id));
-
-  const save=async()=>{
-    if(!project||saving)return;
-    setSaving(true);
-    try{
-      const people=peopleFor(project);
-      const existingAll=residenceLineOfWorkDefaults(project,people);
-      const existingSplit=splitDesignExecutionRows({...project,lineOfWorkResidence:existingAll},people);
-      const design=rows.map((r,i)=>({...r,sourceRow:i+1,milestone:""}));
-      const merged=[...design,...(existingSplit.execution||[])];
-      const savedRows=await projectApi.saveLineOfWork(project.id,merged);
-      const normalized=(savedRows||merged).map(r=>({...r,id:r.lineWorkId||r.id}));
-      const next={...project,lineOfWorkResidence:normalized,lineOfWork:normalized};
-      await persist({...state,projects:(state.projects||[]).map(p=>p.id===project.id?next:p)});
-      setEditingId(""); setRows([]);
-    }catch(err){alert(`Couldn't save Line of Work: ${err?.message||err}`);}
-    finally{setSaving(false);}
+  if (!project) return <div style={{color:T.inkDim}}>No active project available.</div>;
+  const members = (state.teamMaster || []).filter(m => m.active !== false && String(m.active)!=="false");
+  const people = [...new Set([...members.map(m=>String(m.name||"")),...(state.people||[]).map(String),...rows.map(r=>String(r.responsible||""))].filter(Boolean))];
+  const groups = workflowGroups(rows);
+  const zones = project.floorZones || Object.entries(project.zones || {}).map(([zoneCode,z])=>({zoneCode,floor:z.floor,area:z.room}));
+  const areas = [...new Map([...zones,...instances.filter(w=>w.task?.area).map(w=>({floor:w.task.floor,area:w.task.area}))].filter(a=>a.floor&&a.area).map(a=>[JSON.stringify([String(a.floor),String(a.area)]),a])).entries()];
+  const selectedArea = areas.find(([key])=>key===areaKey)?.[1];
+  const mutate = (ids,patch) => setRows(rs=>rs.map(r=>ids.includes(rowId(r))?{...r,...patch}:r));
+  const loadPdf = () => {setRows(DESIGN_WORKFLOW_PDF_TEMPLATE.map(r=>({...r})));setEditing(true);setMessage("PDF template loaded. Review drawing triggers and assignments, then save to activate automation.");};
+  const save = async () => {
+    if (rows.some(r=>!String(r.milestone||"").trim()||!String(r.tasks||"").trim()||!String(r.subtask||"").trim()||!String(r.triggerTaskType||"").trim())) return setError("Each workflow row needs a milestone, task, subtask, and trigger task.");
+    const token=revision.current;setBusy(true);setError("");
+    try {
+      const order={};const clean=rows.map(r=>{const key=[r.milestone,r.tasks,r.triggerDrawingType,r.triggerTaskType,r.scope].join("|");order[key]=(order[key]||0)+1;return {...r,workflowVersion:"1",subtaskOrder:order[key],completionUploadRequired:r.completionUploadRequired!==false&&String(r.completionUploadRequired)!=="false",optional:r.optional===true||String(r.optional)==="true"};});
+      let capabilities;
+      try {capabilities=await projectApi.getWorkflowCapabilities();}
+      catch (_) {throw new Error("Install and redeploy the updated Apps Script backend before saving the workflow. No changes were saved.");}
+      if(Number(capabilities?.areaWorkflowVersion)!==1)throw new Error("The connected backend does not support area workflows. No changes were saved.");
+      const result=await projectApi.saveLineOfWork(project.id,[...legacy,...clean]);
+      if(!Array.isArray(result)||!result.some(r=>String(r.workflowVersion)==="1")) throw new Error("Deploy the updated Apps Script backend; it must save the workflow fields.");
+      const templates=await projectApi.listDrawingTaskMaster();
+      await persist({...state,templates:Array.isArray(templates)?templates:state.templates,projects:(state.projects||[]).map(p=>p.id===project.id?{...p,lineOfWorkResidence:result,lineOfWork:result}:p)});
+      if(token===revision.current){setProjectRows(result);setEditing(false);setMessage("Workflow saved. New classified drawings use these project assignments.");}
+    } catch(e) {if(token===revision.current)setError(e.message||String(e));}
+    finally{setBusy(false);}
   };
-
-  const hasSaved=p=>{
-    const all=p?.lineOfWorkResidence||p?.lineOfWork||[];
-    return Array.isArray(all)&&all.some(r=>(r.drawings||r.title||r.drawing||r.work||r.tasks||r.task||r.plannedStart||r.plannedStartDate||r.plannedCompletion||r.plannedCompletionDate));
+  const queue = async g => {
+    const r=g.first;if(!r.lineWorkId)return setError("Save the workflow first.");
+    if(r.scope!=="Project"&&!selectedArea)return setError("Select the floor / area to queue this task.");
+    setBusy(true);setError("");
+    try {await projectApi.queueWorkflowTask({projectId:project.id,lineWorkId:r.lineWorkId,...(selectedArea?{floor:selectedArea.floor,area:selectedArea.area}:{})});setInstances(await projectApi.getWIH(true,project.id));setMessage("Task queued in Work in Hand. Start it there to open its ordered subtasks.");}
+    catch(e){setError(e.message||String(e));}finally{setBusy(false);}
   };
-  const taskCounts=p=>{
-    const people=peopleFor(p);
-    const design=splitDesignExecutionRows(p,people).design||[];
-    const taskRows=design.filter(r=>String(r.tasks||r.task||r.drawings||r.title||r.drawing||r.work||"").trim());
-    const completed=taskRows.filter(r=>{
-      const s=String(r.status||r.taskStatus||"").trim().toLowerCase();
-      return s==="completed"||s==="complete"||r.completed===true;
-    }).length;
-    return {open:Math.max(0,taskRows.length-completed),completed};
-  };
-
+  const fieldStyle={...inputStyle,padding:"7px 8px",fontSize:12};
+  const chosenInstances = instances.filter(w=>selectedArea?String(w.task?.floor)===String(selectedArea.floor)&&String(w.task?.area)===String(selectedArea.area):true);
   return <div>
-    <div style={{marginBottom:16}}>
-      <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".08em",color:T.cyan}}>PROJECT-WISE · DESIGN SEQUENCE</div>
-      <h2 style={{fontFamily:FONT_DISPLAY,margin:"5px 0 4px"}}>Line of Work</h2>
-      <div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>Enter and update Line of Work separately for each project.</div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap",marginBottom:16}}>
+      <div><h2 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:0}}>Design Line of Work</h2><div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,marginTop:5}}>Milestone → Task → Subtask. Assign once per project; each received floor / area follows its own workflow.</div></div>
+      <select aria-label="Workflow project" disabled={busy||editing} style={{...fieldStyle,minWidth:280}} value={project.id} onChange={e=>setProjectId(e.target.value)}>{projects.map(p=><option key={p.id} value={p.id}>{p.no||"—"} · {p.name}</option>)}</select>
     </div>
-    <div style={{border:`1px solid ${T.line}`,background:"#fff",overflowX:"auto"}}>
-      <table style={{width:"100%",borderCollapse:"collapse",fontFamily:FONT_BODY,fontSize:12}}>
-        <thead><tr style={{background:T.paper2}}>{["S. No","Project No.","Project","Client","Architect","Line of Work","Open Tasks","Completed Tasks","Action"].map(h=><th key={h} style={{textAlign:"left",padding:"10px 12px",borderBottom:`1px solid ${T.line}`}}>{h}</th>)}</tr></thead>
-        <tbody>{projects.map((p,i)=><tr key={p.id||`${p.no}-${i}`}>
-          <td style={{padding:10,borderBottom:`1px solid ${T.line}`}}>{i+1}</td>
-          <td style={{padding:10,borderBottom:`1px solid ${T.line}`,fontFamily:FONT_MONO}}>{p.no||"—"}</td>
-          <td style={{padding:10,borderBottom:`1px solid ${T.line}`,fontWeight:600}}>{p.name}</td>
-          <td style={{padding:10,borderBottom:`1px solid ${T.line}`}}>{p.client||p.contacts?.Owner?.name||"—"}</td>
-          <td style={{padding:10,borderBottom:`1px solid ${T.line}`}}>{p.architect||p.contacts?.Architect?.name||"—"}</td>
-          <td style={{padding:10,borderBottom:`1px solid ${T.line}`}}>{hasSaved(p)?"Entered":"Not Entered"}</td>
-          <td style={{padding:10,borderBottom:`1px solid ${T.line}`,textAlign:"center",fontWeight:700}}>{taskCounts(p).open}</td>
-          <td style={{padding:10,borderBottom:`1px solid ${T.line}`,textAlign:"center",fontWeight:700}}>{taskCounts(p).completed}</td>
-          <td style={{padding:10,borderBottom:`1px solid ${T.line}`}}><button type="button" onClick={()=>openEditor(p)} style={{...smallBtn,background:"#fff",cursor:"pointer"}}>EDIT</button></td>
-        </tr>)}</tbody>
-      </table>
+    <div style={{display:"flex",gap:8,marginBottom:16,alignItems:"center",flexWrap:"wrap"}}>
+      <Btn variant={tab==="template"?"dark":"ghost"} onClick={()=>setTab("template")}>Workflow & Assignments</Btn><Btn variant={tab==="progress"?"dark":"ghost"} onClick={()=>{setTab("progress");refresh();}}>Area Progress</Btn>
+      <select aria-label="Workflow area" style={{...fieldStyle,minWidth:240,marginLeft:"auto"}} value={areaKey} onChange={e=>setAreaKey(e.target.value)}><option value="">All areas / select an area</option>{areas.map(([key,a])=><option key={key} value={key}>{a.floor} · {a.area}</option>)}</select>
     </div>
-
-    {project&&<div onMouseDown={e=>{if(e.target===e.currentTarget)closeEditor();}} style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-      <div style={{width:"min(1500px,98vw)",maxHeight:"92vh",overflow:"auto",background:T.paper,border:`1px solid ${T.line}`,boxShadow:"0 20px 60px rgba(0,0,0,.28)"}}>
-        <div style={{position:"sticky",top:0,zIndex:3,background:T.navy,color:"#fff",padding:"13px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div><div style={{fontFamily:FONT_MONO,fontSize:10,opacity:.7}}>EDIT LINE OF WORK</div><div style={{fontFamily:FONT_DISPLAY,fontSize:18}}>{project.no} · {project.name}</div></div>
-          <button type="button" onClick={closeEditor} style={{...smallBtn,background:"#fff",cursor:"pointer"}}>CLOSE</button>
-        </div>
-        <div style={{padding:16}}>
-          <div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,marginBottom:12}}>Design/drawing rows only. Milestone-and-after rows remain preserved for Execution Dashboard.</div>
-          <div style={{overflowX:"auto",border:`1px solid ${T.line}`,background:"#fff"}}>
-            <table style={{width:"1580px",borderCollapse:"collapse",fontFamily:FONT_BODY,fontSize:12}}>
-              <thead><tr style={{background:T.paper2}}>{["Line of Work / Drawings","Tasks","Time","Hours","Planned Start Date","Planned Completion Date","Responsible Person","Status",""].map(h=><th key={h} style={{padding:10,borderBottom:`1px solid ${T.line}`,textAlign:"left"}}>{h}</th>)}</tr></thead>
-              <tbody>{rows.map(r=><tr key={r.id}>
-                <td style={{padding:8,borderBottom:`1px solid ${T.line}`}}><input value={r.drawings||""} onChange={e=>updateRow(r.id,"drawings",e.target.value)} style={inputStyle}/></td>
-                <td style={{padding:8,borderBottom:`1px solid ${T.line}`}}><textarea value={r.tasks||""} onChange={e=>updateRow(r.id,"tasks",e.target.value)} style={{...inputStyle,minHeight:52,resize:"vertical"}}/></td>
-                <td style={{padding:8,borderBottom:`1px solid ${T.line}`}}><input type="time" value={r.time||""} onChange={e=>updateRow(r.id,"time",e.target.value)} style={inputStyle}/></td>
-                <td style={{padding:8,borderBottom:`1px solid ${T.line}`}}><input type="number" min="0" step="0.25" value={r.hours??""} onChange={e=>updateRow(r.id,"hours",e.target.value)} style={inputStyle}/></td>
-                <td style={{padding:8,borderBottom:`1px solid ${T.line}`}}><input type="date" value={r.plannedStart||""} onChange={e=>updateRow(r.id,"plannedStart",e.target.value)} style={inputStyle}/></td>
-                <td style={{padding:8,borderBottom:`1px solid ${T.line}`}}><input type="date" value={r.plannedCompletion||""} onChange={e=>updateRow(r.id,"plannedCompletion",e.target.value)} style={inputStyle}/></td>
-                <td style={{padding:8,borderBottom:`1px solid ${T.line}`}}><select value={r.responsible||""} onChange={e=>updateRow(r.id,"responsible",e.target.value)} style={inputStyle}><option value="">Select</option>{peopleFor(project).filter(Boolean).map(n=><option key={n} value={n}>{n}</option>)}</select></td>
-                <td style={{padding:8,borderBottom:`1px solid ${T.line}`}}><select value={r.status||"Not Started"} onChange={e=>updateRow(r.id,"status",e.target.value)} style={inputStyle}><option>Not Started</option><option>In Progress</option><option>Completed</option></select></td>
-                <td style={{padding:8,borderBottom:`1px solid ${T.line}`}}><button type="button" onClick={()=>removeRow(r.id)} style={{...smallBtn,background:"#fff",cursor:"pointer"}}>Remove</button></td>
-              </tr>)}</tbody>
-            </table>
-          </div>
-          <div style={{display:"flex",justifyContent:"space-between",gap:10,position:"sticky",bottom:0,background:T.paper,padding:"12px 0 2px",borderTop:`1px solid ${T.line}`,marginTop:12}}>
-            <button type="button" onClick={addRow} style={{...smallBtn,background:"#fff",cursor:"pointer",padding:"9px 15px"}}>+ Add Row</button>
-            <div style={{display:"flex",gap:10}}>
-              <button type="button" disabled={saving} onClick={save} style={{...smallBtn,background:T.navy,color:"#fff",cursor:saving?"wait":"pointer",padding:"9px 16px"}}>{saving?"Saving…":"Save Line of Work"}</button>
-              <button type="button" disabled={saving} onClick={closeEditor} style={{...smallBtn,background:"#fff",cursor:"pointer",padding:"9px 16px"}}>Cancel</button>
-            </div>
-          </div>
-        </div>
+    {loading&&<div style={{color:T.inkDim,marginBottom:12}}>Loading project workflow…</div>}
+    {error&&<div role="alert" style={{padding:12,background:T.redlineBg,color:T.redline,marginBottom:12}}>{error}</div>}
+    {message&&<div role="status" style={{padding:12,background:T.paperDim,fontSize:12,marginBottom:12}}>{message}</div>}
+    {tab==="template"?<>
+      <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
+        {!rows.length&&!loading&&<Btn disabled={busy} onClick={loadPdf}>Load Design PDF Template</Btn>}
+        {!!rows.length&&!editing&&<Btn disabled={busy||loading} onClick={()=>setEditing(true)}>Edit workflow / assignments</Btn>}
+        {editing&&<><Btn disabled={busy} onClick={save}>{busy?"Saving…":"Save Project Workflow"}</Btn><Btn disabled={busy} variant="ghost" onClick={()=>{setRows(savedRows);setEditing(false);setMessage("");setError("");}}>Cancel</Btn><Btn disabled={busy} variant="ghost" onClick={()=>{const id=uid();setRows(rs=>[...rs,{id,workflowVersion:"1",milestone:"New milestone",tasks:"New task",subtask:"New subtask",triggerDrawingType:"LAYOUT",triggerTaskType:"New task",scope:"Area",completionUploadRequired:true}]);}}>+ Add task</Btn></>}
       </div>
-    </div>}
+      {!rows.length&&<div style={{padding:18,border:`1px solid ${T.line}`,color:T.inkDim}}>Load the supplied design sequence, assign responsible people, and save. Existing Line of Work rows are retained.</div>}
+      {groups.map(g=>{const r=g.first,ids=g.rows.map(rowId);return <details key={rowId(r)} open style={{border:`1px solid ${T.line}`,marginBottom:12,background:T.paper}}>
+        <summary style={{padding:"12px 14px",background:T.paperDim,cursor:"pointer",fontFamily:FONT_DISPLAY,fontSize:14}}><strong>{r.milestone}</strong> · {r.tasks} <span style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim}}> · {g.rows.length} subtasks · {r.scope||"Area"}</span></summary>
+        <div style={{padding:14}}>
+          {editing?<div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(160px,1fr))",gap:10,marginBottom:12}}>
+            <Field label="Milestone"><input aria-label={`Milestone ${rowId(r)}`} disabled={busy} style={fieldStyle} value={r.milestone||""} onChange={e=>mutate(ids,{milestone:e.target.value})}/></Field>
+            <Field label="Task"><input disabled={busy} style={fieldStyle} value={r.tasks||""} onChange={e=>mutate(ids,{tasks:e.target.value})}/></Field>
+            <Field label="Scope"><select disabled={busy} style={fieldStyle} value={r.scope||"Area"} onChange={e=>mutate(ids,{scope:e.target.value,triggerDrawingType:e.target.value==="Project"?"MANUAL":r.triggerDrawingType})}><option>Area</option><option>Project</option></select></Field>
+            <Field label="Required drawing"><select disabled={busy} style={fieldStyle} value={r.triggerDrawingType||"LAYOUT"} onChange={e=>mutate(ids,{triggerDrawingType:e.target.value})}>{[...new Set(["MANUAL","LAYOUT","WE","FC","DETAIL","3D",...(state.templates||[]).map(t=>drawingTypeKey(t.drawingType)),r.triggerDrawingType].filter(Boolean))].map(d=><option key={d}>{d}</option>)}</select></Field>
+            <Field label="Task started in WIH"><input disabled={busy} style={fieldStyle} value={r.triggerTaskType||""} onChange={e=>mutate(ids,{triggerTaskType:e.target.value})}/></Field>
+            <Field label="Assign entire task"><select disabled={busy} style={fieldStyle} value={r.responsible||""} onChange={e=>mutate(ids,{responsible:e.target.value})}><option value="">Unassigned</option>{people.map(n=><option key={n}>{n}</option>)}</select></Field>
+          </div>:<div style={{display:"flex",gap:12,alignItems:"center",marginBottom:12,flexWrap:"wrap",fontSize:12,color:T.inkDim}}><span>{r.triggerDrawingType==="MANUAL"?"Manually queued":`Drawing: ${r.triggerDrawingType}`} · Start: {r.triggerTaskType}</span><span>Responsible: {r.responsible||"Unassigned"}</span><Btn disabled={busy||loading||!r.lineWorkId} variant="ghost" style={{padding:"6px 10px",marginLeft:"auto"}} onClick={()=>queue(g)}>{r.scope==="Project"?"Queue project task":"Queue for selected area"}</Btn></div>}
+          <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",minWidth:720}}><thead><tr>{["Step","Subtask","Responsible","Est. hours","Output required","Optional",...(editing?["Action"]:[])].map(h=><th key={h} style={{...thStyle,textAlign:"left",background:T.paperDim,color:T.ink}}>{h}</th>)}</tr></thead><tbody>{g.rows.map((sub,i)=><tr key={rowId(sub)}>
+            <td style={{...tdStyle,width:45}}>{i+1}</td><td style={{...tdStyle,textAlign:"left"}}>{editing?<input disabled={busy} style={fieldStyle} value={sub.subtask||""} onChange={e=>mutate([rowId(sub)],{subtask:e.target.value})}/>:sub.subtask}</td>
+            <td style={{...tdStyle,textAlign:"left"}}>{editing?<select aria-label={`Responsible ${rowId(sub)}`} disabled={busy} style={fieldStyle} value={sub.responsible||""} onChange={e=>mutate([rowId(sub)],{responsible:e.target.value})}><option value="">Inherit task owner / unassigned</option>{people.map(n=><option key={n}>{n}</option>)}</select>:sub.responsible||"Inherit task owner"}</td>
+            <td style={tdStyle}>{editing?<input disabled={busy} type="number" min="0" step="0.25" style={{...fieldStyle,width:85}} value={sub.hours??""} onChange={e=>mutate([rowId(sub)],{hours:e.target.value})}/>:sub.hours||"—"}</td>
+            <td style={tdStyle}>{editing?<input disabled={busy} aria-label={`Output required ${rowId(sub)}`} type="checkbox" checked={sub.completionUploadRequired!==false&&String(sub.completionUploadRequired)!=="false"} onChange={e=>mutate([rowId(sub)],{completionUploadRequired:e.target.checked})}/>:sub.completionUploadRequired!==false&&String(sub.completionUploadRequired)!=="false"?"Yes":"Optional"}</td>
+            <td style={tdStyle}>{editing?<input disabled={busy} aria-label={`Optional ${rowId(sub)}`} type="checkbox" checked={sub.optional===true||String(sub.optional)==="true"} onChange={e=>mutate([rowId(sub)],{optional:e.target.checked})}/>:sub.optional===true||String(sub.optional)==="true"?"Yes":"No"}</td>
+            {editing&&<td style={tdStyle}><button disabled={busy} style={smallBtn} onClick={()=>setRows(rs=>rs.filter(x=>rowId(x)!==rowId(sub)))}>Remove</button></td>}
+          </tr>)}</tbody></table></div>
+          {r.executionNote&&<div style={{fontSize:11,color:T.inkDim,marginTop:8}}>Execution handoff: {r.executionNote}</div>}
+          {editing&&<button disabled={busy} style={{...smallBtn,marginTop:10}} onClick={()=>setRows(rs=>{const next={...g.rows[g.rows.length-1],id:uid(),lineWorkId:"",subtask:"New subtask"};const index=rs.findIndex(x=>rowId(x)===rowId(g.rows[g.rows.length-1]));return [...rs.slice(0,index+1),next,...rs.slice(index+1)];})}>+ Add subtask</button>}
+        </div>
+      </details>;})}
+      {!!legacy.length&&<div style={{fontSize:11,color:T.inkDim,marginTop:12}}>{legacy.length} previous Line of Work rows retained. Workflow templates do not replace existing area task history.</div>}
+    </>:<>
+      <Btn disabled={busy} variant="ghost" onClick={refresh} style={{marginBottom:12}}>Refresh progress</Btn>
+      {!selectedArea&&<div style={{overflowX:"auto",marginBottom:16}}><table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr>{["Floor","Area","Workflow subtasks","Completed","Ready / in progress","Waiting","Action"].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{areas.map(([key,a])=>{const list=instances.filter(w=>w.task?.parentDesignTaskId&&String(w.task.floor)===String(a.floor)&&String(w.task.area)===String(a.area));const done=list.filter(w=>w.status==="Completed").length,blocked=list.filter(w=>w.status==="Blocked").length;return <tr key={key}><td style={tdStyle}>{a.floor}</td><td style={tdStyle}>{a.area}</td><td style={tdStyle}>{list.length||"Not activated"}</td><td style={tdStyle}>{done}</td><td style={tdStyle}>{list.length-done-blocked}</td><td style={tdStyle}>{blocked}</td><td style={tdStyle}><button style={smallBtn} onClick={()=>setAreaKey(key)}>View workflow</button></td></tr>;})}</tbody></table></div>}
+      <div style={{fontSize:12,color:T.inkDim,marginBottom:12}}>Progress is read from the same task records as Work in Hand. Start, pause and complete work in WIH.</div>
+      {!chosenInstances.length&&<div style={{padding:18,color:T.inkDim}}>No activated tasks yet. Classify drawings for the covered areas, then start the assigned parent task in WIH.</div>}
+      {chosenInstances.map(w=><div key={w.designTaskId} style={{padding:"12px 14px",border:`1px solid ${T.line}`,borderLeft:`3px solid ${w.task?.parentDesignTaskId?T.cyan:T.navy}`,marginBottom:8,marginLeft:w.task?.parentDesignTaskId?16:0,display:"flex",gap:12,justifyContent:"space-between",fontFamily:FONT_BODY,fontSize:12}}><div><strong>{w.task?.taskType||"Task"}</strong><div style={{color:T.inkDim,fontSize:11,marginTop:4}}>{(w.task?.drawingReviewRequired===true||String(w.task?.drawingReviewRequired)==="true")&&<span style={{color:T.orange}}>Drawing review required · </span>}{w.task?.milestone} {w.task?.parentTask?`→ ${w.task.parentTask}`:""} · {w.task?.floor||"Project"} · {w.task?.area||"Shared"}</div></div><div>{w.assigneeName||"Unassigned"} · <strong>{w.status}</strong></div></div>)}
+    </>}
   </div>;
 }
+
 function ProjectSelector({ state, selectedId, setSelectedId }) {
   const project = state.projects.find(p => p.id === selectedId) || state.projects[0];
   return <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:14,flexWrap:"wrap"}}>
@@ -5189,11 +5187,11 @@ function ProjectView({ state, persist }) {
     const currentScope = scopeFor(current);
     const cleanContacts = {};
     Object.entries(editDraft.contacts || {}).forEach(([role, c]) => {
-      if (c && ((c.name || "").trim() || (c.email || "").trim() || String(c.mobile ?? "").trim())) {
+      if (c && ((c.name || "").trim() || (c.email || "").trim() || (c.mobile || "").trim())) {
         cleanContacts[role] = {
           name: (c.name || "").trim(),
           email: (c.email || "").trim(),
-          mobile: String(c.mobile ?? "").trim()
+          mobile: (c.mobile || "").trim()
         };
       }
     });
