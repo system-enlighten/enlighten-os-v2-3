@@ -2646,11 +2646,11 @@ function useStudioState() {
       try {
         const res = await localStateGet(STORE_KEY);
         localState = res?.value ? normalizeStudioState(JSON.parse(res.value)) : normalizeStudioState({
-          projects: SEED_PROJECTS, people: DEFAULT_PEOPLE, templates: DEFAULT_TEMPLATES, intakes: [], tasks: [], ratings: {}, meetings: [], siteVisits: [], scopeSheet: PROJECT_SCOPE_SHEET_ROWS
+          projects: [], people: DEFAULT_PEOPLE, templates: DEFAULT_TEMPLATES, intakes: [], tasks: [], ratings: {}, meetings: [], siteVisits: [], scopeSheet: PROJECT_SCOPE_SHEET_ROWS
         });
       } catch {
         localState = normalizeStudioState({
-          projects: SEED_PROJECTS, people: DEFAULT_PEOPLE, templates: DEFAULT_TEMPLATES, intakes: [], tasks: [], ratings: {}, meetings: [], siteVisits: [], scopeSheet: PROJECT_SCOPE_SHEET_ROWS
+          projects: [], people: DEFAULT_PEOPLE, templates: DEFAULT_TEMPLATES, intakes: [], tasks: [], ratings: {}, meetings: [], siteVisits: [], scopeSheet: PROJECT_SCOPE_SHEET_ROWS
         });
       }
 
@@ -2702,7 +2702,8 @@ function useStudioState() {
           if (!floorZonesByProject[r.projectId]) floorZonesByProject[r.projectId] = [];
           floorZonesByProject[r.projectId].push(r);
         });
-        if (Array.isArray(remote) && remote.length > 0) {
+        if (!Array.isArray(remote)) throw new Error("Invalid project list from Google Sheets.");
+        if (Array.isArray(remote)) {
           const localById = new Map((localState.projects || []).map(p => [String(p.id || ""), p]));
           const localByNo = new Map((localState.projects || []).map(p => [String(p.no || "").trim().toLowerCase(), p]));
           const merged = remote.map(r => {
@@ -5019,9 +5020,6 @@ function ProjectView({ state, persist }) {
     setBoard(project?.designExecutionBoard || buildRoomCentricBoard(project));
   }, [project?.id]);
 
-  if (!project && !showNewProject) {
-    return <div><p>No projects yet. Create your first project below.</p><button onClick={()=>setShowNewProject(true)} style={{...smallBtn,background:T.navy,color:"#fff"}}>+ New Project</button></div>;
-  }
 
   const scopeFields = [
     ["Basement","basement"],["Stilt Floor","stilt_floor"],["GF","gf"],["1F","1f"],["2F","2f"],["3F","3f"],
