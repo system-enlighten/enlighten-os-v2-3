@@ -5020,7 +5020,7 @@ function ProjectView({ state, persist }) {
   }, [project?.id]);
 
   if (!project && !showNewProject) {
-    return <div>No projects yet. Use + New Project to create the first project.</div>;
+    return <div><p>No projects yet. Create your first project below.</p><button onClick={()=>setShowNewProject(true)} style={{...smallBtn,background:T.navy,color:"#fff"}}>+ New Project</button></div>;
   }
 
   const scopeFields = [
