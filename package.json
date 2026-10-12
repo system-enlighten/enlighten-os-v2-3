@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.11.15-team-permissions",
+  "version": "2.11.16-project-status",
   "type": "module",
   "scripts": {
     "dev": "vite",

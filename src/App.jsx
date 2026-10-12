@@ -2532,13 +2532,14 @@ function backendProjectToFrontend(row, fallback = {}) {
     plannedCompletionDate: row.plannedCompletionDate || fallback.plannedCompletionDate || "",
     projectStage: row.currentStage || fallback.projectStage || "Onboarding", status, projectStatus: status,
     blocker: row.blocker || fallback.blocker || "", delayReason: row.delayReason || fallback.delayReason || "",
-    completedDate: row.completedDate || fallback.completedDate || "",
-    completedAt: isTrue(row.completed) || status === "Completed" ? (row.updatedAt || row.completedDate || fallback.completedAt || "") : (fallback.completedAt || ""),
+    completed: status === "Completed",
+    completedDate: status === "Completed" ? (row.completedDate || fallback.completedDate || "") : "",
+    completedAt: isTrue(row.completed) || status === "Completed" ? (row.updatedAt || row.completedDate || fallback.completedAt || "") : "",
     driveFolderId: row.driveFolderId || fallback.driveFolderId || "", scope,
     projectControl: { ...(fallback.projectControl || {}),
       currentStage: row.currentStage || fallback.projectControl?.currentStage || fallback.projectStage || "Onboarding",
       projectStatus: status,
-      completedAt: status === "Completed" ? (row.updatedAt || row.completedDate || fallback.projectControl?.completedAt || "") : (fallback.projectControl?.completedAt || "")
+      completedAt: status === "Completed" ? (row.updatedAt || row.completedDate || fallback.projectControl?.completedAt || "") : ""
     }
   };
 }
@@ -3651,8 +3652,8 @@ function lineOfWorkDefaults(project, people) {
 
 /* stale ProjectSelector removed cleanly */
 
-function ProjectOnboarding({ state, persist, selectedId, setSelectedId }) {
-  const [mode, setMode] = useState("browse");
+function ProjectOnboarding({ state, persist, selectedId, setSelectedId, initialMode = "browse" }) {
+  const [mode, setMode] = useState(initialMode);
   const [draft, setDraft] = useState(emptyDraft());
   const [saved, setSaved] = useState(false);
 
@@ -3714,7 +3715,8 @@ function ProjectOnboarding({ state, persist, selectedId, setSelectedId }) {
   const updateProject = async (projectId, patch) => {
     const current = state.projects.find(p => p.id === projectId);
     if (!current) return;
-    const nextProject = { ...current, ...patch, status: patch.projectStatus || current.status };
+    const nextStatus = patch.projectStatus || current.projectStatus || current.status;
+    const nextProject = { ...current, ...patch, status: nextStatus, projectStatus: nextStatus, projectControl: {...current.projectControl, projectStatus: nextStatus, ...(patch.projectStage ? {currentStage:patch.projectStage} : {})}, ...(nextStatus !== "Completed" ? {completed:false,completedAt:"",completedDate:""} : {}) };
     let updatedRow;
     try { updatedRow = await projectApi.update(frontendProjectToBackend(nextProject, true)); }
     catch (err) { alert(`Google Sheets update failed: ${err?.message || err}`); return; }
@@ -3737,7 +3739,7 @@ function ProjectOnboarding({ state, persist, selectedId, setSelectedId }) {
           <h2 style={{ fontFamily: FONT_DISPLAY, fontSize: 20, margin: 0, color: T.ink }}>Project Onboarding</h2>
           <div style={{ fontFamily: FONT_BODY, fontSize: 13, color: T.inkDim, marginTop: 4 }}>Select a project to see its current stage, status, schedule and site activity.</div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: initialMode === "new" ? "none" : "flex", gap: 8 }}>
           <Chip active={mode === "browse"} onClick={() => setMode("browse")}>Existing Projects</Chip>
           <Chip active={mode === "new"} onClick={() => setMode("new")}>+ New Onboarding</Chip>
         </div>
@@ -5006,6 +5008,7 @@ function ProjectView({ state, persist }) {
   const [tab, setTab] = useState("list");
   const [selectedId, setSelectedId] = useState(state.projects[0]?.id || null);
   const [showNewProject, setShowNewProject] = useState(false);
+  const [showExistingProjects, setShowExistingProjects] = useState(false);
   const [editProjectId, setEditProjectId] = useState(null);
   const [editDraft, setEditDraft] = useState(null);
   const [isProjectEditorOpen, setIsProjectEditorOpen] = useState(false);
@@ -5303,17 +5306,18 @@ function ProjectView({ state, persist }) {
           One master sheet: project information and project scope are edited together.
         </div>
       </div>
-      <button onClick={()=>setShowNewProject(true)} style={{...smallBtn,background:T.navy,color:"#fff",border:`1px solid ${T.navy}`,padding:"9px 13px",fontFamily:FONT_BODY,fontWeight:700,cursor:"pointer"}}>
+      <div style={{display:"flex",gap:8}}><button onClick={()=>{setShowExistingProjects(true);setShowNewProject(false);}} style={smallBtn}>Existing Projects</button>
+      <button onClick={()=>{setShowNewProject(true);setShowExistingProjects(false);}} style={{...smallBtn,background:T.navy,color:"#fff",border:`1px solid ${T.navy}`,padding:"9px 13px",fontFamily:FONT_BODY,fontWeight:700,cursor:"pointer"}}>
         + New Project
-      </button>
+      </button></div>
     </div>
 
-    {showNewProject && <div style={{border:`1px solid ${T.line}`,background:"#fff",padding:16,marginBottom:16}}>
+    {(showNewProject || showExistingProjects) && <div style={{border:`1px solid ${T.line}`,background:"#fff",padding:16,marginBottom:16}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-        <div style={{fontFamily:FONT_DISPLAY,fontSize:16,fontWeight:700}}>New Project</div>
-        <button onClick={()=>setShowNewProject(false)} style={{...smallBtn}}>Close</button>
+        <div style={{fontFamily:FONT_DISPLAY,fontSize:16,fontWeight:700}}>{showNewProject ? "New Project" : "Existing Projects"}</div>
+        <button onClick={()=>{setShowNewProject(false);setShowExistingProjects(false);}} style={{...smallBtn}}>Close</button>
       </div>
-      <ProjectOnboarding state={state} persist={persist} selectedId={selectedId} setSelectedId={(id)=>{setSelectedId(id);setShowNewProject(false);setTab("list");}}/>
+      <ProjectOnboarding key={showNewProject ? "new" : "browse"} initialMode={showNewProject ? "new" : "browse"} state={state} persist={persist} selectedId={selectedId} setSelectedId={(id)=>{setSelectedId(id);setShowNewProject(false);setTab("list");}}/>
     </div>}
 
     <div style={{display:"flex",alignItems:"center",gap:0,borderBottom:`1px solid ${T.line}`,marginBottom:18,overflowX:"auto",background:"#fff"}}>
