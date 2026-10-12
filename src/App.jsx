@@ -2461,6 +2461,13 @@ const projectApi = {
   acknowledgeWorkflowDrawing: designTaskId => apiRequest("acknowledgeWorkflowDrawing",{designTaskId}),
   queueWorkflowTask: payload => apiRequest("queueWorkflowTask", payload),
   saveLineOfWork: (projectId, rows) => apiRequest("saveLineOfWork", { projectId, rows }),
+  listProjectRoles: () => apiRequest('listProjectRoles',{},'GET'),
+  saveProjectRole: payload => apiRequest('saveProjectRole',payload),
+  deleteProjectRole: payload => apiRequest('deleteProjectRole',payload),
+  listProjectPeople: () => apiRequest('listProjectPeople',{},'GET'),
+  listSitePunchIns: projectId => apiRequest('listSitePunchIns',projectId?{projectId}:{},'GET'),
+  saveSitePunchIn: payload => apiRequest('saveSitePunchIn',payload),
+  deleteSitePunchIn: payload => apiRequest('deleteSitePunchIn',payload),
   listFloorZones: projectId => apiRequest("listFloorZones", projectId ? { projectId } : {}, "GET"),
   saveFloorZones: (projectId, rows) => apiRequest("saveFloorZones", { projectId, rows }),
   receiveDrawing: payload => apiRequest("receiveDrawing", payload),
@@ -2666,7 +2673,7 @@ function useStudioState() {
         }
 
         if(user.appAccess.toLowerCase()!=="admin"){
-          const [remote,contacts,work,zones]=await Promise.all([projectApi.listAll(),projectApi.listContacts(),projectApi.listLineOfWork(),projectApi.listFloorZones()]);
+          const [remote,contacts,work,zones,people]=await Promise.all([projectApi.listAll(),projectApi.listContacts(),projectApi.listLineOfWork(),projectApi.listFloorZones(),projectApi.listProjectPeople()]);
           const projects=(remote||[]).map(r=>{
             const base=backendProjectToFrontend(r,{}),id=String(r.projectId);
             const profile=contactRowsToObject((contacts||[]).filter(c=>String(c.projectId)===id));
@@ -2674,7 +2681,7 @@ function useStudioState() {
             const areas=(zones||[]).filter(x=>String(x.projectId)===id);
             return {...base,contacts:profile,lineOfWorkResidence:plan,lineOfWork:plan,floorZones:areas};
           });
-          localState={projects,people:[user.name],teamMaster:[{userId:user.userId,name:user.name,active:true}],templates:[],intakes:[],tasks:[],ratings:{},meetings:[],siteVisits:[],scopeSheet:[],currentUser:user};
+          localState={projects,people:[user.name],teamMaster:people.length?people:[{userId:user.userId,name:user.name,active:true}],templates:[],intakes:[],tasks:[],ratings:{},meetings:[],siteVisits:[],scopeSheet:[],currentUser:user};
           setState(localState);return;
         }
         const [remote, remoteContacts, remoteLineOfWork, remoteFloorZones, remoteTeam, remoteDepartments, remoteDesignations, remoteDrawingTaskMaster] = await Promise.all([
@@ -2746,12 +2753,16 @@ function useStudioState() {
   }, []);
 
   const persist = useCallback(async (next) => {
-    if(currentUser?.appAccess?.toLowerCase()!=="admin")throw new Error("Projects are view only.");
+    if(currentUser?.appAccess?.toLowerCase()!=="admin"){
+      const changed=(next.projects||[]).filter(p=>JSON.stringify(p)!==JSON.stringify(state?.projects?.find(x=>String(x.id)===String(p.id))));
+      if(!changed.length||changed.some(p=>currentUser?.appAccess?.toLowerCase()==='viewer'||currentUser?.projectRoles?.[p.id]!=='Admin')||(next.projects||[]).length!==(state?.projects||[]).length)throw new Error("Projects are view only.");
+      setState({...state,projects:next.projects});return next;
+    }
     setState(next);
     const ok = await localStateSet(STORE_KEY, JSON.stringify(next));
     setSaveErr(!ok);
     return next;
-  }, [currentUser]);
+  }, [currentUser,state]);
 
   return { state, loading, saveErr, backendErr, currentUser, persist };
 }
@@ -5822,7 +5833,8 @@ function SettingsView({ state, persist }) {
   const moveDrawingTask=(i,k,d)=>setDrawingTemplates(x=>x.map((t,j)=>{if(j!==i)return t;const a=[...(t.tasks||[])],z=k+d;if(z<0||z>=a.length)return t;[a[k],a[z]]=[a[z],a[k]];return {...t,tasks:a};}));
   const set = (k,v)=>setForm(f=>({...f,[k]:v}));
   return <div>
-    <div style={{marginBottom:20}}><h2 style={{fontFamily:FONT_DISPLAY,fontSize:24,margin:"0 0 5px"}}>Team Master</h2><div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim}}>Enter each employee once. The Gmail ID is the login identity. Set <b>App Access = Admin</b> for administrators; User = Projects view only + own WIH editing; Viewer = Projects + own WIH view only. Active team members automatically become selectable in Responsible Person / Assignee dropdowns.</div></div>
+    <ProjectRoleManager state={state}/>
+    <div style={{marginBottom:20}}><h2 style={{fontFamily:FONT_DISPLAY,fontSize:24,margin:"0 0 5px"}}>Team Master</h2><div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim}}>Enter each employee once. The Gmail ID is the login identity. Set <b>App Access = Admin</b> for administrators; User = project permissions assigned below + own WIH editing; Viewer = assigned projects and own WIH view only. App Access Admin is the system administrator; Project Admin is assigned separately for each project. Active team members automatically become selectable in Responsible Person / Assignee dropdowns.</div></div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:20}}>
       {[["Department Master",departments,newDepartment,setNewDepartment,"department"],["Designation / Role Master",designations,newDesignation,setNewDesignation,"designation"]].map(([title,items,newValue,setNewValue,kind])=>
         <div key={kind} style={{background:"#fff",border:`1px solid ${T.line}`,padding:14}}>
@@ -5973,7 +5985,7 @@ function StudioApp() {
           </div>
         )}
         <div style={{ padding: "28px 32px", overflowY: "auto" }}>
-          {view === "project" && (isAdmin?<ProjectView state={state} persist={persist} />:<MemberProjectsView state={state}/>)}
+          {view === "project" && (isAdmin?<ProjectView state={state} persist={persist} />:<ProjectPermissionsView state={state} persist={persist}/>)}
           {isAdmin && view === "designLineOfWork" && <DesignLineOfWorkView state={state} persist={persist} />}
           {isAdmin && view === "design" && <DesignFlowView state={state} persist={persist} />}
           
@@ -5983,7 +5995,7 @@ function StudioApp() {
           {view === "timesheet" && <TimesheetView state={state} persist={persist} />}
           {isAdmin && view === "meetings" && <MeetingsView state={state} persist={persist} />}
           {isAdmin && view === "executionMain" && <ExecutionMainView state={state} persist={persist} />}
-          {isAdmin && view === "site" && <SitePunchInView state={state} persist={persist} />}
+          {isAdmin && view === "site" && <ProjectPunchInsView state={state}/>}
           {isAdmin && view === "settings" && <SettingsView state={state} persist={persist} />}
         </div>
       </div>
@@ -6006,6 +6018,57 @@ function MemberProjectsView({state}) {
     {tab==='line'&&<>{workflowGroups(workflow.filter(r=>String(r.workflowVersion)==='1')).map(g=><details key={g.first.lineWorkId||g.first.id} open style={{border:`1px solid ${T.line}`,marginBottom:12}}><summary style={{padding:12,background:T.paperDim}}><strong>{g.first.milestone}</strong> · {g.first.tasks}</summary><table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Step','Subtask','Responsible','Estimated hours'].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{g.rows.map((r,i)=><tr key={r.lineWorkId||r.id}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{r.subtask}</td><td style={tdStyle}>{r.responsible||'Unassigned'}</td><td style={tdStyle}>{r.hours||'—'}</td></tr>)}</tbody></table></details>)}{!workflow.some(r=>String(r.workflowVersion)==='1')&&<div style={{color:T.inkDim}}>The admin has not saved the detailed workflow for this project.</div>}</>}
   </div>;
 }
+
+function projectRole(state,id){
+  const u=state.currentUser;
+  if(u?.appAccess?.toLowerCase()==='admin')return 'Admin';
+  if(u?.appAccess?.toLowerCase()==='viewer')return u.projectRoles?.[id]?'User':'';
+  return u?.projectRoles?.[id]||'';
+}
+function ProjectRoleManager({state}){
+  const [rows,setRows]=useState([]),[projectId,setProjectId]=useState(state.projects[0]?.id||''),[userId,setUserId]=useState(''),[role,setRole]=useState('User'),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
+  const refresh=()=>projectApi.listProjectRoles().then(setRows);
+  useEffect(()=>{refresh().catch(e=>setMessage(e.message));},[]);
+  const save=async()=>{setBusy(true);try{await projectApi.saveProjectRole({projectId,userId,projectRole:role});await refresh();setMessage('Project role saved. Member should reload or sign in again.');}catch(e){setMessage(e.message);}finally{setBusy(false);}};
+  const remove=async r=>{setBusy(true);try{await projectApi.deleteProjectRole({projectId:r.projectId,userId:r.userId});await refresh();}catch(e){setMessage(e.message);}finally{setBusy(false);}};
+  return <section style={{border:`1px solid ${T.line}`,background:'#fff',padding:18,marginBottom:24}}><h2 style={{fontFamily:FONT_DISPLAY,marginTop:0}}>Project Roles & Permissions</h2><p>Assign Admin or User separately for every project. System Admin retains access to all projects.</p><div style={{display:'flex',gap:10,flexWrap:'wrap'}}><select aria-label="Role project" value={projectId} onChange={e=>setProjectId(e.target.value)} style={inputStyle}>{state.projects.map(p=><option key={p.id} value={p.id}>{p.no} · {p.name}</option>)}</select><select aria-label="Role member" value={userId} onChange={e=>setUserId(e.target.value)} style={inputStyle}><option value="">Select member</option>{(state.teamMaster||[]).filter(m=>m.active!==false&&String(m.active).toLowerCase()!=='false').map(m=><option key={m.userId} value={m.userId}>{m.name} · {m.userId}</option>)}</select><select aria-label="Project role" value={role} onChange={e=>setRole(e.target.value)} style={inputStyle}><option>User</option><option>Admin</option></select><Btn disabled={busy||!projectId||!userId} onClick={save}>Save Project Role</Btn></div><p role="status">{message}</p><table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Project','Member','Project role','Action'].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{rows.filter(r=>r.active===true||String(r.active).toLowerCase()==='true').map(r=><tr key={r.projectId+':'+r.userId}><td style={tdStyle}>{state.projects.find(p=>String(p.id)===String(r.projectId))?.name||r.projectId}</td><td style={tdStyle}>{state.teamMaster?.find(m=>String(m.userId)===String(r.userId))?.name||r.userId}</td><td style={tdStyle}>{r.projectRole}</td><td style={tdStyle}><button disabled={busy} style={smallBtn} onClick={()=>remove(r)}>Remove access</button></td></tr>)}</tbody></table></section>;
+}
+function ProjectPermissionsView({state,persist}){
+  const [selected,setSelected]=useState(state.projects[0]?.id||''),[tab,setTab]=useState('scope');
+  const p=state.projects.find(x=>String(x.id)===String(selected))||state.projects[0];
+  if(!p)return <p>No assigned projects. Ask your system Admin to assign a project role in Team & Tasks.</p>;
+  const role=projectRole(state,p.id),admin=role==='Admin';
+  const scoped={...state,projects:[p]};
+  const saveScoped=async next=>persist({...state,projects:state.projects.map(x=>x.id===p.id?(next.projects.find(n=>n.id===p.id)||x):x)});
+  return <div><h2>Projects</h2><select aria-label="Assigned project" style={inputStyle} value={p.id} onChange={e=>{setSelected(e.target.value);setTab('scope');}}>{state.projects.map(x=><option key={x.id} value={x.id}>{x.no} · {x.name}</option>)}</select><p>Project role: <b>{role}</b> · {admin?'Manage this project':'View only'}</p><div style={{display:'flex',gap:8,marginBottom:18}}>{[['scope','Projects & Scope'],['line','Line of Work'],['floor','Floor & Zone'],['site','Site Punch-in']].map(([id,label])=><Btn key={id} onClick={()=>setTab(id)} variant={tab===id?'dark':'ghost'}>{label}</Btn>)}</div>
+  {tab==='scope'&&(admin?<ProjectScopeAdmin key={p.id} project={p} onSaved={async row=>saveScoped({...scoped,projects:[backendProjectToFrontend(row,p)]})}/>:<MemberProjectsView key={p.id} state={scoped}/>)}
+  {tab==='line'&&(admin?<ProjectLineOfWorkView key={p.id} state={scoped} persist={saveScoped} selectedId={p.id}/>:<ReadOnlyProjectWork project={p}/>)}
+  {tab==='floor'&&(admin?<DashboardView key={p.id} state={scoped} persist={saveScoped}/>:<table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Zone','Floor','Area'].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{(p.floorZones||[]).map((r,i)=><tr key={r.floorZoneId||i}>{[r.zoneCode,r.floor,r.area].map((v,j)=><td key={j} style={tdStyle}>{v}</td>)}</tr>)}</tbody></table>)}
+  {tab==='site'&&<ProjectPunchInsView key={p.id} state={scoped}/>}
+  </div>;
+}
+function ReadOnlyProjectWork({project}){
+  const rows=project.lineOfWorkResidence||project.lineOfWork||[];
+  return <table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Milestone','Task','Subtask','Responsible','Hours'].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={r.lineWorkId||r.id||i}>{[r.milestone,r.tasks||r.title,r.subtask,r.responsible||r.assignee,r.hours].map((v,j)=><td key={j} style={tdStyle}>{v||'—'}</td>)}</tr>)}</tbody></table>;
+}
+function ProjectScopeAdmin({project,onSaved}){
+  const [draft,setDraft]=useState(project),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
+  const save=async()=>{setBusy(true);try{const row=await projectApi.update(frontendProjectToBackend(draft,true));await onSaved(row);setMessage('Saved to Google Sheets.');}catch(e){setMessage(e.message);}finally{setBusy(false);}};
+  const fields=[['Basement','basement'],['Stilt Floor','stilt_floor'],['GF','gf'],['1F','1f'],['2F','2f'],['3F','3f'],['Terrace','terrace'],['Facade','facade'],['Wall Elevation','wall_elevation'],['Landscape','landscape'],['Bath Elevation','bath_elevation'],['Wardrobe','wardrobe'],['Kitchen','kitchen'],['Onboarding','onboarding']];
+  return <section><h3>{project.name} · Scope & Status</h3><Field label="Project status"><select style={inputStyle} value={draft.status} onChange={e=>setDraft(d=>({...d,status:e.target.value,projectStatus:e.target.value,projectControl:{...d.projectControl,projectStatus:e.target.value}}))}><option>Ongoing</option><option>On Hold</option><option>Completed</option></select></Field><div style={{display:'flex',gap:16,flexWrap:'wrap',marginBottom:16}}>{fields.map(([label,k])=><label key={k}><input type="checkbox" checked={!!draft.scope?.[k]} onChange={e=>setDraft(d=>({...d,scope:{...d.scope,[k]:e.target.checked}}))}/> {label}</label>)}</div><Btn disabled={busy} onClick={save}>{busy?'Saving…':'Save Scope & Status'}</Btn><p role="status">{message}</p></section>;
+}
+function ProjectPunchInsView({state}){
+  const [projectId,setProjectId]=useState(state.projects[0]?.id||''),[rows,setRows]=useState([]),[draft,setDraft]=useState(null),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);
+  const admin=projectRole(state,projectId)==='Admin';
+  useEffect(()=>{let active=true;setRows([]);setDraft(null);setMessage('');if(projectId)projectApi.listSitePunchIns(projectId).then(r=>{if(active)setRows(r);}).catch(e=>{if(active)setMessage(e.message);});return()=>{active=false;};},[projectId]);
+  const save=async()=>{setBusy(true);try{const payload={...draft,projectId,checkInAt:draft.checkInAt?new Date(draft.checkInAt).toISOString():'',checkOutAt:draft.checkOutAt?new Date(draft.checkOutAt).toISOString():''};await projectApi.saveSitePunchIn(payload);setRows(await projectApi.listSitePunchIns(projectId));setDraft(null);setMessage('Punch-in saved to Google Sheets.');}catch(e){setMessage(e.message);}finally{setBusy(false);}};
+  const edit=r=>{const localDate=iso=>{if(!iso)return '';const d=new Date(iso);if(isNaN(d))return '';return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);};setDraft({punchId:r.punchId,userId:r.userId,purpose:r.purpose||'',checkInAt:localDate(r.checkInAt),checkOutAt:localDate(r.checkOutAt)});};
+  const remove=async r=>{if(!window.confirm('Delete this punch-in record?'))return;setBusy(true);try{await projectApi.deleteSitePunchIn({projectId,punchId:r.punchId});setRows(await projectApi.listSitePunchIns(projectId));}catch(e){setMessage(e.message);}finally{setBusy(false);}};
+  return <section><h2>Site Punch-in Records</h2><select aria-label="Punch-in project" value={projectId} style={inputStyle} onChange={e=>setProjectId(e.target.value)}>{state.projects.map(p=><option key={p.id} value={p.id}>{p.no} · {p.name}</option>)}</select><p>{admin?'Project Admin · manage records and dates':'View only'}</p>{admin&&<Btn disabled={!projectId||busy} onClick={()=>setDraft({userId:state.currentUser.userId,purpose:'',checkInAt:'',checkOutAt:''})}>Add Punch-in Record</Btn>}
+  {admin&&draft&&<div style={{border:`1px solid ${T.line}`,padding:16,marginTop:14}}><Field label="Team member"><select style={inputStyle} value={draft.userId} onChange={e=>setDraft(d=>({...d,userId:e.target.value}))}>{(state.teamMaster||[]).map(m=><option key={m.userId} value={m.userId}>{m.name}</option>)}</select></Field>{[['checkInAt','Entry date & time'],['checkOutAt','Exit date & time (optional)']].map(([k,label])=><Field key={k} label={label}><input type="datetime-local" style={inputStyle} value={draft[k]} onChange={e=>setDraft(d=>({...d,[k]:e.target.value}))}/></Field>)}<Field label="Purpose"><input style={inputStyle} value={draft.purpose} onChange={e=>setDraft(d=>({...d,purpose:e.target.value}))}/></Field><Btn disabled={busy||!draft.checkInAt||!draft.userId} onClick={save}>Save Punch-in</Btn><button style={smallBtn} onClick={()=>setDraft(null)}>Cancel</button></div>}
+  <p role="status">{message}</p><table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Member','Entry','Exit','Purpose',...(admin?['Actions']:[])].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{rows.map(r=><tr key={r.punchId}><td style={tdStyle}>{r.person}</td><td style={tdStyle}>{r.checkInAt?new Date(r.checkInAt).toLocaleString('en-IN'):'—'}</td><td style={tdStyle}>{r.checkOutAt?new Date(r.checkOutAt).toLocaleString('en-IN'):'—'}</td><td style={tdStyle}>{r.purpose}</td>{admin&&<td style={tdStyle}><button disabled={busy} style={smallBtn} onClick={()=>edit(r)}>Edit Dates</button><button disabled={busy} style={smallBtn} onClick={()=>remove(r)}>Delete</button></td>}</tr>)}</tbody></table>{!rows.length&&<p>No punch-in records.</p>}</section>;
+}
+
 let AUTH_ID_TOKEN='';
 function clearStudioCaches(){try{for(let i=localStorage.length-1;i>=0;i--){const k=localStorage.key(i);if(k&&/enlighten/i.test(k))localStorage.removeItem(k);}}catch(_){}}
 export default function App(){

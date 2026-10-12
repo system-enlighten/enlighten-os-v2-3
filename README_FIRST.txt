@@ -1,3 +1,5 @@
+LATEST: Follow START_HERE_v2.11.20_Project_Roles.txt at the ZIP root for project role setup and the mandatory backend update.
+
 IMPORTANT: For v2.11.15 deployment and login, follow START_HERE_v2.11.15_Team_Permissions.txt at the ZIP root. Earlier instructions below are historical; the new signed Vercel API and Google login are required.
 
 enLIGHTen OS v2.7.3 — DESIGN DASHBOARD SCOPE COLUMN RESTORED

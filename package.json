@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.11.19-live-project-data",
+  "version": "2.11.20-project-roles",
   "type": "module",
   "scripts": {
     "dev": "vite",
