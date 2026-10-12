@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.11.20-project-roles",
+  "version": "2.11.21-design-flow-gantt",
   "type": "module",
   "scripts": {
     "dev": "vite",
