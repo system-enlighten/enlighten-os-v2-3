@@ -2343,8 +2343,8 @@ function buildDirectory(projects, ratings) {
   (Array.isArray(projects) ? projects : []).filter(Boolean).forEach((p) => {
     const contacts = p.contacts || {};
     Object.entries(contacts).forEach(([role, c]) => {
-      if (!c || !String(c.name ?? "").trim()) return;
-      const key = contactKey(c.name, c.mobile);
+      if (!c || !(String(c.name ?? "").trim()||String(c.company ?? "").trim())) return;
+      const key = contactKey(c.name||c.company, c.mobile);
       if (!byKey.has(key)) {
         byKey.set(key, { key, name: String(c.name ?? "").trim(), email: String(c.email ?? ""), mobile: String(c.mobile ?? ""), company: String(c.company ?? ""), roles: new Set(), projects: [] });
       }
@@ -2498,7 +2498,7 @@ function contactCategoryForRole(role) {
 }
 
 function contactsObjectToRows(project, contacts) {
-  return Object.entries(contacts || {}).filter(([,c]) => c && String(c.name ?? "").trim()).map(([role,c]) => ({
+  return Object.entries(contacts || {}).filter(([,c]) => c && (String(c.name ?? "").trim()||String(c.company ?? "").trim())).map(([role,c]) => ({
     projectId: project.id, projectNo: project.no || "", projectName: project.name || "",
     category: contactCategoryForRole(role), role,
     name: String(c.name ?? "").trim(), email: String(c.email ?? "").trim(),
@@ -2509,7 +2509,7 @@ function contactsObjectToRows(project, contacts) {
 function contactRowsToObject(rows) {
   const out = {};
   (Array.isArray(rows) ? rows : []).forEach(r => {
-    if (!r?.role || !String(r.name ?? "").trim()) return;
+    if (!r?.role || !(String(r.name ?? "").trim()||String(r.company ?? "").trim())) return;
     out[String(r.role)] = {...r, name:String(r.name ?? ""), email:String(r.email ?? ""),
       mobile:String(r.mobile ?? ""), company:String(r.company ?? ""), rating:r.rating || ""};
   });
@@ -3571,69 +3571,8 @@ function emptyDraft() {
 // Grouped role/contact form used both when onboarding a new project and
 // when editing an existing one's contacts — categories match the sheet's
 // own Owner / Design / Construction sections.
-function ContactFields({ contacts, onChange, teamMaster = [] }) {
-  const activeMembers = (teamMaster || []).filter(m => m.active !== false && String(m.active).toLowerCase() !== "false");
-  const membersForRole = (role) => activeMembers.filter(m => (m.role || "").trim().toLowerCase() === role.trim().toLowerCase());
-  const selectMember = (role, userId) => {
-    const member = activeMembers.find(m => m.userId === userId);
-    if (!member) {
-      onChange(role, "name", "");
-      onChange(role, "email", "");
-      onChange(role, "mobile", "");
-      onChange(role, "teamUserId", "");
-      return;
-    }
-    onChange(role, "teamUserId", member.userId);
-    onChange(role, "name", member.name || "");
-    onChange(role, "email", member.email || "");
-    onChange(role, "mobile", member.mobile || "");
-  };
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 18, maxHeight: 500, overflowY: "auto", paddingRight: 4 }}>
-      {ROLE_CATEGORIES.map(({ category, roles }) => (
-        <div key={category}>
-          <div style={{
-            display: "inline-block", fontFamily: FONT_MONO, fontSize: 10, letterSpacing: "0.08em",
-            textTransform: "uppercase", color: categoryColor(category), background: `${categoryColor(category)}18`,
-            padding: "3px 9px", borderRadius: 4, marginBottom: 8,
-          }}>{category}</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {roles.map((role) => {
-              const roleChoices = membersForRole(role);
-              const isDesignRole = category === "Design";
-              // Every Design contact is selected from Team Master. Prefer matching-role
-              // employees first, but keep all active employees available so a project can
-              // assign a person even while their master designation is being updated.
-              const choices = isDesignRole
-                ? [...roleChoices, ...activeMembers.filter(m => !roleChoices.some(r => r.userId === m.userId))]
-                : roleChoices;
-              const current = contacts[role] || {};
-              const matched = activeMembers.find(m => m.userId === current.teamUserId || (m.name && m.name === current.name));
-              return (
-                <div key={role} style={{ display: "grid", gridTemplateColumns: "170px 1fr 1fr 1fr", gap: 8, alignItems: "center" }}>
-                  <div style={{ fontFamily: FONT_BODY, fontSize: 12.5, color: T.inkDim }}>{role}</div>
-                  {(isDesignRole || choices.length) ? (
-                    <select
-                      style={{ ...inputStyle, padding: "7px 10px", fontSize: 12.5 }}
-                      value={matched?.userId || ""}
-                      onChange={(e) => selectMember(role, e.target.value)}
-                    >
-                      <option value="">Select from Team Master</option>
-                      {choices.map(m => <option key={m.userId} value={m.userId}>{m.name}{isDesignRole && m.role ? ` — ${m.role}` : ""}</option>)}
-                    </select>
-                  ) : (
-                    <input style={{ ...inputStyle, padding: "7px 10px", fontSize: 12.5 }} placeholder="Name" value={current.name || ""} onChange={(e) => onChange(role, "name", e.target.value)} />
-                  )}
-                  <input style={{ ...inputStyle, padding: "7px 10px", fontSize: 12.5, background:isDesignRole?"#f4f2eb":"#fff" }} placeholder="Email" value={current.email || ""} readOnly={isDesignRole} onChange={(e) => !isDesignRole && onChange(role, "email", e.target.value)} />
-                  <input style={{ ...inputStyle, padding: "7px 10px", fontSize: 12.5, background:isDesignRole?"#f4f2eb":"#fff" }} placeholder="Mobile" value={current.mobile || ""} readOnly={isDesignRole} onChange={(e) => !isDesignRole && onChange(role, "mobile", e.target.value)} />
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+function ContactFields({contacts,onChange}) {
+  return <ProjectTeamContactFields contacts={contacts} onChange={onChange}/>;
 }
 
 const PROJECT_STATUSES = ["Ongoing", "On Hold", "Completed"];
@@ -3676,7 +3615,7 @@ function ProjectOnboarding({ state, persist, selectedId, setSelectedId, initialM
     if (!draft.name.trim()) return;
     const cleanContacts = {};
     Object.entries(draft.contacts).forEach(([role, c]) => {
-      if (c && (c.name || "").trim()) cleanContacts[role] = { name: c.name.trim(), email: (c.email || "").trim(), mobile: (c.mobile || "").trim() };
+      if (c && (String(c.name||"").trim()||String(c.company||"").trim())) cleanContacts[role] = { name:String(c.name||"").trim(), company:String(c.company||"").trim(), email:String(c.email||"").trim(), mobile:String(c.mobile||"").trim() };
     });
     const ownerName = (cleanContacts.Owner?.name || "").trim();
     const architectName = (cleanContacts.Architect?.name || "").trim();
@@ -3883,9 +3822,9 @@ function ProjectTeamContactFields({contacts, onChange}) {
   return <div style={{display:"flex",flexDirection:"column",gap:18,marginBottom:16}}>
     {ROLE_CATEGORIES.map(({category,roles}) => <div key={category}>
       <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".08em",textTransform:"uppercase",color:categoryColor(category),marginBottom:8}}>{category}</div>
-      <div style={{borderTop:`2px solid ${T.ink}`}}>{roles.map(role => <div key={role} style={{display:"grid",gridTemplateColumns:"170px 1fr 1fr 1fr",gap:8,padding:"10px 0",borderBottom:`1px solid ${T.line}`,alignItems:"center"}}>
+      <div style={{borderTop:`2px solid ${T.ink}`}}>{roles.map(role => <div key={role} style={{display:"grid",gridTemplateColumns:"170px repeat(4,minmax(110px,1fr))",gap:8,padding:"10px 0",borderBottom:`1px solid ${T.line}`,alignItems:"center"}}>
         <div style={{fontFamily:FONT_MONO,fontSize:11.5,color:T.inkDim}}>{role}</div>
-        {[["name","Name"],["email","Email"],["mobile","Mobile"]].map(([field,label]) => <input key={field} aria-label={`${role} ${label}`} style={inputStyle} placeholder={label} value={contacts[role]?.[field] || ""} onChange={e=>onChange(role,field,e.target.value)}/>)}
+        {[["company","Company / Studio"],["name","Contact name"],["email","Email"],["mobile","Mobile"]].map(([field,label]) => <input key={field} aria-label={`${role} ${label}`} style={inputStyle} placeholder={label} value={contacts[role]?.[field] || ""} onChange={e=>onChange(role,field,e.target.value)}/>)}
       </div>)}</div>
     </div>)}
   </div>;
@@ -3915,15 +3854,15 @@ function ProjectTeamView({ state, persist, selectedId }) {
   const directoryProjects = (state.projects || []).map(p => p.id === project.id ? {...p, contacts} : p);
   const start = () => {
     const next = JSON.parse(JSON.stringify(contacts));
-    if (!next.Owner?.name && project.client) next.Owner = {name:String(project.client), email:"", mobile:""};
-    if (!next.Architect?.name && project.architect) next.Architect = {name:String(project.architect), email:"", mobile:""};
+    if (!next.Owner?.name && !next.Owner?.company && project.client) next.Owner = {name:String(project.client), email:"", mobile:""};
+    if (!next.Architect?.name && !next.Architect?.company && project.architect) next.Architect = {name:String(project.architect), email:"", mobile:""};
     setDraft(next); setDirectoryMode(false); setEditing(true);
   };
   const save = async () => {
     if (saving) return;
     const clean = {};
     Object.entries(draft).forEach(([role,c]) => {
-      if (c && String(c.name ?? "").trim()) clean[role] = {...c, name:String(c.name ?? "").trim(), email:String(c.email ?? "").trim(), mobile:String(c.mobile ?? "").trim()};
+      if (c && (String(c.name ?? "").trim()||String(c.company ?? "").trim())) clean[role] = {...c, name:String(c.name ?? "").trim(), email:String(c.email ?? "").trim(), mobile:String(c.mobile ?? "").trim()};
     });
     setSaving(true);
     try {
@@ -3945,7 +3884,7 @@ function ProjectTeamView({ state, persist, selectedId }) {
     {directoryMode ? <div>
       <div style={{display:"flex",gap:0,borderBottom:`1px solid ${T.ink}`,marginBottom:12,flexWrap:"wrap"}}>{["All",...roles].map(f=><button key={f} onClick={()=>setRoleFilter(f)} style={{border:"none",borderRight:`1px solid ${T.line}`,borderRadius:0,padding:"8px 12px",background:roleFilter===f?T.navy:T.paperDim,color:roleFilter===f?"#fff":T.ink,cursor:"pointer",fontFamily:FONT_MONO,fontSize:10}}>{f}</button>)}</div>
       <table style={{borderCollapse:"collapse",width:"100%",border:`1px solid ${T.line}`}}><thead><tr>{["Name","Company","Role","Projects","Rating"].map(h=><th key={h} style={{...thStyle,background:T.paperDim,color:T.ink,textAlign:"left",borderRadius:0}}>{h}</th>)}</tr></thead><tbody>{filtered.map((d,i)=><tr key={i}><td style={tdStyle}>{d.name}</td><td style={tdStyle}>{d.company||"—"}</td><td style={tdStyle}>{d.roles.join(", ")}</td><td style={tdStyle}>{d.projects.map(p => typeof p === "string" ? p : p.name || p.no || p.id).join(", ")}</td><td style={tdStyle}>{d.rating||"—"}</td></tr>)}</tbody></table>
-    </div> : editing ? <><ProjectTeamContactFields contacts={draft} onChange={(role,field,value)=>setDraft(d=>({...d,[role]:{...(d[role]||{}),[field]:value}}))}/><div style={{display:"flex",gap:8}}><Btn disabled={saving} onClick={save}><ClipboardCheck size={14}/> {saving ? "Saving…" : "Save contacts"}</Btn><Btn disabled={saving} variant="ghost" onClick={()=>setEditing(false)}>Cancel</Btn></div></> : <div style={{display:"flex",flexDirection:"column",gap:16}}>{ROLE_CATEGORIES.map(({category,roles})=>{const entries=roles.filter(r=>contacts?.[r]);if(!entries.length)return null;return <div key={category}><div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".08em",textTransform:"uppercase",color:categoryColor(category),marginBottom:8}}>{category}</div><div style={{borderTop:`2px solid ${T.ink}`,borderBottom:`1px solid ${T.line}`}}>{entries.map((role,idx)=>{const c=contacts[role];return <div key={role} style={{display:"grid",gridTemplateColumns:"170px 1fr 1fr 1fr",padding:"10px 0",borderTop:idx===0?"none":`1px solid ${T.line}`}}><div style={{fontFamily:FONT_MONO,fontSize:11.5,color:T.inkDim}}>{role}</div><div style={{fontFamily:FONT_BODY,fontSize:13}}>{c.name}</div><div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>{c.email||"—"}</div><div style={{fontFamily:FONT_MONO,fontSize:12,color:T.blue}}>{c.mobile||"—"}</div></div>})}</div></div>})}{Object.keys(contacts).length===0&&<div style={{color:T.inkDim}}>No contacts on file.</div>}</div>}
+    </div> : editing ? <><ProjectTeamContactFields contacts={draft} onChange={(role,field,value)=>setDraft(d=>({...d,[role]:{...(d[role]||{}),[field]:value}}))}/><div style={{display:"flex",gap:8}}><Btn disabled={saving} onClick={save}><ClipboardCheck size={14}/> {saving ? "Saving…" : "Save contacts"}</Btn><Btn disabled={saving} variant="ghost" onClick={()=>setEditing(false)}>Cancel</Btn></div></> : <div style={{display:"flex",flexDirection:"column",gap:16}}>{ROLE_CATEGORIES.map(({category,roles})=>{const entries=roles.filter(r=>contacts?.[r]);if(!entries.length)return null;return <div key={category}><div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".08em",textTransform:"uppercase",color:categoryColor(category),marginBottom:8}}>{category}</div><div style={{borderTop:`2px solid ${T.ink}`,borderBottom:`1px solid ${T.line}`}}>{entries.map((role,idx)=>{const c=contacts[role];return <div key={role} style={{display:"grid",gridTemplateColumns:"170px repeat(4,minmax(100px,1fr))",padding:"10px 0",borderTop:idx===0?"none":`1px solid ${T.line}`}}><div style={{fontFamily:FONT_MONO,fontSize:11.5,color:T.inkDim}}>{role}</div><div style={{fontFamily:FONT_BODY,fontSize:13}}>{c.company||"—"}</div><div style={{fontFamily:FONT_BODY,fontSize:13}}>{c.name||"—"}</div><div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>{c.email||"—"}</div><div style={{fontFamily:FONT_MONO,fontSize:12,color:T.blue}}>{c.mobile||"—"}</div></div>})}</div></div>})}{Object.keys(contacts).length===0&&<div style={{color:T.inkDim}}>No contacts on file.</div>}</div>}
   </div>;
 }
 
@@ -5227,9 +5166,10 @@ function ProjectView({ state, persist }) {
     const currentScope = scopeFor(current);
     const cleanContacts = {};
     Object.entries(editDraft.contacts || {}).forEach(([role, c]) => {
-      if (c && ((c.name || "").trim() || (c.email || "").trim() || (c.mobile || "").trim())) {
+      if (c && ((c.name || "").trim() || (c.company || "").trim() || (c.email || "").trim() || (c.mobile || "").trim())) {
         cleanContacts[role] = {
           name: (c.name || "").trim(),
+          company: (c.company || "").trim(),
           email: (c.email || "").trim(),
           mobile: (c.mobile || "").trim()
         };
@@ -6022,7 +5962,7 @@ function MemberProjectsView({state}) {
     <div style={{display:'flex',justifyContent:'space-between',gap:12,flexWrap:'wrap',marginBottom:18}}><div><h2 style={{fontFamily:FONT_DISPLAY,margin:0}}>Projects</h2><div style={{fontSize:12,color:T.inkDim,marginTop:6}}>View only · Project information, contacts and planned work</div></div><select aria-label="View project" style={{...inputStyle,minWidth:260}} value={p.id} onChange={e=>setSelected(e.target.value)}>{projects.map(x=><option key={x.id} value={x.id}>{x.no} · {x.name}</option>)}</select></div>
     <div style={{display:'flex',gap:8,marginBottom:16}}>{[['scope','Projects & Scope'],['team','Teams & Ratings'],['line','Line of Work']].map(([id,label])=><Btn key={id} variant={tab===id?'dark':'ghost'} onClick={()=>setTab(id)}>{label}</Btn>)}</div>
     {tab==='scope'&&<><table style={{borderCollapse:'collapse',width:'100%'}}><tbody>{[['Project',p.name],['Number',p.no],['Client',p.client||p.contacts?.Owner?.name],['Architect',p.architect||p.contacts?.Architect?.name],['Address',p.address],['Type',p.type],['Status',p.status],['Start',p.startDate],['End',p.endDate]].map(([label,value])=><tr key={label}><td style={{...tdStyle,textAlign:'left',width:170,color:T.inkDim}}>{label}</td><td style={{...tdStyle,textAlign:'left'}}>{String(value??'—')}</td></tr>)}</tbody></table><div style={{marginTop:18,fontFamily:FONT_BODY,fontSize:13}}><strong>Project scope</strong><div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:10}}>{Object.entries(p.scope||{}).filter(([,v])=>v===true).map(([k])=><span key={k} style={{background:T.paperDim,padding:'7px 10px'}}>{k.replace(/_/g,' ')}</span>)}</div></div></>}
-    {tab==='team'&&<>{ROLE_CATEGORIES.map(({category,roles})=>{const entries=roles.filter(r=>p.contacts?.[r]);return entries.length?<div key={category} style={{marginBottom:20}}><div style={{fontFamily:FONT_MONO,color:categoryColor(category),marginBottom:8}}>{category}</div><table style={{width:'100%',borderCollapse:'collapse'}}><tbody>{entries.map(r=><tr key={r}>{[r,p.contacts[r].name,p.contacts[r].email,p.contacts[r].mobile].map((v,i)=><td key={i} style={{...tdStyle,textAlign:'left'}}>{String(v??'—')||'—'}</td>)}</tr>)}</tbody></table></div>:null;})}</>}
+    {tab==='team'&&<>{ROLE_CATEGORIES.map(({category,roles})=>{const entries=roles.filter(r=>p.contacts?.[r]);return entries.length?<div key={category} style={{marginBottom:20}}><div style={{fontFamily:FONT_MONO,color:categoryColor(category),marginBottom:8}}>{category}</div><table style={{width:'100%',borderCollapse:'collapse'}}><tbody>{entries.map(r=><tr key={r}>{[r,p.contacts[r].company,p.contacts[r].name,p.contacts[r].email,p.contacts[r].mobile].map((v,i)=><td key={i} style={{...tdStyle,textAlign:'left'}}>{String(v??'—')||'—'}</td>)}</tr>)}</tbody></table></div>:null;})}</>}
     {tab==='line'&&<>{workflowGroups(workflow.filter(r=>String(r.workflowVersion)==='1')).map(g=><details key={g.first.lineWorkId||g.first.id} open style={{border:`1px solid ${T.line}`,marginBottom:12}}><summary style={{padding:12,background:T.paperDim}}><strong>{g.first.milestone}</strong> · {g.first.tasks}</summary><table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Step','Subtask','Responsible','Estimated hours'].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{g.rows.map((r,i)=><tr key={r.lineWorkId||r.id}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{r.subtask}</td><td style={tdStyle}>{r.responsible||'Unassigned'}</td><td style={tdStyle}>{r.hours||'—'}</td></tr>)}</tbody></table></details>)}{!workflow.some(r=>String(r.workflowVersion)==='1')&&<div style={{color:T.inkDim}}>The admin has not saved the detailed workflow for this project.</div>}</>}
   </div>;
 }

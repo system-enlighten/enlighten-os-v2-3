@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.11.21-design-flow-gantt",
+  "version": "2.11.22-project-team-contacts",
   "type": "module",
   "scripts": {
     "dev": "vite",
