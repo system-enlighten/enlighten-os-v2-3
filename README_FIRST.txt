@@ -1,3 +1,5 @@
+LATEST: Follow START_HERE_v2.11.24_Upload_Floors.txt. Both frontend and Apps Script backend updates are required for Received Upload floor checkboxes.
+
 LATEST: Follow START_HERE_v2.11.21_Design_Flow_Gantt.txt at the ZIP root. Both frontend and Apps Script updates are required.
 
 LATEST: Follow START_HERE_v2.11.20_Project_Roles.txt at the ZIP root for project role setup and the mandatory backend update.

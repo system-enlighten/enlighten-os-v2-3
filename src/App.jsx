@@ -2877,7 +2877,7 @@ function UploadView({ state, persist }) {
     Boolean(p?.completedAt);
   const activeProjects=(state.projects||[]).filter(p=>!uploadProjectIsCompleted(p));
   const [projectId, setProjectId] = useState(activeProjects[0]?.id || "");
-  const [floor, setFloor] = useState("");
+  const [floors, setFloors] = useState([]);
   const [drawingType, setDrawingType] = useState(canonicalDrawingType((state.templates||DEFAULT_TEMPLATES)[0]?.drawingType || "Layout"));
   const [file, setFile] = useState(null);
   const [note, setNote] = useState("");
@@ -2903,20 +2903,20 @@ function UploadView({ state, persist }) {
     ["terrace","Terrace"],["facade","Facade"],["wall_elevation","Wall Elevation"],["landscape","Landscape"],
     ["bath_elevation","Bath Elevation"],["wardrobe","Wardrobe"],["kitchen","Kitchen"]
   ];
-  const selectedFloors=(()=>{
+  const availableFloors=(()=>{
     const ps=project?.scope||{};
     return floorDefs.filter(([key])=>Boolean(ps[key])).map(([,label])=>label);
   })();
 
   useEffect(()=>{
     let live=true;
-    setFloor("");
+    setFloors([]);
     if(!projectId)return;
     return()=>{live=false;};
   },[projectId]);
 
   useEffect(()=>{
-    if(floor && !selectedFloors.includes(floor)){setFloor("");}
+    setFloors(current=>current.filter(f=>availableFloors.includes(f)));
   },[projectId,project?.scope]);
 
   const fileToBase64=(f)=>new Promise((resolve,reject)=>{
@@ -2927,17 +2927,18 @@ function UploadView({ state, persist }) {
   });
 
   const submit = async () => {
-    if (!projectId || !floor || !drawingType || !file || saving) return;
+    if (!projectId || !floors.length || !drawingType || !file || saving) return;
     setSaving(true);
     try{
+      if(floors.length>1){const capabilities=await projectApi.getWorkflowCapabilities();if(!capabilities?.multiFloorUpload)throw new Error("Deploy the v2.11.24 Apps Script backend before uploading a multi-floor file.");}
       const fileBase64=await fileToBase64(file);
       const saved=await projectApi.receiveDrawing({
-        projectId,floor,area:"",drawingType,
+        projectId,floor:floors.join(", "),floors:[...floors],area:"",drawingType,
         fileName:file.name,mimeType:file.type||"application/octet-stream",fileBase64,
         notes:note,receivedSentDate:todayISO()
       });
       const newIntake={
-        id:saved?.drawingId||uid(), projectId, floor, zone:"", areas:[], drawingType:canonicalDrawingType(drawingType),
+        id:saved?.drawingId||uid(), projectId, floor:floors.join(", "), floors:[...floors], zone:"", areas:[], drawingType:canonicalDrawingType(drawingType),
         fileName:file.name, driveUrl:saved?.driveUrl||"", note, date:saved?.receivedSentDate||todayISO(),
         uploadedAt:saved?.createdAt||new Date().toISOString(), classified:false, source:"Received Upload"
       };
@@ -2962,12 +2963,10 @@ function UploadView({ state, persist }) {
           </select>
         </Field>
 
-        <Field label="Floor from Project & Scope">
-          <select style={inputStyle} value={floor} onChange={(e)=>setFloor(e.target.value)}>
-            <option value="">Select floor</option>
-            {selectedFloors.map(f=><option key={f} value={f}>{f}</option>)}
-          </select>
-          {project && selectedFloors.length===0 && <div style={{fontSize:11,color:T.red,marginTop:5}}>No floors selected for this project in Projects & Scope.</div>}
+        <Field label="Floors in this drawing — select all that apply">
+          <div style={{display:'flex',flexWrap:'wrap',gap:14,padding:12,border:`1px solid ${T.line}`}}>{availableFloors.map(f=><label key={f}><input type="checkbox" aria-label={`Upload floor ${f}`} checked={floors.includes(f)} disabled={saving} onChange={e=>setFloors(current=>e.target.checked?[...new Set([...current,f])]:current.filter(x=>x!==f))}/> {f}</label>)}</div>
+          <div style={{fontSize:12,color:T.inkDim,marginTop:6}}>{floors.length?`${floors.length} floor(s) tagged: ${floors.join(', ')}`:'Select at least one floor. One file can cover several floors.'}</div>
+          {project && availableFloors.length===0 && <div style={{fontSize:11,color:T.redline,marginTop:5}}>No floors selected for this project in Projects & Scope.</div>}
         </Field>
 
         <Field label="Drawing file">
@@ -2989,7 +2988,7 @@ function UploadView({ state, persist }) {
         <Field label="Note (optional)">
           <textarea style={{ ...inputStyle, minHeight: 70, resize: "vertical" }} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Received via email from architect" />
         </Field>
-        <Btn onClick={submit} disabled={!file||!floor||saving}>
+        <Btn onClick={submit} disabled={!file||!floors.length||saving}>
           <Upload size={14} /> {saving?"Uploading to Google Drive…":"Log received drawing"}
         </Btn>
         {justAdded && <div style={{ marginTop: 12, fontFamily: FONT_MONO, fontSize: 12, color: T.green }}>Saved to Google Sheets + project Drive folder — technical area classification is the next step →</div>}
