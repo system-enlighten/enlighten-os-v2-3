@@ -4296,364 +4296,97 @@ function syncTaskRowsToDashboardZones(project,zones){
   return next;
 }
 
-function DrawingControlDashboard({state,persist,projectId}){
-  const activeProjects=(state.projects||[]).filter(p=>p.status!=="Completed"&&p.projectControl?.projectStatus!=="Completed");
-  const project=activeProjects.find(p=>String(p.id)===String(projectId))||activeProjects[0];
-  const [floor,setFloor]=useState("All");
-  const [expanded,setExpanded]=useState({});
-  const [areaEditor,setAreaEditor]=useState(null);
-  const [taskEditor,setTaskEditor]=useState(null);
-  const [wihWorkRows,setWihWorkRows]=useState([]);
-  const scopeFloors=project?designDashboardScopeFloors(project):[];
-  const initialZones=project?.drawingDashboardZones?.length?normaliseDrawingZones(project):[];
-  const floorZoneInitial=project?syncFloorZonesToDashboard(project,initialZones):[];
-  const initial=project?syncReceivedClassify(project,floorZoneInitial,state.intakes):{zones:[],intakes:state.intakes||[]};
-  const [zones,setZones]=useState(initial.zones);
-  // Project Work Log is calculated only from completed WIH tasks in Google Sheets.
-  // The hours entered by the doer at COMPLETE / UPLOAD become totalMinutes in WIH.
-  const logs=wihWorkRows.filter(r=>/completed|done/i.test(String(r.status||r.task?.status||""))).map(r=>({
-    date:String(r.updatedAt||r.stopAt||r.task?.completedAt||"").slice(0,10),
-    project:project?.name||"",
-    purpose:r.task?.taskType||"Design Task",
-    zone:[r.task?.floor,r.task?.area].filter(Boolean).join(" · "),
-    type:r.task?.dependencyDrawingType||r.task?.taskType||"",
-    duration:Number(r.totalMinutes||0)/60,
-    person:r.assigneeName||r.task?.assigneeName||"Unassigned",
-    remark:r.notes||r.task?.remarks||""
-  }));
 
-  // Google Sheets is authoritative for received flags, permanent Design Nos. and task status.
-  // This prevents the dashboard from inventing a second local task/design number.
-  const applyBackendDashboard = (baseZones, payload) => {
-    const rows=Array.isArray(payload?.rows)?payload.rows:[];
-    if(!rows.length)return baseZones;
-    const taskDefs=[
-      {i:0,id:"conceptTaskId",no:"conceptDesignNo",st:"conceptStatus"},
-      {i:1,id:"renders3dTaskId",no:"renders3dDesignNo",st:"renders3dStatus"},
-      {i:2,id:"decorativeSelectionTaskId",no:"decorativeSelectionDesignNo",st:"decorativeSelectionStatus"},
-      {i:3,id:"wallElectricalTaskId",no:"wallElectricalDesignNo",st:"wallElectricalStatus"},
-      {i:4,id:"falseCeilingTaskId",no:"falseCeilingDesignNo",st:"falseCeilingStatus"},
-      {i:5,id:"lightTaskId",no:"lightDesignNo",st:"lightStatus"},
-      {i:6,id:"slabElectricalTaskId",no:"slabElectricalDesignNo",st:"slabElectricalStatus"},
-      {i:7,id:"facadeElevationTaskId",no:"facadeElevationDesignNo",st:"facadeElevationStatus"},
-      {i:8,id:"bathroomElevationTaskId",no:"bathroomElevationDesignNo",st:"bathroomElevationStatus"},
-      {i:9,id:"documentationBoqTaskId",no:"documentationBoqDesignNo",st:"documentationBoqStatus"},
-      {i:10,id:"furnitureTaskId",no:"furnitureDesignNo",st:"furnitureStatus"}
-    ];
-    return baseZones.map(z=>{
-      const r=rows.find(x=>String(x.floor||"").toLowerCase()===String(z.floor||"").toLowerCase()&&String(x.area||"").toLowerCase()===String(z.area||"").toLowerCase());
-      if(!r)return z;
-      const received=[Boolean(r.layoutReceived),Boolean(r.weReceived),Boolean(r.fcReceived),Boolean(r.detailReceived),Boolean(r["3dReceived"])];
-      const statuses=[...z.statuses],taskDesignNos=[...z.taskDesignNos];
-      taskDefs.forEach(d=>{
-        if(r[d.id]||r[d.no]){ taskDesignNos[d.i]=String(r[d.no]||""); statuses[d.i]=String(r[d.st]||"Not Started"); }
-      });
-      return {...z,received,statuses,taskDesignNos};
-    });
+const SHEET_DASHBOARD_WORK = [
+  {label:'Finalise Controls',match:/control finalisation|finalise controls/i},
+  {label:'Wall Elec Drawings',match:/wall electrical|lighting user interface/i,legacy:'wallElectrical'},
+  {label:'Concept',match:/concept.*freeze|concept.*2d|initial concept/i,legacy:'concept'},
+  {label:'FC Drawings',match:/false ceiling|fc corrections/i,legacy:'falseCeiling'},
+  {label:'3D Renders',match:/night renders|^3d renders$/i,legacy:'renders3d'},
+  {label:'Wiring Drawings',match:/lighting layout|wiring drawings|rcp\/flr\/cir/i,legacy:'light'},
+  {label:'Finalise Architectural Lighting',match:/finalise architectural|architectural lighting/i},
+  {label:'Bathroom Stone Drawings',match:/bathroom|bath elevation/i,legacy:'bathroomElevation'},
+  {label:'Facade Elevation Drawings',match:/facade/i,legacy:'facadeElevation'},
+  {label:'Furniture Drawings',match:/furniture|joinery/i,legacy:'furniture'},
+  {label:'Finalise Decorative Lighting',match:/decorative/i,legacy:'decorativeSelection'}
+];
+function sheetDashboardFlag(value){return value===true||String(value).toLowerCase()==='true'||value===1;}
+function sheetDashboardStatus(records){
+  if(!records.length)return '';
+  const statuses=records.map(r=>String(r.actualStatus||r.status||'').toLowerCase());
+  if(statuses.every(s=>/completed|^done$/.test(s)))return 'Completed';
+  if(statuses.some(s=>/review/.test(s)))return 'Up for review';
+  if(statuses.some(s=>/progress|^started$|paused|completed|^done$/.test(s)))return 'In-progress';
+  if(records.some(r=>r.plannedStartDate)&&statuses.some(s=>/ready|not started|assigned/.test(s)))return 'Aligned';
+  if(statuses.some(s=>/ready|assigned|^open$/.test(s)))return 'Open';
+  return 'Pending';
+}
+function sheetDashboardTone(status){
+  return ({Pending:{bg:'#DD6666',fg:'#301818'},Open:{bg:'#B7E879',fg:'#243900'},Aligned:{bg:'#FFFF9B',fg:'#363500'},'In-progress':{bg:'#FFF200',fg:'#373400'},'Up for review':{bg:'#D3F3A7',fg:'#254010'},Completed:{bg:'#684A9F',fg:'#fff'}})[status]||{bg:'transparent',fg:T.ink};
+}
+function sheetDashboardCovers(record,zone,parents){
+  const eq=(a,b)=>String(a||'').trim().toLowerCase()===String(b||'').trim().toLowerCase();
+  if(record.floor||record.area)return eq(record.floor,zone.floor)&&eq(record.area,zone.area||zone.room);
+  const parent=record.parentDesignTaskId?parents.get(String(record.parentDesignTaskId)):record;
+  try{return JSON.parse(parent?.workflowCoverage||'[]').some(c=>eq(c.floor,zone.floor)&&eq(c.area,zone.area||zone.room));}catch(_){return false;}
+}
+function DrawingControlDashboard({state,projectId}){
+  const project=(state.projects||[]).find(p=>String(p.id)===String(projectId));
+  const [payload,setPayload]=useState(null),[wih,setWih]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[revision,setRevision]=useState(0),[floor,setFloor]=useState('All');
+  useEffect(()=>{let live=true;setPayload(null);setWih([]);setLoading(true);setError('');setFloor('All');
+    if(!project?.id){setLoading(false);return()=>{live=false;};}
+    Promise.all([projectApi.getDesignDashboard(project.id),projectApi.getWIH(true,project.id)]).then(([dashboard,work])=>{if(live){setPayload(dashboard);setWih(Array.isArray(work)?work:[]);}}).catch(e=>{if(live)setError(e.message||'Could not load dashboard data.');}).finally(()=>{if(live)setLoading(false);});
+    return()=>{live=false;};
+  },[project?.id,revision]);
+  if(!project)return <p>No active project available.</p>;
+  const eq=(a,b)=>String(a||'').trim().toLowerCase()===String(b||'').trim().toLowerCase();
+  const allZones=(Array.isArray(payload?.floorZones)?payload.floorZones:project.floorZones||Object.entries(project.zones||{}).map(([zoneCode,z])=>({zoneCode,floor:z.floor,area:z.room}))).filter(z=>z.floor&&(z.area||z.room));
+  const unique=[...new Map(allZones.map(z=>[JSON.stringify([z.floor,z.area||z.room]),z])).values()];
+  const zones=unique.filter(z=>floor==='All'||z.floor===floor);
+  const tasksMap=new Map((payload?.tasks||[]).map(t=>[String(t.designTaskId),{...t}]));
+  wih.forEach(w=>{const id=String(w.designTaskId);tasksMap.set(id,{...(tasksMap.get(id)||{}),...(w.task||{}),actualStatus:w.status});});
+  const tasks=[...tasksMap.values()],parents=new Map(tasks.map(t=>[String(t.designTaskId),t]));
+  const logs=wih.filter(r=>/completed|done/i.test(String(r.status||r.task?.status||''))).map(r=>({person:r.assigneeName||r.task?.assigneeName||'Unassigned',duration:Number(r.totalMinutes||0)/60}));
+  const totalHours=logs.reduce((sum,r)=>sum+r.duration,0),personHours=Object.entries(logs.reduce((sum,r)=>{sum[r.person]=(sum[r.person]||0)+r.duration;return sum;},{})).sort((a,b)=>b[1]-a[1]);
+  const receivedCols=[['Layout','layoutReceived'],['FC','fcReceived'],['Detail','detailReceived'],['3D','3dReceived']];
+  const sentCols=[['Wall Electricals',/wall.?electr|^we$/i],['FC',/false ceiling|^fc$/i],['RCP',/lighting layout|wiring|rcp|light drawings/i],['Detail',/detail|bathroom|facade/i]];
+  const cell={padding:'5px 5px',border:'1px solid #C7C7C7',fontFamily:FONT_MONO,fontSize:10,verticalAlign:'middle',height:25};
+  const head={...cell,background:'#BDBDBD',fontWeight:700,textAlign:'center',whiteSpace:'normal',height:62};
+  const displayStatus=(status,date,title,key)=>{const tone=sheetDashboardTone(status);return <td key={key} title={title||status||'No linked task'} style={{...cell,background:tone.bg,color:tone.fg,textAlign:'left',lineHeight:1.4}}>{status}{status==='Completed'&&date&&<div style={{fontSize:8}}>{String(date).slice(0,10)}</div>}</td>;};
+  const liveWork=(def,z,dbRow)=>{
+    let records=tasks.filter(t=>def.match.test(String(t.parentTask||t.taskType||''))&&sheetDashboardCovers(t,z,parents));
+    const children=records.filter(t=>t.parentDesignTaskId);if(children.length)records=children;
+    if(records.length)return {status:sheetDashboardStatus(records),date:records.map(t=>t.completedAt||'').filter(Boolean).sort().pop(),title:records.map(t=>[t.designNo,t.taskType,t.actualStatus||t.status].filter(Boolean).join(' · ')).join('\n')};
+    const key=def.legacy;
+    if(key&&(dbRow?.[key+'TaskId']||dbRow?.[key+'DesignNo']))return {status:sheetDashboardStatus([{status:dbRow[key+'Status']}]),date:'',title:dbRow[key+'DesignNo']||''};
+    return {status:'',date:'',title:''};
   };
-
-  useEffect(()=>{
-    let alive=true;
-    if(!project?.id){setWihWorkRows([]);return ()=>{alive=false;};}
-    projectApi.getWIH(true,project.id).then(rows=>{
-      if(!alive)return;
-      const all=Array.isArray(rows)?rows:[];
-      setWihWorkRows(all.filter(r=>String(r.projectId||r.task?.projectId||"")===String(project.id)));
-    }).catch(err=>{console.warn("Project Work Log WIH sync failed",err);if(alive)setWihWorkRows([]);});
-    return ()=>{alive=false;};
-  },[project?.id]);
-
-  useEffect(()=>{
-    if(project){
-      const selected=designDashboardScopeFloors(project);
-      const source=project?.drawingDashboardZones?.length?normaliseDrawingZones(project):[];
-      const withFloorZones=syncFloorZonesToDashboard(project,source);
-      const synced=syncReceivedClassify(project,withFloorZones,state.intakes);
-      setZones(synced.zones);
-      // Refresh authoritative IDs/statuses from Google Sheets whenever this project opens.
-      projectApi.getDesignDashboard(project.id).then(payload=>{
-        setZones(current=>applyBackendDashboard(current,payload));
-      }).catch(err=>console.warn("Design Dashboard backend sync failed",err));
-      setExpanded(x=>Object.fromEntries(selected.map(f=>[f,x[f]!==false])));
-      if(floor!=="All"&&!selected.includes(floor))setFloor("All");
-    }
-  },[project?.id,project?.floorZones,project?.zones,project?.drawingDashboardZones,state.intakes]);
-
-  if(!project)return <div style={{fontFamily:FONT_BODY,color:T.inkDim}}>No active project available. Completed projects are excluded from Design Dashboard.</div>;
-
-  const floors=["All",...scopeFloors];
-  const visibleFloors=scopeFloors.filter(f=>floor==="All"||floor===f);
-  const totalHours=logs.reduce((s,r)=>s+(Number(r.duration)||0),0);
-  const personHours=Object.entries(logs.reduce((a,r)=>{const p=r.person||"Unassigned";a[p]=(a[p]||0)+(Number(r.duration)||0);return a;},{})).sort((a,b)=>b[1]-a[1]);
-
-  const saveState=async(nextZones,nextIntakes)=>{
-    const projects=state.projects.map(p=>p.id===project.id?{...p,drawingDashboardZones:nextZones}:p);
-    await persist({...state,projects,intakes:nextIntakes??state.intakes});
-  };
-
-  const nextCn=()=>{
-    const n=zones.length;
-    let x=n+1,s="";
-    while(x>0){x--;s=String.fromCharCode(65+(x%26))+s;x=Math.floor(x/26);}
-    return s;
-  };
-  const addArea=f=>setAreaEditor({mode:"add",index:-1,cn:nextCn(),floor:f,area:""});
-  const editArea=i=>setAreaEditor({mode:"edit",index:i,cn:zones[i].cn||"",floor:zones[i].floor||scopeFloors[0]||"",area:zones[i].area||""});
-  const saveArea=async()=>{
-    if(!areaEditor?.area?.trim())return alert("Please enter Area / Room name.");
-    if(!scopeFloors.includes(areaEditor.floor))return alert("Please select a floor from Project & Scope.");
-    let next;
-    if(areaEditor.mode==="edit") next=zones.map((z,i)=>i===areaEditor.index?{...z,cn:areaEditor.cn||z.cn,floor:areaEditor.floor,area:areaEditor.area.trim()}:z);
-    else next=[...zones,{cn:areaEditor.cn||nextCn(),floor:areaEditor.floor,area:areaEditor.area.trim(),received:Array(5).fill(false),statuses:Array(DASHBOARD_WORK_TYPES.length).fill("Not Started"),taskDesignNos:Array(DASHBOARD_WORK_TYPES.length).fill("")}];
-    setZones(next); setExpanded(x=>({...x,[areaEditor.floor]:true}));
-    await saveState(next); setAreaEditor(null);
-  };
-  const deleteArea=async()=>{
-    if(areaEditor?.mode!=="edit")return;
-    if(!window.confirm(`Remove ${areaEditor.area} from Design Dashboard?`))return;
-    const next=zones.filter((_,i)=>i!==areaEditor.index);
-    setZones(next); await saveState(next); setAreaEditor(null);
-  };
-
-
-  const openAddTask=f=>setTaskEditor({
-    mode:"add",id:"",floor:f||scopeFloors[0]||"",drawings:"",tasks:"",
-    responsible:"",status:"Not Started",plannedStart:"",plannedCompletion:"",hours:""
-  });
-  const openEditTask=r=>setTaskEditor({
-    mode:"edit",id:r.id||"",floor:r.floor||r.floorZone||r.zone||"",
-    drawings:taskAreaName(r),tasks:r.tasks||r.task||"",
-    responsible:r.responsible||r.responsiblePerson||r.assignee||"",
-    status:r.status||r.taskStatus||"Not Started",
-    plannedStart:r.plannedStart||r.plannedStartDate||"",
-    plannedCompletion:r.plannedCompletion||r.plannedCompletionDate||"",
-    hours:r.hours??r.plannedHours??""
-  });
-  const taskPeople=()=>{
-    const a=[];
-    Object.values(project?.contacts||{}).forEach(c=>{if(c?.name&&!a.includes(c.name))a.push(c.name);});
-    (state.team||[]).forEach(x=>{const n=x?.name||x;if(n&&!a.includes(n))a.push(n);});
-    return a;
-  };
-  const saveTaskEditor=async()=>{
-    if(!taskEditor?.floor||!taskEditor?.drawings?.trim())return alert("Please select Floor and enter Area / Room.");
-    const old=dashboardTaskRows(project);
-    let nextRows;
-    if(taskEditor.mode==="edit"){
-      nextRows=old.map(r=>String(r.id)===String(taskEditor.id)?{
-        ...r,floor:taskEditor.floor,drawings:taskEditor.drawings.trim(),tasks:taskEditor.tasks,
-        responsible:taskEditor.responsible,status:taskEditor.status,
-        plannedStart:taskEditor.plannedStart,plannedCompletion:taskEditor.plannedCompletion,hours:taskEditor.hours
-      }:r);
-    }else{
-      nextRows=[...old,{
-        id:uid(),projectId:project.id,sourceRow:old.length+1,milestone:"",
-        floor:taskEditor.floor,drawings:taskEditor.drawings.trim(),tasks:taskEditor.tasks,
-        responsible:taskEditor.responsible,status:taskEditor.status,
-        plannedStart:taskEditor.plannedStart,plannedCompletion:taskEditor.plannedCompletion,hours:taskEditor.hours
-      }];
-    }
-    try{
-      const saved=await projectApi.saveLineOfWork(project.id,nextRows);
-      const rows=Array.isArray(saved)&&saved.length?saved:nextRows;
-      const projectNext={...project,lineOfWorkResidence:rows,lineOfWork:rows};
-      const nextZones=syncTaskRowsToDashboardZones(projectNext,zones);
-      projectNext.drawingDashboardZones=nextZones;
-      setZones(nextZones);
-      await persist({...state,projects:(state.projects||[]).map(p=>p.id===project.id?projectNext:p)});
-      setTaskEditor(null);
-    }catch(err){alert(`Task save failed: ${err?.message||err}`);}
-  };
-
-  // Manual checkbox remains useful for testing, but production source is Received & Classify.
-  const toggleReceived=async(zi,ri)=>{
-    const zone=zones[zi];
-    const nowReceived=!zone.received[ri];
-    let nextIntakes=[...(state.intakes||[])];
-    let statuses=[...zone.statuses];
-    let taskDesignNos=[...zone.taskDesignNos];
-
-    if(nowReceived){
-      const opened=openDependentTasks(project,{...zone,statuses,taskDesignNos},ri,nextIntakes);
-      statuses=opened.statuses;
-      taskDesignNos=opened.taskDesignNos;
-      nextIntakes=opened.nextIntakes;
-    }
-
-    const nextZones=zones.map((z,i)=>i===zi?{
-      ...z,
-      received:z.received.map((v,j)=>j===ri?nowReceived:v),
-      statuses,
-      taskDesignNos
-    }:z);
-    setZones(nextZones);
-    await saveState(nextZones,nextIntakes);
-  };
-
-  const cycleTask=async(zi,si)=>{
-    const z=zones[zi];
-    const cur=z.statuses[si]||"Locked";
-    if(cur==="Locked"||cur==="Waiting for Drawing")return;
-    // Dashboard mirrors WIH; this click is only a prototype/test helper.
-    const next=cur==="Not Started"?"In Progress":cur==="In Progress"?"Completed":"Not Started";
-    const nextZones=zones.map((row,i)=>i===zi?{...row,statuses:row.statuses.map((v,j)=>j===si?next:v)}:row);
-    setZones(nextZones);
-    await saveState(nextZones);
-  };
-
   return <div>
-    <div style={{marginBottom:22}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-        <div>
-          <div style={{fontFamily:FONT_MONO,fontSize:10,fontWeight:700}}>FLOOR / AREA / TASK MASTER</div>
-          <div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim,marginTop:3}}>Add or edit here. The Design Dashboard below is generated from the same project task data.</div>
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,marginBottom:16}}><h2 style={{fontFamily:FONT_DISPLAY,fontSize:30,fontWeight:700,margin:0}}>System Design</h2><div style={{display:'flex',gap:8,alignItems:'center'}}><label style={{fontSize:12}}>Floor <select aria-label="Dashboard floor" value={floor} onChange={e=>setFloor(e.target.value)} style={{...inputStyle,width:130}}><option>All</option>{[...new Set(unique.map(z=>z.floor))].map(f=><option key={f}>{f}</option>)}</select></label><Btn disabled={loading} variant="ghost" onClick={()=>setRevision(x=>x+1)}>Refresh Dashboard</Btn></div></div>
+    {error&&<p role="alert" style={{color:T.redline}}>{error}</p>}
+    {loading&&<p>Loading project drawings and WIH status…</p>}
+    <div style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) 330px',gap:16,alignItems:'start'}}>
+      <div style={{minWidth:0,background:'#fff'}}>
+        <table style={{width:'100%',borderCollapse:'collapse',marginBottom:8}}><tbody>{[[`Project ${project.no||project.projectNo||''}:`,project.name],['Start Date:',project.startDate||'—'],['Time in hours:',loading?'Loading…':totalHours.toFixed(1)]].map(([label,value])=><tr key={label}><td style={{...cell,fontFamily:FONT_BODY,fontWeight:700,width:220}}>{label}</td><td style={{...cell,fontFamily:FONT_BODY}}>{value}</td></tr>)}</tbody></table>
+        <div style={{overflowX:'auto',border:'1px solid #777'}}>
+          <table aria-label="Project design matrix" style={{borderCollapse:'collapse',tableLayout:'fixed',minWidth:2530,width:'100%'}}>
+            <colgroup><col style={{width:250}}/><col style={{width:55}}/><col style={{width:45}}/><col style={{width:170}}/>{Array.from({length:4},(_,i)=><col key={'r'+i} style={{width:48}}/>)}{SHEET_DASHBOARD_WORK.map(d=><col key={d.label} style={{width:112}}/>)}{sentCols.map(([label])=><col key={'s'+label} style={{width:44}}/>)}{['Wall Electricals','FC Framing','Wiring'].map(label=><col key={label} style={{width:100}}/>)}</colgroup>
+            <thead><tr><th colSpan={4} style={{...cell,background:'#BDBDBD'}}/><th colSpan={4} style={{...cell,background:'#FCE5CD',textAlign:'center'}}>Drawings Received</th><th colSpan={11} style={{...cell,background:'#E6B8AF',textAlign:'center'}}>Work Status</th><th colSpan={4} style={{...cell,background:'#FCE5CD',textAlign:'center'}}>Drawings Sent</th><th colSpan={3} style={{...cell,background:'#E6B8AF'}}/></tr><tr>{['FLR | CN | AREA','FLR','CN','AREA'].map((h,i)=><th key={h} style={{...head,textAlign:'left',...(i===0?{position:'sticky',left:0,zIndex:2}:{})}}>{h}</th>)}{receivedCols.map(([label])=><th key={label} style={head}>{label}</th>)}{SHEET_DASHBOARD_WORK.map(d=><th key={d.label} style={head}>{d.label}</th>)}<th colSpan={4} style={head}>Wall Electricals | FC | RCP | Detail</th>{['Wall Electricals','FC Framing','Wiring'].map(h=><th key={h} style={head}>{h}</th>)}</tr></thead>
+            <tbody>{zones.map((z,i)=>{const area=z.area||z.room,cn=z.zoneCode||z.cn||'',dbRow=(payload?.rows||[]).find(r=>eq(r.floor,z.floor)&&eq(r.area,area));const bg=i%2?'#F2F2F2':'#fff';const boundary=i===0||zones[i-1].floor!==z.floor;const identity={...cell,background:bg,borderTop:boundary?'2px solid #111':'1px solid #C7C7C7'};
+              const room=project.designExecutionBoard?.rooms?.find(r=>eq(r.flr||r.floor,z.floor)&&eq(r.area,area));
+              return <tr key={JSON.stringify([z.floor,area])} style={{background:bg,borderTop:boundary?'2px solid #111':undefined}}><td style={{...identity,position:'sticky',left:0,zIndex:1}}>{z.floor} | {cn} | {area}</td><td style={identity}>{z.floor}</td><td style={identity}>{cn}</td><td style={identity}>{area}</td>
+              {receivedCols.map(([label,key])=><td key={key} style={{...cell,textAlign:'center'}}>{payload?<input type="checkbox" aria-label={`${z.floor} ${area} ${label} received`} checked={sheetDashboardFlag(dbRow?.[key])} disabled style={{accentColor:'#888',opacity:1}}/>:'—'}</td>)}
+              {SHEET_DASHBOARD_WORK.map(def=>{const result=liveWork(def,z,dbRow);return displayStatus(result.status,result.date,result.title,def.label);})}
+              {sentCols.map(([label,pattern])=>{const sent=Array.isArray(payload?.sentFiles)?payload.sentFiles:null;const checked=sent?.some(f=>pattern.test(String(f.drawingType||f.fileName||''))&&sheetDashboardCovers(f,z,parents));return <td key={label} style={{...cell,textAlign:'center'}}>{sent?<input type="checkbox" aria-label={`${z.floor} ${area} ${label} sent`} checked={!!checked} disabled style={{accentColor:'#888',opacity:1}}/>:<span title="Update the Apps Script backend to load sent records">—</span>}</td>;})}
+              {['wallElectrical','falseCeiling','lightDrawings'].map(key=>{const status=room?.cells?.[key]?.executionStatus;return displayStatus(status?sheetDashboardStatus([{status}]):'','','Execution status',key);})}</tr>;
+            })}{!zones.length&&!loading&&<tr><td colSpan={26} style={{...cell,padding:18}}>No floor/area rows for this project. Add them in Floor & Zone.</td></tr>}</tbody>
+          </table>
         </div>
-        <button type="button" disabled={!scopeFloors.length} onClick={()=>openAddTask(scopeFloors[0])} style={{...smallBtn,background:T.navy,color:"#fff",padding:"9px 14px"}}>+ ADD TASK</button>
+        <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:12,fontFamily:FONT_MONO,fontSize:10}}>{['Pending','Open','Aligned','In-progress','Up for review','Completed'].map(status=><span key={status} style={{padding:'5px 8px',background:sheetDashboardTone(status).bg,color:sheetDashboardTone(status).fg}}>{status}</span>)}</div>
+        <p style={{fontSize:11,color:T.inkDim}}>Receipt and sent checkboxes reflect saved drawing records. Update work through WIH and manage floors/areas in Floor & Zone.</p>
       </div>
-      {scopeFloors.map(f=>{
-        const taskRows=dashboardTaskRows(project).filter(r=>String(r.floor||r.floorZone||r.zone||"")===f);
-        return <div key={f} style={{border:`1px solid ${T.line}`,background:"#fff",marginBottom:10}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",background:T.paper2,borderBottom:`1px solid ${T.line}`}}>
-            <strong style={{fontFamily:FONT_DISPLAY}}>{f} · {taskRows.length} tasks</strong>
-            <button type="button" onClick={()=>openAddTask(f)} style={{...smallBtn,background:"#fff"}}>+ TASK</button>
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"1.4fr 2fr 1fr 120px 80px",fontFamily:FONT_BODY,fontSize:11,fontWeight:700,borderBottom:`1px solid ${T.line}`}}>
-            {["Area / Room","Task","Responsible","Status","Action"].map(h=><div key={h} style={{padding:8}}>{h}</div>)}
-          </div>
-          {taskRows.map((r,i)=><div key={r.id||i} style={{display:"grid",gridTemplateColumns:"1.4fr 2fr 1fr 120px 80px",fontFamily:FONT_BODY,fontSize:11,borderBottom:i<taskRows.length-1?`1px solid ${T.line}`:"none"}}>
-            <div style={{padding:8,fontWeight:600}}>{taskAreaName(r)||"—"}</div>
-            <div style={{padding:8}}>{r.tasks||r.task||"—"}</div>
-            <div style={{padding:8}}>{r.responsible||r.responsiblePerson||r.assignee||"—"}</div>
-            <div style={{padding:8}}>{r.status||r.taskStatus||"Not Started"}</div>
-            <div style={{padding:6}}><button type="button" onClick={()=>openEditTask(r)} style={{...smallBtn,background:"#fff"}}>EDIT</button></div>
-          </div>)}
-          {!taskRows.length&&<div style={{padding:10,fontFamily:FONT_BODY,fontSize:11,color:T.inkDim}}>No tasks added for {f}.</div>}
-        </div>;
-      })}
+      <aside aria-label="Hours by Person" style={{border:`1px solid ${T.line}`,background:'#fff',position:'sticky',top:0}}><div style={{padding:12,borderBottom:`1px solid ${T.line}`}}><div style={{fontFamily:FONT_MONO,fontSize:9,fontWeight:700,marginBottom:8}}>HOURS BY PERSON</div>{personHours.slice(0,6).map(([p,h])=><div key={p} style={{display:'flex',justifyContent:'space-between',fontFamily:FONT_BODY,fontSize:11,padding:'4px 0'}}><span>{p}</span><strong>{h.toFixed(1)} h</strong></div>)}{!personHours.length&&<div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim}}>{loading?'Loading hours…':'No completed WIH hours yet.'}</div>}</div></aside>
     </div>
-
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"end",gap:16,marginBottom:18}}>
-      <div>
-        <h2 style={{fontFamily:FONT_DISPLAY,fontSize:22,margin:0,color:T.ink}}>Design Dashboard</h2>
-        <div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim,marginTop:4}}>
-          {project.name} · received drawings are triggers; Design Nos. belong to dependent tasks and flow into WIH.
-        </div>
-      </div>
-      <div style={{display:"flex",gap:8,alignItems:"end"}}>
-        <Field label="Floor"><select value={floor} onChange={e=>setFloor(e.target.value)} style={{...inputStyle,borderRadius:0,minWidth:130}}>{floors.map(f=><option key={f}>{f}</option>)}</select></Field>
-      </div>
-    </div>
-
-    <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 330px",gap:16,alignItems:"start"}}>
-      <div style={{minWidth:0,border:`1px solid ${T.line}`,background:"#fff",overflow:"hidden"}}>
-        <div style={{overflowX:"auto"}}>
-          <div style={{minWidth:1650}}>
-            {/* Two-level header, matching the original dashboard logic */}
-            <div style={{display:"grid",gridTemplateColumns:"42px 52px 180px 470px 1fr",background:"#BDB8AC",color:"#1C1C19",borderBottom:`1px solid ${T.line}`,fontFamily:FONT_MONO,fontSize:9,fontWeight:700}}>
-              <div style={{padding:7,borderRight:`1px solid ${T.line}`}}>CN</div>
-              <div style={{padding:7,borderRight:`1px solid ${T.line}`}}>FLR</div>
-              <div style={{padding:7,borderRight:`1px solid ${T.line}`}}>AREA</div>
-              <div style={{padding:7,borderRight:`1px solid ${T.line}`,textAlign:"center"}}>DRAWINGS RECEIVED</div>
-              <div style={{padding:7,textAlign:"center"}}>DEPENDENT DESIGN TASKS · DESIGN NO. / STATUS</div>
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"42px 52px 180px repeat(5,94px) repeat(11,minmax(108px,1fr))",background:"#D2CDC1",color:"#1C1C19",borderBottom:`2px solid ${T.ink}`,fontFamily:FONT_MONO,fontSize:8,fontWeight:700}}>
-              {["","","",...DASHBOARD_DRAWING_TYPES,...DASHBOARD_WORK_TYPES].map((h,i)=><div key={i} style={{padding:"9px 4px",borderRight:`1px solid ${T.line}`,background:"#D2CDC1",color:"#1C1C19",display:"flex",alignItems:"center",justifyContent:i>2?"center":"flex-start",textAlign:"center"}}>{h}</div>)}
-            </div>
-
-            {visibleFloors.map(f=>{
-              const rows=zones.map((z,i)=>({...z,_i:i})).filter(z=>z.floor===f);
-              const open=expanded[f]!==false;
-              return <div key={f}>
-                <div style={{width:"100%",borderBottom:`1px solid ${T.line}`,background:"#F4F2EC",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-                  <button onClick={()=>setExpanded(x=>({...x,[f]:!open}))} style={{flex:1,border:0,background:"transparent",padding:"9px 10px",display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontFamily:FONT_BODY,fontWeight:700,color:T.ink,textAlign:"left"}}>{open?<ChevronDown size={14}/>:<ChevronRight size={14}/>} {f} · {rows.length} areas</button>
-                </div>
-                {open&&rows.map(z=><div key={z._i} style={{display:"grid",gridTemplateColumns:"42px 52px 180px repeat(5,94px) repeat(11,minmax(108px,1fr))",borderBottom:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:9}}>
-                  <div style={{padding:7,borderRight:`1px solid ${T.line}`,fontFamily:FONT_MONO}}>{z.cn}</div>
-                  <div style={{padding:7,borderRight:`1px solid ${T.line}`,fontFamily:FONT_MONO}}>{z.floor}</div>
-                  <button type="button" onClick={()=>editArea(z._i)} title="Edit this area" style={{padding:7,border:0,borderRight:`1px solid ${T.line}`,background:"#fff",fontWeight:700,textAlign:"left",cursor:"pointer",textDecoration:"underline"}}>{z.area} <span style={{fontSize:8,color:T.inkDim}}>EDIT</span></button>
-
-                  {/* Receipt cells: checkbox ONLY. No Design No. here. */}
-                  {z.received.map((v,ri)=><button key={ri} onClick={()=>toggleReceived(z._i,ri)} title={v?"Drawing received":"Waiting for Received & Classify"} style={{border:0,borderRight:`1px solid ${T.line}`,background:v?"#E8F2E9":"#FAF9F5",color:v?"#245C2B":"#999",padding:"6px 3px",cursor:"pointer",minHeight:50}}>
-                    <div style={{fontSize:17,fontWeight:800}}>{v?"☑":"☐"}</div>
-                    <div style={{fontSize:7,marginTop:3}}>{v?"Received":"Waiting"}</div>
-                  </button>)}
-
-                  {/* Task cells: Design No. belongs HERE */}
-                  {z.statuses.map((s,si)=>{
-                    const tone=taskStatusTone(s);
-                    const dno=z.taskDesignNos?.[si]||"";
-                    const receivedOpened=!!dno && ["Not Started","Ready"].includes(String(s));
-                    const taskBg=receivedOpened?"#DCEBFA":tone.bg;
-                    const taskFg=receivedOpened?"#123F6D":tone.fg;
-                    return <button key={si} onClick={()=>cycleTask(z._i,si)} style={{border:0,borderRight:`1px solid ${T.line}`,background:taskBg,color:taskFg,padding:"6px 4px",fontSize:8,cursor:(s==="Locked"||s==="Waiting for Drawing")?"default":"pointer",textAlign:"center",minHeight:50}}>
-                      {!receivedOpened&&<div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:4,fontWeight:700}}>
-                        <span style={{width:6,height:6,borderRadius:"50%",background:tone.dot,flex:"0 0 auto"}}/>{s}
-                      </div>}
-                      {dno&&<div style={{fontFamily:FONT_MONO,fontSize:receivedOpened?11:9,fontWeight:800,marginTop:receivedOpened?0:4,lineHeight:1.25,letterSpacing:.2}}>{dno}</div>}
-                      {receivedOpened&&<div style={{fontFamily:FONT_BODY,fontSize:7,fontWeight:700,marginTop:3,textTransform:"uppercase",letterSpacing:.6}}>Drawing Received</div>}
-                    </button>;
-                  })}
-                </div>)}
-              </div>;
-            })}
-          </div>
-        </div>
-        <div style={{padding:"10px 12px",fontFamily:FONT_BODY,fontSize:10,color:T.inkDim,borderTop:`1px solid ${T.line}`,lineHeight:1.5}}>
-          Flow: Received & Classify upload → receipt checkbox updates → dependent task opens red as Not Started with its Design No. → WIH Start makes it In Progress → WIH Stop requires completed drawing upload → task becomes green Completed and hours are logged.
-        </div>
-      </div>
-
-      <aside style={{border:`1px solid ${T.line}`,background:"#fff",position:"sticky",top:0}}>
-        <div style={{padding:14,borderBottom:`2px solid ${T.ink}`}}>
-          <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.inkDim,letterSpacing:1}}>PROJECT WORK LOG · {project.no||project.projectNo||"—"}</div>
-          <div style={{fontFamily:FONT_DISPLAY,fontSize:22,marginTop:3}}>{totalHours.toFixed(1)} hrs</div>
-          <div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim}}>completed WIH hours logged on this project</div>
-        </div>
-        <div style={{padding:12,borderBottom:`1px solid ${T.line}`}}>
-          <div style={{fontFamily:FONT_MONO,fontSize:9,fontWeight:700,marginBottom:8}}>HOURS BY PERSON</div>
-          {personHours.slice(0,6).map(([p,h])=><div key={p} style={{display:"flex",justifyContent:"space-between",fontFamily:FONT_BODY,fontSize:11,padding:"4px 0"}}><span>{p}</span><strong>{h.toFixed(1)} h</strong></div>)}
-        </div>
-        <div style={{maxHeight:"55vh",overflowY:"auto"}}>
-          {logs.map((r,i)=><div key={i} style={{padding:"10px 12px",borderBottom:`1px solid ${T.line}`}}>
-            <div style={{display:"flex",justifyContent:"space-between",gap:8,fontFamily:FONT_BODY,fontSize:11}}><strong>{r.person||"—"}</strong><strong>{Number(r.duration||0).toFixed(1)} h</strong></div>
-            <div style={{fontFamily:FONT_BODY,fontSize:11,marginTop:3,color:T.ink}}>{r.purpose||"—"}</div>
-            <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.inkDim,marginTop:4}}>{[r.date,r.zone,r.type].filter(Boolean).join(" · ")}</div>
-          </div>)}
-        </div>
-      </aside>
-    </div>
-    {!scopeFloors.length&&<div style={{marginTop:12,padding:14,border:`1px solid ${T.line}`,background:"#FFF4D6",fontFamily:FONT_BODY,fontSize:12}}>No floor/zone is selected for this project. Go to <strong>Project → Projects & Scope</strong>, edit the project scope and select GF / 1F / 2F / Terrace / Facade etc. Those selections will automatically appear here.</div>}
-    {taskEditor&&<div style={{position:"fixed",inset:0,zIndex:12500,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-      <div style={{width:"min(820px,96vw)",background:T.paper,border:`1px solid ${T.line}`}}>
-        <div style={{background:T.navy,color:"#fff",padding:14,fontFamily:FONT_DISPLAY,fontSize:18}}>{taskEditor.mode==="edit"?"Edit":"Add"} Task · {project.no||project.projectNo}</div>
-        <div style={{padding:16,display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          <Field label="Floor / Zone"><select value={taskEditor.floor} onChange={e=>setTaskEditor(x=>({...x,floor:e.target.value}))} style={inputStyle}>{scopeFloors.map(f=><option key={f}>{f}</option>)}</select></Field>
-          <Field label="Area / Room"><input value={taskEditor.drawings} onChange={e=>setTaskEditor(x=>({...x,drawings:e.target.value}))} style={inputStyle}/></Field>
-          <div style={{gridColumn:"1 / -1"}}><Field label="Task"><textarea value={taskEditor.tasks} onChange={e=>setTaskEditor(x=>({...x,tasks:e.target.value}))} style={{...inputStyle,minHeight:70}}/></Field></div>
-          <Field label="Responsible"><select value={taskEditor.responsible} onChange={e=>setTaskEditor(x=>({...x,responsible:e.target.value}))} style={inputStyle}><option value="">Select</option>{taskPeople().map(n=><option key={n}>{n}</option>)}</select></Field>
-          <Field label="Status"><select value={taskEditor.status} onChange={e=>setTaskEditor(x=>({...x,status:e.target.value}))} style={inputStyle}><option>Not Started</option><option>In Progress</option><option>Completed</option></select></Field>
-          <Field label="Planned Start"><input type="date" value={taskEditor.plannedStart} onChange={e=>setTaskEditor(x=>({...x,plannedStart:e.target.value}))} style={inputStyle}/></Field>
-          <Field label="Planned Completion"><input type="date" value={taskEditor.plannedCompletion} onChange={e=>setTaskEditor(x=>({...x,plannedCompletion:e.target.value}))} style={inputStyle}/></Field>
-        </div>
-        <div style={{padding:14,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}>
-          <button type="button" onClick={()=>setTaskEditor(null)} style={{...smallBtn,background:"#fff"}}>Cancel</button>
-          <button type="button" onClick={saveTaskEditor} style={{...smallBtn,background:T.navy,color:"#fff"}}>Save Task</button>
-        </div>
-      </div>
-    </div>}
-    {areaEditor&&<div style={{position:"fixed",inset:0,zIndex:12000,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-      <div style={{width:"min(620px,95vw)",background:T.paper,border:`1px solid ${T.line}`}}>
-        <div style={{background:T.navy,color:"#fff",padding:14,fontFamily:FONT_DISPLAY,fontSize:18}}>{areaEditor.mode==="edit"?"Edit":"Add"} Design Dashboard Area · {project.no||project.projectNo}</div>
-        <div style={{padding:16,display:"grid",gridTemplateColumns:"140px 1fr",gap:12}}>
-          <Field label="CN"><input value={areaEditor.cn||""} onChange={e=>setAreaEditor(a=>({...a,cn:e.target.value}))} style={inputStyle}/></Field>
-          <Field label="Floor / Zone from Project Scope"><select value={areaEditor.floor||""} onChange={e=>setAreaEditor(a=>({...a,floor:e.target.value}))} style={inputStyle}>{scopeFloors.map(f=><option key={f}>{f}</option>)}</select></Field>
-          <div style={{gridColumn:"1 / -1"}}><Field label="Area / Room / Task Zone"><input autoFocus value={areaEditor.area||""} onChange={e=>setAreaEditor(a=>({...a,area:e.target.value}))} placeholder="e.g. Lobby, Bedroom 01, Washroom" style={inputStyle}/></Field></div>
-        </div>
-        <div style={{padding:14,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}>
-          <div style={{display:"flex",gap:8}}><button type="button" onClick={()=>setAreaEditor(null)} style={{...smallBtn,background:"#fff"}}>Cancel</button><button type="button" onClick={saveArea} style={{...smallBtn,background:T.navy,color:"#fff"}}>Save Area</button></div>
-        </div>
-      </div>
-    </div>}
   </div>;
 }
 
@@ -4722,7 +4455,7 @@ function DesignFlowView({state,persist}){
         <button type="button" onClick={()=>setOpenId("")} style={{...smallBtn,background:"#fff",cursor:"pointer",padding:"9px 14px"}}>PROJECT LIST</button>
       </div>
     </div>
-    <div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,marginBottom:12}}>Design Dashboard floors/zones are linked directly to this project's selections in Projects & Scope. Add or edit areas inside each selected floor below.</div>
+    <div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,marginBottom:12}}>Project-wise drawing and work status · Floor & Zone defines the rows.</div>
     <DrawingControlDashboard state={state} persist={persist} projectId={opened.id}/>
     {taskProject&&<div style={{position:"fixed",inset:0,zIndex:10000,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
       <div style={{width:"min(900px,96vw)",background:T.paper,border:`1px solid ${T.line}`}}>
