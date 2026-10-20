@@ -5140,10 +5140,17 @@ function ProjectView({ state, persist }) {
         </div>
       </div>
 
+      {project&&<section aria-label="Project summary" style={{marginTop:16,border:`1px solid ${T.line}`,background:T.paper2,padding:16}}>
+        <div style={{fontFamily:FONT_MONO,fontSize:10,color:T.cyan,marginBottom:12}}>PROJECT INFORMATION</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:14}}>
+          {[["Project No.",project.no],["Project Name",project.name],["Client",project.client||project.contacts?.Owner?.name],["Architect",project.architect||project.contacts?.Architect?.name],["Address",project.address],["Project Type",project.type]].map(([label,value])=><div key={label}><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginBottom:5}}>{label}</div><div style={{fontFamily:FONT_BODY,fontSize:13,overflowWrap:"anywhere"}}>{value||"—"}</div></div>)}
+        </div>
+      </section>}
+
       {project && editDraft && isProjectEditorOpen && <div style={{marginTop:16,border:`2px solid ${T.navy}`,background:"#fff",padding:16}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:14}}>
           <div>
-            <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.cyan}}>Selected Project · Editable Information</div>
+            <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.cyan}}>Edit Project Details & Contacts</div>
             <div style={{fontFamily:FONT_DISPLAY,fontSize:18,fontWeight:700,marginTop:3}}>{editDraft.name || "Selected Project"}</div>
           </div>
           <div style={{display:"flex",gap:8}}>
@@ -5151,11 +5158,9 @@ function ProjectView({ state, persist }) {
             <button onClick={()=>setIsProjectEditorOpen(false)} style={{...smallBtn}}>Collapse</button>
           </div>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"140px 1.4fr 1fr 1fr",gap:12}}>
+        <div style={{display:"grid",gridTemplateColumns:"140px 1fr",gap:12}}>
           <Field label="Project No."><input style={{...inputStyle,borderRadius:0}} value={editDraft.no} onChange={e=>setEditDraft(d=>({...d,no:e.target.value}))}/></Field>
           <Field label="Project Name"><input style={{...inputStyle,borderRadius:0}} value={editDraft.name} onChange={e=>setEditDraft(d=>({...d,name:e.target.value}))}/></Field>
-          <Field label="Client"><input style={{...inputStyle,borderRadius:0}} value={editDraft.client} onChange={e=>setEditDraft(d=>({...d,client:e.target.value}))}/></Field>
-          <Field label="Architect"><input style={{...inputStyle,borderRadius:0}} value={editDraft.architect} onChange={e=>setEditDraft(d=>({...d,architect:e.target.value}))}/></Field>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1.6fr 1fr 1fr 1fr",gap:12,marginTop:10}}>
           <Field label="Address"><input style={{...inputStyle,borderRadius:0}} value={editDraft.address} onChange={e=>setEditDraft(d=>({...d,address:e.target.value}))}/></Field>
@@ -5183,7 +5188,7 @@ function ProjectView({ state, persist }) {
             }))}
           />
         </div>
-        <div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim,marginTop:10}}>Project information and contacts are editable here. Owner name maps to Client and Architect name maps to Architect. Click Save Project after editing. Scope checkboxes remain editable directly in the master row above.</div>
+        <div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim,marginTop:10}}>Edit Client through Owner and edit Architect in the contacts list below. Save Project closes this editor and updates the summary immediately; Google Sheets sync continues in the background.</div>
       </div>}
 
       <div style={{marginTop:22}}>
