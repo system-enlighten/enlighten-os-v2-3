@@ -2347,16 +2347,105 @@ function buildDirectory(projects, ratings) {
       if (!c || !(String(c.name ?? "").trim()||String(c.company ?? "").trim())) return;
       const key = contactKey(c.name||c.company, c.mobile);
       if (!byKey.has(key)) {
-        byKey.set(key, { key, name: String(c.name ?? "").trim(), email: String(c.email ?? ""), mobile: String(c.mobile ?? ""), company: String(c.company ?? ""), roles: new Set(), projects: [] });
+        byKey.set(key, { key, name: String(c.name ?? "").trim(), email: String(c.email ?? ""), mobile: String(c.mobile ?? ""), company: String(c.company ?? ""), roles: new Set(), projects: [], rating:0 });
       }
       const entry = byKey.get(key);
       entry.roles.add(role);
+      entry.rating=Math.max(entry.rating,Math.min(5,Math.max(0,Number(c.rating)||0)));
       if (!entry.projects.find((pr) => pr.id === p.id)) entry.projects.push({ id: p.id, name: p.name, no: p.no, status: p.status });
     });
   });
   return Array.from(byKey.values())
-    .map((e) => ({ ...e, roles: Array.from(e.roles), rating: (ratings || {})[e.key]?.rating || 0, note: (ratings || {})[e.key]?.note || "" }))
+    .map((e) => ({ ...e, roles: Array.from(e.roles), rating: e.rating || (ratings || {})[e.key]?.rating || 0, note: (ratings || {})[e.key]?.note || "" }))
     .sort((a, b) => b.projects.length - a.projects.length || a.name.localeCompare(b.name));
+}
+
+function directoryCorrections(projects,keys,values){
+  const selected=new Set(keys);
+  return projects.map(p=>{
+    let changed=false;const contacts={...p.contacts};
+    Object.entries(contacts).forEach(([role,c])=>{
+      if(c&&selected.has(contactKey(c.name||c.company,c.mobile))){contacts[role]={...c,...values};changed=true;}
+    });
+    if(!changed)return p;
+    return {...p,contacts,
+      ...(contacts.Owner?{client:contacts.Owner.name||""}:{}),
+      ...(contacts.Architect?{architect:contacts.Architect.name||""}:{})};
+  });
+}
+
+function DirectoryStars({value=0,onChange,disabled=false,name="contact"}){
+  return <span role="group" aria-label={`Rating for ${name}`} style={{display:"inline-flex",whiteSpace:"nowrap"}}>{[1,2,3,4,5].map(n=><button key={n} type="button" aria-label={`Rate ${name} ${n} out of 5`} aria-pressed={Number(value)===n} disabled={disabled} onClick={()=>onChange(n)} style={{border:0,background:"transparent",padding:"4px 2px",fontSize:23,color:n<=Number(value)?"#B57812":"#878787",cursor:disabled?"wait":"pointer"}}>{n<=Number(value)?"★":"☆"}</button>)}</span>;
+}
+
+function ProjectDirectory({state,persist}){
+  const [query,setQuery]=useState("");
+  const [role,setRole]=useState("All");
+  const [editor,setEditor]=useState(null);
+  const [mergeQuery,setMergeQuery]=useState("");
+  const [message,setMessage]=useState("");
+  const [busy,setBusy]=useState(false);
+  const pendingRef=useRef(false),latestRef=useRef(state);latestRef.current=state;
+  const directory=buildDirectory(state.projects,state.ratings||{});
+  const roles=[...new Set(directory.flatMap(d=>d.roles))].sort();
+  const visible=directory.filter(d=>(role==="All"||d.roles.includes(role))&&[d.name,d.company,d.mobile,d.email].join(" ").toLowerCase().includes(query.toLowerCase()));
+  const start=d=>{setEditor({keys:[d.key],name:d.name,company:d.company,email:d.email,mobile:d.mobile,rating:d.rating});setMergeQuery("");};
+  const save=async(keys,values)=>{
+    if(pendingRef.current)return;
+    if(Object.hasOwn(values,"name")&&!values.name.trim()&&!values.company.trim()){setMessage("Enter a name or company before saving.");return;}
+    const before=latestRef.current;
+    const projects=directoryCorrections(before.projects,keys,values);
+    const changed=projects.filter((p,i)=>p!==before.projects[i]);
+    if(!changed.length)return;
+    const next={...before,projects};latestRef.current=next;
+    pendingRef.current=true;setBusy(true);setEditor(null);setMessage(`Changes applied · Saving ${changed.length} project(s)…`);
+    const failed=[],warnings=[];
+    try{await persist(next);}catch(err){latestRef.current=before;setMessage(err.message);pendingRef.current=false;setBusy(false);return;}
+    for(const project of changed){
+      try{await projectApi.saveContacts(project.id,contactsObjectToRows(project,project.contacts));}
+      catch(err){failed.push({project,error:err});continue;}
+      const original=before.projects.find(p=>p.id===project.id);
+      const summaryContactChanged=Object.hasOwn(values,"name")&&["Owner","Architect"].some(role=>{const c=original.contacts?.[role];return c&&keys.includes(contactKey(c.name||c.company,c.mobile));});
+      if(summaryContactChanged){
+        try{const latest=latestRef.current.projects.find(p=>p.id===project.id)||project;await projectApi.update(frontendProjectToBackend(latest,true));}
+        catch(err){warnings.push(project.name||project.id);}
+      }
+    }
+    if(failed.length){
+      const latest=latestRef.current;
+      const restored={...latest,projects:latest.projects.map(p=>{
+        const failure=failed.find(f=>f.project.id===p.id);if(!failure)return p;
+        const original=before.projects.find(x=>x.id===p.id),contacts={...p.contacts};
+        for(const [role,c]of Object.entries(failure.project.contacts||{}))if(JSON.stringify(contacts[role])===JSON.stringify(c))contacts[role]=original.contacts?.[role];
+        return {...p,contacts,...(p.client===failure.project.client?{client:original.client}:{}),...(p.architect===failure.project.architect?{architect:original.architect}:{})};
+      })};
+      latestRef.current=restored;await persist(restored);
+    }
+    setMessage(failed.length?`Could not save: ${failed.map(f=>f.project.name||f.project.id).join(", ")}. Their previous values were restored; edit these entries and retry.`:warnings.length?`Contacts and ratings saved. Project summary sync failed for ${warnings.join(", ")}; edit and save again to retry.`:"Directory updated in all linked projects. Ratings saved to Google Sheets.");
+    pendingRef.current=false;setBusy(false);
+  };
+  return <section aria-label="Project contact directory">
+    <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:12}}>
+      <input aria-label="Search directory" placeholder="Search name, studio, email or phone" value={query} onChange={e=>setQuery(e.target.value)} style={{...inputStyle,maxWidth:380}}/>
+      <select aria-label="Directory role" value={role} onChange={e=>setRole(e.target.value)} style={{...inputStyle,maxWidth:260}}>{["All",...roles].map(r=><option key={r}>{r}</option>)}</select>
+    </div>
+    {message&&<p role="status" style={{fontSize:12}}>{message}</p>}
+    <div style={{overflowX:"auto"}}><table style={{borderCollapse:"collapse",width:"100%",border:`1px solid ${T.line}`}}><thead><tr>{["Name","Company / Studio","Role","Projects","Rating","Edit"].map(h=><th key={h} style={{...thStyle,background:T.paperDim,textAlign:"left"}}>{h}</th>)}</tr></thead><tbody>{visible.map(d=><tr key={d.key}>
+      <td style={tdStyle}>{d.name||"—"}<div style={{fontSize:11,color:T.inkDim}}>{d.mobile}</div></td><td style={tdStyle}>{d.company||"—"}</td><td style={tdStyle}>{d.roles.join(", ")}</td><td style={tdStyle}>{d.projects.map(p=><div key={p.id}>{p.name}</div>)}</td>
+      <td style={tdStyle}><DirectoryStars name={d.name||d.company} value={d.rating} disabled={busy} onChange={rating=>save([d.key],{rating})}/></td>
+      <td style={tdStyle}><button type="button" disabled={busy} onClick={()=>start(d)} style={smallBtn}>Edit / merge</button></td>
+    </tr>)}</tbody></table>{!visible.length&&<p>No matching contacts.</p>}</div>
+    {editor&&<div role="dialog" aria-modal="true" aria-label="Edit directory contact" style={{position:"fixed",inset:0,zIndex:15000,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}><div style={{background:T.paper,padding:22,width:680,maxWidth:"100%",maxHeight:"90vh",overflowY:"auto"}}>
+      <h3>Edit directory contact</h3>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:12}}>{[["Name","name"],["Company / Studio","company"],["Email","email"],["Mobile","mobile"]].map(([label,key])=><Field key={key} label={label}><input aria-label={`Directory ${label}`} value={editor[key]} onChange={e=>setEditor(x=>({...x,[key]:e.target.value}))} style={inputStyle}/></Field>)}</div>
+      <DirectoryStars name="edited contact" value={editor.rating} onChange={rating=>setEditor(x=>({...x,rating}))}/>
+      <p>Choose any duplicate entries below to give them the same details and rating in every linked project. Different people are combined only when you select them.</p>
+      <input aria-label="Find duplicates" placeholder="Find duplicate names or studios" value={mergeQuery} onChange={e=>setMergeQuery(e.target.value)} style={inputStyle}/>
+      <div style={{maxHeight:220,overflowY:"auto",marginTop:12}}>{directory.filter(d=>[d.name,d.company,d.mobile].join(" ").toLowerCase().includes(mergeQuery.toLowerCase())).map(d=><label key={d.key} style={{display:"block",padding:8,borderBottom:`1px solid ${T.line}`}}><input type="checkbox" checked={editor.keys.includes(d.key)} onChange={e=>setEditor(x=>({...x,keys:e.target.checked?[...x.keys,d.key]:x.keys.filter(k=>k!==d.key)}))}/> {d.name||"Unnamed"} · {d.company||"No studio"} · {d.mobile||"No phone"} · {d.projects.length} project(s)</label>)}</div>
+      <p>{new Set(directory.filter(d=>editor.keys.includes(d.key)).flatMap(d=>d.projects.map(p=>p.id))).size} linked project(s) will update.</p>
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><button style={smallBtn} onClick={()=>setEditor(null)}>Cancel</button><button disabled={busy||!editor.keys.length} style={{...smallBtn,background:T.navy,color:"#fff"}} onClick={()=>{const {keys,...values}=editor;return save(keys,Object.fromEntries(Object.entries(values).map(([k,v])=>[k,typeof v==="string"?v.trim():v])));}}>Save Changes</button></div>
+    </div></div>}
+  </section>;
 }
 
 // Drawing type -> the task(s) it opens + who's responsible by default.
@@ -2902,7 +2991,7 @@ function UploadView({ state, persist }) {
   const floorDefs=[
     ["basement","Basement"],["stilt_floor","Stilt Floor"],["gf","GF"],["1f","1F"],["2f","2F"],["3f","3F"],
     ["terrace","Terrace"],["facade","Facade"],["wall_elevation","Wall Elevation"],["landscape","Landscape"],
-    ["bath_elevation","Bath Elevation"],["wardrobe","Wardrobe"],["kitchen","Kitchen"]
+    ["bath_elevation","Bath Elevation"],["wardrobe","Furniture"]
   ];
   const availableFloors=(()=>{
     const ps=project?.scope||{};
@@ -3577,6 +3666,18 @@ function ContactFields({contacts,onChange}) {
   return <ProjectTeamContactFields contacts={contacts} onChange={onChange}/>;
 }
 
+// Display project calendar dates without the timestamp or timezone shifts.
+function formatProjectDate(value) {
+  if(!value)return "—";
+  const raw=String(value).trim();
+  const iso=raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:$|[T\s])/);
+  if(iso)return `${iso[3]}/${iso[2]}/${iso[1]}`;
+  const dmy=raw.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})(?:$|\s)/);
+  if(dmy)return `${dmy[1].padStart(2,'0')}/${dmy[2].padStart(2,'0')}/${dmy[3]}`;
+  const date=new Date(raw);
+  return Number.isNaN(date.getTime())?"—":new Intl.DateTimeFormat('en-GB',{day:'2-digit',month:'2-digit',year:'numeric',timeZone:'Asia/Kolkata'}).format(date);
+}
+
 const PROJECT_STATUSES = ["Ongoing", "On Hold", "Completed"];
 const statusColor = (s) => s === "Completed" ? { bg: T.greenBg, fg: T.green } : s === "On Hold" ? { bg: T.redlineBg, fg: T.redline } : { bg: "#DDE7F5", fg: T.blue };
 
@@ -3795,7 +3896,7 @@ function ProjectScopeView({ state, persist, selectedId }) {
     setRow(found ? {...found} : {serial:"",project:project.name,client:"",architect:"",basement:false,stilt_floor:false,gf:false,"1f":false,"2f":false,"3f":false,terrace:false,facade:false,wall_elevation:false,landscape:false,bath_elevation:false,wardrobe:false,kitchen:false,onboarding:false});
   }, [project?.id, state.scopeSheet]);
   if (!project || !row) return null;
-  const boolFields = [["basement","Basement"],["stilt_floor","Stilt Floor"],["gf","GF"],["1f","1F"],["2f","2F"],["3f","3F"],["terrace","Terrace"],["facade","Facade"],["wall_elevation","Wall Elevation"],["landscape","Landscape"],["bath_elevation","Bath Elevation"],["wardrobe","Wardrobe"],["kitchen","Kitchen"],["onboarding","Onboarding"]];
+  const boolFields = [["basement","Basement"],["stilt_floor","Stilt Floor"],["gf","GF"],["1f","1F"],["2f","2F"],["3f","3F"],["terrace","Terrace"],["facade","Facade"],["wall_elevation","Wall Elevation"],["landscape","Landscape"],["bath_elevation","Bath Elevation"],["wardrobe","Furniture"],["onboarding","Onboarding"]];
   const update = (patch) => setRow(r => ({...r,...patch}));
   const save = async () => {
     const next = allRows.some(r => (r.project||"").trim().toLowerCase() === (project.name||"").trim().toLowerCase())
@@ -3840,53 +3941,80 @@ function ProjectTeamView({ state, persist, selectedId }) {
   const [draft, setDraft] = useState({});
   const [saving, setSaving] = useState(false);
   const [loadedContacts, setLoadedContacts] = useState(null);
+  const [saveMessage,setSaveMessage]=useState("");
+  const latestRef=useRef(state);latestRef.current=state;
+  const selectedRef=useRef(project?.id);selectedRef.current=project?.id;
+  const savePendingRef=useRef(false);
+  const contactsRevisionRef=useRef(0);
   useEffect(() => {
     let active = true;
     setEditing(false);
     setLoadedContacts(null);
+    setSaveMessage("");
+    const revision=++contactsRevisionRef.current;
     if (project) projectApi.listContacts(project.id).then(rows => {
       const contacts = contactRowsToObject(rows || []);
-      if (active && Object.keys(contacts).length) setLoadedContacts(contacts);
+      if (active && revision===contactsRevisionRef.current && Object.keys(contacts).length) setLoadedContacts(contacts);
     }).catch(err => console.warn("ProjectContacts background load failed", err));
     return () => { active = false; };
   }, [project?.id]);
   if (!project) return <div style={{color:T.inkDim}}>No project available.</div>;
-  const contacts = Object.fromEntries(Object.entries(loadedContacts || project.contacts || {}).filter(([,c]) => c && String(c.name ?? "").trim()).map(([role,c]) => [role, {...c,
+  const contacts = Object.fromEntries(Object.entries(loadedContacts || project.contacts || {}).filter(([,c]) => c && (String(c.name ?? "").trim()||String(c.company ?? "").trim())).map(([role,c]) => [role, {...c,
     name:String(c.name ?? ""), email:String(c.email ?? ""), mobile:String(c.mobile ?? ""), company:String(c.company ?? "")}]));
   const directoryProjects = (state.projects || []).map(p => p.id === project.id ? {...p, contacts} : p);
   const start = () => {
+    if(savePendingRef.current)return;
+    ++contactsRevisionRef.current;
     const next = JSON.parse(JSON.stringify(contacts));
     if (!next.Owner?.name && !next.Owner?.company && project.client) next.Owner = {name:String(project.client), email:"", mobile:""};
     if (!next.Architect?.name && !next.Architect?.company && project.architect) next.Architect = {name:String(project.architect), email:"", mobile:""};
     setDraft(next); setDirectoryMode(false); setEditing(true);
   };
   const save = async () => {
-    if (saving) return;
-    const clean = {};
-    Object.entries(draft).forEach(([role,c]) => {
-      if (c && (String(c.name ?? "").trim()||String(c.company ?? "").trim())) clean[role] = {...c, name:String(c.name ?? "").trim(), email:String(c.email ?? "").trim(), mobile:String(c.mobile ?? "").trim()};
+    if(savePendingRef.current)return;
+    const clean={};
+    Object.entries(draft).forEach(([role,c])=>{
+      if(c&&(String(c.name??"").trim()||String(c.company??"").trim()))clean[role]={...c,name:String(c.name??"").trim(),company:String(c.company??"").trim(),email:String(c.email??"").trim(),mobile:String(c.mobile??"").trim()};
     });
-    setSaving(true);
+    const before=project,previousContacts=contacts,draftSnapshot=draft,id=project.id;
+    const next={...project,contacts:clean,client:clean.Owner?.name||"",architect:clean.Architect?.name||""};
+    const latest=latestRef.current;
+    const optimistic={...latest,projects:latest.projects.map(p=>p.id===id?{...p,contacts:clean,client:next.client,architect:next.architect}:p)};
+    savePendingRef.current=true;++contactsRevisionRef.current;
+    latestRef.current=optimistic;
+    const localSave=persist(optimistic);
+    setLoadedContacts(clean);setEditing(false);setSaving(true);
+    setSaveMessage("Changes applied · Saving to Google Sheets…");
     try {
-      await projectApi.saveContacts(project.id, contactsObjectToRows(project, clean));
-      const next = {...project, contacts:clean, client:clean.Owner?.name || project.client || "", architect:clean.Architect?.name || project.architect || ""};
-      try { await projectApi.update(frontendProjectToBackend(next, true)); }
-      catch (err) { console.warn("Project client/architect sync failed", err); }
-      await persist({...state, projects:(state.projects || []).map(p => p.id === project.id ? next : p)});
-      setLoadedContacts(clean);
-      setEditing(false);
-    } catch (err) { alert(`Google Sheets contact save failed: ${err?.message || err}`); }
-    finally { setSaving(false); }
+      await localSave;
+      await projectApi.saveContacts(id,contactsObjectToRows(next,clean));
+    } catch(err) {
+      const latest=latestRef.current;
+      const restored={...latest,projects:latest.projects.map(p=>p.id===id?{...p,
+        ...(JSON.stringify(p.contacts)===JSON.stringify(clean)?{contacts:before.contacts}:{}),
+        ...(p.client===next.client?{client:before.client}:{}),
+        ...(p.architect===next.architect?{architect:before.architect}:{})}:p)};
+      latestRef.current=restored;await persist(restored);
+      if(selectedRef.current===id){setLoadedContacts(previousContacts);setDraft(draftSnapshot);setEditing(true);setSaveMessage(`Save failed. Your draft is retained; please retry. ${err?.message||err}`);}
+      savePendingRef.current=false;setSaving(false);return;
+    }
+    try {
+      const current=latestRef.current.projects.find(p=>p.id===id);
+      if(current)await projectApi.update(frontendProjectToBackend(current,true));
+      if(selectedRef.current===id)setSaveMessage("Saved to Google Sheets.");
+    } catch(err) {
+      if(selectedRef.current===id)setSaveMessage(`Contacts saved, but the project summary could not sync. Please save again. ${err?.message||err}`);
+    } finally {
+      savePendingRef.current=false;setSaving(false);
+    }
   };
   const directory = buildDirectory(directoryProjects, state.ratings || {});
   const filtered = roleFilter === "All" ? directory : directory.filter(d=>d.roles.includes(roleFilter));
   const roles = Array.from(new Set(directory.flatMap(d=>d.roles))).sort();
   return <div>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}><div><h2 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:0,color:T.ink}}>Team & Ratings</h2><div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim,marginTop:4}}>Project contacts are shown here by default. Turn on Directory to see the consolidated directory view.</div></div><div style={{display:"flex",gap:8}}>{!editing && <Btn variant="ghost" onClick={start}>Edit / add contacts</Btn>}<Btn variant="ghost" style={directoryMode ? {borderColor:"transparent"} : undefined} disabled={saving} onClick={()=>{setEditing(false);setDirectoryMode(v=>!v);}}>{directoryMode?"Directory On":"Directory"}</Btn></div></div>
-    {directoryMode ? <div>
-      <div style={{display:"flex",gap:0,borderBottom:`1px solid ${T.ink}`,marginBottom:12,flexWrap:"wrap"}}>{["All",...roles].map(f=><button key={f} onClick={()=>setRoleFilter(f)} style={{border:"none",borderRight:`1px solid ${T.line}`,borderRadius:0,padding:"8px 12px",background:roleFilter===f?T.navy:T.paperDim,color:roleFilter===f?"#fff":T.ink,cursor:"pointer",fontFamily:FONT_MONO,fontSize:10}}>{f}</button>)}</div>
-      <table style={{borderCollapse:"collapse",width:"100%",border:`1px solid ${T.line}`}}><thead><tr>{["Name","Company","Role","Projects","Rating"].map(h=><th key={h} style={{...thStyle,background:T.paperDim,color:T.ink,textAlign:"left",borderRadius:0}}>{h}</th>)}</tr></thead><tbody>{filtered.map((d,i)=><tr key={i}><td style={tdStyle}>{d.name}</td><td style={tdStyle}>{d.company||"—"}</td><td style={tdStyle}>{d.roles.join(", ")}</td><td style={tdStyle}>{d.projects.map((p,i)=><div key={typeof p==="string"?p:p.id||i}>{typeof p === "string" ? p : p.name || p.no || p.id}</div>)}</td><td style={tdStyle}>{d.rating||"—"}</td></tr>)}</tbody></table>
-    </div> : editing ? <><ProjectTeamContactFields contacts={draft} onChange={(role,field,value)=>setDraft(d=>({...d,[role]:{...(d[role]||{}),[field]:value}}))}/><div style={{display:"flex",gap:8}}><Btn disabled={saving} onClick={save}><ClipboardCheck size={14}/> {saving ? "Saving…" : "Save contacts"}</Btn><Btn disabled={saving} variant="ghost" onClick={()=>setEditing(false)}>Cancel</Btn></div></> : <div style={{display:"flex",flexDirection:"column",gap:16}}>{ROLE_CATEGORIES.map(({category,roles})=>{const entries=roles.filter(r=>contacts?.[r]);if(!entries.length)return null;return <div key={category}><div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".08em",textTransform:"uppercase",color:categoryColor(category),marginBottom:8}}>{category}</div><div style={{borderTop:`2px solid ${T.ink}`,borderBottom:`1px solid ${T.line}`}}>{entries.map((role,idx)=>{const c=contacts[role];return <div key={role} style={{display:"grid",gridTemplateColumns:"170px repeat(4,minmax(100px,1fr))",padding:"10px 0",borderTop:idx===0?"none":`1px solid ${T.line}`}}><div style={{fontFamily:FONT_MONO,fontSize:11.5,color:T.inkDim}}>{role}</div><div style={{fontFamily:FONT_BODY,fontSize:13}}>{c.name||"—"}</div><div style={{fontFamily:FONT_BODY,fontSize:13}}>{c.company||"—"}</div><div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>{c.email||"—"}</div><div style={{fontFamily:FONT_MONO,fontSize:12,color:T.blue}}>{c.mobile||"—"}</div></div>})}</div></div>})}{Object.keys(contacts).length===0&&<div style={{color:T.inkDim}}>No contacts on file.</div>}</div>}
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}><div><h2 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:0,color:T.ink}}>Team & Ratings</h2><div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim,marginTop:4}}>Project contacts are shown here by default. Turn on Directory to see the consolidated directory view.</div></div><div style={{display:"flex",gap:8}}>{!editing && <Btn disabled={saving} variant="ghost" onClick={start}>Edit / add contacts</Btn>}<Btn variant="ghost" style={directoryMode ? {borderColor:"transparent"} : undefined} disabled={saving} onClick={()=>{setEditing(false);setDirectoryMode(v=>!v);}}>{directoryMode?"Directory On":"Directory"}</Btn></div></div>
+    {saveMessage&&<p role="status" style={{fontFamily:FONT_BODY,fontSize:12}}>{saveMessage}</p>}
+    {directoryMode ? <ProjectDirectory state={{...state,projects:directoryProjects}} persist={async next=>{++contactsRevisionRef.current;latestRef.current=next;const current=next.projects.find(p=>p.id===selectedRef.current);if(current)setLoadedContacts(current.contacts||{});await persist(next);}}/> : editing ? <><ProjectTeamContactFields contacts={draft} onChange={(role,field,value)=>setDraft(d=>({...d,[role]:{...(d[role]||{}),[field]:value}}))}/><div style={{display:"flex",gap:8}}><Btn disabled={saving} onClick={save}><ClipboardCheck size={14}/> {saving ? "Saving…" : "Save contacts"}</Btn><Btn disabled={saving} variant="ghost" onClick={()=>setEditing(false)}>Cancel</Btn></div></> : <div style={{display:"flex",flexDirection:"column",gap:16}}>{ROLE_CATEGORIES.map(({category,roles})=>{const entries=roles.filter(r=>contacts?.[r]);if(!entries.length)return null;return <div key={category}><div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".08em",textTransform:"uppercase",color:categoryColor(category),marginBottom:8}}>{category}</div><div style={{borderTop:`2px solid ${T.ink}`,borderBottom:`1px solid ${T.line}`}}>{entries.map((role,idx)=>{const c=contacts[role];return <div key={role} style={{display:"grid",gridTemplateColumns:"170px repeat(4,minmax(100px,1fr))",padding:"10px 0",borderTop:idx===0?"none":`1px solid ${T.line}`}}><div style={{fontFamily:FONT_MONO,fontSize:11.5,color:T.inkDim}}>{role}</div><div style={{fontFamily:FONT_BODY,fontSize:13}}>{c.name||"—"}</div><div style={{fontFamily:FONT_BODY,fontSize:13}}>{c.company||"—"}</div><div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>{c.email||"—"}</div><div style={{fontFamily:FONT_MONO,fontSize:12,color:T.blue}}>{c.mobile||"—"}</div></div>})}</div></div>})}{Object.keys(contacts).length===0&&<div style={{color:T.inkDim}}>No contacts on file.</div>}</div>}
   </div>;
 }
 
@@ -4234,7 +4362,7 @@ function designDashboardScopeFloors(project){
   const defs=[
     ["basement","Basement"],["stilt_floor","Stilt Floor"],["gf","GF"],["1f","1F"],["2f","2F"],["3f","3F"],
     ["terrace","Terrace"],["facade","Facade"],["wall_elevation","Wall Elevation"],["landscape","Landscape"],
-    ["bath_elevation","Bath Elevation"],["wardrobe","Wardrobe"],["kitchen","Kitchen"]
+    ["bath_elevation","Bath Elevation"],["wardrobe","Furniture"]
   ];
   return defs.filter(([key])=>Boolean(s[key])).map(([,label])=>label);
 }
@@ -4368,7 +4496,7 @@ function DrawingControlDashboard({state,projectId}){
     {loading&&<p>Loading project drawings and WIH status…</p>}
     <div style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) 330px',gap:16,alignItems:'start'}}>
       <div style={{minWidth:0,background:'#fff'}}>
-        <table style={{width:'100%',borderCollapse:'collapse',marginBottom:8}}><tbody>{[[`Project ${project.no||project.projectNo||''}:`,project.name],['Start Date:',project.startDate||'—'],['Time in hours:',loading?'Loading…':totalHours.toFixed(1)]].map(([label,value])=><tr key={label}><td style={{...cell,fontFamily:FONT_BODY,fontWeight:700,width:220}}>{label}</td><td style={{...cell,fontFamily:FONT_BODY}}>{value}</td></tr>)}</tbody></table>
+        <table style={{width:'100%',borderCollapse:'collapse',marginBottom:8}}><tbody>{[[`Project ${project.no||project.projectNo||''}:`,project.name],['Start Date:',formatProjectDate(project.startDate)],['Time in hours:',loading?'Loading…':totalHours.toFixed(1)]].map(([label,value])=><tr key={label}><td style={{...cell,fontFamily:FONT_BODY,fontWeight:700,width:220}}>{label}</td><td style={{...cell,fontFamily:FONT_BODY}}>{value}</td></tr>)}</tbody></table>
         <div style={{overflowX:'auto',border:'1px solid #777'}}>
           <table aria-label="Project design matrix" style={{borderCollapse:'collapse',tableLayout:'fixed',minWidth:2530,width:'100%'}}>
             <colgroup><col style={{width:250}}/><col style={{width:55}}/><col style={{width:45}}/><col style={{width:170}}/>{Array.from({length:4},(_,i)=><col key={'r'+i} style={{width:48}}/>)}{SHEET_DASHBOARD_WORK.map(d=><col key={d.label} style={{width:112}}/>)}{sentCols.map(([label])=><col key={'s'+label} style={{width:44}}/>)}{['Wall Electricals','FC Framing','Wiring'].map(label=><col key={label} style={{width:100}}/>)}</colgroup>
@@ -4506,7 +4634,7 @@ function ProjectInfoScopeMerged({state,persist,project}){
   const scopeFields=[
     ["Basement","basement"],["Stilt Floor","stiltFloor"],["GF","gf"],["1F","f1"],["2F","f2"],["3F","f3"],
     ["Terrace","terrace"],["Facade","facade"],["Wall Elevation","wallElevation"],["Landscape","landscape"],
-    ["Bath Elevation","bathElevation"],["Wardrobe","wardrobe"],["Kitchen","kitchen"],["Onboarding","onboarding"]
+    ["Bath Elevation","bathElevation"],["Furniture","wardrobe"],["Onboarding","onboarding"]
   ];
   const updateProject=async patch=>{
     const projects=state.projects.map(p=>p.id===project.id?{...p,...patch}:p);
@@ -4524,7 +4652,7 @@ function ProjectInfoScopeMerged({state,persist,project}){
         ["Status",project.status||"Ongoing"],
         ["Client",project.client||"—"],
         ["Architect",project.architect||"—"],
-        ["Start Date",project.startDate||"—"],
+        ["Start Date",formatProjectDate(project.startDate)],
         ["Planned Completion",project.plannedCompletionDate||project.endDate||"—"]
       ].map(([k,v],i)=><div key={k} style={{padding:"11px 12px",borderRight:i%4===3?"none":`1px solid ${T.line}`,borderBottom:i<4?`1px solid ${T.line}`:"none"}}>
         <div style={{fontFamily:FONT_MONO,fontSize:8,color:T.inkDim,letterSpacing:.8,textTransform:"uppercase"}}>{k}</div>
@@ -4557,7 +4685,7 @@ function ProjectInfoScopeMerged({state,persist,project}){
 
 
 function InlineProjectScope({project,state,persist}){
-  const fields=[["Basement","basement"],["Stilt Floor","stiltFloor"],["GF","gf"],["1F","f1"],["2F","f2"],["3F","f3"],["Terrace","terrace"],["Facade","facade"],["Wall Elev.","wallElevation"],["Landscape","landscape"],["Bath Elev.","bathElevation"],["Wardrobe","wardrobe"],["Kitchen","kitchen"],["Onboarding","onboarding"]];
+  const fields=[["Basement","basement"],["Stilt Floor","stiltFloor"],["GF","gf"],["1F","f1"],["2F","f2"],["3F","f3"],["Terrace","terrace"],["Facade","facade"],["Wall Elev.","wallElevation"],["Landscape","landscape"],["Bath Elev.","bathElevation"],["Furniture","wardrobe"],["Onboarding","onboarding"]];
   const toggle=async(key,e)=>{
     e&&e.stopPropagation();
     const projects=state.projects.map(p=>p.id===project.id?{...p,scope:{...(p.scope||{}),[key]:!Boolean(p.scope?.[key])}}:p);
@@ -4699,6 +4827,12 @@ function ProjectView({ state, persist }) {
   // changes into one Google Sheets request after a short idle period.
   const scopeSaveTimersRef = useRef({});
   const scopePendingRef = useRef({});
+  const scopeSaveRequestsRef = useRef({});
+  const completionPendingRef = useRef({});
+  const editorSavePendingRef = useRef({});
+  const [projectSaveMessage,setProjectSaveMessage] = useState("");
+  const latestProjectStateRef = useRef(state);
+  latestProjectStateRef.current = state;
   const [tab, setTab] = useState("list");
   const [selectedId, setSelectedId] = useState(state.projects[0]?.id || null);
   const [showNewProject, setShowNewProject] = useState(false);
@@ -4717,7 +4851,7 @@ function ProjectView({ state, persist }) {
   const scopeFields = [
     ["Basement","basement"],["Stilt Floor","stilt_floor"],["GF","gf"],["1F","1f"],["2F","2f"],["3F","3f"],
     ["Terrace","terrace"],["Facade","facade"],["Wall Elevation","wall_elevation"],["Landscape","landscape"],
-    ["Bath Elevation","bath_elevation"],["Wardrobe","wardrobe"],["Kitchen","kitchen"],["Onboarding","onboarding"]
+    ["Bath Elevation","bath_elevation"],["Furniture","wardrobe"],["Onboarding","onboarding"]
   ];
 
   const isCompletedProject = p => (p.status==="Completed" || p.projectControl?.projectStatus==="Completed" || Boolean(p.completedAt));
@@ -4725,18 +4859,45 @@ function ProjectView({ state, persist }) {
   const completedProjects = state.projects.filter(isCompletedProject);
   const completeProject = async (p,e) => {
     if(e)e.stopPropagation();
-    let completedRow;
-    try { completedRow = await projectApi.complete(p.id); }
-    catch (err) { alert(`Google Sheets completion failed: ${err?.message || err}`); return; }
+    if(completionPendingRef.current[p.id])return;
+    completionPendingRef.current[p.id]=true;
+    const previousSelection=selectedId;
     const now=new Date().toISOString();
-    const projects=state.projects.map(x=>x.id===p.id?backendProjectToFrontend(completedRow,{
-      ...x,status:"Completed",completedAt:now,completedDate:now.slice(0,10),
-      projectControl:{...(x.projectControl||{}),projectStatus:"Completed",completedAt:now}
-    }):x);
-    await persist({...state,projects});
+    const before=latestProjectStateRef.current.projects.find(x=>x.id===p.id)||p;
+    const statusFields=x=>({status:x.status,projectStatus:x.projectStatus,completed:x.completed,completedAt:x.completedAt,completedDate:x.completedDate});
+    const applyStatus=async (fields,control)=>{
+      const latest=latestProjectStateRef.current;
+      const next={...latest,projects:latest.projects.map(x=>x.id===p.id?{...x,...fields,projectControl:{...x.projectControl,...control}}:x)};
+      latestProjectStateRef.current=next;
+      await persist(next);
+    };
+    // Update React state before waiting for Google Sheets.
+    const localSave=applyStatus({status:"Completed",projectStatus:"Completed",completed:true,completedAt:now,completedDate:now.slice(0,10)},{projectStatus:"Completed",completedAt:now});
     if(selectedId===p.id){
-      const next=projects.find(x=>!(x.status==="Completed"||x.projectControl?.projectStatus==="Completed"));
-      if(next)setSelectedId(next.id);
+      const next=latestProjectStateRef.current.projects.find(x=>!isCompletedProject(x));
+      setSelectedId(next?.id||null);
+    }
+    // Finish any older scope write before completion, so it cannot reopen the project.
+    clearTimeout(scopeSaveTimersRef.current[p.id]);
+    delete scopeSaveTimersRef.current[p.id];
+    const pendingScope=scopePendingRef.current[p.id];
+    delete scopePendingRef.current[p.id];
+    try {
+      await localSave;
+      await scopeSaveRequestsRef.current[p.id];
+      if(pendingScope)await projectApi.update(frontendProjectToBackend(pendingScope.project,true));
+      const completedRow=await projectApi.complete(p.id);
+      const current=latestProjectStateRef.current.projects.find(x=>x.id===p.id);
+      if(current){
+        const synced=backendProjectToFrontend(completedRow,current);
+        await applyStatus(statusFields(synced),{projectStatus:synced.projectControl?.projectStatus,completedAt:synced.projectControl?.completedAt});
+      }
+    } catch(err) {
+      await applyStatus(statusFields(before),{projectStatus:before.projectControl?.projectStatus,completedAt:before.projectControl?.completedAt});
+      if(previousSelection===p.id)setSelectedId(p.id);
+      alert(`Project completion could not be saved. The previous status has been restored. ${err?.message||err}`);
+    } finally {
+      delete completionPendingRef.current[p.id];
     }
   };
 
@@ -4844,7 +5005,9 @@ function ProjectView({ state, persist }) {
       const pending = scopePendingRef.current[p.id];
       if (!pending) return;
       try {
-        await projectApi.update(frontendProjectToBackend(pending.project, true));
+        const request=projectApi.update(frontendProjectToBackend(pending.project, true));
+        scopeSaveRequestsRef.current[p.id]=request.catch(()=>{});
+        await request;
         delete scopePendingRef.current[p.id];
       } catch (err) {
         console.error("Google Sheets scope background save failed:", err);
@@ -4896,17 +5059,17 @@ function ProjectView({ state, persist }) {
   };
 
   const saveProjectEditor = async () => {
-    const current = state.projects.find(p => p.id === editProjectId);
-    if (!current || !editDraft) return;
+    const current = latestProjectStateRef.current.projects.find(p => p.id === editProjectId);
+    if (!current || !editDraft || editorSavePendingRef.current[current.id]) return;
     const currentScope = scopeFor(current);
     const cleanContacts = {};
     Object.entries(editDraft.contacts || {}).forEach(([role, c]) => {
-      if (c && ((c.name || "").trim() || (c.company || "").trim() || (c.email || "").trim() || (c.mobile || "").trim())) {
+      if (c && (String(c.name || "").trim() || String(c.company || "").trim() || String(c.email || "").trim() || String(c.mobile || "").trim())) {
         cleanContacts[role] = {
-          name: (c.name || "").trim(),
-          company: (c.company || "").trim(),
-          email: (c.email || "").trim(),
-          mobile: (c.mobile || "").trim()
+          name: String(c.name || "").trim(),
+          company: String(c.company || "").trim(),
+          email: String(c.email || "").trim(),
+          mobile: String(c.mobile || "").trim()
         };
       }
     });
@@ -4933,54 +5096,58 @@ function ProjectView({ state, persist }) {
       endDate: editDraft.plannedCompletionDate,
       projectStatus: editDraft.projectStatus,
       status: editDraft.projectStatus,
-      scope: nextScope
+      scope: nextScope,
+      projectControl:{...current.projectControl,projectStatus:editDraft.projectStatus},
+      ...(editDraft.projectStatus!=="Completed"?{completed:false,completedAt:"",completedDate:""}:{})
     };
-    let updatedRow;
+    const draftSnapshot=editDraft;
+    const oldName=String(current.name||"").trim().toLowerCase();
+    const latest=latestProjectStateRef.current;
+    const allRows=latest.scopeSheet||PROJECT_SCOPE_SHEET_ROWS;
+    const replaceScope=(rows,name,row)=>rows.some(r=>String(r.project||"").trim().toLowerCase()===name)
+      ? rows.map(r=>String(r.project||"").trim().toLowerCase()===name?row:r):[...rows,row];
+    const optimistic={...latest,projects:latest.projects.map(p=>p.id===current.id?nextProject:p),scopeSheet:replaceScope(allRows,oldName,nextScope)};
+    editorSavePendingRef.current[current.id]=true;
+    latestProjectStateRef.current=optimistic;
+    const localSave=persist(optimistic);
+    setIsProjectEditorOpen(false);
+    setProjectSaveMessage("Changes applied · Saving to Google Sheets…");
+    // Older scope writes must finish first; send one combined latest project snapshot.
+    clearTimeout(scopeSaveTimersRef.current[current.id]);
+    delete scopeSaveTimersRef.current[current.id];
+    delete scopePendingRef.current[current.id];
     try {
-      updatedRow = await projectApi.update(frontendProjectToBackend(nextProject, true));
-    } catch (err) {
-      alert(`Google Sheets project update failed: ${err?.message || err}`);
+      await localSave;
+      await scopeSaveRequestsRef.current[current.id];
+      await projectApi.update(frontendProjectToBackend(nextProject,true));
+    } catch(err) {
+      const latest=latestProjectStateRef.current;
+      // Restore only fields still equal to this save, retaining later independent edits.
+      const projects=latest.projects.map(p=>{
+        if(p.id!==current.id)return p;
+        const restored={...p};
+        for(const key of Object.keys(nextProject)){
+          if(JSON.stringify(p[key])===JSON.stringify(nextProject[key]))restored[key]=current[key];
+        }
+        return restored;
+      });
+      const scopeSheet=(latest.scopeSheet||[]).map(r=>JSON.stringify(r)===JSON.stringify(nextScope)?currentScope:r);
+      const restored={...latest,projects,scopeSheet};
+      latestProjectStateRef.current=restored;
+      await persist(restored);
+      setEditProjectId(current.id);setEditDraft(draftSnapshot);setIsProjectEditorOpen(true);
+      setProjectSaveMessage(`Save failed. Your draft is retained; please retry. ${err?.message||err}`);
+      delete editorSavePendingRef.current[current.id];
       return;
     }
-    const syncedProject = backendProjectToFrontend(updatedRow, nextProject);
-    if (Object.keys(cleanContacts).length) {
-      try { await projectApi.saveContacts(current.id, contactsObjectToRows(syncedProject, cleanContacts)); }
-      catch (err) { alert(`Project saved, but Google Sheets contacts failed: ${err?.message || err}`); }
+    try {
+      if(Object.keys(cleanContacts).length)await projectApi.saveContacts(current.id,contactsObjectToRows(nextProject,cleanContacts));
+      setProjectSaveMessage("Saved to Google Sheets.");
+    } catch(err) {
+      setProjectSaveMessage(`Project saved, but contacts could not sync. Reopen the project and save again. ${err?.message||err}`);
+    } finally {
+      delete editorSavePendingRef.current[current.id];
     }
-    const allRows = state.scopeSheet || PROJECT_SCOPE_SHEET_ROWS;
-    const oldName = String(current.name || "").trim().toLowerCase();
-    const scopeSheet = allRows.some(r => String(r.project || "").trim().toLowerCase() === oldName)
-      ? allRows.map(r => String(r.project || "").trim().toLowerCase() === oldName ? nextScope : r)
-      : [...allRows, nextScope];
-    await persist({
-      ...state,
-      projects: state.projects.map(p => p.id === current.id ? syncedProject : p),
-      scopeSheet
-    });
-    setEditProjectId(syncedProject.id);
-    setEditDraft({
-      no: syncedProject.no || "",
-      name: syncedProject.name || "",
-      client: syncedProject.client || nextScope.client || "",
-      architect: syncedProject.architect || nextScope.architect || "",
-      address: syncedProject.address || "",
-      type: syncedProject.type || "Residence",
-      startDate: syncedProject.startDate || "",
-      plannedCompletionDate: syncedProject.plannedCompletionDate || syncedProject.endDate || "",
-      projectStatus: syncedProject.projectStatus || syncedProject.status || "Ongoing",
-      contacts: {
-        ...(syncedProject.contacts || cleanContacts),
-        Owner: {
-          ...((syncedProject.contacts || cleanContacts)?.Owner || {}),
-          name: (syncedProject.contacts || cleanContacts)?.Owner?.name || syncedProject.client || ownerName || ""
-        },
-        Architect: {
-          ...((syncedProject.contacts || cleanContacts)?.Architect || {}),
-          name: (syncedProject.contacts || cleanContacts)?.Architect?.name || syncedProject.architect || architectName || ""
-        }
-      }
-    });
-    setIsProjectEditorOpen(false);
   };
 
   const executionFor=(room)=>{
@@ -5022,9 +5189,10 @@ function ProjectView({ state, persist }) {
       )}
     </div>
 
+    {projectSaveMessage&&<p role="status" style={{fontFamily:FONT_BODY,fontSize:12}}>{projectSaveMessage}</p>}
     {tab==="list" && <div>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,gap:10}}>
-        <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.inkDim}}>Project Master</div>
+        <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.inkDim}}>Ongoing Projects</div>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           {project && !isCompletedProject(project) && <button type="button" onClick={()=>openProjectEditor(project)} style={{...smallBtn,border:`1px solid ${T.blue}`,color:T.blue,background:"#fff"}}>Edit Selected Project</button>}
           <div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim}}>{ongoingProjects.length} ongoing projects</div>
@@ -5035,7 +5203,7 @@ function ProjectView({ state, persist }) {
         <div style={{minWidth:1750}}>
           <div style={{
             display:"grid",
-            gridTemplateColumns:"65px 300px 180px 180px repeat(14,78px) 105px",
+            gridTemplateColumns:`65px 300px 180px 180px repeat(${scopeFields.length},78px) 105px`,
             background:"#D2CDC1",color:"#1C1C19",borderBottom:`2px solid ${T.ink}`,
             fontFamily:FONT_MONO,fontSize:8,fontWeight:700
           }}>
@@ -5050,7 +5218,7 @@ function ProjectView({ state, persist }) {
             const sc=scopeFor(p);
             const selected=p.id===project?.id;
             return <div key={p.id} onClick={()=>setSelectedId(p.id)} style={{
-              display:"grid",gridTemplateColumns:"65px 300px 180px 180px repeat(14,78px) 105px",
+              display:"grid",gridTemplateColumns:`65px 300px 180px 180px repeat(${scopeFields.length},78px) 105px`,
               borderBottom:`1px solid ${T.line}`,background:selected?"#F3F1EA":"#fff",cursor:"pointer",
               fontFamily:FONT_BODY,fontSize:10
             }}>
@@ -5080,18 +5248,25 @@ function ProjectView({ state, persist }) {
                   color:on?"#245C2B":"#999",cursor:"pointer",fontSize:16,fontWeight:800
                 }}>{on?"☑":"☐"}</button>;
               })}
-              <button onClick={e=>completeProject(p,e)} title="Mark project completed" style={{border:0,background:"#FAF9F5",cursor:"pointer",fontFamily:FONT_BODY,fontSize:9,fontWeight:700,color:T.ink}}>
-                ☐ Complete
+              <button type="button" onClick={e=>completeProject(p,e)} title="Mark project completed" aria-label={`Mark ${p.name||"project"} completed`} style={{border:0,background:"#D2CDC1",cursor:"pointer",fontFamily:FONT_BODY,fontSize:28,fontWeight:700,color:"#1C1C19",display:"flex",alignItems:"center",justifyContent:"center",minHeight:44}}>
+                <span aria-hidden="true">☐</span>
               </button>
             </div>;
           })}
         </div>
       </div>
 
+      {project&&<section aria-label="Project summary" style={{marginTop:16,border:`1px solid ${T.line}`,background:T.paper2,padding:16}}>
+        <div style={{fontFamily:FONT_MONO,fontSize:10,color:T.cyan,marginBottom:12}}>PROJECT INFORMATION</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:14}}>
+          {[["Project No.",project.no],["Project Name",project.name],["Client",project.client||project.contacts?.Owner?.name],["Architect",project.architect||project.contacts?.Architect?.name],["Address",project.address],["Project Type",project.type]].map(([label,value])=><div key={label}><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginBottom:5}}>{label}</div><div style={{fontFamily:FONT_BODY,fontSize:13,overflowWrap:"anywhere"}}>{value||"—"}</div></div>)}
+        </div>
+      </section>}
+
       {project && editDraft && isProjectEditorOpen && <div style={{marginTop:16,border:`2px solid ${T.navy}`,background:"#fff",padding:16}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:14}}>
           <div>
-            <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.cyan}}>Selected Project · Editable Information</div>
+            <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.cyan}}>Project Details · Read Only / Contacts · Editable</div>
             <div style={{fontFamily:FONT_DISPLAY,fontSize:18,fontWeight:700,marginTop:3}}>{editDraft.name || "Selected Project"}</div>
           </div>
           <div style={{display:"flex",gap:8}}>
@@ -5099,25 +5274,9 @@ function ProjectView({ state, persist }) {
             <button onClick={()=>setIsProjectEditorOpen(false)} style={{...smallBtn}}>Collapse</button>
           </div>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"140px 1.4fr 1fr 1fr",gap:12}}>
-          <Field label="Project No."><input style={{...inputStyle,borderRadius:0}} value={editDraft.no} onChange={e=>setEditDraft(d=>({...d,no:e.target.value}))}/></Field>
-          <Field label="Project Name"><input style={{...inputStyle,borderRadius:0}} value={editDraft.name} onChange={e=>setEditDraft(d=>({...d,name:e.target.value}))}/></Field>
-          <Field label="Client"><input style={{...inputStyle,borderRadius:0}} value={editDraft.client} onChange={e=>setEditDraft(d=>({...d,client:e.target.value}))}/></Field>
-          <Field label="Architect"><input style={{...inputStyle,borderRadius:0}} value={editDraft.architect} onChange={e=>setEditDraft(d=>({...d,architect:e.target.value}))}/></Field>
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"1.6fr 1fr 1fr 1fr",gap:12,marginTop:10}}>
-          <Field label="Address"><input style={{...inputStyle,borderRadius:0}} value={editDraft.address} onChange={e=>setEditDraft(d=>({...d,address:e.target.value}))}/></Field>
-          <Field label="Project Type"><select style={{...inputStyle,borderRadius:0}} value={editDraft.type} onChange={e=>setEditDraft(d=>({...d,type:e.target.value}))}><option>Residence</option><option>Commercial</option><option>Hospitality</option><option>Retail</option><option>Other</option></select></Field>
-          <Field label="Start Date"><input type="date" style={{...inputStyle,borderRadius:0}} value={editDraft.startDate} onChange={e=>setEditDraft(d=>({...d,startDate:e.target.value}))}/></Field>
-          <Field label="Planned Completion"><input type="date" style={{...inputStyle,borderRadius:0}} value={editDraft.plannedCompletionDate} onChange={e=>setEditDraft(d=>({...d,plannedCompletionDate:e.target.value}))}/></Field>
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"220px 1fr",gap:12,alignItems:"end",marginTop:10}}>
-          <Field label="Project Status"><select style={{...inputStyle,borderRadius:0}} value={editDraft.projectStatus} onChange={e=>setEditDraft(d=>({...d,projectStatus:e.target.value}))}><option>Ongoing</option><option>On Hold</option><option>Completed</option><option>Cancelled</option></select></Field>
-          <div style={{display:"flex",gap:8,paddingBottom:1}}>
-            <Btn onClick={saveProjectEditor}><ClipboardCheck size={14}/> Save Project</Btn>
-            <Btn variant="ghost" onClick={()=>openProjectEditor(project)}>Reset</Btn>
-          </div>
-        </div>
+        <section aria-label="Read-only project details" style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:12}}>
+          {[["Project No.",project.no],["Project Name",project.name],["Client",project.client||project.contacts?.Owner?.name],["Architect",project.architect||project.contacts?.Architect?.name],["Address",project.address],["Project Type",project.type],["Start Date",formatProjectDate(project.startDate)],["Planned Completion",formatProjectDate(project.plannedCompletionDate||project.endDate)],["Project Status",project.projectStatus||project.status]].map(([label,value])=><div key={label}><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginBottom:5}}>{label}</div><div style={{fontFamily:FONT_BODY,fontSize:13,overflowWrap:"anywhere"}}>{value||"—"}</div></div>)}
+        </section>
         <div style={{marginTop:18,paddingTop:14,borderTop:`1px solid ${T.line}`}}>
           <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.cyan,marginBottom:10}}>Project Contacts · Editable</div>
           <ContactFields
@@ -5131,7 +5290,11 @@ function ProjectView({ state, persist }) {
             }))}
           />
         </div>
-        <div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim,marginTop:10}}>Project information and contacts are editable here. Owner name maps to Client and Architect name maps to Architect. Click Save Project after editing. Scope checkboxes remain editable directly in the master row above.</div>
+        <div style={{display:"flex",gap:8,marginTop:16}}>
+          <Btn onClick={saveProjectEditor}><ClipboardCheck size={14}/> Save Project</Btn>
+          <Btn variant="ghost" onClick={()=>openProjectEditor(project)}>Reset</Btn>
+        </div>
+        <div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim,marginTop:10}}>Edit Client through Owner and edit Architect in the contact list above. Save Project closes this editor and updates the summary immediately.</div>
       </div>}
 
       <div style={{marginTop:22}}>
@@ -5149,7 +5312,7 @@ function ProjectView({ state, persist }) {
               <div style={{padding:8,borderRight:`1px solid ${T.line}`,fontWeight:700}}>{p.name}</div>
               <div style={{padding:8,borderRight:`1px solid ${T.line}`}}>{p.client||"—"}</div>
               <div style={{padding:8,borderRight:`1px solid ${T.line}`}}>{p.architect||"—"}</div>
-              <div style={{padding:8,fontFamily:FONT_MONO}}>{p.completedDate||(p.completedAt?String(p.completedAt).slice(0,10):"—")}</div>
+              <div style={{padding:8,fontFamily:FONT_MONO}}>{formatProjectDate(p.completedDate||p.completedAt)}</div>
             </div>)}
             {!completedProjects.length&&<div style={{padding:14,fontFamily:FONT_BODY,fontSize:11,color:T.inkDim}}>No completed projects yet.</div>}
           </div>
@@ -5180,7 +5343,7 @@ function ProjectView({ state, persist }) {
           </div>
           <div style={{background:"#fff",border:`1px solid ${T.line}`,padding:12}}>
             <div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim}}>START DATE</div>
-            <div style={{fontFamily:FONT_DISPLAY,fontSize:16,fontWeight:700,marginTop:5}}>{project.startDate||project.projectStartDate||"—"}</div>
+            <div style={{fontFamily:FONT_DISPLAY,fontSize:16,fontWeight:700,marginTop:5}}>{formatProjectDate(project.startDate||project.projectStartDate)}</div>
           </div>
         </div>
 
@@ -5696,7 +5859,7 @@ function MemberProjectsView({state}) {
   return <div>
     <div style={{display:'flex',justifyContent:'space-between',gap:12,flexWrap:'wrap',marginBottom:18}}><div><h2 style={{fontFamily:FONT_DISPLAY,margin:0}}>Projects</h2><div style={{fontSize:12,color:T.inkDim,marginTop:6}}>View only · Project information, contacts and planned work</div></div><select aria-label="View project" style={{...inputStyle,minWidth:260}} value={p.id} onChange={e=>setSelected(e.target.value)}>{projects.map(x=><option key={x.id} value={x.id}>{x.no} · {x.name}</option>)}</select></div>
     <div style={{display:'flex',gap:8,marginBottom:16}}>{[['scope','Projects & Scope'],['team','Teams & Ratings'],['line','Line of Work']].map(([id,label])=><Btn key={id} variant={tab===id?'dark':'ghost'} onClick={()=>setTab(id)}>{label}</Btn>)}</div>
-    {tab==='scope'&&<><table style={{borderCollapse:'collapse',width:'100%'}}><tbody>{[['Project',p.name],['Number',p.no],['Client',p.client||p.contacts?.Owner?.name],['Architect',p.architect||p.contacts?.Architect?.name],['Address',p.address],['Type',p.type],['Status',p.status],['Start',p.startDate],['End',p.endDate]].map(([label,value])=><tr key={label}><td style={{...tdStyle,textAlign:'left',width:170,color:T.inkDim}}>{label}</td><td style={{...tdStyle,textAlign:'left'}}>{String(value??'—')}</td></tr>)}</tbody></table><div style={{marginTop:18,fontFamily:FONT_BODY,fontSize:13}}><strong>Project scope</strong><div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:10}}>{Object.entries(p.scope||{}).filter(([,v])=>v===true).map(([k])=><span key={k} style={{background:T.paperDim,padding:'7px 10px'}}>{k.replace(/_/g,' ')}</span>)}</div></div></>}
+    {tab==='scope'&&<><table style={{borderCollapse:'collapse',width:'100%'}}><tbody>{[['Project',p.name],['Number',p.no],['Client',p.client||p.contacts?.Owner?.name],['Architect',p.architect||p.contacts?.Architect?.name],['Address',p.address],['Type',p.type],['Status',p.status],['Start',formatProjectDate(p.startDate)],['End',p.endDate]].map(([label,value])=><tr key={label}><td style={{...tdStyle,textAlign:'left',width:170,color:T.inkDim}}>{label}</td><td style={{...tdStyle,textAlign:'left'}}>{String(value??'—')}</td></tr>)}</tbody></table><div style={{marginTop:18,fontFamily:FONT_BODY,fontSize:13}}><strong>Project scope</strong><div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:10}}>{Object.entries(p.scope||{}).filter(([,v])=>v===true).map(([k])=><span key={k} style={{background:T.paperDim,padding:'7px 10px'}}>{k.replace(/_/g,' ')}</span>)}</div></div></>}
     {tab==='team'&&<>{ROLE_CATEGORIES.map(({category,roles})=>{const entries=roles.filter(r=>p.contacts?.[r]);return entries.length?<div key={category} style={{marginBottom:20}}><div style={{fontFamily:FONT_MONO,color:categoryColor(category),marginBottom:8}}>{category}</div><table style={{width:'100%',borderCollapse:'collapse'}}><tbody>{entries.map(r=><tr key={r}>{[r,p.contacts[r].name,p.contacts[r].company,p.contacts[r].email,p.contacts[r].mobile].map((v,i)=><td key={i} style={{...tdStyle,textAlign:'left'}}>{String(v??'—')||'—'}</td>)}</tr>)}</tbody></table></div>:null;})}</>}
     {tab==='line'&&<>{workflowGroups(workflow.filter(r=>String(r.workflowVersion)==='1')).map(g=><details key={g.first.lineWorkId||g.first.id} open style={{border:`1px solid ${T.line}`,marginBottom:12}}><summary style={{padding:12,background:T.paperDim}}><strong>{g.first.milestone}</strong> · {g.first.tasks}</summary><table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Step','Subtask','Responsible','Estimated hours'].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{g.rows.map((r,i)=><tr key={r.lineWorkId||r.id}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{r.subtask}</td><td style={tdStyle}>{r.responsible||'Unassigned'}</td><td style={tdStyle}>{r.hours||'—'}</td></tr>)}</tbody></table></details>)}{!workflow.some(r=>String(r.workflowVersion)==='1')&&<div style={{color:T.inkDim}}>The admin has not saved the detailed workflow for this project.</div>}</>}
   </div>;
@@ -5737,7 +5900,7 @@ function ReadOnlyProjectWork({project,state}){
 function ProjectScopeAdmin({project,onSaved}){
   const [draft,setDraft]=useState(project),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
   const save=async()=>{setBusy(true);try{const row=await projectApi.update(frontendProjectToBackend(draft,true));await onSaved(row);setMessage('Saved to Google Sheets.');}catch(e){setMessage(e.message);}finally{setBusy(false);}};
-  const fields=[['Basement','basement'],['Stilt Floor','stilt_floor'],['GF','gf'],['1F','1f'],['2F','2f'],['3F','3f'],['Terrace','terrace'],['Facade','facade'],['Wall Elevation','wall_elevation'],['Landscape','landscape'],['Bath Elevation','bath_elevation'],['Wardrobe','wardrobe'],['Kitchen','kitchen'],['Onboarding','onboarding']];
+  const fields=[['Basement','basement'],['Stilt Floor','stilt_floor'],['GF','gf'],['1F','1f'],['2F','2f'],['3F','3f'],['Terrace','terrace'],['Facade','facade'],['Wall Elevation','wall_elevation'],['Landscape','landscape'],['Bath Elevation','bath_elevation'],['Furniture','wardrobe'],['Onboarding','onboarding']];
   return <section><h3>{project.name} · Scope & Status</h3><Field label="Project status"><select style={inputStyle} value={draft.status} onChange={e=>setDraft(d=>({...d,status:e.target.value,projectStatus:e.target.value,projectControl:{...d.projectControl,projectStatus:e.target.value}}))}><option>Ongoing</option><option>On Hold</option><option>Completed</option></select></Field><div style={{display:'flex',gap:16,flexWrap:'wrap',marginBottom:16}}>{fields.map(([label,k])=><label key={k}><input type="checkbox" checked={!!draft.scope?.[k]} onChange={e=>setDraft(d=>({...d,scope:{...d.scope,[k]:e.target.checked}}))}/> {label}</label>)}</div><Btn disabled={busy} onClick={save}>{busy?'Saving…':'Save Scope & Status'}</Btn><p role="status">{message}</p></section>;
 }
 function ProjectPunchInsView({state}){
@@ -5794,7 +5957,7 @@ export default function App(){
     script.addEventListener('load',renderButton);const failed=()=>setError('Google sign-in could not load. Check your connection.');script.addEventListener('error',failed);
     return()=>{active=false;script.removeEventListener('load',renderButton);script.removeEventListener('error',failed);};
   },[config,token]);
-  if(token)return <><div style={{background:T.navy,color:'#fff',padding:'8px 18px',display:'flex',justifyContent:'space-between',fontFamily:FONT_BODY,fontSize:12}}><span>Signed in with Google</span><button onClick={signOut} style={{...smallBtn,background:'#fff'}}>Sign out / switch account</button></div><StudioApp/></>;
+  if(token)return <><div style={{background:T.navy,color:'#fff',padding:'8px 18px',display:'flex',justifyContent:'flex-end',fontFamily:FONT_BODY,fontSize:12}}><button onClick={signOut} style={{...smallBtn,background:'#fff'}}>Sign out / switch account</button></div><StudioApp/></>;
   return <main className="enlighten-landing" aria-label="enLIGHTen sign in">
     <section className="enlighten-landing__center" aria-label="Welcome to enLIGHTen">
       <img className="enlighten-landing__logo" src="/enlighten-wordmark.svg" alt="enLIGHTen" width="710" height="140" />

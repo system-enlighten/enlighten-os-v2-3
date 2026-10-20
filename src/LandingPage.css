@@ -13,3 +13,6 @@
 .enlighten-landing__footer span { display:block; }
 @media(max-width:600px) { .enlighten-landing { padding-inline:16px; } .enlighten-landing__logo { width:86vw; min-width:0; } .enlighten-landing__center { padding-top:6vh; padding-bottom:12vh; } .enlighten-landing__footer { letter-spacing:.1em; font-size:calc(10px - 4pt); } }
 @media(max-height:500px) { .enlighten-landing__center { padding:18px 0; } .enlighten-landing__logo { width: min(46vw,400px); min-width:0; } .enlighten-landing__signin { margin-top:18px; gap:6px; } .enlighten-landing__footer { font-size:calc(10px - 4pt); } }
+
+/* Restore four points on phones, including landscape, without changing laptop typography. */
+@media (max-width:600px), (max-height:500px) and (max-width:950px) and (pointer:coarse) { .enlighten-landing__footer { font-size:10px; } }
