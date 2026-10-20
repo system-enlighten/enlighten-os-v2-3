@@ -2424,6 +2424,25 @@ function ProjectDirectory({state,persist}){
     setMessage(failed.length?`Could not save: ${failed.map(f=>f.project.name||f.project.id).join(", ")}. Their previous values were restored; edit these entries and retry.`:warnings.length?`Contacts and ratings saved. Project summary sync failed for ${warnings.join(", ")}; edit and save again to retry.`:"Directory updated in all linked projects. Ratings saved to Google Sheets.");
     pendingRef.current=false;setBusy(false);
   };
+  const removeContact=async d=>{
+    if(pendingRef.current)return;
+    const affected=d.projects.map(p=>p.name||p.id);
+    if(!window.confirm(`Delete ${d.name||d.company||"this contact"} from the directory?\n\nAffected projects (${affected.length}):\n${affected.map(n=>`• ${n}`).join("\n")}\n\nThis removes the contact from those projects, not the projects themselves.`))return;
+    const before=latestRef.current;
+    const projects=before.projects.map(p=>{
+      const contacts={...p.contacts};let changed=false;
+      for(const [role,c] of Object.entries(contacts))if(contactKey(c.name||c.company,c.mobile)===d.key){delete contacts[role];changed=true;}
+      return changed?{...p,contacts}:p;
+    });
+    const changed=projects.filter((p,i)=>p!==before.projects[i]);if(!changed.length)return;
+    pendingRef.current=true;setBusy(true);setMessage(`Deleting contact from ${changed.length} project(s)…`);
+    try{
+      for(const p of changed)await projectApi.saveContacts(p.id,contactsObjectToRows(p,p.contacts));
+      const next={...before,projects};latestRef.current=next;await persist(next);
+      setMessage(`Contact deleted from ${changed.length} project(s).`);
+    }catch(err){setMessage(`Delete failed: ${err?.message||err}. Reload to verify saved project contacts.`);}
+    finally{pendingRef.current=false;setBusy(false);}
+  };
   return <section aria-label="Project contact directory">
     <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:12}}>
       <input aria-label="Search directory" placeholder="Search name, studio, email or phone" value={query} onChange={e=>setQuery(e.target.value)} style={{...inputStyle,maxWidth:380}}/>
@@ -2433,7 +2452,7 @@ function ProjectDirectory({state,persist}){
     <div style={{overflowX:"auto"}}><table style={{borderCollapse:"collapse",width:"100%",border:`1px solid ${T.line}`}}><thead><tr>{["Name","Company / Studio","Role","Projects","Rating","Edit"].map(h=><th key={h} style={{...thStyle,background:T.paperDim,textAlign:"left"}}>{h}</th>)}</tr></thead><tbody>{visible.map(d=><tr key={d.key}>
       <td style={tdStyle}>{d.name||"—"}<div style={{fontSize:11,color:T.inkDim}}>{d.mobile}</div></td><td style={tdStyle}>{d.company||"—"}</td><td style={tdStyle}>{d.roles.join(", ")}</td><td style={tdStyle}>{d.projects.map(p=><div key={p.id}>{p.name}</div>)}</td>
       <td style={tdStyle}><DirectoryStars name={d.name||d.company} value={d.rating} disabled={busy} onChange={rating=>save([d.key],{rating})}/></td>
-      <td style={tdStyle}><button type="button" disabled={busy} onClick={()=>start(d)} style={smallBtn}>Edit / merge</button></td>
+      <td style={tdStyle}><button type="button" disabled={busy} onClick={()=>start(d)} style={smallBtn}>Edit / merge</button> <button type="button" disabled={busy} onClick={()=>removeContact(d)} style={{...smallBtn,color:"#963C37",border:"1px solid #C98D88"}}>Delete</button></td>
     </tr>)}</tbody></table>{!visible.length&&<p>No matching contacts.</p>}</div>
     {editor&&<div role="dialog" aria-modal="true" aria-label="Edit directory contact" style={{position:"fixed",inset:0,zIndex:15000,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}><div style={{background:T.paper,padding:22,width:680,maxWidth:"100%",maxHeight:"90vh",overflowY:"auto"}}>
       <h3>Edit directory contact</h3>
@@ -2542,7 +2561,7 @@ const projectApi = {
   create: payload => apiRequest("createProject", payload),
   update: payload => apiRequest("updateProject", payload),
   delete: projectId => apiRequest("deleteProject", { projectId }),
-  complete: projectId => apiRequest("completeProject", { projectId }),
+  complete: (projectId, completionOutcome) => apiRequest("completeProject", { projectId, completionOutcome }),
   listContacts: projectId => apiRequest("listProjectContacts", projectId ? { projectId } : {}, "GET"),
   saveContacts: (projectId, contacts) => apiRequest("saveProjectContacts", { projectId, contacts }),
   getWorkflowCapabilities: () => apiRequest("getWorkflowCapabilities",{},"GET"),
@@ -2631,6 +2650,7 @@ function backendProjectToFrontend(row, fallback = {}) {
     plannedCompletionDate: row.plannedCompletionDate || fallback.plannedCompletionDate || "",
     projectStage: row.currentStage || fallback.projectStage || "Onboarding", status, projectStatus: status,
     blocker: row.blocker || fallback.blocker || "", delayReason: row.delayReason || fallback.delayReason || "",
+    completionOutcome: row.completionOutcome || fallback.completionOutcome || "",
     completed: status === "Completed",
     completedDate: status === "Completed" ? (row.completedDate || fallback.completedDate || "") : "",
     completedAt: isTrue(row.completed) || status === "Completed" ? (row.updatedAt || row.completedDate || fallback.completedAt || "") : "",
@@ -2652,6 +2672,7 @@ function frontendProjectToBackend(p, includeId = true) {
     startDate: p.startDate || "", plannedCompletionDate: p.plannedCompletionDate || p.endDate || "",
     currentStage: pc.currentStage || p.projectStage || "Onboarding", projectStatus: pc.projectStatus || p.projectStatus || p.status || "Ongoing",
     blocker: p.blocker || pc.blocker || "", delayReason: p.delayReason || pc.delayReason || "",
+    completionOutcome: p.completionOutcome || "",
     basement: Boolean(s.basement), stiltFloor: Boolean(s.stilt_floor), gf: Boolean(s.gf),
     "1f": Boolean(s["1f"]), "2f": Boolean(s["2f"]), "3f": Boolean(s["3f"]), terrace: Boolean(s.terrace),
     facade: Boolean(s.facade), wallElevation: Boolean(s.wall_elevation), landscape: Boolean(s.landscape),
@@ -4857,14 +4878,14 @@ function ProjectView({ state, persist }) {
   const isCompletedProject = p => (p.status==="Completed" || p.projectControl?.projectStatus==="Completed" || Boolean(p.completedAt));
   const ongoingProjects = state.projects.filter(p=>!isCompletedProject(p));
   const completedProjects = state.projects.filter(isCompletedProject);
-  const completeProject = async (p,e) => {
+  const completeProject = async (p,e,outcome="survived") => {
     if(e)e.stopPropagation();
     if(completionPendingRef.current[p.id])return;
     completionPendingRef.current[p.id]=true;
     const previousSelection=selectedId;
     const now=new Date().toISOString();
     const before=latestProjectStateRef.current.projects.find(x=>x.id===p.id)||p;
-    const statusFields=x=>({status:x.status,projectStatus:x.projectStatus,completed:x.completed,completedAt:x.completedAt,completedDate:x.completedDate});
+    const statusFields=x=>({status:x.status,projectStatus:x.projectStatus,completed:x.completed,completedAt:x.completedAt,completedDate:x.completedDate,completionOutcome:x.completionOutcome});
     const applyStatus=async (fields,control)=>{
       const latest=latestProjectStateRef.current;
       const next={...latest,projects:latest.projects.map(x=>x.id===p.id?{...x,...fields,projectControl:{...x.projectControl,...control}}:x)};
@@ -4872,7 +4893,7 @@ function ProjectView({ state, persist }) {
       await persist(next);
     };
     // Update React state before waiting for Google Sheets.
-    const localSave=applyStatus({status:"Completed",projectStatus:"Completed",completed:true,completedAt:now,completedDate:now.slice(0,10)},{projectStatus:"Completed",completedAt:now});
+    const localSave=applyStatus({status:"Completed",projectStatus:"Completed",completed:true,completedAt:now,completedDate:now.slice(0,10),completionOutcome:outcome},{projectStatus:"Completed",completedAt:now});
     if(selectedId===p.id){
       const next=latestProjectStateRef.current.projects.find(x=>!isCompletedProject(x));
       setSelectedId(next?.id||null);
@@ -4886,11 +4907,11 @@ function ProjectView({ state, persist }) {
       await localSave;
       await scopeSaveRequestsRef.current[p.id];
       if(pendingScope)await projectApi.update(frontendProjectToBackend(pendingScope.project,true));
-      const completedRow=await projectApi.complete(p.id);
+      const completedRow=await projectApi.complete(p.id,outcome);
       const current=latestProjectStateRef.current.projects.find(x=>x.id===p.id);
       if(current){
         const synced=backendProjectToFrontend(completedRow,current);
-        await applyStatus(statusFields(synced),{projectStatus:synced.projectControl?.projectStatus,completedAt:synced.projectControl?.completedAt});
+        await applyStatus({...statusFields(synced),completionOutcome:outcome},{projectStatus:synced.projectControl?.projectStatus,completedAt:synced.projectControl?.completedAt});
       }
     } catch(err) {
       await applyStatus(statusFields(before),{projectStatus:before.projectControl?.projectStatus,completedAt:before.projectControl?.completedAt});
@@ -5248,9 +5269,10 @@ function ProjectView({ state, persist }) {
                   color:on?"#245C2B":"#999",cursor:"pointer",fontSize:16,fontWeight:800
                 }}>{on?"☑":"☐"}</button>;
               })}
-              <button type="button" onClick={e=>completeProject(p,e)} title="Mark project completed" aria-label={`Mark ${p.name||"project"} completed`} style={{border:0,background:"#D2CDC1",cursor:"pointer",fontFamily:FONT_BODY,fontSize:28,fontWeight:700,color:"#1C1C19",display:"flex",alignItems:"center",justifyContent:"center",minHeight:44}}>
-                <span aria-hidden="true">☐</span>
-              </button>
+              <div style={{display:"flex",gap:5,alignItems:"center",justifyContent:"center",padding:5,background:"#fff"}}>
+                <button type="button" onClick={e=>completeProject(p,e,"not_survived")} title="Completed — did not survive to the end" aria-label={`Mark ${p.name||"project"} completed, did not survive`} style={{...smallBtn,background:"#F5DEDC",color:"#963C37",border:"1px solid #C98D88",padding:"6px 9px",fontWeight:700}}>✕</button>
+                <button type="button" onClick={e=>completeProject(p,e,"survived")} title="Completed — survived to the end" aria-label={`Mark ${p.name||"project"} completed, survived`} style={{...smallBtn,background:"#DFEDE0",color:"#2F7042",border:"1px solid #91B69A",padding:"6px 9px",fontWeight:700}}>✓</button>
+              </div>
             </div>;
           })}
         </div>
@@ -5307,7 +5329,7 @@ function ProjectView({ state, persist }) {
             <div style={{display:"grid",gridTemplateColumns:"70px 1.5fr 1fr 1fr 130px",background:"#D2CDC1",borderBottom:`2px solid ${T.ink}`,fontFamily:FONT_MONO,fontSize:9,fontWeight:700}}>
               {["S. No","Project","Client","Architect","Completed Date"].map(h=><div key={h} style={{padding:"9px 8px",borderRight:`1px solid ${T.line}`}}>{h}</div>)}
             </div>
-            {completedProjects.map((p,i)=><div key={p.id} style={{display:"grid",gridTemplateColumns:"70px 1.5fr 1fr 1fr 130px",borderBottom:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:10,background:"#F7F6F2"}}>
+            {completedProjects.map((p,i)=><div key={p.id} style={{display:"grid",gridTemplateColumns:"70px 1.5fr 1fr 1fr 130px",borderBottom:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:10,background:p.completionOutcome==="not_survived"?"#F7E8E6":"#EAF3EA"}}>
               <div style={{padding:8,borderRight:`1px solid ${T.line}`}}>{p.no||i+1}</div>
               <div style={{padding:8,borderRight:`1px solid ${T.line}`,fontWeight:700}}>{p.name}</div>
               <div style={{padding:8,borderRight:`1px solid ${T.line}`}}>{p.client||"—"}</div>
