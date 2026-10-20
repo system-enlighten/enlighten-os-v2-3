@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.11.25-sheet-design-dashboard",
+  "version": "2.11.27-brand-fonts",
   "type": "module",
   "scripts": {
     "dev": "vite",

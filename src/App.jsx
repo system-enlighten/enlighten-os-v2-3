@@ -628,6 +628,7 @@ The stored data remains boolean true/false; the UI must never show the
 raw strings "true" or "false" for these fields.
 */
 
+import './LandingPage.css';
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Upload, ClipboardCheck, LayoutGrid, Users, Clock, Plus, X, CheckCircle2, Circle, Timer, FileUp, ChevronRight, Settings2, AlertTriangle, Loader2, Building2, CalendarDays, MapPin, LogIn, LogOut, Navigation, FileText, HardHat, ChevronDown
@@ -5794,5 +5795,16 @@ export default function App(){
     return()=>{active=false;script.removeEventListener('load',renderButton);script.removeEventListener('error',failed);};
   },[config,token]);
   if(token)return <><div style={{background:T.navy,color:'#fff',padding:'8px 18px',display:'flex',justifyContent:'space-between',fontFamily:FONT_BODY,fontSize:12}}><span>Signed in with Google</span><button onClick={signOut} style={{...smallBtn,background:'#fff'}}>Sign out / switch account</button></div><StudioApp/></>;
-  return <div style={{minHeight:'90vh',background:T.paper,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:FONT_BODY,padding:24}}><div style={{background:'#fff',border:`1px solid ${T.line}`,padding:32,width:360,maxWidth:'100%'}}><h1 style={{fontFamily:FONT_DISPLAY,color:T.navy,fontSize:24}}>enLIGHTen OS</h1><p style={{fontSize:13,color:T.inkDim,lineHeight:1.6}}>Sign in with the Google account registered in Team Master.</p><div ref={buttonRef}/>{!config&&!error&&<p>Loading sign-in…</p>}{error&&<p role="alert" style={{fontSize:12,color:T.redline}}>{error}</p>}</div></div>;
+  return <main className="enlighten-landing" aria-label="enLIGHTen sign in">
+    <section className="enlighten-landing__center" aria-label="Welcome to enLIGHTen">
+      <img className="enlighten-landing__logo" src="/enlighten-wordmark.svg" alt="enLIGHTen" width="710" height="140" />
+      <div className="enlighten-landing__signin">
+        <div className="enlighten-landing__google" ref={buttonRef}/>
+        <p className="enlighten-landing__hint">Sign in with your registered team Google account.</p>
+        {!config&&!error&&<p className="enlighten-landing__hint" role="status">Loading sign-in…</p>}
+        {error&&<p className="enlighten-landing__error" role="alert">{error}</p>}
+      </div>
+    </section>
+    <p className="enlighten-landing__footer"><span>SENSING SPACES - EVOKING EMOTIONS</span><span>ARCHITECTURE, REIMAGINED</span></p>
+  </main>;
 }
