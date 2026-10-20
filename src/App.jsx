@@ -2902,7 +2902,7 @@ function UploadView({ state, persist }) {
   const floorDefs=[
     ["basement","Basement"],["stilt_floor","Stilt Floor"],["gf","GF"],["1f","1F"],["2f","2F"],["3f","3F"],
     ["terrace","Terrace"],["facade","Facade"],["wall_elevation","Wall Elevation"],["landscape","Landscape"],
-    ["bath_elevation","Bath Elevation"],["wardrobe","Furniture"]
+    ["bath_elevation","Bath Elevation"],["wardrobe","Wardrobe"],["kitchen","Kitchen"]
   ];
   const availableFloors=(()=>{
     const ps=project?.scope||{};
@@ -3577,18 +3577,6 @@ function ContactFields({contacts,onChange}) {
   return <ProjectTeamContactFields contacts={contacts} onChange={onChange}/>;
 }
 
-// Display project calendar dates without the timestamp or timezone shifts.
-function formatProjectDate(value) {
-  if(!value)return "—";
-  const raw=String(value).trim();
-  const iso=raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:$|[T\s])/);
-  if(iso)return `${iso[3]}/${iso[2]}/${iso[1]}`;
-  const dmy=raw.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})(?:$|\s)/);
-  if(dmy)return `${dmy[1].padStart(2,'0')}/${dmy[2].padStart(2,'0')}/${dmy[3]}`;
-  const date=new Date(raw);
-  return Number.isNaN(date.getTime())?"—":new Intl.DateTimeFormat('en-GB',{day:'2-digit',month:'2-digit',year:'numeric',timeZone:'Asia/Kolkata'}).format(date);
-}
-
 const PROJECT_STATUSES = ["Ongoing", "On Hold", "Completed"];
 const statusColor = (s) => s === "Completed" ? { bg: T.greenBg, fg: T.green } : s === "On Hold" ? { bg: T.redlineBg, fg: T.redline } : { bg: "#DDE7F5", fg: T.blue };
 
@@ -3807,7 +3795,7 @@ function ProjectScopeView({ state, persist, selectedId }) {
     setRow(found ? {...found} : {serial:"",project:project.name,client:"",architect:"",basement:false,stilt_floor:false,gf:false,"1f":false,"2f":false,"3f":false,terrace:false,facade:false,wall_elevation:false,landscape:false,bath_elevation:false,wardrobe:false,kitchen:false,onboarding:false});
   }, [project?.id, state.scopeSheet]);
   if (!project || !row) return null;
-  const boolFields = [["basement","Basement"],["stilt_floor","Stilt Floor"],["gf","GF"],["1f","1F"],["2f","2F"],["3f","3F"],["terrace","Terrace"],["facade","Facade"],["wall_elevation","Wall Elevation"],["landscape","Landscape"],["bath_elevation","Bath Elevation"],["wardrobe","Furniture"],["onboarding","Onboarding"]];
+  const boolFields = [["basement","Basement"],["stilt_floor","Stilt Floor"],["gf","GF"],["1f","1F"],["2f","2F"],["3f","3F"],["terrace","Terrace"],["facade","Facade"],["wall_elevation","Wall Elevation"],["landscape","Landscape"],["bath_elevation","Bath Elevation"],["wardrobe","Wardrobe"],["kitchen","Kitchen"],["onboarding","Onboarding"]];
   const update = (patch) => setRow(r => ({...r,...patch}));
   const save = async () => {
     const next = allRows.some(r => (r.project||"").trim().toLowerCase() === (project.name||"").trim().toLowerCase())
@@ -4246,7 +4234,7 @@ function designDashboardScopeFloors(project){
   const defs=[
     ["basement","Basement"],["stilt_floor","Stilt Floor"],["gf","GF"],["1f","1F"],["2f","2F"],["3f","3F"],
     ["terrace","Terrace"],["facade","Facade"],["wall_elevation","Wall Elevation"],["landscape","Landscape"],
-    ["bath_elevation","Bath Elevation"],["wardrobe","Furniture"]
+    ["bath_elevation","Bath Elevation"],["wardrobe","Wardrobe"],["kitchen","Kitchen"]
   ];
   return defs.filter(([key])=>Boolean(s[key])).map(([,label])=>label);
 }
@@ -4380,7 +4368,7 @@ function DrawingControlDashboard({state,projectId}){
     {loading&&<p>Loading project drawings and WIH status…</p>}
     <div style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) 330px',gap:16,alignItems:'start'}}>
       <div style={{minWidth:0,background:'#fff'}}>
-        <table style={{width:'100%',borderCollapse:'collapse',marginBottom:8}}><tbody>{[[`Project ${project.no||project.projectNo||''}:`,project.name],['Start Date:',formatProjectDate(project.startDate)],['Time in hours:',loading?'Loading…':totalHours.toFixed(1)]].map(([label,value])=><tr key={label}><td style={{...cell,fontFamily:FONT_BODY,fontWeight:700,width:220}}>{label}</td><td style={{...cell,fontFamily:FONT_BODY}}>{value}</td></tr>)}</tbody></table>
+        <table style={{width:'100%',borderCollapse:'collapse',marginBottom:8}}><tbody>{[[`Project ${project.no||project.projectNo||''}:`,project.name],['Start Date:',project.startDate||'—'],['Time in hours:',loading?'Loading…':totalHours.toFixed(1)]].map(([label,value])=><tr key={label}><td style={{...cell,fontFamily:FONT_BODY,fontWeight:700,width:220}}>{label}</td><td style={{...cell,fontFamily:FONT_BODY}}>{value}</td></tr>)}</tbody></table>
         <div style={{overflowX:'auto',border:'1px solid #777'}}>
           <table aria-label="Project design matrix" style={{borderCollapse:'collapse',tableLayout:'fixed',minWidth:2530,width:'100%'}}>
             <colgroup><col style={{width:250}}/><col style={{width:55}}/><col style={{width:45}}/><col style={{width:170}}/>{Array.from({length:4},(_,i)=><col key={'r'+i} style={{width:48}}/>)}{SHEET_DASHBOARD_WORK.map(d=><col key={d.label} style={{width:112}}/>)}{sentCols.map(([label])=><col key={'s'+label} style={{width:44}}/>)}{['Wall Electricals','FC Framing','Wiring'].map(label=><col key={label} style={{width:100}}/>)}</colgroup>
@@ -4518,7 +4506,7 @@ function ProjectInfoScopeMerged({state,persist,project}){
   const scopeFields=[
     ["Basement","basement"],["Stilt Floor","stiltFloor"],["GF","gf"],["1F","f1"],["2F","f2"],["3F","f3"],
     ["Terrace","terrace"],["Facade","facade"],["Wall Elevation","wallElevation"],["Landscape","landscape"],
-    ["Bath Elevation","bathElevation"],["Furniture","wardrobe"],["Onboarding","onboarding"]
+    ["Bath Elevation","bathElevation"],["Wardrobe","wardrobe"],["Kitchen","kitchen"],["Onboarding","onboarding"]
   ];
   const updateProject=async patch=>{
     const projects=state.projects.map(p=>p.id===project.id?{...p,...patch}:p);
@@ -4536,7 +4524,7 @@ function ProjectInfoScopeMerged({state,persist,project}){
         ["Status",project.status||"Ongoing"],
         ["Client",project.client||"—"],
         ["Architect",project.architect||"—"],
-        ["Start Date",formatProjectDate(project.startDate)],
+        ["Start Date",project.startDate||"—"],
         ["Planned Completion",project.plannedCompletionDate||project.endDate||"—"]
       ].map(([k,v],i)=><div key={k} style={{padding:"11px 12px",borderRight:i%4===3?"none":`1px solid ${T.line}`,borderBottom:i<4?`1px solid ${T.line}`:"none"}}>
         <div style={{fontFamily:FONT_MONO,fontSize:8,color:T.inkDim,letterSpacing:.8,textTransform:"uppercase"}}>{k}</div>
@@ -4569,7 +4557,7 @@ function ProjectInfoScopeMerged({state,persist,project}){
 
 
 function InlineProjectScope({project,state,persist}){
-  const fields=[["Basement","basement"],["Stilt Floor","stiltFloor"],["GF","gf"],["1F","f1"],["2F","f2"],["3F","f3"],["Terrace","terrace"],["Facade","facade"],["Wall Elev.","wallElevation"],["Landscape","landscape"],["Bath Elev.","bathElevation"],["Furniture","wardrobe"],["Onboarding","onboarding"]];
+  const fields=[["Basement","basement"],["Stilt Floor","stiltFloor"],["GF","gf"],["1F","f1"],["2F","f2"],["3F","f3"],["Terrace","terrace"],["Facade","facade"],["Wall Elev.","wallElevation"],["Landscape","landscape"],["Bath Elev.","bathElevation"],["Wardrobe","wardrobe"],["Kitchen","kitchen"],["Onboarding","onboarding"]];
   const toggle=async(key,e)=>{
     e&&e.stopPropagation();
     const projects=state.projects.map(p=>p.id===project.id?{...p,scope:{...(p.scope||{}),[key]:!Boolean(p.scope?.[key])}}:p);
@@ -4711,12 +4699,6 @@ function ProjectView({ state, persist }) {
   // changes into one Google Sheets request after a short idle period.
   const scopeSaveTimersRef = useRef({});
   const scopePendingRef = useRef({});
-  const scopeSaveRequestsRef = useRef({});
-  const completionPendingRef = useRef({});
-  const editorSavePendingRef = useRef({});
-  const [projectSaveMessage,setProjectSaveMessage] = useState("");
-  const latestProjectStateRef = useRef(state);
-  latestProjectStateRef.current = state;
   const [tab, setTab] = useState("list");
   const [selectedId, setSelectedId] = useState(state.projects[0]?.id || null);
   const [showNewProject, setShowNewProject] = useState(false);
@@ -4735,7 +4717,7 @@ function ProjectView({ state, persist }) {
   const scopeFields = [
     ["Basement","basement"],["Stilt Floor","stilt_floor"],["GF","gf"],["1F","1f"],["2F","2f"],["3F","3f"],
     ["Terrace","terrace"],["Facade","facade"],["Wall Elevation","wall_elevation"],["Landscape","landscape"],
-    ["Bath Elevation","bath_elevation"],["Furniture","wardrobe"],["Onboarding","onboarding"]
+    ["Bath Elevation","bath_elevation"],["Wardrobe","wardrobe"],["Kitchen","kitchen"],["Onboarding","onboarding"]
   ];
 
   const isCompletedProject = p => (p.status==="Completed" || p.projectControl?.projectStatus==="Completed" || Boolean(p.completedAt));
@@ -4743,45 +4725,18 @@ function ProjectView({ state, persist }) {
   const completedProjects = state.projects.filter(isCompletedProject);
   const completeProject = async (p,e) => {
     if(e)e.stopPropagation();
-    if(completionPendingRef.current[p.id])return;
-    completionPendingRef.current[p.id]=true;
-    const previousSelection=selectedId;
+    let completedRow;
+    try { completedRow = await projectApi.complete(p.id); }
+    catch (err) { alert(`Google Sheets completion failed: ${err?.message || err}`); return; }
     const now=new Date().toISOString();
-    const before=latestProjectStateRef.current.projects.find(x=>x.id===p.id)||p;
-    const statusFields=x=>({status:x.status,projectStatus:x.projectStatus,completed:x.completed,completedAt:x.completedAt,completedDate:x.completedDate});
-    const applyStatus=async (fields,control)=>{
-      const latest=latestProjectStateRef.current;
-      const next={...latest,projects:latest.projects.map(x=>x.id===p.id?{...x,...fields,projectControl:{...x.projectControl,...control}}:x)};
-      latestProjectStateRef.current=next;
-      await persist(next);
-    };
-    // Update React state before waiting for Google Sheets.
-    const localSave=applyStatus({status:"Completed",projectStatus:"Completed",completed:true,completedAt:now,completedDate:now.slice(0,10)},{projectStatus:"Completed",completedAt:now});
+    const projects=state.projects.map(x=>x.id===p.id?backendProjectToFrontend(completedRow,{
+      ...x,status:"Completed",completedAt:now,completedDate:now.slice(0,10),
+      projectControl:{...(x.projectControl||{}),projectStatus:"Completed",completedAt:now}
+    }):x);
+    await persist({...state,projects});
     if(selectedId===p.id){
-      const next=latestProjectStateRef.current.projects.find(x=>!isCompletedProject(x));
-      setSelectedId(next?.id||null);
-    }
-    // Finish any older scope write before completion, so it cannot reopen the project.
-    clearTimeout(scopeSaveTimersRef.current[p.id]);
-    delete scopeSaveTimersRef.current[p.id];
-    const pendingScope=scopePendingRef.current[p.id];
-    delete scopePendingRef.current[p.id];
-    try {
-      await localSave;
-      await scopeSaveRequestsRef.current[p.id];
-      if(pendingScope)await projectApi.update(frontendProjectToBackend(pendingScope.project,true));
-      const completedRow=await projectApi.complete(p.id);
-      const current=latestProjectStateRef.current.projects.find(x=>x.id===p.id);
-      if(current){
-        const synced=backendProjectToFrontend(completedRow,current);
-        await applyStatus(statusFields(synced),{projectStatus:synced.projectControl?.projectStatus,completedAt:synced.projectControl?.completedAt});
-      }
-    } catch(err) {
-      await applyStatus(statusFields(before),{projectStatus:before.projectControl?.projectStatus,completedAt:before.projectControl?.completedAt});
-      if(previousSelection===p.id)setSelectedId(p.id);
-      alert(`Project completion could not be saved. The previous status has been restored. ${err?.message||err}`);
-    } finally {
-      delete completionPendingRef.current[p.id];
+      const next=projects.find(x=>!(x.status==="Completed"||x.projectControl?.projectStatus==="Completed"));
+      if(next)setSelectedId(next.id);
     }
   };
 
@@ -4889,9 +4844,7 @@ function ProjectView({ state, persist }) {
       const pending = scopePendingRef.current[p.id];
       if (!pending) return;
       try {
-        const request=projectApi.update(frontendProjectToBackend(pending.project, true));
-        scopeSaveRequestsRef.current[p.id]=request.catch(()=>{});
-        await request;
+        await projectApi.update(frontendProjectToBackend(pending.project, true));
         delete scopePendingRef.current[p.id];
       } catch (err) {
         console.error("Google Sheets scope background save failed:", err);
@@ -4943,17 +4896,17 @@ function ProjectView({ state, persist }) {
   };
 
   const saveProjectEditor = async () => {
-    const current = latestProjectStateRef.current.projects.find(p => p.id === editProjectId);
-    if (!current || !editDraft || editorSavePendingRef.current[current.id]) return;
+    const current = state.projects.find(p => p.id === editProjectId);
+    if (!current || !editDraft) return;
     const currentScope = scopeFor(current);
     const cleanContacts = {};
     Object.entries(editDraft.contacts || {}).forEach(([role, c]) => {
-      if (c && (String(c.name || "").trim() || String(c.company || "").trim() || String(c.email || "").trim() || String(c.mobile || "").trim())) {
+      if (c && ((c.name || "").trim() || (c.company || "").trim() || (c.email || "").trim() || (c.mobile || "").trim())) {
         cleanContacts[role] = {
-          name: String(c.name || "").trim(),
-          company: String(c.company || "").trim(),
-          email: String(c.email || "").trim(),
-          mobile: String(c.mobile || "").trim()
+          name: (c.name || "").trim(),
+          company: (c.company || "").trim(),
+          email: (c.email || "").trim(),
+          mobile: (c.mobile || "").trim()
         };
       }
     });
@@ -4980,58 +4933,54 @@ function ProjectView({ state, persist }) {
       endDate: editDraft.plannedCompletionDate,
       projectStatus: editDraft.projectStatus,
       status: editDraft.projectStatus,
-      scope: nextScope,
-      projectControl:{...current.projectControl,projectStatus:editDraft.projectStatus},
-      ...(editDraft.projectStatus!=="Completed"?{completed:false,completedAt:"",completedDate:""}:{})
+      scope: nextScope
     };
-    const draftSnapshot=editDraft;
-    const oldName=String(current.name||"").trim().toLowerCase();
-    const latest=latestProjectStateRef.current;
-    const allRows=latest.scopeSheet||PROJECT_SCOPE_SHEET_ROWS;
-    const replaceScope=(rows,name,row)=>rows.some(r=>String(r.project||"").trim().toLowerCase()===name)
-      ? rows.map(r=>String(r.project||"").trim().toLowerCase()===name?row:r):[...rows,row];
-    const optimistic={...latest,projects:latest.projects.map(p=>p.id===current.id?nextProject:p),scopeSheet:replaceScope(allRows,oldName,nextScope)};
-    editorSavePendingRef.current[current.id]=true;
-    latestProjectStateRef.current=optimistic;
-    const localSave=persist(optimistic);
-    setIsProjectEditorOpen(false);
-    setProjectSaveMessage("Changes applied · Saving to Google Sheets…");
-    // Older scope writes must finish first; send one combined latest project snapshot.
-    clearTimeout(scopeSaveTimersRef.current[current.id]);
-    delete scopeSaveTimersRef.current[current.id];
-    delete scopePendingRef.current[current.id];
+    let updatedRow;
     try {
-      await localSave;
-      await scopeSaveRequestsRef.current[current.id];
-      await projectApi.update(frontendProjectToBackend(nextProject,true));
-    } catch(err) {
-      const latest=latestProjectStateRef.current;
-      // Restore only fields still equal to this save, retaining later independent edits.
-      const projects=latest.projects.map(p=>{
-        if(p.id!==current.id)return p;
-        const restored={...p};
-        for(const key of Object.keys(nextProject)){
-          if(JSON.stringify(p[key])===JSON.stringify(nextProject[key]))restored[key]=current[key];
-        }
-        return restored;
-      });
-      const scopeSheet=(latest.scopeSheet||[]).map(r=>JSON.stringify(r)===JSON.stringify(nextScope)?currentScope:r);
-      const restored={...latest,projects,scopeSheet};
-      latestProjectStateRef.current=restored;
-      await persist(restored);
-      setEditProjectId(current.id);setEditDraft(draftSnapshot);setIsProjectEditorOpen(true);
-      setProjectSaveMessage(`Save failed. Your draft is retained; please retry. ${err?.message||err}`);
-      delete editorSavePendingRef.current[current.id];
+      updatedRow = await projectApi.update(frontendProjectToBackend(nextProject, true));
+    } catch (err) {
+      alert(`Google Sheets project update failed: ${err?.message || err}`);
       return;
     }
-    try {
-      if(Object.keys(cleanContacts).length)await projectApi.saveContacts(current.id,contactsObjectToRows(nextProject,cleanContacts));
-      setProjectSaveMessage("Saved to Google Sheets.");
-    } catch(err) {
-      setProjectSaveMessage(`Project saved, but contacts could not sync. Reopen the project and save again. ${err?.message||err}`);
-    } finally {
-      delete editorSavePendingRef.current[current.id];
+    const syncedProject = backendProjectToFrontend(updatedRow, nextProject);
+    if (Object.keys(cleanContacts).length) {
+      try { await projectApi.saveContacts(current.id, contactsObjectToRows(syncedProject, cleanContacts)); }
+      catch (err) { alert(`Project saved, but Google Sheets contacts failed: ${err?.message || err}`); }
     }
+    const allRows = state.scopeSheet || PROJECT_SCOPE_SHEET_ROWS;
+    const oldName = String(current.name || "").trim().toLowerCase();
+    const scopeSheet = allRows.some(r => String(r.project || "").trim().toLowerCase() === oldName)
+      ? allRows.map(r => String(r.project || "").trim().toLowerCase() === oldName ? nextScope : r)
+      : [...allRows, nextScope];
+    await persist({
+      ...state,
+      projects: state.projects.map(p => p.id === current.id ? syncedProject : p),
+      scopeSheet
+    });
+    setEditProjectId(syncedProject.id);
+    setEditDraft({
+      no: syncedProject.no || "",
+      name: syncedProject.name || "",
+      client: syncedProject.client || nextScope.client || "",
+      architect: syncedProject.architect || nextScope.architect || "",
+      address: syncedProject.address || "",
+      type: syncedProject.type || "Residence",
+      startDate: syncedProject.startDate || "",
+      plannedCompletionDate: syncedProject.plannedCompletionDate || syncedProject.endDate || "",
+      projectStatus: syncedProject.projectStatus || syncedProject.status || "Ongoing",
+      contacts: {
+        ...(syncedProject.contacts || cleanContacts),
+        Owner: {
+          ...((syncedProject.contacts || cleanContacts)?.Owner || {}),
+          name: (syncedProject.contacts || cleanContacts)?.Owner?.name || syncedProject.client || ownerName || ""
+        },
+        Architect: {
+          ...((syncedProject.contacts || cleanContacts)?.Architect || {}),
+          name: (syncedProject.contacts || cleanContacts)?.Architect?.name || syncedProject.architect || architectName || ""
+        }
+      }
+    });
+    setIsProjectEditorOpen(false);
   };
 
   const executionFor=(room)=>{
@@ -5073,10 +5022,9 @@ function ProjectView({ state, persist }) {
       )}
     </div>
 
-    {projectSaveMessage&&<p role="status" style={{fontFamily:FONT_BODY,fontSize:12}}>{projectSaveMessage}</p>}
     {tab==="list" && <div>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,gap:10}}>
-        <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.inkDim}}>Ongoing Projects</div>
+        <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.inkDim}}>Project Master</div>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           {project && !isCompletedProject(project) && <button type="button" onClick={()=>openProjectEditor(project)} style={{...smallBtn,border:`1px solid ${T.blue}`,color:T.blue,background:"#fff"}}>Edit Selected Project</button>}
           <div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim}}>{ongoingProjects.length} ongoing projects</div>
@@ -5087,7 +5035,7 @@ function ProjectView({ state, persist }) {
         <div style={{minWidth:1750}}>
           <div style={{
             display:"grid",
-            gridTemplateColumns:`65px 300px 180px 180px repeat(${scopeFields.length},78px) 105px`,
+            gridTemplateColumns:"65px 300px 180px 180px repeat(14,78px) 105px",
             background:"#D2CDC1",color:"#1C1C19",borderBottom:`2px solid ${T.ink}`,
             fontFamily:FONT_MONO,fontSize:8,fontWeight:700
           }}>
@@ -5102,7 +5050,7 @@ function ProjectView({ state, persist }) {
             const sc=scopeFor(p);
             const selected=p.id===project?.id;
             return <div key={p.id} onClick={()=>setSelectedId(p.id)} style={{
-              display:"grid",gridTemplateColumns:`65px 300px 180px 180px repeat(${scopeFields.length},78px) 105px`,
+              display:"grid",gridTemplateColumns:"65px 300px 180px 180px repeat(14,78px) 105px",
               borderBottom:`1px solid ${T.line}`,background:selected?"#F3F1EA":"#fff",cursor:"pointer",
               fontFamily:FONT_BODY,fontSize:10
             }}>
@@ -5132,25 +5080,18 @@ function ProjectView({ state, persist }) {
                   color:on?"#245C2B":"#999",cursor:"pointer",fontSize:16,fontWeight:800
                 }}>{on?"☑":"☐"}</button>;
               })}
-              <button type="button" onClick={e=>completeProject(p,e)} title="Mark project completed" aria-label={`Mark ${p.name||"project"} completed`} style={{border:0,background:"#D2CDC1",cursor:"pointer",fontFamily:FONT_BODY,fontSize:28,fontWeight:700,color:"#1C1C19",display:"flex",alignItems:"center",justifyContent:"center",minHeight:44}}>
-                <span aria-hidden="true">☐</span>
+              <button onClick={e=>completeProject(p,e)} title="Mark project completed" style={{border:0,background:"#FAF9F5",cursor:"pointer",fontFamily:FONT_BODY,fontSize:9,fontWeight:700,color:T.ink}}>
+                ☐ Complete
               </button>
             </div>;
           })}
         </div>
       </div>
 
-      {project&&<section aria-label="Project summary" style={{marginTop:16,border:`1px solid ${T.line}`,background:T.paper2,padding:16}}>
-        <div style={{fontFamily:FONT_MONO,fontSize:10,color:T.cyan,marginBottom:12}}>PROJECT INFORMATION</div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:14}}>
-          {[["Project No.",project.no],["Project Name",project.name],["Client",project.client||project.contacts?.Owner?.name],["Architect",project.architect||project.contacts?.Architect?.name],["Address",project.address],["Project Type",project.type]].map(([label,value])=><div key={label}><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginBottom:5}}>{label}</div><div style={{fontFamily:FONT_BODY,fontSize:13,overflowWrap:"anywhere"}}>{value||"—"}</div></div>)}
-        </div>
-      </section>}
-
       {project && editDraft && isProjectEditorOpen && <div style={{marginTop:16,border:`2px solid ${T.navy}`,background:"#fff",padding:16}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:14}}>
           <div>
-            <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.cyan}}>Edit Project Details & Contacts</div>
+            <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.cyan}}>Selected Project · Editable Information</div>
             <div style={{fontFamily:FONT_DISPLAY,fontSize:18,fontWeight:700,marginTop:3}}>{editDraft.name || "Selected Project"}</div>
           </div>
           <div style={{display:"flex",gap:8}}>
@@ -5158,9 +5099,11 @@ function ProjectView({ state, persist }) {
             <button onClick={()=>setIsProjectEditorOpen(false)} style={{...smallBtn}}>Collapse</button>
           </div>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"140px 1fr",gap:12}}>
+        <div style={{display:"grid",gridTemplateColumns:"140px 1.4fr 1fr 1fr",gap:12}}>
           <Field label="Project No."><input style={{...inputStyle,borderRadius:0}} value={editDraft.no} onChange={e=>setEditDraft(d=>({...d,no:e.target.value}))}/></Field>
           <Field label="Project Name"><input style={{...inputStyle,borderRadius:0}} value={editDraft.name} onChange={e=>setEditDraft(d=>({...d,name:e.target.value}))}/></Field>
+          <Field label="Client"><input style={{...inputStyle,borderRadius:0}} value={editDraft.client} onChange={e=>setEditDraft(d=>({...d,client:e.target.value}))}/></Field>
+          <Field label="Architect"><input style={{...inputStyle,borderRadius:0}} value={editDraft.architect} onChange={e=>setEditDraft(d=>({...d,architect:e.target.value}))}/></Field>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1.6fr 1fr 1fr 1fr",gap:12,marginTop:10}}>
           <Field label="Address"><input style={{...inputStyle,borderRadius:0}} value={editDraft.address} onChange={e=>setEditDraft(d=>({...d,address:e.target.value}))}/></Field>
@@ -5188,7 +5131,7 @@ function ProjectView({ state, persist }) {
             }))}
           />
         </div>
-        <div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim,marginTop:10}}>Edit Client through Owner and edit Architect in the contacts list below. Save Project closes this editor and updates the summary immediately; Google Sheets sync continues in the background.</div>
+        <div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim,marginTop:10}}>Project information and contacts are editable here. Owner name maps to Client and Architect name maps to Architect. Click Save Project after editing. Scope checkboxes remain editable directly in the master row above.</div>
       </div>}
 
       <div style={{marginTop:22}}>
@@ -5206,7 +5149,7 @@ function ProjectView({ state, persist }) {
               <div style={{padding:8,borderRight:`1px solid ${T.line}`,fontWeight:700}}>{p.name}</div>
               <div style={{padding:8,borderRight:`1px solid ${T.line}`}}>{p.client||"—"}</div>
               <div style={{padding:8,borderRight:`1px solid ${T.line}`}}>{p.architect||"—"}</div>
-              <div style={{padding:8,fontFamily:FONT_MONO}}>{formatProjectDate(p.completedDate||p.completedAt)}</div>
+              <div style={{padding:8,fontFamily:FONT_MONO}}>{p.completedDate||(p.completedAt?String(p.completedAt).slice(0,10):"—")}</div>
             </div>)}
             {!completedProjects.length&&<div style={{padding:14,fontFamily:FONT_BODY,fontSize:11,color:T.inkDim}}>No completed projects yet.</div>}
           </div>
@@ -5237,7 +5180,7 @@ function ProjectView({ state, persist }) {
           </div>
           <div style={{background:"#fff",border:`1px solid ${T.line}`,padding:12}}>
             <div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim}}>START DATE</div>
-            <div style={{fontFamily:FONT_DISPLAY,fontSize:16,fontWeight:700,marginTop:5}}>{formatProjectDate(project.startDate||project.projectStartDate)}</div>
+            <div style={{fontFamily:FONT_DISPLAY,fontSize:16,fontWeight:700,marginTop:5}}>{project.startDate||project.projectStartDate||"—"}</div>
           </div>
         </div>
 
@@ -5753,7 +5696,7 @@ function MemberProjectsView({state}) {
   return <div>
     <div style={{display:'flex',justifyContent:'space-between',gap:12,flexWrap:'wrap',marginBottom:18}}><div><h2 style={{fontFamily:FONT_DISPLAY,margin:0}}>Projects</h2><div style={{fontSize:12,color:T.inkDim,marginTop:6}}>View only · Project information, contacts and planned work</div></div><select aria-label="View project" style={{...inputStyle,minWidth:260}} value={p.id} onChange={e=>setSelected(e.target.value)}>{projects.map(x=><option key={x.id} value={x.id}>{x.no} · {x.name}</option>)}</select></div>
     <div style={{display:'flex',gap:8,marginBottom:16}}>{[['scope','Projects & Scope'],['team','Teams & Ratings'],['line','Line of Work']].map(([id,label])=><Btn key={id} variant={tab===id?'dark':'ghost'} onClick={()=>setTab(id)}>{label}</Btn>)}</div>
-    {tab==='scope'&&<><table style={{borderCollapse:'collapse',width:'100%'}}><tbody>{[['Project',p.name],['Number',p.no],['Client',p.client||p.contacts?.Owner?.name],['Architect',p.architect||p.contacts?.Architect?.name],['Address',p.address],['Type',p.type],['Status',p.status],['Start',formatProjectDate(p.startDate)],['End',p.endDate]].map(([label,value])=><tr key={label}><td style={{...tdStyle,textAlign:'left',width:170,color:T.inkDim}}>{label}</td><td style={{...tdStyle,textAlign:'left'}}>{String(value??'—')}</td></tr>)}</tbody></table><div style={{marginTop:18,fontFamily:FONT_BODY,fontSize:13}}><strong>Project scope</strong><div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:10}}>{Object.entries(p.scope||{}).filter(([,v])=>v===true).map(([k])=><span key={k} style={{background:T.paperDim,padding:'7px 10px'}}>{k.replace(/_/g,' ')}</span>)}</div></div></>}
+    {tab==='scope'&&<><table style={{borderCollapse:'collapse',width:'100%'}}><tbody>{[['Project',p.name],['Number',p.no],['Client',p.client||p.contacts?.Owner?.name],['Architect',p.architect||p.contacts?.Architect?.name],['Address',p.address],['Type',p.type],['Status',p.status],['Start',p.startDate],['End',p.endDate]].map(([label,value])=><tr key={label}><td style={{...tdStyle,textAlign:'left',width:170,color:T.inkDim}}>{label}</td><td style={{...tdStyle,textAlign:'left'}}>{String(value??'—')}</td></tr>)}</tbody></table><div style={{marginTop:18,fontFamily:FONT_BODY,fontSize:13}}><strong>Project scope</strong><div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:10}}>{Object.entries(p.scope||{}).filter(([,v])=>v===true).map(([k])=><span key={k} style={{background:T.paperDim,padding:'7px 10px'}}>{k.replace(/_/g,' ')}</span>)}</div></div></>}
     {tab==='team'&&<>{ROLE_CATEGORIES.map(({category,roles})=>{const entries=roles.filter(r=>p.contacts?.[r]);return entries.length?<div key={category} style={{marginBottom:20}}><div style={{fontFamily:FONT_MONO,color:categoryColor(category),marginBottom:8}}>{category}</div><table style={{width:'100%',borderCollapse:'collapse'}}><tbody>{entries.map(r=><tr key={r}>{[r,p.contacts[r].name,p.contacts[r].company,p.contacts[r].email,p.contacts[r].mobile].map((v,i)=><td key={i} style={{...tdStyle,textAlign:'left'}}>{String(v??'—')||'—'}</td>)}</tr>)}</tbody></table></div>:null;})}</>}
     {tab==='line'&&<>{workflowGroups(workflow.filter(r=>String(r.workflowVersion)==='1')).map(g=><details key={g.first.lineWorkId||g.first.id} open style={{border:`1px solid ${T.line}`,marginBottom:12}}><summary style={{padding:12,background:T.paperDim}}><strong>{g.first.milestone}</strong> · {g.first.tasks}</summary><table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Step','Subtask','Responsible','Estimated hours'].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{g.rows.map((r,i)=><tr key={r.lineWorkId||r.id}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{r.subtask}</td><td style={tdStyle}>{r.responsible||'Unassigned'}</td><td style={tdStyle}>{r.hours||'—'}</td></tr>)}</tbody></table></details>)}{!workflow.some(r=>String(r.workflowVersion)==='1')&&<div style={{color:T.inkDim}}>The admin has not saved the detailed workflow for this project.</div>}</>}
   </div>;
@@ -5794,7 +5737,7 @@ function ReadOnlyProjectWork({project,state}){
 function ProjectScopeAdmin({project,onSaved}){
   const [draft,setDraft]=useState(project),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
   const save=async()=>{setBusy(true);try{const row=await projectApi.update(frontendProjectToBackend(draft,true));await onSaved(row);setMessage('Saved to Google Sheets.');}catch(e){setMessage(e.message);}finally{setBusy(false);}};
-  const fields=[['Basement','basement'],['Stilt Floor','stilt_floor'],['GF','gf'],['1F','1f'],['2F','2f'],['3F','3f'],['Terrace','terrace'],['Facade','facade'],['Wall Elevation','wall_elevation'],['Landscape','landscape'],['Bath Elevation','bath_elevation'],['Furniture','wardrobe'],['Onboarding','onboarding']];
+  const fields=[['Basement','basement'],['Stilt Floor','stilt_floor'],['GF','gf'],['1F','1f'],['2F','2f'],['3F','3f'],['Terrace','terrace'],['Facade','facade'],['Wall Elevation','wall_elevation'],['Landscape','landscape'],['Bath Elevation','bath_elevation'],['Wardrobe','wardrobe'],['Kitchen','kitchen'],['Onboarding','onboarding']];
   return <section><h3>{project.name} · Scope & Status</h3><Field label="Project status"><select style={inputStyle} value={draft.status} onChange={e=>setDraft(d=>({...d,status:e.target.value,projectStatus:e.target.value,projectControl:{...d.projectControl,projectStatus:e.target.value}}))}><option>Ongoing</option><option>On Hold</option><option>Completed</option></select></Field><div style={{display:'flex',gap:16,flexWrap:'wrap',marginBottom:16}}>{fields.map(([label,k])=><label key={k}><input type="checkbox" checked={!!draft.scope?.[k]} onChange={e=>setDraft(d=>({...d,scope:{...d.scope,[k]:e.target.checked}}))}/> {label}</label>)}</div><Btn disabled={busy} onClick={save}>{busy?'Saving…':'Save Scope & Status'}</Btn><p role="status">{message}</p></section>;
 }
 function ProjectPunchInsView({state}){
@@ -5851,7 +5794,7 @@ export default function App(){
     script.addEventListener('load',renderButton);const failed=()=>setError('Google sign-in could not load. Check your connection.');script.addEventListener('error',failed);
     return()=>{active=false;script.removeEventListener('load',renderButton);script.removeEventListener('error',failed);};
   },[config,token]);
-  if(token)return <><div style={{background:T.navy,color:'#fff',padding:'8px 18px',display:'flex',justifyContent:'flex-end',fontFamily:FONT_BODY,fontSize:12}}><button onClick={signOut} style={{...smallBtn,background:'#fff'}}>Sign out / switch account</button></div><StudioApp/></>;
+  if(token)return <><div style={{background:T.navy,color:'#fff',padding:'8px 18px',display:'flex',justifyContent:'space-between',fontFamily:FONT_BODY,fontSize:12}}><span>Signed in with Google</span><button onClick={signOut} style={{...smallBtn,background:'#fff'}}>Sign out / switch account</button></div><StudioApp/></>;
   return <main className="enlighten-landing" aria-label="enLIGHTen sign in">
     <section className="enlighten-landing__center" aria-label="Welcome to enLIGHTen">
       <img className="enlighten-landing__logo" src="/enlighten-wordmark.svg" alt="enLIGHTen" width="710" height="140" />
