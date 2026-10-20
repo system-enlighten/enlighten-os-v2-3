@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.11.27-brand-fonts",
+  "version": "2.11.28-minimal-signin",
   "type": "module",
   "scripts": {
     "dev": "vite",

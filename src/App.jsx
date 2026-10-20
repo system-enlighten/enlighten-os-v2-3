@@ -5788,7 +5788,7 @@ export default function App(){
   useEffect(()=>{
     if(!config||token)return;
     let active=true;
-    const renderButton=()=>{if(!active||!buttonRef.current)return;window.google.accounts.id.initialize({client_id:config.clientId,auto_select:false,callback:response=>{if(!active||!response.credential)return;AUTH_ID_TOKEN=response.credential;clearStudioCaches();setError('');setToken(response.credential);}});window.google.accounts.id.renderButton(buttonRef.current,{theme:'outline',size:'large',width:280,text:'signin_with'});};
+    const renderButton=()=>{if(!active||!buttonRef.current)return;window.google.accounts.id.initialize({client_id:config.clientId,auto_select:false,callback:response=>{if(!active||!response.credential)return;AUTH_ID_TOKEN=response.credential;clearStudioCaches();setError('');setToken(response.credential);}});window.google.accounts.id.renderButton(buttonRef.current,{type:'standard',theme:'outline',size:'medium',shape:'pill',text:'signin_with',logo_alignment:'left'});};
     if(window.google?.accounts?.id){renderButton();return()=>{active=false;};}
     let script=document.getElementById('enlighten-google-login');if(!script){script=document.createElement('script');script.id='enlighten-google-login';script.src='https://accounts.google.com/gsi/client';script.async=true;document.head.appendChild(script);}
     script.addEventListener('load',renderButton);const failed=()=>setError('Google sign-in could not load. Check your connection.');script.addEventListener('error',failed);
@@ -5800,7 +5800,6 @@ export default function App(){
       <img className="enlighten-landing__logo" src="/enlighten-wordmark.svg" alt="enLIGHTen" width="710" height="140" />
       <div className="enlighten-landing__signin">
         <div className="enlighten-landing__google" ref={buttonRef}/>
-        <p className="enlighten-landing__hint">Sign in with your registered team Google account.</p>
         {!config&&!error&&<p className="enlighten-landing__hint" role="status">Loading sign-in…</p>}
         {error&&<p className="enlighten-landing__error" role="alert">{error}</p>}
       </div>

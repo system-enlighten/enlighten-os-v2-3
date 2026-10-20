@@ -6,7 +6,7 @@
 .enlighten-landing__center { width:100%; flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; padding-top:5vh; padding-bottom:10vh; }
 .enlighten-landing__logo { display:block; width:36vw; max-width:760px; min-width:300px; height:auto; }
 .enlighten-landing__signin { margin-top:clamp(26px,5vh,64px); display:flex; flex-direction:column; align-items:center; gap:12px; text-align:center; max-width:400px; width:100%; }
-.enlighten-landing__google { min-height:44px; max-width:100%; }
+.enlighten-landing__google { min-height:32px; max-width:100%; display:flex; justify-content:center; }
 .enlighten-landing__hint { margin:0; font-size:12px; line-height:1.6; color:#fff3df; text-shadow:0 1px 6px #713923; }
 .enlighten-landing__error { margin:0; padding:10px 14px; border-radius:4px; background:#fff3e8; color:#7b2020; font-size:13px; line-height:1.5; }
 .enlighten-landing__footer { margin:0; text-align:center; color:#c7bdc4; font-size:clamp(11px,1.15vw,23px); font-weight:300; line-height:1.65; letter-spacing:.13em; }
