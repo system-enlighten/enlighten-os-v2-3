@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.11.28-minimal-signin",
+  "version": "2.11.29-smaller-tagline",
   "type": "module",
   "scripts": {
     "dev": "vite",
