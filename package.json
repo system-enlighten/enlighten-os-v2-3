@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.11.30-phone-tagline",
+  "version": "2.11.35-date-format",
   "type": "module",
   "scripts": {
     "dev": "vite",

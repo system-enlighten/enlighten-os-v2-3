@@ -2902,7 +2902,7 @@ function UploadView({ state, persist }) {
   const floorDefs=[
     ["basement","Basement"],["stilt_floor","Stilt Floor"],["gf","GF"],["1f","1F"],["2f","2F"],["3f","3F"],
     ["terrace","Terrace"],["facade","Facade"],["wall_elevation","Wall Elevation"],["landscape","Landscape"],
-    ["bath_elevation","Bath Elevation"],["wardrobe","Wardrobe"],["kitchen","Kitchen"]
+    ["bath_elevation","Bath Elevation"],["wardrobe","Furniture"]
   ];
   const availableFloors=(()=>{
     const ps=project?.scope||{};
@@ -3577,6 +3577,18 @@ function ContactFields({contacts,onChange}) {
   return <ProjectTeamContactFields contacts={contacts} onChange={onChange}/>;
 }
 
+// Display project calendar dates without the timestamp or timezone shifts.
+function formatProjectDate(value) {
+  if(!value)return "—";
+  const raw=String(value).trim();
+  const iso=raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:$|[T\s])/);
+  if(iso)return `${iso[3]}/${iso[2]}/${iso[1]}`;
+  const dmy=raw.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})(?:$|\s)/);
+  if(dmy)return `${dmy[1].padStart(2,'0')}/${dmy[2].padStart(2,'0')}/${dmy[3]}`;
+  const date=new Date(raw);
+  return Number.isNaN(date.getTime())?"—":new Intl.DateTimeFormat('en-GB',{day:'2-digit',month:'2-digit',year:'numeric',timeZone:'Asia/Kolkata'}).format(date);
+}
+
 const PROJECT_STATUSES = ["Ongoing", "On Hold", "Completed"];
 const statusColor = (s) => s === "Completed" ? { bg: T.greenBg, fg: T.green } : s === "On Hold" ? { bg: T.redlineBg, fg: T.redline } : { bg: "#DDE7F5", fg: T.blue };
 
@@ -3795,7 +3807,7 @@ function ProjectScopeView({ state, persist, selectedId }) {
     setRow(found ? {...found} : {serial:"",project:project.name,client:"",architect:"",basement:false,stilt_floor:false,gf:false,"1f":false,"2f":false,"3f":false,terrace:false,facade:false,wall_elevation:false,landscape:false,bath_elevation:false,wardrobe:false,kitchen:false,onboarding:false});
   }, [project?.id, state.scopeSheet]);
   if (!project || !row) return null;
-  const boolFields = [["basement","Basement"],["stilt_floor","Stilt Floor"],["gf","GF"],["1f","1F"],["2f","2F"],["3f","3F"],["terrace","Terrace"],["facade","Facade"],["wall_elevation","Wall Elevation"],["landscape","Landscape"],["bath_elevation","Bath Elevation"],["wardrobe","Wardrobe"],["kitchen","Kitchen"],["onboarding","Onboarding"]];
+  const boolFields = [["basement","Basement"],["stilt_floor","Stilt Floor"],["gf","GF"],["1f","1F"],["2f","2F"],["3f","3F"],["terrace","Terrace"],["facade","Facade"],["wall_elevation","Wall Elevation"],["landscape","Landscape"],["bath_elevation","Bath Elevation"],["wardrobe","Furniture"],["onboarding","Onboarding"]];
   const update = (patch) => setRow(r => ({...r,...patch}));
   const save = async () => {
     const next = allRows.some(r => (r.project||"").trim().toLowerCase() === (project.name||"").trim().toLowerCase())
@@ -4234,7 +4246,7 @@ function designDashboardScopeFloors(project){
   const defs=[
     ["basement","Basement"],["stilt_floor","Stilt Floor"],["gf","GF"],["1f","1F"],["2f","2F"],["3f","3F"],
     ["terrace","Terrace"],["facade","Facade"],["wall_elevation","Wall Elevation"],["landscape","Landscape"],
-    ["bath_elevation","Bath Elevation"],["wardrobe","Wardrobe"],["kitchen","Kitchen"]
+    ["bath_elevation","Bath Elevation"],["wardrobe","Furniture"]
   ];
   return defs.filter(([key])=>Boolean(s[key])).map(([,label])=>label);
 }
@@ -4368,7 +4380,7 @@ function DrawingControlDashboard({state,projectId}){
     {loading&&<p>Loading project drawings and WIH status…</p>}
     <div style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) 330px',gap:16,alignItems:'start'}}>
       <div style={{minWidth:0,background:'#fff'}}>
-        <table style={{width:'100%',borderCollapse:'collapse',marginBottom:8}}><tbody>{[[`Project ${project.no||project.projectNo||''}:`,project.name],['Start Date:',project.startDate||'—'],['Time in hours:',loading?'Loading…':totalHours.toFixed(1)]].map(([label,value])=><tr key={label}><td style={{...cell,fontFamily:FONT_BODY,fontWeight:700,width:220}}>{label}</td><td style={{...cell,fontFamily:FONT_BODY}}>{value}</td></tr>)}</tbody></table>
+        <table style={{width:'100%',borderCollapse:'collapse',marginBottom:8}}><tbody>{[[`Project ${project.no||project.projectNo||''}:`,project.name],['Start Date:',formatProjectDate(project.startDate)],['Time in hours:',loading?'Loading…':totalHours.toFixed(1)]].map(([label,value])=><tr key={label}><td style={{...cell,fontFamily:FONT_BODY,fontWeight:700,width:220}}>{label}</td><td style={{...cell,fontFamily:FONT_BODY}}>{value}</td></tr>)}</tbody></table>
         <div style={{overflowX:'auto',border:'1px solid #777'}}>
           <table aria-label="Project design matrix" style={{borderCollapse:'collapse',tableLayout:'fixed',minWidth:2530,width:'100%'}}>
             <colgroup><col style={{width:250}}/><col style={{width:55}}/><col style={{width:45}}/><col style={{width:170}}/>{Array.from({length:4},(_,i)=><col key={'r'+i} style={{width:48}}/>)}{SHEET_DASHBOARD_WORK.map(d=><col key={d.label} style={{width:112}}/>)}{sentCols.map(([label])=><col key={'s'+label} style={{width:44}}/>)}{['Wall Electricals','FC Framing','Wiring'].map(label=><col key={label} style={{width:100}}/>)}</colgroup>
@@ -4506,7 +4518,7 @@ function ProjectInfoScopeMerged({state,persist,project}){
   const scopeFields=[
     ["Basement","basement"],["Stilt Floor","stiltFloor"],["GF","gf"],["1F","f1"],["2F","f2"],["3F","f3"],
     ["Terrace","terrace"],["Facade","facade"],["Wall Elevation","wallElevation"],["Landscape","landscape"],
-    ["Bath Elevation","bathElevation"],["Wardrobe","wardrobe"],["Kitchen","kitchen"],["Onboarding","onboarding"]
+    ["Bath Elevation","bathElevation"],["Furniture","wardrobe"],["Onboarding","onboarding"]
   ];
   const updateProject=async patch=>{
     const projects=state.projects.map(p=>p.id===project.id?{...p,...patch}:p);
@@ -4524,7 +4536,7 @@ function ProjectInfoScopeMerged({state,persist,project}){
         ["Status",project.status||"Ongoing"],
         ["Client",project.client||"—"],
         ["Architect",project.architect||"—"],
-        ["Start Date",project.startDate||"—"],
+        ["Start Date",formatProjectDate(project.startDate)],
         ["Planned Completion",project.plannedCompletionDate||project.endDate||"—"]
       ].map(([k,v],i)=><div key={k} style={{padding:"11px 12px",borderRight:i%4===3?"none":`1px solid ${T.line}`,borderBottom:i<4?`1px solid ${T.line}`:"none"}}>
         <div style={{fontFamily:FONT_MONO,fontSize:8,color:T.inkDim,letterSpacing:.8,textTransform:"uppercase"}}>{k}</div>
@@ -4557,7 +4569,7 @@ function ProjectInfoScopeMerged({state,persist,project}){
 
 
 function InlineProjectScope({project,state,persist}){
-  const fields=[["Basement","basement"],["Stilt Floor","stiltFloor"],["GF","gf"],["1F","f1"],["2F","f2"],["3F","f3"],["Terrace","terrace"],["Facade","facade"],["Wall Elev.","wallElevation"],["Landscape","landscape"],["Bath Elev.","bathElevation"],["Wardrobe","wardrobe"],["Kitchen","kitchen"],["Onboarding","onboarding"]];
+  const fields=[["Basement","basement"],["Stilt Floor","stiltFloor"],["GF","gf"],["1F","f1"],["2F","f2"],["3F","f3"],["Terrace","terrace"],["Facade","facade"],["Wall Elev.","wallElevation"],["Landscape","landscape"],["Bath Elev.","bathElevation"],["Furniture","wardrobe"],["Onboarding","onboarding"]];
   const toggle=async(key,e)=>{
     e&&e.stopPropagation();
     const projects=state.projects.map(p=>p.id===project.id?{...p,scope:{...(p.scope||{}),[key]:!Boolean(p.scope?.[key])}}:p);
@@ -4699,6 +4711,10 @@ function ProjectView({ state, persist }) {
   // changes into one Google Sheets request after a short idle period.
   const scopeSaveTimersRef = useRef({});
   const scopePendingRef = useRef({});
+  const scopeSaveRequestsRef = useRef({});
+  const completionPendingRef = useRef({});
+  const latestProjectStateRef = useRef(state);
+  latestProjectStateRef.current = state;
   const [tab, setTab] = useState("list");
   const [selectedId, setSelectedId] = useState(state.projects[0]?.id || null);
   const [showNewProject, setShowNewProject] = useState(false);
@@ -4717,7 +4733,7 @@ function ProjectView({ state, persist }) {
   const scopeFields = [
     ["Basement","basement"],["Stilt Floor","stilt_floor"],["GF","gf"],["1F","1f"],["2F","2f"],["3F","3f"],
     ["Terrace","terrace"],["Facade","facade"],["Wall Elevation","wall_elevation"],["Landscape","landscape"],
-    ["Bath Elevation","bath_elevation"],["Wardrobe","wardrobe"],["Kitchen","kitchen"],["Onboarding","onboarding"]
+    ["Bath Elevation","bath_elevation"],["Furniture","wardrobe"],["Onboarding","onboarding"]
   ];
 
   const isCompletedProject = p => (p.status==="Completed" || p.projectControl?.projectStatus==="Completed" || Boolean(p.completedAt));
@@ -4725,18 +4741,45 @@ function ProjectView({ state, persist }) {
   const completedProjects = state.projects.filter(isCompletedProject);
   const completeProject = async (p,e) => {
     if(e)e.stopPropagation();
-    let completedRow;
-    try { completedRow = await projectApi.complete(p.id); }
-    catch (err) { alert(`Google Sheets completion failed: ${err?.message || err}`); return; }
+    if(completionPendingRef.current[p.id])return;
+    completionPendingRef.current[p.id]=true;
+    const previousSelection=selectedId;
     const now=new Date().toISOString();
-    const projects=state.projects.map(x=>x.id===p.id?backendProjectToFrontend(completedRow,{
-      ...x,status:"Completed",completedAt:now,completedDate:now.slice(0,10),
-      projectControl:{...(x.projectControl||{}),projectStatus:"Completed",completedAt:now}
-    }):x);
-    await persist({...state,projects});
+    const before=latestProjectStateRef.current.projects.find(x=>x.id===p.id)||p;
+    const statusFields=x=>({status:x.status,projectStatus:x.projectStatus,completed:x.completed,completedAt:x.completedAt,completedDate:x.completedDate});
+    const applyStatus=async (fields,control)=>{
+      const latest=latestProjectStateRef.current;
+      const next={...latest,projects:latest.projects.map(x=>x.id===p.id?{...x,...fields,projectControl:{...x.projectControl,...control}}:x)};
+      latestProjectStateRef.current=next;
+      await persist(next);
+    };
+    // Update React state before waiting for Google Sheets.
+    const localSave=applyStatus({status:"Completed",projectStatus:"Completed",completed:true,completedAt:now,completedDate:now.slice(0,10)},{projectStatus:"Completed",completedAt:now});
     if(selectedId===p.id){
-      const next=projects.find(x=>!(x.status==="Completed"||x.projectControl?.projectStatus==="Completed"));
-      if(next)setSelectedId(next.id);
+      const next=latestProjectStateRef.current.projects.find(x=>!isCompletedProject(x));
+      setSelectedId(next?.id||null);
+    }
+    // Finish any older scope write before completion, so it cannot reopen the project.
+    clearTimeout(scopeSaveTimersRef.current[p.id]);
+    delete scopeSaveTimersRef.current[p.id];
+    const pendingScope=scopePendingRef.current[p.id];
+    delete scopePendingRef.current[p.id];
+    try {
+      await localSave;
+      await scopeSaveRequestsRef.current[p.id];
+      if(pendingScope)await projectApi.update(frontendProjectToBackend(pendingScope.project,true));
+      const completedRow=await projectApi.complete(p.id);
+      const current=latestProjectStateRef.current.projects.find(x=>x.id===p.id);
+      if(current){
+        const synced=backendProjectToFrontend(completedRow,current);
+        await applyStatus(statusFields(synced),{projectStatus:synced.projectControl?.projectStatus,completedAt:synced.projectControl?.completedAt});
+      }
+    } catch(err) {
+      await applyStatus(statusFields(before),{projectStatus:before.projectControl?.projectStatus,completedAt:before.projectControl?.completedAt});
+      if(previousSelection===p.id)setSelectedId(p.id);
+      alert(`Project completion could not be saved. The previous status has been restored. ${err?.message||err}`);
+    } finally {
+      delete completionPendingRef.current[p.id];
     }
   };
 
@@ -4844,7 +4887,9 @@ function ProjectView({ state, persist }) {
       const pending = scopePendingRef.current[p.id];
       if (!pending) return;
       try {
-        await projectApi.update(frontendProjectToBackend(pending.project, true));
+        const request=projectApi.update(frontendProjectToBackend(pending.project, true));
+        scopeSaveRequestsRef.current[p.id]=request.catch(()=>{});
+        await request;
         delete scopePendingRef.current[p.id];
       } catch (err) {
         console.error("Google Sheets scope background save failed:", err);
@@ -5024,7 +5069,7 @@ function ProjectView({ state, persist }) {
 
     {tab==="list" && <div>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,gap:10}}>
-        <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.inkDim}}>Project Master</div>
+        <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.inkDim}}>Ongoing Projects</div>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           {project && !isCompletedProject(project) && <button type="button" onClick={()=>openProjectEditor(project)} style={{...smallBtn,border:`1px solid ${T.blue}`,color:T.blue,background:"#fff"}}>Edit Selected Project</button>}
           <div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim}}>{ongoingProjects.length} ongoing projects</div>
@@ -5180,7 +5225,7 @@ function ProjectView({ state, persist }) {
           </div>
           <div style={{background:"#fff",border:`1px solid ${T.line}`,padding:12}}>
             <div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim}}>START DATE</div>
-            <div style={{fontFamily:FONT_DISPLAY,fontSize:16,fontWeight:700,marginTop:5}}>{project.startDate||project.projectStartDate||"—"}</div>
+            <div style={{fontFamily:FONT_DISPLAY,fontSize:16,fontWeight:700,marginTop:5}}>{formatProjectDate(project.startDate||project.projectStartDate)}</div>
           </div>
         </div>
 
@@ -5696,7 +5741,7 @@ function MemberProjectsView({state}) {
   return <div>
     <div style={{display:'flex',justifyContent:'space-between',gap:12,flexWrap:'wrap',marginBottom:18}}><div><h2 style={{fontFamily:FONT_DISPLAY,margin:0}}>Projects</h2><div style={{fontSize:12,color:T.inkDim,marginTop:6}}>View only · Project information, contacts and planned work</div></div><select aria-label="View project" style={{...inputStyle,minWidth:260}} value={p.id} onChange={e=>setSelected(e.target.value)}>{projects.map(x=><option key={x.id} value={x.id}>{x.no} · {x.name}</option>)}</select></div>
     <div style={{display:'flex',gap:8,marginBottom:16}}>{[['scope','Projects & Scope'],['team','Teams & Ratings'],['line','Line of Work']].map(([id,label])=><Btn key={id} variant={tab===id?'dark':'ghost'} onClick={()=>setTab(id)}>{label}</Btn>)}</div>
-    {tab==='scope'&&<><table style={{borderCollapse:'collapse',width:'100%'}}><tbody>{[['Project',p.name],['Number',p.no],['Client',p.client||p.contacts?.Owner?.name],['Architect',p.architect||p.contacts?.Architect?.name],['Address',p.address],['Type',p.type],['Status',p.status],['Start',p.startDate],['End',p.endDate]].map(([label,value])=><tr key={label}><td style={{...tdStyle,textAlign:'left',width:170,color:T.inkDim}}>{label}</td><td style={{...tdStyle,textAlign:'left'}}>{String(value??'—')}</td></tr>)}</tbody></table><div style={{marginTop:18,fontFamily:FONT_BODY,fontSize:13}}><strong>Project scope</strong><div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:10}}>{Object.entries(p.scope||{}).filter(([,v])=>v===true).map(([k])=><span key={k} style={{background:T.paperDim,padding:'7px 10px'}}>{k.replace(/_/g,' ')}</span>)}</div></div></>}
+    {tab==='scope'&&<><table style={{borderCollapse:'collapse',width:'100%'}}><tbody>{[['Project',p.name],['Number',p.no],['Client',p.client||p.contacts?.Owner?.name],['Architect',p.architect||p.contacts?.Architect?.name],['Address',p.address],['Type',p.type],['Status',p.status],['Start',formatProjectDate(p.startDate)],['End',p.endDate]].map(([label,value])=><tr key={label}><td style={{...tdStyle,textAlign:'left',width:170,color:T.inkDim}}>{label}</td><td style={{...tdStyle,textAlign:'left'}}>{String(value??'—')}</td></tr>)}</tbody></table><div style={{marginTop:18,fontFamily:FONT_BODY,fontSize:13}}><strong>Project scope</strong><div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:10}}>{Object.entries(p.scope||{}).filter(([,v])=>v===true).map(([k])=><span key={k} style={{background:T.paperDim,padding:'7px 10px'}}>{k.replace(/_/g,' ')}</span>)}</div></div></>}
     {tab==='team'&&<>{ROLE_CATEGORIES.map(({category,roles})=>{const entries=roles.filter(r=>p.contacts?.[r]);return entries.length?<div key={category} style={{marginBottom:20}}><div style={{fontFamily:FONT_MONO,color:categoryColor(category),marginBottom:8}}>{category}</div><table style={{width:'100%',borderCollapse:'collapse'}}><tbody>{entries.map(r=><tr key={r}>{[r,p.contacts[r].name,p.contacts[r].company,p.contacts[r].email,p.contacts[r].mobile].map((v,i)=><td key={i} style={{...tdStyle,textAlign:'left'}}>{String(v??'—')||'—'}</td>)}</tr>)}</tbody></table></div>:null;})}</>}
     {tab==='line'&&<>{workflowGroups(workflow.filter(r=>String(r.workflowVersion)==='1')).map(g=><details key={g.first.lineWorkId||g.first.id} open style={{border:`1px solid ${T.line}`,marginBottom:12}}><summary style={{padding:12,background:T.paperDim}}><strong>{g.first.milestone}</strong> · {g.first.tasks}</summary><table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Step','Subtask','Responsible','Estimated hours'].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{g.rows.map((r,i)=><tr key={r.lineWorkId||r.id}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{r.subtask}</td><td style={tdStyle}>{r.responsible||'Unassigned'}</td><td style={tdStyle}>{r.hours||'—'}</td></tr>)}</tbody></table></details>)}{!workflow.some(r=>String(r.workflowVersion)==='1')&&<div style={{color:T.inkDim}}>The admin has not saved the detailed workflow for this project.</div>}</>}
   </div>;
@@ -5737,7 +5782,7 @@ function ReadOnlyProjectWork({project,state}){
 function ProjectScopeAdmin({project,onSaved}){
   const [draft,setDraft]=useState(project),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
   const save=async()=>{setBusy(true);try{const row=await projectApi.update(frontendProjectToBackend(draft,true));await onSaved(row);setMessage('Saved to Google Sheets.');}catch(e){setMessage(e.message);}finally{setBusy(false);}};
-  const fields=[['Basement','basement'],['Stilt Floor','stilt_floor'],['GF','gf'],['1F','1f'],['2F','2f'],['3F','3f'],['Terrace','terrace'],['Facade','facade'],['Wall Elevation','wall_elevation'],['Landscape','landscape'],['Bath Elevation','bath_elevation'],['Wardrobe','wardrobe'],['Kitchen','kitchen'],['Onboarding','onboarding']];
+  const fields=[['Basement','basement'],['Stilt Floor','stilt_floor'],['GF','gf'],['1F','1f'],['2F','2f'],['3F','3f'],['Terrace','terrace'],['Facade','facade'],['Wall Elevation','wall_elevation'],['Landscape','landscape'],['Bath Elevation','bath_elevation'],['Furniture','wardrobe'],['Onboarding','onboarding']];
   return <section><h3>{project.name} · Scope & Status</h3><Field label="Project status"><select style={inputStyle} value={draft.status} onChange={e=>setDraft(d=>({...d,status:e.target.value,projectStatus:e.target.value,projectControl:{...d.projectControl,projectStatus:e.target.value}}))}><option>Ongoing</option><option>On Hold</option><option>Completed</option></select></Field><div style={{display:'flex',gap:16,flexWrap:'wrap',marginBottom:16}}>{fields.map(([label,k])=><label key={k}><input type="checkbox" checked={!!draft.scope?.[k]} onChange={e=>setDraft(d=>({...d,scope:{...d.scope,[k]:e.target.checked}}))}/> {label}</label>)}</div><Btn disabled={busy} onClick={save}>{busy?'Saving…':'Save Scope & Status'}</Btn><p role="status">{message}</p></section>;
 }
 function ProjectPunchInsView({state}){
@@ -5794,7 +5839,7 @@ export default function App(){
     script.addEventListener('load',renderButton);const failed=()=>setError('Google sign-in could not load. Check your connection.');script.addEventListener('error',failed);
     return()=>{active=false;script.removeEventListener('load',renderButton);script.removeEventListener('error',failed);};
   },[config,token]);
-  if(token)return <><div style={{background:T.navy,color:'#fff',padding:'8px 18px',display:'flex',justifyContent:'space-between',fontFamily:FONT_BODY,fontSize:12}}><span>Signed in with Google</span><button onClick={signOut} style={{...smallBtn,background:'#fff'}}>Sign out / switch account</button></div><StudioApp/></>;
+  if(token)return <><div style={{background:T.navy,color:'#fff',padding:'8px 18px',display:'flex',justifyContent:'flex-end',fontFamily:FONT_BODY,fontSize:12}}><button onClick={signOut} style={{...smallBtn,background:'#fff'}}>Sign out / switch account</button></div><StudioApp/></>;
   return <main className="enlighten-landing" aria-label="enLIGHTen sign in">
     <section className="enlighten-landing__center" aria-label="Welcome to enLIGHTen">
       <img className="enlighten-landing__logo" src="/enlighten-wordmark.svg" alt="enLIGHTen" width="710" height="140" />
