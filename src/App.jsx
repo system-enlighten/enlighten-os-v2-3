@@ -4713,6 +4713,8 @@ function ProjectView({ state, persist }) {
   const scopePendingRef = useRef({});
   const scopeSaveRequestsRef = useRef({});
   const completionPendingRef = useRef({});
+  const editorSavePendingRef = useRef({});
+  const [projectSaveMessage,setProjectSaveMessage] = useState("");
   const latestProjectStateRef = useRef(state);
   latestProjectStateRef.current = state;
   const [tab, setTab] = useState("list");
@@ -4941,17 +4943,17 @@ function ProjectView({ state, persist }) {
   };
 
   const saveProjectEditor = async () => {
-    const current = state.projects.find(p => p.id === editProjectId);
-    if (!current || !editDraft) return;
+    const current = latestProjectStateRef.current.projects.find(p => p.id === editProjectId);
+    if (!current || !editDraft || editorSavePendingRef.current[current.id]) return;
     const currentScope = scopeFor(current);
     const cleanContacts = {};
     Object.entries(editDraft.contacts || {}).forEach(([role, c]) => {
-      if (c && ((c.name || "").trim() || (c.company || "").trim() || (c.email || "").trim() || (c.mobile || "").trim())) {
+      if (c && (String(c.name || "").trim() || String(c.company || "").trim() || String(c.email || "").trim() || String(c.mobile || "").trim())) {
         cleanContacts[role] = {
-          name: (c.name || "").trim(),
-          company: (c.company || "").trim(),
-          email: (c.email || "").trim(),
-          mobile: (c.mobile || "").trim()
+          name: String(c.name || "").trim(),
+          company: String(c.company || "").trim(),
+          email: String(c.email || "").trim(),
+          mobile: String(c.mobile || "").trim()
         };
       }
     });
@@ -4978,54 +4980,58 @@ function ProjectView({ state, persist }) {
       endDate: editDraft.plannedCompletionDate,
       projectStatus: editDraft.projectStatus,
       status: editDraft.projectStatus,
-      scope: nextScope
+      scope: nextScope,
+      projectControl:{...current.projectControl,projectStatus:editDraft.projectStatus},
+      ...(editDraft.projectStatus!=="Completed"?{completed:false,completedAt:"",completedDate:""}:{})
     };
-    let updatedRow;
+    const draftSnapshot=editDraft;
+    const oldName=String(current.name||"").trim().toLowerCase();
+    const latest=latestProjectStateRef.current;
+    const allRows=latest.scopeSheet||PROJECT_SCOPE_SHEET_ROWS;
+    const replaceScope=(rows,name,row)=>rows.some(r=>String(r.project||"").trim().toLowerCase()===name)
+      ? rows.map(r=>String(r.project||"").trim().toLowerCase()===name?row:r):[...rows,row];
+    const optimistic={...latest,projects:latest.projects.map(p=>p.id===current.id?nextProject:p),scopeSheet:replaceScope(allRows,oldName,nextScope)};
+    editorSavePendingRef.current[current.id]=true;
+    latestProjectStateRef.current=optimistic;
+    const localSave=persist(optimistic);
+    setIsProjectEditorOpen(false);
+    setProjectSaveMessage("Changes applied · Saving to Google Sheets…");
+    // Older scope writes must finish first; send one combined latest project snapshot.
+    clearTimeout(scopeSaveTimersRef.current[current.id]);
+    delete scopeSaveTimersRef.current[current.id];
+    delete scopePendingRef.current[current.id];
     try {
-      updatedRow = await projectApi.update(frontendProjectToBackend(nextProject, true));
-    } catch (err) {
-      alert(`Google Sheets project update failed: ${err?.message || err}`);
+      await localSave;
+      await scopeSaveRequestsRef.current[current.id];
+      await projectApi.update(frontendProjectToBackend(nextProject,true));
+    } catch(err) {
+      const latest=latestProjectStateRef.current;
+      // Restore only fields still equal to this save, retaining later independent edits.
+      const projects=latest.projects.map(p=>{
+        if(p.id!==current.id)return p;
+        const restored={...p};
+        for(const key of Object.keys(nextProject)){
+          if(JSON.stringify(p[key])===JSON.stringify(nextProject[key]))restored[key]=current[key];
+        }
+        return restored;
+      });
+      const scopeSheet=(latest.scopeSheet||[]).map(r=>JSON.stringify(r)===JSON.stringify(nextScope)?currentScope:r);
+      const restored={...latest,projects,scopeSheet};
+      latestProjectStateRef.current=restored;
+      await persist(restored);
+      setEditProjectId(current.id);setEditDraft(draftSnapshot);setIsProjectEditorOpen(true);
+      setProjectSaveMessage(`Save failed. Your draft is retained; please retry. ${err?.message||err}`);
+      delete editorSavePendingRef.current[current.id];
       return;
     }
-    const syncedProject = backendProjectToFrontend(updatedRow, nextProject);
-    if (Object.keys(cleanContacts).length) {
-      try { await projectApi.saveContacts(current.id, contactsObjectToRows(syncedProject, cleanContacts)); }
-      catch (err) { alert(`Project saved, but Google Sheets contacts failed: ${err?.message || err}`); }
+    try {
+      if(Object.keys(cleanContacts).length)await projectApi.saveContacts(current.id,contactsObjectToRows(nextProject,cleanContacts));
+      setProjectSaveMessage("Saved to Google Sheets.");
+    } catch(err) {
+      setProjectSaveMessage(`Project saved, but contacts could not sync. Reopen the project and save again. ${err?.message||err}`);
+    } finally {
+      delete editorSavePendingRef.current[current.id];
     }
-    const allRows = state.scopeSheet || PROJECT_SCOPE_SHEET_ROWS;
-    const oldName = String(current.name || "").trim().toLowerCase();
-    const scopeSheet = allRows.some(r => String(r.project || "").trim().toLowerCase() === oldName)
-      ? allRows.map(r => String(r.project || "").trim().toLowerCase() === oldName ? nextScope : r)
-      : [...allRows, nextScope];
-    await persist({
-      ...state,
-      projects: state.projects.map(p => p.id === current.id ? syncedProject : p),
-      scopeSheet
-    });
-    setEditProjectId(syncedProject.id);
-    setEditDraft({
-      no: syncedProject.no || "",
-      name: syncedProject.name || "",
-      client: syncedProject.client || nextScope.client || "",
-      architect: syncedProject.architect || nextScope.architect || "",
-      address: syncedProject.address || "",
-      type: syncedProject.type || "Residence",
-      startDate: syncedProject.startDate || "",
-      plannedCompletionDate: syncedProject.plannedCompletionDate || syncedProject.endDate || "",
-      projectStatus: syncedProject.projectStatus || syncedProject.status || "Ongoing",
-      contacts: {
-        ...(syncedProject.contacts || cleanContacts),
-        Owner: {
-          ...((syncedProject.contacts || cleanContacts)?.Owner || {}),
-          name: (syncedProject.contacts || cleanContacts)?.Owner?.name || syncedProject.client || ownerName || ""
-        },
-        Architect: {
-          ...((syncedProject.contacts || cleanContacts)?.Architect || {}),
-          name: (syncedProject.contacts || cleanContacts)?.Architect?.name || syncedProject.architect || architectName || ""
-        }
-      }
-    });
-    setIsProjectEditorOpen(false);
   };
 
   const executionFor=(room)=>{
@@ -5067,6 +5073,7 @@ function ProjectView({ state, persist }) {
       )}
     </div>
 
+    {projectSaveMessage&&<p role="status" style={{fontFamily:FONT_BODY,fontSize:12}}>{projectSaveMessage}</p>}
     {tab==="list" && <div>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,gap:10}}>
         <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.inkDim}}>Ongoing Projects</div>
@@ -5080,7 +5087,7 @@ function ProjectView({ state, persist }) {
         <div style={{minWidth:1750}}>
           <div style={{
             display:"grid",
-            gridTemplateColumns:"65px 300px 180px 180px repeat(14,78px) 105px",
+            gridTemplateColumns:`65px 300px 180px 180px repeat(${scopeFields.length},78px) 105px`,
             background:"#D2CDC1",color:"#1C1C19",borderBottom:`2px solid ${T.ink}`,
             fontFamily:FONT_MONO,fontSize:8,fontWeight:700
           }}>
@@ -5095,7 +5102,7 @@ function ProjectView({ state, persist }) {
             const sc=scopeFor(p);
             const selected=p.id===project?.id;
             return <div key={p.id} onClick={()=>setSelectedId(p.id)} style={{
-              display:"grid",gridTemplateColumns:"65px 300px 180px 180px repeat(14,78px) 105px",
+              display:"grid",gridTemplateColumns:`65px 300px 180px 180px repeat(${scopeFields.length},78px) 105px`,
               borderBottom:`1px solid ${T.line}`,background:selected?"#F3F1EA":"#fff",cursor:"pointer",
               fontFamily:FONT_BODY,fontSize:10
             }}>
@@ -5125,8 +5132,8 @@ function ProjectView({ state, persist }) {
                   color:on?"#245C2B":"#999",cursor:"pointer",fontSize:16,fontWeight:800
                 }}>{on?"☑":"☐"}</button>;
               })}
-              <button onClick={e=>completeProject(p,e)} title="Mark project completed" style={{border:0,background:"#FAF9F5",cursor:"pointer",fontFamily:FONT_BODY,fontSize:9,fontWeight:700,color:T.ink}}>
-                ☐ Complete
+              <button type="button" onClick={e=>completeProject(p,e)} title="Mark project completed" aria-label={`Mark ${p.name||"project"} completed`} style={{border:0,background:"#D2CDC1",cursor:"pointer",fontFamily:FONT_BODY,fontSize:28,fontWeight:700,color:"#1C1C19",display:"flex",alignItems:"center",justifyContent:"center",minHeight:44}}>
+                <span aria-hidden="true">☐</span>
               </button>
             </div>;
           })}
@@ -5194,7 +5201,7 @@ function ProjectView({ state, persist }) {
               <div style={{padding:8,borderRight:`1px solid ${T.line}`,fontWeight:700}}>{p.name}</div>
               <div style={{padding:8,borderRight:`1px solid ${T.line}`}}>{p.client||"—"}</div>
               <div style={{padding:8,borderRight:`1px solid ${T.line}`}}>{p.architect||"—"}</div>
-              <div style={{padding:8,fontFamily:FONT_MONO}}>{p.completedDate||(p.completedAt?String(p.completedAt).slice(0,10):"—")}</div>
+              <div style={{padding:8,fontFamily:FONT_MONO}}>{formatProjectDate(p.completedDate||p.completedAt)}</div>
             </div>)}
             {!completedProjects.length&&<div style={{padding:14,fontFamily:FONT_BODY,fontSize:11,color:T.inkDim}}>No completed projects yet.</div>}
           </div>
