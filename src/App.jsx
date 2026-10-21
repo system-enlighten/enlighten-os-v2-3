@@ -3511,6 +3511,8 @@ function DashboardView({ state, persist }) {
   const [projectId,setProjectId]=useState("");
   const [editor,setEditor]=useState(null);
   const [bulkEditor,setBulkEditor]=useState(null);
+  const [areaSaving,setAreaSaving]=useState(false);
+  const [bulkSaving,setBulkSaving]=useState(false);
   const projects=(state.projects||[]).filter(p=>p.status!=="Completed"&&p.projectControl?.projectStatus!=="Completed");
   const project=projects.find(p=>String(p.id)===String(projectId))||null;
   const scopeFloors=project?designDashboardScopeFloors(project):[];
@@ -3519,6 +3521,7 @@ function DashboardView({ state, persist }) {
   const addRow=f=>setEditor({mode:"add",floorZoneId:"",zoneCode:"",floor:f||scopeFloors[0]||"",area:""});
   const editRow=r=>setEditor({mode:"edit",floorZoneId:r.floorZoneId||"",zoneCode:r.zoneCode||"",floor:r.floor||"",area:r.area||r.room||""});
   const save=async()=>{
+    if(areaSaving)return;
     if(!project||!editor?.floor||!editor?.area?.trim())return alert("Select a floor and enter Area / Room.");
     let zoneCode=String(editor.zoneCode||"").trim().toUpperCase();
     if(!zoneCode)return alert("Enter the Zone Code. Zone Code must be added by the doer.");
@@ -3532,6 +3535,7 @@ function DashboardView({ state, persist }) {
     if(editor.mode==="edit"){
       next=rows.map(r=>(editor.floorZoneId&&r.floorZoneId===editor.floorZoneId)||(!editor.floorZoneId&&r.zoneCode===editor.zoneCode)?{...r,zoneCode,floor:editor.floor,area:editor.area.trim()}:r);
     }else next=[...rows,{floorZoneId:"",zoneCode,floor:editor.floor,area:editor.area.trim(),seq:rows.length+1}];
+    setAreaSaving(true);
     try{
       const saved=await projectApi.saveFloorZones(project.id,next);
       const finalRows=(saved||next);
@@ -3540,6 +3544,7 @@ function DashboardView({ state, persist }) {
       await persist({...state,projects:(state.projects||[]).map(p=>p.id===project.id?updated:p)});
       setEditor(null);
     }catch(e){alert(`Floor / Zone save failed: ${e?.message||e}`);}
+    finally{setAreaSaving(false);}
   };
 
   const parseBulkPreview=()=>{
@@ -3556,6 +3561,7 @@ function DashboardView({ state, persist }) {
   };
 
   const saveBulk=async()=>{
+    if(bulkSaving)return;
     if(!project||!bulkEditor)return;
     const preview=parseBulkPreview();
     if(!preview.length)return alert("Enter at least one Zone Code | Area / Room line.");
@@ -3572,6 +3578,7 @@ function DashboardView({ state, persist }) {
     }
 
     const next=[...rows,...pending];
+    setBulkSaving(true);
     try{
       const saved=await projectApi.saveFloorZones(project.id,next);
       const finalRows=(saved||next);
@@ -3580,6 +3587,7 @@ function DashboardView({ state, persist }) {
       await persist({...state,projects:(state.projects||[]).map(p=>p.id===project.id?updated:p)});
       setBulkEditor(null);
     }catch(e){alert(`Bulk Floor / Zone save failed: ${e?.message||e}`);}
+    finally{setBulkSaving(false);}
   };
   const remove=async r=>{
     if(!project)return;
@@ -3634,7 +3642,7 @@ function DashboardView({ state, persist }) {
           <Field label="Floor from Project Scope"><select value={editor.floor} onChange={e=>setEditor(x=>({...x,floor:e.target.value}))} style={inputStyle}>{scopeFloors.map(f=><option key={f}>{f}</option>)}</select></Field>
           <div style={{gridColumn:"1 / -1"}}><Field label="Area / Room"><input value={editor.area} onChange={e=>setEditor(x=>({...x,area:e.target.value}))} placeholder="Living Room, Bedroom, Washroom..." style={inputStyle}/></Field></div>
         </div>
-        <div style={{padding:14,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}><button type="button" onClick={()=>setEditor(null)} style={{...smallBtn,background:"#fff"}}>Cancel</button><button type="button" onClick={save} style={{...smallBtn,background:T.navy,color:"#fff"}}>Save Floor / Zone</button></div>
+        <div style={{padding:14,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}><button type="button" onClick={()=>setEditor(null)} style={{...smallBtn,background:"#fff"}}>Cancel</button><button type="button" onClick={save} disabled={areaSaving} style={{...smallBtn,background:T.navy,color:"#fff"}}>{areaSaving?"Saving area…":"Save Floor / Zone"}</button></div>
       </div>
     </div>}
 
@@ -3662,8 +3670,8 @@ function DashboardView({ state, persist }) {
           <div style={{marginTop:10,padding:10,background:T.paper2,border:`1px solid ${T.line}`,fontFamily:FONT_MONO,fontSize:10,lineHeight:1.6}}>Example:<br/><b>A | Living Room</b><br/><b>B | Dining Room</b><br/><b>Only this format is applicable: Zone Code | Area / Room, one per line.</b><br/><b>Zone Code is entered by the doer; the selected floor is applied automatically.</b></div>
         </div>
         <div style={{padding:14,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}>
-          <button type="button" onClick={()=>setBulkEditor(null)} style={{...smallBtn,background:"#fff"}}>Cancel</button>
-          <button type="button" onClick={saveBulk} style={{...smallBtn,background:T.navy,color:"#fff"}}>Save All Areas</button>
+          <button type="button" disabled={bulkSaving} onClick={()=>setBulkEditor(null)} style={{...smallBtn,background:"#fff"}}>Cancel</button>
+          <button type="button" disabled={bulkSaving} onClick={saveBulk} style={{...smallBtn,background:T.navy,color:"#fff",opacity:bulkSaving?.65:1,cursor:bulkSaving?"wait":"pointer"}}>{bulkSaving?"Saving areas…":"Save All Areas"}</button>
         </div>
       </div>
     </div>}
@@ -3738,9 +3746,11 @@ function ProjectOnboarding({ state, persist, selectedId, setSelectedId, initialM
   const [mode, setMode] = useState(initialMode);
   const [draft, setDraft] = useState(emptyDraft());
   const [saved, setSaved] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   const saveNew = async () => {
-    if (!draft.name.trim()) return;
+    if (!draft.name.trim() || creating) return;
+    setCreating(true);
     const cleanContacts = {};
     Object.entries(draft.contacts).forEach(([role, c]) => {
       if (c && (String(c.name||"").trim()||String(c.company||"").trim())) cleanContacts[role] = { name:String(c.name||"").trim(), company:String(c.company||"").trim(), email:String(c.email||"").trim(), mobile:String(c.mobile||"").trim() };
@@ -3787,10 +3797,11 @@ function ProjectOnboarding({ state, persist, selectedId, setSelectedId, initialM
       }
     } catch (err) {
       alert(`Google Sheets save failed: ${err?.message || err}`);
+      setCreating(false);
       return;
     }
     await persist({ ...state, projects: [...state.projects, created] });
-    setDraft(emptyDraft()); setSelectedId(created.id); setMode("browse"); setSaved(true);
+    setDraft(emptyDraft()); setSelectedId(created.id); setMode("browse"); setSaved(true); setCreating(false);
     setTimeout(() => setSaved(false), 2400);
   };
 
@@ -3839,7 +3850,7 @@ function ProjectOnboarding({ state, persist, selectedId, setSelectedId, initialM
               <Field label="Start date"><input type="date" style={inputStyle} value={draft.startDate} onChange={(e) => setDraft({ ...draft, startDate: e.target.value })} /></Field>
               <Field label="Target completion"><input type="date" style={inputStyle} value={draft.endDate} onChange={(e) => setDraft({ ...draft, endDate: e.target.value })} /></Field>
             </div>
-            <Btn onClick={saveNew} disabled={!draft.name.trim()}><ClipboardCheck size={14} /> Create project</Btn>
+            <Btn onClick={saveNew} disabled={!draft.name.trim() || creating}><ClipboardCheck size={14} /> {creating ? "Creating project…" : "Create project"}</Btn>
           </div>
           <div>
             <div style={{ fontFamily: FONT_MONO, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: T.inkDim, marginBottom: 10 }}>Initial team / contacts</div>
