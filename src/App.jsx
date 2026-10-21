@@ -5285,11 +5285,13 @@ function ProjectView({ state, persist }) {
 
       {project&&<section aria-label="Project summary" style={{marginTop:16,border:`1px solid ${T.line}`,background:T.paper2,padding:16}}>
         <div style={{fontFamily:FONT_MONO,fontSize:10,color:T.cyan,marginBottom:12}}>PROJECT INFORMATION</div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:14}}>
+        <div style={{display:"flex",alignItems:"center",gap:18,flexWrap:"wrap"}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(6,minmax(0,1fr))",gap:14,flex:"1 1 850px",minWidth:0}}>
           {[["Project No.",project.no],["Project Name",project.name],["Client",project.client||project.contacts?.Owner?.name],["Architect",project.architect||project.contacts?.Architect?.name],["Address",project.address],["Project Type",project.type]].map(([label,value])=><div key={label}><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginBottom:5}}>{label}</div><div style={{fontFamily:FONT_BODY,fontSize:13,overflowWrap:"anywhere"}}>{value||"—"}</div></div>)}
         </div>
-        <div style={{display:"flex",justifyContent:"center",marginTop:14}}>
+        <div style={{display:"flex",justifyContent:"center",alignItems:"center",flex:"0 0 90px"}}>
           <button type="button" style={{...smallBtn,border:`1px solid ${T.blue}`,color:T.blue,background:"#fff"}} onClick={()=>setShowProjectTeam(v=>!v)}>{showProjectTeam?"Hide Team":"View Team"}</button>
+        </div>
         </div>
         {showProjectTeam&&<div style={{marginTop:14,borderTop:`1px solid ${T.line}`,paddingTop:14}}>
           <div style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,marginBottom:10}}>PROJECT TEAM · {project.name}</div>
