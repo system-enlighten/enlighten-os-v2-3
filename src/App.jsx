@@ -3075,7 +3075,7 @@ function UploadView({ state, persist }) {
         </Field>
 
         <Field label="Floors in this drawing — select all that apply">
-          <div style={{display:'flex',flexWrap:'wrap',gap:14,padding:12,border:`1px solid ${T.line}`}}>{availableFloors.map(f=><label key={f}><input type="checkbox" aria-label={`Upload floor ${f}`} checked={floors.includes(f)} disabled={saving} onChange={e=>setFloors(current=>e.target.checked?[...new Set([...current,f])]:current.filter(x=>x!==f))}/> {f}</label>)}</div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:12,padding:12,border:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:12,color:T.ink}}>{availableFloors.map(f=><label key={f} style={{display:'inline-flex',alignItems:'center',gap:4}}><input type="checkbox" aria-label={`Upload floor ${f}`} checked={floors.includes(f)} disabled={saving} onChange={e=>setFloors(current=>e.target.checked?[...new Set([...current,f])]:current.filter(x=>x!==f))}/> {f}</label>)}</div>
           <div style={{fontSize:12,color:T.inkDim,marginTop:6}}>{floors.length?`${floors.length} floor(s) tagged: ${floors.join(', ')}`:'Select at least one floor. One file can cover several floors.'}</div>
           {project && availableFloors.length===0 && <div style={{fontSize:11,color:T.redline,marginTop:5}}>No floors selected for this project in Projects & Scope.</div>}
         </Field>
@@ -3250,9 +3250,9 @@ function ClassifyView({ state, persist }) {
               This project has no zones mapped yet on the Floor | Zone sheet — add its floor/zone breakdown there first.
             </div>
           ) : (
-            <div><p>Select one or more floors. Each floor selects its areas; untick any area not covered by this drawing.</p>{floors.map(f=>{
+            <div style={{fontFamily:FONT_BODY,fontSize:12,color:T.ink}}><p style={{fontSize:12,color:T.inkDim}}>Select one or more floors. Each floor selects its areas; untick any area not covered by this drawing.</p>{floors.map(f=>{
               const ids=letters.filter(z=>project.zones[z]?.floor===f),selected=ids.filter(z=>zones.includes(z));
-              return <fieldset key={f} style={{border:`1px solid ${T.line}`,padding:12,marginBottom:12}}><legend><label><input type="checkbox" aria-label={`Classify floor ${f}`} checked={selected.length>0} onChange={e=>toggleFloor(f,e.target.checked)}/> {f} <span style={{fontSize:11}}>({selected.length}/{ids.length} areas)</span></label></legend><div style={{display:'flex',gap:14,flexWrap:'wrap'}}>{ids.map(z=><label key={z}><input type="checkbox" aria-label={`Classify area ${f} ${project.zones[z].room||z}`} checked={zones.includes(z)} onChange={()=>toggleZone(z)}/> {z} · {project.zones[z].room||z}</label>)}</div></fieldset>;
+              return <fieldset key={f} style={{border:`1px solid ${T.line}`,padding:12,marginBottom:12}}><legend style={{fontFamily:FONT_BODY,fontSize:12}}><label><input type="checkbox" aria-label={`Classify floor ${f}`} checked={selected.length>0} onChange={e=>toggleFloor(f,e.target.checked)}/> {f} <span style={{fontSize:11}}>({selected.length}/{ids.length} areas)</span></label></legend><div style={{display:'flex',gap:12,flexWrap:'wrap',fontFamily:FONT_BODY,fontSize:12}}>{ids.map(z=><label key={z} style={{display:'inline-flex',alignItems:'center',gap:4}}><input type="checkbox" aria-label={`Classify area ${f} ${project.zones[z].room||z}`} checked={zones.includes(z)} onChange={()=>toggleZone(z)}/> {z} · {project.zones[z].room||z}</label>)}</div></fieldset>;
             })}</div>
           )}
         </Field>
