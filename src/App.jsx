@@ -4861,6 +4861,8 @@ function ProjectView({ state, persist }) {
   const [editProjectId, setEditProjectId] = useState(null);
   const [editDraft, setEditDraft] = useState(null);
   const [isProjectEditorOpen, setIsProjectEditorOpen] = useState(false);
+  const [showProjectTeam,setShowProjectTeam] = useState(false);
+  const [teamRatingBusy,setTeamRatingBusy] = useState(false);
   const project = state.projects.find(p => p.id === selectedId) || state.projects[0];
   const [board, setBoard] = useState(null);
 
@@ -5205,7 +5207,7 @@ function ProjectView({ state, persist }) {
     </div>}
 
     <div style={{display:"flex",alignItems:"center",gap:0,borderBottom:`1px solid ${T.line}`,marginBottom:18,overflowX:"auto",background:"#fff"}}>
-      {[["list","Projects & Scope"],["team","Teams & Ratings"],["line","Line of Work"]].map(([id,label])=>
+      {[["list","Projects & Scope"],["team","Directory"],["line","Line of Work"]].map(([id,label])=>
         <button type="button" key={id} onClick={(e)=>{e.preventDefault();e.stopPropagation();setTab(id);}} style={{
           padding:"11px 16px",border:"none",borderBottom:`3px solid ${tab===id?T.cyan:"transparent"}`,
           background:tab===id?T.navy:"transparent",color:tab===id?"#fff":T.inkDim,cursor:"pointer",
@@ -5256,12 +5258,7 @@ function ProjectView({ state, persist }) {
                     onClick={(e)=>{e.stopPropagation();openProjectEditor(p);}}
                     style={{border:`1px solid ${T.blue}`,background:"#fff",color:T.blue,padding:"4px 7px",fontFamily:FONT_MONO,fontSize:8,fontWeight:700,cursor:"pointer"}}
                   >EDIT</button>
-                  <button
-                    type="button"
-                    onClick={(e)=>deleteProject(p,e)}
-                    title={`Delete ${p.name}`}
-                    style={{border:"1px solid #9B3B35",background:"#fff",color:"#9B3B35",padding:"4px 7px",fontFamily:FONT_MONO,fontSize:8,fontWeight:700,cursor:"pointer"}}
-                  >DELETE</button>
+
                 </span>
               </div>
               <div style={{padding:8,borderRight:`1px solid ${T.line}`}}>{p.client||sc.client||"—"}</div>
@@ -5287,6 +5284,30 @@ function ProjectView({ state, persist }) {
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:14}}>
           {[["Project No.",project.no],["Project Name",project.name],["Client",project.client||project.contacts?.Owner?.name],["Architect",project.architect||project.contacts?.Architect?.name],["Address",project.address],["Project Type",project.type]].map(([label,value])=><div key={label}><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginBottom:5}}>{label}</div><div style={{fontFamily:FONT_BODY,fontSize:13,overflowWrap:"anywhere"}}>{value||"—"}</div></div>)}
         </div>
+        <div style={{display:"flex",justifyContent:"flex-end",marginTop:14}}>
+          <button type="button" style={{...smallBtn,border:`1px solid ${T.blue}`,color:T.blue,background:"#fff"}} onClick={()=>setShowProjectTeam(v=>!v)}>{showProjectTeam?"Hide Team":"View Team"}</button>
+        </div>
+        {showProjectTeam&&<div style={{marginTop:14,borderTop:`1px solid ${T.line}`,paddingTop:14}}>
+          <div style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,marginBottom:10}}>PROJECT TEAM · {project.name}</div>
+          {Object.entries(project.contacts||{}).filter(([,c])=>c&&(String(c.name||"").trim()||String(c.company||"").trim())).map(([role,c])=>{
+            const key=contactKey(c.name||c.company,c.mobile);
+            const rating=Number(c.rating||state.ratings?.[key]?.rating||0);
+            return <div key={role} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,padding:"9px 0",borderBottom:`1px solid ${T.line}`,flexWrap:"wrap"}}>
+              <div><strong style={{fontFamily:FONT_BODY,fontSize:13}}>{c.name||c.company}</strong><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim}}>{role}{c.company?` · ${c.company}`:""}</div></div>
+              <DirectoryStars name={c.name||c.company} value={rating} disabled={teamRatingBusy} onChange={async value=>{
+                const before=latestProjectStateRef.current;
+                const projects=directoryCorrections(before.projects,[key],{rating:value});
+                const changed=projects.filter((p,i)=>p!==before.projects[i]);
+                if(!changed.length)return;
+                const next={...before,projects};setTeamRatingBusy(true);
+                try{await persist(next);for(const p of changed)await projectApi.saveContacts(p.id,contactsObjectToRows(p,p.contacts));setProjectSaveMessage("Team rating saved to Google Sheets.");}
+                catch(err){await persist(before);setProjectSaveMessage(`Team rating save failed: ${err?.message||err}`);}
+                finally{setTeamRatingBusy(false);}
+              }}/>
+            </div>;
+          })}
+          {!Object.values(project.contacts||{}).some(c=>c&&(c.name||c.company))&&<div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim}}>No team contacts assigned to this project.</div>}
+        </div>}
       </section>}
 
       {project && editDraft && isProjectEditorOpen && <div style={{marginTop:16,border:`2px solid ${T.navy}`,background:"#fff",padding:16}}>
@@ -5332,6 +5353,7 @@ function ProjectView({ state, persist }) {
         </div>
         <div style={{display:"flex",gap:8,marginTop:16}}>
           <Btn onClick={saveProjectEditor}><ClipboardCheck size={14}/> Save Project</Btn>
+          <button type="button" style={{...smallBtn,border:"1px solid #9B3B35",color:"#9B3B35",background:"#fff"}} onClick={()=>deleteProject(project)}>Delete Project</button>
           
         </div>
         <div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim,marginTop:10}}>Edit Client through Owner and edit Architect in the contact list above. Save Project closes this editor and updates the summary immediately.</div>
@@ -5400,7 +5422,7 @@ function ProjectView({ state, persist }) {
       </div>}
     </div>}
 
-    {tab==="team"&&<ProjectTeamView state={state} persist={persist} selectedId={selectedId}/>}
+    {tab==="team"&&<ProjectDirectory state={state} persist={persist}/>}
     {tab==="line"&&<ProjectLineOfWorkView state={state} persist={persist} selectedId={selectedId || null} />}
   </div>;
 }
