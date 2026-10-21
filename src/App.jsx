@@ -3507,6 +3507,13 @@ function TimesheetView({ state, persist }) {
    projects across the top, zone letters down the side, each cell
    showing that zone's floor + room, colored by live task status.
 --------------------------------------------------------------- */
+// Excel-style zone ordering: A ... Z, AA ... AZ, BA ... ZZ, AAA ...
+const zoneOrdinal = code => {
+  const value=String(code||'').trim().toUpperCase();
+  if(!/^[A-Z]+$/.test(value))return Number.POSITIVE_INFINITY;
+  return [...value].reduce((n,ch)=>n*26+ch.charCodeAt(0)-64,0);
+};
+const compareZoneCodes=(a,b)=>zoneOrdinal(a)-zoneOrdinal(b)||String(a).localeCompare(String(b),undefined,{numeric:true});
 function DashboardView({ state, persist }) {
   const [projectId,setProjectId]=useState("");
   const [editor,setEditor]=useState(null);
@@ -3524,7 +3531,7 @@ function DashboardView({ state, persist }) {
     if(areaSaving)return;
     if(!project||!editor?.floor||!editor?.area?.trim())return alert("Select a floor and enter Area / Room.");
     let zoneCode=String(editor.zoneCode||"").trim().toUpperCase();
-    if(!zoneCode)return alert("Enter the Zone Code. Zone Code must be added by the doer.");
+    if(!/^[A-Z]+$/.test(zoneCode))return alert("Enter a valid Zone Code using letters A–Z (for example A, Z, AA, AB, AZ, BA).");
     const used=new Set(rows.map(r=>String(r.zoneCode||"").toUpperCase()).filter(Boolean));
     const duplicate=rows.some(r=>{
       const sameRow=editor.floorZoneId?String(r.floorZoneId||"")===String(editor.floorZoneId):String(r.zoneCode||"").toUpperCase()===String(editor.zoneCode||"").toUpperCase();
@@ -3556,7 +3563,7 @@ function DashboardView({ state, persist }) {
       const zoneCode=String(parts.shift()||"").trim().toUpperCase();
       const area=parts.join("|").trim();
       const floor=String(bulkEditor.floor||scopeFloors[0]||"").trim();
-      return {lineIndex:item.lineIndex,zoneCode,floor,area,valid:usedFloors.has(floor)&&!!zoneCode&&!!area};
+      return {lineIndex:item.lineIndex,zoneCode,floor,area,valid:usedFloors.has(floor)&&/^[A-Z]+$/.test(zoneCode)&&!!area};
     });
   };
 
@@ -3608,7 +3615,7 @@ function DashboardView({ state, persist }) {
       {(()=>{
         const floorOrder=["-1F","SF","GF","1F","2F","3F","4F","Terrace","Facade","Landscape"];
         const allFloors=[...new Set([...floorOrder,...projects.flatMap(p=>designDashboardScopeFloors(p))])];
-        const zoneCodes=[...new Set(projects.flatMap(p=>(p.floorZones||Object.entries(p.zones||{}).map(([zoneCode,v])=>({zoneCode,...v}))).map(r=>String(r.zoneCode||"").trim().toUpperCase()).filter(Boolean)))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+        const zoneCodes=[...new Set(projects.flatMap(p=>(p.floorZones||Object.entries(p.zones||{}).map(([zoneCode,v])=>({zoneCode,...v}))).map(r=>String(r.zoneCode||"").trim().toUpperCase()).filter(Boolean)))].sort(compareZoneCodes);
         const cell={padding:"7px 8px",borderRight:`1px solid ${T.line}`,borderBottom:`1px solid ${T.line}`,fontFamily:FONT_MONO,fontSize:11,whiteSpace:"nowrap",textAlign:"left"};
         return <table style={{borderCollapse:"separate",borderSpacing:0,width:"max-content",minWidth:"100%"}}>
           <thead><tr><th style={{...cell,position:"sticky",left:0,top:0,zIndex:4,minWidth:90,background:"#D2CDC1",borderBottom:`2px solid ${T.ink}`}}>Zone</th>{projects.map(p=><th key={p.id} style={{...cell,position:"sticky",top:0,zIndex:3,minWidth:235,maxWidth:300,background:String(p.id)===String(projectId)?"#c9dce4":"#D2CDC1",borderBottom:`2px solid ${T.ink}`}}><button type="button" onClick={()=>setProjectId(String(p.id))} title="Select this project to manage its areas" style={{border:0,background:"transparent",font:"inherit",fontWeight:800,cursor:"pointer",textAlign:"left",color:T.ink,whiteSpace:"normal"}}>{p.name||p.no||p.projectNo}</button><div style={{fontSize:9,fontWeight:400,marginTop:3}}>{p.no||p.projectNo}</div></th>)}</tr></thead>
@@ -3638,7 +3645,7 @@ function DashboardView({ state, persist }) {
       <div style={{width:"min(650px,96vw)",background:T.paper,border:`1px solid ${T.line}`}}>
         <div style={{background:T.navy,color:"#fff",padding:14,fontFamily:FONT_DISPLAY,fontSize:18}}>{editor.mode==="edit"?"Edit":"Add"} Floor / Zone · {project.no}</div>
         <div style={{padding:16,display:"grid",gridTemplateColumns:"160px 1fr",gap:12}}>
-          <Field label="Zone Code"><input value={editor.zoneCode} onChange={e=>setEditor(x=>({...x,zoneCode:e.target.value.toUpperCase()}))} placeholder="Enter Zone Code (e.g. A)" style={inputStyle}/></Field>
+          <Field label="Zone Code"><input value={editor.zoneCode} onChange={e=>setEditor(x=>({...x,zoneCode:e.target.value.toUpperCase()}))} placeholder="Zone Code (A, Z, AA, AB, BA…)" style={inputStyle}/></Field>
           <Field label="Floor from Project Scope"><select value={editor.floor} onChange={e=>setEditor(x=>({...x,floor:e.target.value}))} style={inputStyle}>{scopeFloors.map(f=><option key={f}>{f}</option>)}</select></Field>
           <div style={{gridColumn:"1 / -1"}}><Field label="Area / Room"><input value={editor.area} onChange={e=>setEditor(x=>({...x,area:e.target.value}))} placeholder="Living Room, Bedroom, Washroom..." style={inputStyle}/></Field></div>
         </div>
