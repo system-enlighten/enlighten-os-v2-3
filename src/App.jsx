@@ -4875,6 +4875,10 @@ function ProjectView({ state, persist }) {
     ["Bath Elevation","bath_elevation"],["Furniture","wardrobe"],["Onboarding","onboarding"]
   ];
 
+  // Keep the scrollable table exactly as wide as its grid tracks, including Completed.
+  const ongoingGridColumns = `65px 300px 180px 180px repeat(${scopeFields.length},78px) 105px`;
+  const ongoingGridWidth = 65 + 300 + 180 + 180 + scopeFields.length * 78 + 105;
+
   const isCompletedProject = p => (p.status==="Completed" || p.projectControl?.projectStatus==="Completed" || Boolean(p.completedAt));
   const ongoingProjects = state.projects.filter(p=>!isCompletedProject(p));
   const completedProjects = state.projects.filter(isCompletedProject);
@@ -5221,15 +5225,15 @@ function ProjectView({ state, persist }) {
       </div>
 
       <div style={{overflowX:"auto",border:`1px solid ${T.line}`,background:"#fff"}}>
-        <div style={{minWidth:1750}}>
+        <div style={{width:ongoingGridWidth,minWidth:"100%"}}>
           <div style={{
             display:"grid",
-            gridTemplateColumns:`65px 300px 180px 180px repeat(${scopeFields.length},78px) 105px`,
+            gridTemplateColumns:ongoingGridColumns,
             background:"#D2CDC1",color:"#1C1C19",borderBottom:`2px solid ${T.ink}`,
             fontFamily:FONT_MONO,fontSize:8,fontWeight:700
           }}>
             {["S. No","Current Project","Client","Architect",...scopeFields.map(([label])=>label),"Completed"].map((h,i)=>
-              <div key={i} style={{padding:"9px 6px",borderRight:`1px solid ${T.line}`,textAlign:i>=4?"center":"left",display:"flex",alignItems:"center",justifyContent:i>=4?"center":"flex-start"}}>
+              <div key={i} style={{padding:"9px 6px",borderRight:`1px solid ${T.line}`,textAlign:i>=4?"center":"left",display:"flex",alignItems:"center",justifyContent:i>=4?"center":"flex-start",background:"#D2CDC1",boxSizing:"border-box"}}>
                 {h}
               </div>
             )}
@@ -5239,7 +5243,7 @@ function ProjectView({ state, persist }) {
             const sc=scopeFor(p);
             const selected=p.id===project?.id;
             return <div key={p.id} onClick={()=>setSelectedId(p.id)} style={{
-              display:"grid",gridTemplateColumns:`65px 300px 180px 180px repeat(${scopeFields.length},78px) 105px`,
+              display:"grid",gridTemplateColumns:ongoingGridColumns,
               borderBottom:`1px solid ${T.line}`,background:selected?"#F3F1EA":"#fff",cursor:"pointer",
               fontFamily:FONT_BODY,fontSize:10
             }}>
@@ -5269,7 +5273,7 @@ function ProjectView({ state, persist }) {
                   color:on?"#245C2B":"#999",cursor:"pointer",fontSize:16,fontWeight:800
                 }}>{on?"☑":"☐"}</button>;
               })}
-              <div style={{display:"flex",gap:5,alignItems:"center",justifyContent:"center",padding:5,background:"#fff"}}>
+              <div style={{display:"flex",gap:5,alignItems:"center",justifyContent:"center",padding:5,background:"#fff",borderRight:`1px solid ${T.line}`,boxSizing:"border-box"}}>
                 <button type="button" onClick={e=>completeProject(p,e,"not_survived")} title="Completed — did not survive to the end" aria-label={`Mark ${p.name||"project"} completed, did not survive`} style={{...smallBtn,background:"#F5DEDC",color:"#963C37",border:"1px solid #C98D88",padding:"6px 9px",fontWeight:700}}>✕</button>
                 <button type="button" onClick={e=>completeProject(p,e,"survived")} title="Completed — survived to the end" aria-label={`Mark ${p.name||"project"} completed, survived`} style={{...smallBtn,background:"#DFEDE0",color:"#2F7042",border:"1px solid #91B69A",padding:"6px 9px",fontWeight:700}}>✓</button>
               </div>
@@ -5288,16 +5292,30 @@ function ProjectView({ state, persist }) {
       {project && editDraft && isProjectEditorOpen && <div style={{marginTop:16,border:`2px solid ${T.navy}`,background:"#fff",padding:16}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:14}}>
           <div>
-            <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.cyan}}>Project Details · Read Only / Contacts · Editable</div>
+            <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.cyan}}>Project Details · Editable (Client & Architect read-only) / Contacts · Editable</div>
             <div style={{fontFamily:FONT_DISPLAY,fontSize:18,fontWeight:700,marginTop:3}}>{editDraft.name || "Selected Project"}</div>
           </div>
           <div style={{display:"flex",gap:8}}>
-            <button onClick={()=>openProjectEditor(project)} style={{...smallBtn}}>Reset Form</button>
+            
             <button onClick={()=>setIsProjectEditorOpen(false)} style={{...smallBtn}}>Collapse</button>
           </div>
         </div>
-        <section aria-label="Read-only project details" style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:12}}>
-          {[["Project No.",project.no],["Project Name",project.name],["Client",project.client||project.contacts?.Owner?.name],["Architect",project.architect||project.contacts?.Architect?.name],["Address",project.address],["Project Type",project.type],["Start Date",formatProjectDate(project.startDate)],["Planned Completion",formatProjectDate(project.plannedCompletionDate||project.endDate)],["Project Status",project.projectStatus||project.status]].map(([label,value])=><div key={label}><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginBottom:5}}>{label}</div><div style={{fontFamily:FONT_BODY,fontSize:13,overflowWrap:"anywhere"}}>{value||"—"}</div></div>)}
+        <section aria-label="Editable project details" style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:12}}>
+          {[
+            ["Project No.","no"],["Project Name","name"],["Client","client"],["Architect","architect"],
+            ["Address","address"],["Project Type","type"],["Start Date","startDate"],
+            ["Planned Completion","plannedCompletionDate"],["Project Status","projectStatus"]
+          ].map(([label,key])=>{
+            const locked=key==="client"||key==="architect";
+            const value=editDraft[key]||"";
+            return <div key={key}>
+              <label style={{display:"block",fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginBottom:5}}>{label}</label>
+              {locked ? <div style={{fontFamily:FONT_BODY,fontSize:13,overflowWrap:"anywhere",padding:"9px 0"}}>{value||"—"}</div>
+              : key==="type" ? <select aria-label={label} value={value} onChange={e=>setEditDraft(d=>({...d,[key]:e.target.value}))} style={{...inputStyle,width:"100%"}}>{["Residence","Commercial","Hospitality","Retail","Other"].map(v=><option key={v} value={v}>{v}</option>)}</select>
+              : key==="projectStatus" ? <select aria-label={label} value={value} onChange={e=>setEditDraft(d=>({...d,[key]:e.target.value}))} style={{...inputStyle,width:"100%"}}>{["Ongoing","On Hold","Completed","Cancelled"].concat(value&&! ["Ongoing","On Hold","Completed","Cancelled"].includes(value)?[value]:[]).map(v=><option key={v} value={v}>{v}</option>)}</select>
+              : <input aria-label={label} type={key==="startDate"||key==="plannedCompletionDate"?"date":"text"} value={value} onChange={e=>setEditDraft(d=>({...d,[key]:e.target.value}))} style={{...inputStyle,width:"100%",boxSizing:"border-box"}}/>}
+            </div>;
+          })}
         </section>
         <div style={{marginTop:18,paddingTop:14,borderTop:`1px solid ${T.line}`}}>
           <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.cyan,marginBottom:10}}>Project Contacts · Editable</div>
@@ -5314,7 +5332,7 @@ function ProjectView({ state, persist }) {
         </div>
         <div style={{display:"flex",gap:8,marginTop:16}}>
           <Btn onClick={saveProjectEditor}><ClipboardCheck size={14}/> Save Project</Btn>
-          <Btn variant="ghost" onClick={()=>openProjectEditor(project)}>Reset</Btn>
+          
         </div>
         <div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim,marginTop:10}}>Edit Client through Owner and edit Architect in the contact list above. Save Project closes this editor and updates the summary immediately.</div>
       </div>}
