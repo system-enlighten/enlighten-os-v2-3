@@ -5284,16 +5284,20 @@ function ProjectView({ state, persist }) {
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:14}}>
           {[["Project No.",project.no],["Project Name",project.name],["Client",project.client||project.contacts?.Owner?.name],["Architect",project.architect||project.contacts?.Architect?.name],["Address",project.address],["Project Type",project.type]].map(([label,value])=><div key={label}><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginBottom:5}}>{label}</div><div style={{fontFamily:FONT_BODY,fontSize:13,overflowWrap:"anywhere"}}>{value||"—"}</div></div>)}
         </div>
-        <div style={{display:"flex",justifyContent:"flex-end",marginTop:14}}>
+        <div style={{display:"flex",justifyContent:"center",marginTop:14}}>
           <button type="button" style={{...smallBtn,border:`1px solid ${T.blue}`,color:T.blue,background:"#fff"}} onClick={()=>setShowProjectTeam(v=>!v)}>{showProjectTeam?"Hide Team":"View Team"}</button>
         </div>
         {showProjectTeam&&<div style={{marginTop:14,borderTop:`1px solid ${T.line}`,paddingTop:14}}>
           <div style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,marginBottom:10}}>PROJECT TEAM · {project.name}</div>
+          <div style={{overflowX:"auto"}}>
+          <div style={{display:"grid",gridTemplateColumns:"minmax(160px,1.3fr) minmax(120px,1fr) minmax(190px,1.4fr) minmax(145px,auto)",gap:12,minWidth:680,padding:"8px",background:T.paper2,borderBottom:`1px solid ${T.ink}`,fontFamily:FONT_MONO,fontSize:10,fontWeight:700}}><span>TEAM MEMBER</span><span>MOBILE NUMBER</span><span>EMAIL ID</span><span>RATING</span></div>
           {Object.entries(project.contacts||{}).filter(([,c])=>c&&(String(c.name||"").trim()||String(c.company||"").trim())).map(([role,c])=>{
             const key=contactKey(c.name||c.company,c.mobile);
             const rating=Number(c.rating||state.ratings?.[key]?.rating||0);
-            return <div key={role} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,padding:"9px 0",borderBottom:`1px solid ${T.line}`,flexWrap:"wrap"}}>
+            return <div key={role} style={{display:"grid",gridTemplateColumns:"minmax(160px,1.3fr) minmax(120px,1fr) minmax(190px,1.4fr) minmax(145px,auto)",alignItems:"center",gap:12,padding:"9px 8px",borderBottom:`1px solid ${T.line}`,minWidth:680}}>
               <div><strong style={{fontFamily:FONT_BODY,fontSize:13}}>{c.name||c.company}</strong><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim}}>{role}{c.company?` · ${c.company}`:""}</div></div>
+              <div style={{fontFamily:FONT_MONO,fontSize:12,overflowWrap:"anywhere"}}>{c.mobile||"—"}</div>
+              <div style={{fontFamily:FONT_BODY,fontSize:12,overflowWrap:"anywhere"}}>{c.email||"—"}</div>
               <DirectoryStars name={c.name||c.company} value={rating} disabled={teamRatingBusy} onChange={async value=>{
                 const before=latestProjectStateRef.current;
                 const projects=directoryCorrections(before.projects,[key],{rating:value});
@@ -5307,6 +5311,7 @@ function ProjectView({ state, persist }) {
             </div>;
           })}
           {!Object.values(project.contacts||{}).some(c=>c&&(c.name||c.company))&&<div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim}}>No team contacts assigned to this project.</div>}
+          </div>
         </div>}
       </section>}
 
