@@ -3596,7 +3596,7 @@ function DashboardView({ state, persist }) {
     <h2 style={{fontFamily:FONT_DISPLAY,fontSize:22,margin:"4px 0"}}>Floor / Zone</h2>
     <div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim,marginBottom:16}}>Projects come from Project → Projects & Scope. Only floors selected in that project's scope are available here. Saved areas automatically flow into Design Dashboard.</div>
     <div style={{fontFamily:FONT_MONO,fontSize:10,fontWeight:700,color:T.inkDim,marginBottom:8}}>FLOOR / ZONE MATRIX · SELECT A PROJECT COLUMN TO EDIT ITS AREAS BELOW</div>
-    <div style={{border:`1px solid ${T.line}`,background:"#fff",marginBottom:18,overflow:"auto",maxHeight:"68vh"}}>
+    <div style={{border:`1px solid ${T.line}`,background:"transparent",marginBottom:18,overflow:"auto",maxHeight:"68vh"}}>
       {(()=>{
         const floorOrder=["-1F","SF","GF","1F","2F","3F","4F","Terrace","Facade","Landscape"];
         const allFloors=[...new Set([...floorOrder,...projects.flatMap(p=>designDashboardScopeFloors(p))])];
@@ -3605,8 +3605,8 @@ function DashboardView({ state, persist }) {
         return <table style={{borderCollapse:"separate",borderSpacing:0,width:"max-content",minWidth:"100%"}}>
           <thead><tr><th style={{...cell,position:"sticky",left:0,top:0,zIndex:4,minWidth:90,background:"#D2CDC1",borderBottom:`2px solid ${T.ink}`}}>Zone</th>{projects.map(p=><th key={p.id} style={{...cell,position:"sticky",top:0,zIndex:3,minWidth:235,maxWidth:300,background:String(p.id)===String(projectId)?"#c9dce4":"#D2CDC1",borderBottom:`2px solid ${T.ink}`}}><button type="button" onClick={()=>setProjectId(String(p.id))} title="Select this project to manage its areas" style={{border:0,background:"transparent",font:"inherit",fontWeight:800,cursor:"pointer",textAlign:"left",color:T.ink,whiteSpace:"normal"}}>{p.name||p.no||p.projectNo}</button><div style={{fontSize:9,fontWeight:400,marginTop:3}}>{p.no||p.projectNo}</div></th>)}</tr></thead>
           <tbody>
-            {allFloors.map((f,i)=><tr key={'floor-'+f}><th style={{...cell,position:"sticky",left:0,zIndex:2,background:"#FFE483",fontWeight:800}}>{f}</th>{projects.map(p=>{const scope=designDashboardScopeFloors(p);return <td key={p.id} style={{...cell,background:i%2?"#fff":"#f6f5f2"}}>{scope.includes(f)?f:""}</td>})}</tr>)}
-            {zoneCodes.map((z,i)=><tr key={'zone-'+z}><th style={{...cell,position:"sticky",left:0,zIndex:2,background:"#FFE483",fontWeight:800}}>{z}</th>{projects.map(p=>{const r=(p.floorZones||Object.entries(p.zones||{}).map(([zoneCode,v])=>({zoneCode,floor:v?.floor,area:v?.room}))).find(x=>String(x.zoneCode||"").trim().toUpperCase()===z);return <td key={p.id} style={{...cell,background:i%2?"#fff":"#f6f5f2"}}>{r?[r.floor,r.area||r.room].filter(Boolean).join(" | "):""}</td>})}</tr>)}
+            {allFloors.map((f,i)=><tr key={'floor-'+f}><th style={{...cell,position:"sticky",left:0,zIndex:2,background:"#fff",fontWeight:800}}>{f}</th>{projects.map(p=>{const scope=designDashboardScopeFloors(p);return <td key={p.id} style={{...cell,background:"transparent"}}>{scope.includes(f)?f:""}</td>})}</tr>)}
+            {zoneCodes.map((z,i)=><tr key={'zone-'+z}><th style={{...cell,position:"sticky",left:0,zIndex:2,background:"#fff",fontWeight:800}}>{z}</th>{projects.map(p=>{const r=(p.floorZones||Object.entries(p.zones||{}).map(([zoneCode,v])=>({zoneCode,floor:v?.floor,area:v?.room}))).find(x=>String(x.zoneCode||"").trim().toUpperCase()===z);return <td key={p.id} style={{...cell,background:"transparent"}}>{r?[r.floor,r.area||r.room].filter(Boolean).join(" | "):""}</td>})}</tr>)}
             {!projects.length&&<tr><td style={{...cell,padding:16}}>No ongoing projects found.</td></tr>}
           </tbody>
         </table>;
