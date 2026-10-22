@@ -3553,14 +3553,21 @@ const zoneOrdinal = code => {
 const compareZoneCodes=(a,b)=>zoneOrdinal(a)-zoneOrdinal(b)||String(a).localeCompare(String(b),undefined,{numeric:true});
 function DashboardView({ state, persist }) {
   const [projectId,setProjectId]=useState("");
+  const [projectGroup,setProjectGroup]=useState("ongoing");
   const [editor,setEditor]=useState(null);
   const [bulkEditor,setBulkEditor]=useState(null);
   const [areaSaving,setAreaSaving]=useState(false);
   const [bulkSaving,setBulkSaving]=useState(false);
-  const projects=(state.projects||[]).filter(p=>p.status!=="Completed"&&p.projectControl?.projectStatus!=="Completed");
+  const completed=p=>[p.status,p.projectStatus,p.projectControl?.projectStatus].some(v=>String(v||"").toLowerCase()==="completed")||p.completed===true||String(p.completed).toLowerCase()==="true"||Boolean(p.completedAt)||Boolean(p.completedDate);
+  const allProjects=state.projects||[];
+  const ongoingProjects=allProjects.filter(p=>!completed(p)),completedProjects=allProjects.filter(completed);
+  const projects=projectGroup==="completed"?completedProjects:ongoingProjects;
+  const switchGroup=group=>{if(areaSaving||bulkSaving)return;setProjectGroup(group);setProjectId("");setEditor(null);setBulkEditor(null);};
   const project=projects.find(p=>String(p.id)===String(projectId))||null;
-  const scopeFloors=project?designDashboardScopeFloors(project):[];
+
   const rows=project?(project.floorZones||Object.entries(project.zones||{}).map(([zoneCode,v],i)=>({floorZoneId:"",zoneCode,floor:v?.floor||"",area:v?.room||"",seq:i+1}))):[];
+
+  const scopeFloors=project?[...new Set([...designDashboardScopeFloors(project),...rows.map(r=>String(r.floor||"")).filter(Boolean)])]:[];
 
   const addRow=f=>setEditor({mode:"add",floorZoneId:"",zoneCode:"",floor:f||scopeFloors[0]||"",area:""});
   const editRow=r=>setEditor({mode:"edit",floorZoneId:r.floorZoneId||"",zoneCode:r.zoneCode||"",floor:r.floor||"",area:r.area||r.room||""});
@@ -3647,6 +3654,11 @@ function DashboardView({ state, persist }) {
   return <div>
     <h2 style={{fontFamily:FONT_DISPLAY,fontSize:22,margin:"4px 0"}}>Floor / Zone</h2>
     <div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim,marginBottom:16}}>Projects come from Project → Projects & Scope. Only floors selected in that project's scope are available here. Saved areas automatically flow into Design Dashboard.</div>
+    <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"center",marginBottom:14}} role="group" aria-label="Floor / Zone project status">
+      {[["ongoing","Ongoing Projects",ongoingProjects.length],["completed","Completed Projects",completedProjects.length]].map(([id,label,count])=><button key={id} type="button" aria-pressed={projectGroup===id} disabled={areaSaving||bulkSaving} onClick={()=>switchGroup(id)} style={{...smallBtn,fontFamily:FONT_BODY,fontSize:13,padding:"10px 14px",background:projectGroup===id?T.navy:"#fff",color:projectGroup===id?"#fff":T.ink}}>{`${label} (${count})`}</button>)}
+    </div>
+    {projectGroup==="completed"&&<div role="status" style={{padding:"10px 12px",marginBottom:14,background:T.paperDim,border:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:13}}>Completed project records: select a project to add or update its floors and areas. Saving here keeps the project completed.</div>}
+    <label style={{display:"grid",gap:6,fontFamily:FONT_BODY,fontSize:12,maxWidth:560,marginBottom:16}}>Find and open a project<select aria-label="Floor / Zone project" value={project?.id||""} disabled={areaSaving||bulkSaving} onChange={e=>{setProjectId(e.target.value);setEditor(null);setBulkEditor(null);}} style={inputStyle}><option value="">Select {projectGroup==="completed"?"a completed":"an ongoing"} project…</option>{projects.map(p=><option key={p.id} value={p.id}>{p.no||p.projectNo||""} · {p.name||p.id}</option>)}</select></label>
     <div style={{fontFamily:FONT_MONO,fontSize:10,fontWeight:700,color:T.inkDim,marginBottom:8}}>FLOOR / ZONE MATRIX · SELECT A PROJECT COLUMN TO EDIT ITS AREAS BELOW</div>
     <div style={{border:`1px solid ${T.line}`,background:"transparent",marginBottom:18,overflow:"auto",maxHeight:"68vh"}}>
       {(()=>{
@@ -3659,7 +3671,7 @@ function DashboardView({ state, persist }) {
           <tbody>
             {allFloors.map((f,i)=><tr key={'floor-'+f}><th style={{...cell,position:"sticky",left:0,zIndex:2,background:"#fff",fontWeight:800}}>{f}</th>{projects.map(p=>{const scope=designDashboardScopeFloors(p);return <td key={p.id} style={{...cell,background:"transparent"}}>{scope.includes(f)?f:""}</td>})}</tr>)}
             {zoneCodes.map((z,i)=><tr key={'zone-'+z}><th style={{...cell,position:"sticky",left:0,zIndex:2,background:"#fff",fontWeight:800}}>{z}</th>{projects.map(p=>{const r=(p.floorZones||Object.entries(p.zones||{}).map(([zoneCode,v])=>({zoneCode,floor:v?.floor,area:v?.room}))).find(x=>String(x.zoneCode||"").trim().toUpperCase()===z);return <td key={p.id} style={{...cell,background:"transparent"}}>{r?[r.floor,r.area||r.room].filter(Boolean).join(" | "):""}</td>})}</tr>)}
-            {!projects.length&&<tr><td style={{...cell,padding:16}}>No ongoing projects found.</td></tr>}
+            {!projects.length&&<tr><td style={{...cell,padding:16}}>No {projectGroup=== "completed"?"completed":"ongoing"} projects found.</td></tr>}
           </tbody>
         </table>;
       })()}
@@ -3667,7 +3679,7 @@ function DashboardView({ state, persist }) {
 
     {project&&<div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-        <div><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.cyan}}>SELECTED PROJECT · {project.no||project.projectNo}</div><h3 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:"3px 0"}}>{project.name}</h3></div>
+        <div><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.cyan}}>SELECTED PROJECT · {project.no||project.projectNo}</div><h3 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:"3px 0"}}>{project.name}</h3><span style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>Status: {completed(project)?"Completed":project.status||"Ongoing"}</span></div>
         <div style={{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"flex-end"}}><button type="button" disabled={!scopeFloors.length} onClick={()=>setBulkEditor({floor:scopeFloors[0]||"",text:""})} style={{...smallBtn,background:T.navy,color:"#fff",padding:"9px 14px"}}>+ BULK ADD AREAS</button><button type="button" disabled={!scopeFloors.length} onClick={()=>addRow(scopeFloors[0])} style={{...smallBtn,background:"#fff",padding:"9px 14px"}}>+ ADD ONE</button></div>
       </div>
       {scopeFloors.map(f=>{const fr=rows.filter(r=>String(r.floor)===f);return <div key={f} style={{border:`1px solid ${T.line}`,background:"#fff",marginBottom:10}}>
