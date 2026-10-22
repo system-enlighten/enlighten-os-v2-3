@@ -2618,6 +2618,7 @@ const projectApi = {
   deleteSitePunchIn: payload => apiRequest('deleteSitePunchIn',payload),
   listFloorZones: projectId => apiRequest("listFloorZones", projectId ? { projectId } : {}, "GET"),
   saveFloorZones: (projectId, rows) => apiRequest("saveFloorZones", { projectId, rows }),
+  listDrawingRegister: projectId => apiRequest("listDrawingRegister", {projectId}, "GET"),
   receiveDrawing: payload => apiRequest("receiveDrawing", payload),
   classifyDrawing: payload => apiRequest("classifyReceivedDrawing", payload),
   listTeam: () => apiRequest("listTeamMembers", {}, "GET"),
@@ -3017,6 +3018,76 @@ function Chip({ active, onClick, children, title }) {
 /* ---------------------------------------------------------------
    VIEW: UPLOAD (Stage 1 of intake)
 --------------------------------------------------------------- */
+function drawingRegisterCoverage(row,project){
+  const areas=project.floorZones||Object.entries(project.zones||{}).map(([zoneCode,z])=>({zoneCode,floor:z.floor,area:z.room}));
+  const coverage=row.coverage||[];
+  const floors=[...new Set(coverage.map(c=>c.floor).filter(Boolean))];
+  return floors.map(floor=>{
+    const selected=coverage.filter(c=>c.floor===floor),known=areas.filter(a=>String(a.floor)===String(floor));
+    const full=selected.some(c=>!c.area)||(known.length>0&&known.every(a=>selected.some(c=>String(c.area).trim().toLowerCase()===String(a.area||a.room).trim().toLowerCase())));
+    const tag=c=>{const saved=known.find(a=>String(a.area||a.room).trim().toLowerCase()===String(c.area).trim().toLowerCase());if(saved?.tag||saved?.category)return saved.tag||saved.category;const name=String(c.area||'');return /bedroom|bed room/i.test(name)?'Bedroom':/toilet|washroom|bathroom|powder/i.test(name)?'Toilets':/kitchen|pantry/i.test(name)?'Kitchen':/stair/i.test(name)?'Staircase':/office|meeting|md room|md cabin/i.test(name)?'Office':/living|lounge|lobby|dining|dinning|reception|porch/i.test(name)?'Social Spaces':/puja|pooja|mandir/i.test(name)?'Mandir':name;};
+    const summary=full?(row.drawingType||'Layout'):[...new Set(selected.map(tag).filter(Boolean))].join(' ∞ ');
+    return {floor,summary:`${floor} | ${summary||row.drawingType||'Drawing'}`,details:selected.map(c=>{const z=known.find(a=>String(a.area||a.room).trim().toLowerCase()===String(c.area||'').trim().toLowerCase());return {floor,zoneCode:c.zoneCode||z?.zoneCode||'',area:c.area||'Whole floor'};})};
+  });
+}
+
+function buildDrawingRegister(project,data){
+  const drawings=(data.drawings||[]).filter(d=>String(d.projectId)===String(project.id));
+  const files=(data.files||[]).filter(f=>String(f.projectId)===String(project.id));
+  const tasks=(data.tasks||[]).filter(t=>String(t.projectId)===String(project.id));
+  const parse=v=>{if(Array.isArray(v))return v;try{const a=JSON.parse(v||'[]');return Array.isArray(a)?a:[];}catch{return [];}};
+  const groups=new Map(),byDrawing=new Map();
+  const addCoverage=(entry,r)=>{const list=r.area?[{floor:r.floor,area:r.area,zoneCode:r.zoneCode||''}]:parse(r.floorTags).length?parse(r.floorTags).map(f=>({floor:f,area:''})):String(r.floor||'').split(',').map(f=>({floor:f.trim(),area:''}));list.filter(c=>c.floor).forEach(c=>{if(!entry.coverage.some(a=>a.floor===c.floor&&a.area===c.area))entry.coverage.push(c);});};
+  for(const d of drawings){
+    if(String(d.direction||'Received').toLowerCase()==='sent')continue;
+    const file=files.find(f=>f.linkedEntityId===d.drawingId)||files.find(f=>d.driveFileId&&f.driveFileId===d.driveFileId);
+    const key=JSON.stringify([d.driveFileId||file?.driveFileId||d.drawingId,d.revisionNo||'',d.drawingType||'']);
+    if(!groups.has(key))groups.set(key,{id:key,date:d.receivedSentDate||d.createdAt||file?.uploadedAt||'',fileName:d.fileName||file?.fileName||'Drawing',drawingType:d.drawingType||'',revisionNo:d.revisionNo??'',driveUrl:d.driveUrl||file?.driveUrl||'',coverage:[],sent:[]});
+    const row=groups.get(key);addCoverage(row,d);byDrawing.set(String(d.drawingId),row);
+  }
+  // Additional received file rows without a Drawing_Register counterpart remain visible.
+  for(const f of files.filter(f=>String(f.direction).toLowerCase()==='received')){
+    if(drawings.some(d=>f.linkedEntityId===d.drawingId||(f.driveFileId&&f.driveFileId===d.driveFileId)))continue;
+    const key=String(f.fileId||f.driveFileId);if(groups.has(key))continue;
+    const row={id:key,date:f.uploadedAt||'',fileName:f.fileName||'Drawing',drawingType:f.drawingType||'',revisionNo:f.revisionNo??'',driveUrl:f.driveUrl||'',coverage:[],sent:[]};addCoverage(row,f);groups.set(key,row);
+  }
+  // Classified area rows supersede the upload's whole-floor tags for the same file.
+  for(const r of groups.values())r.coverage=r.coverage.filter(c=>c.area||!r.coverage.some(a=>a.floor===c.floor&&a.area));
+  const sentSeen=new Map(),standalone=[];
+  for(const f of [...files.filter(f=>String(f.direction).toLowerCase()==='sent'),...drawings.filter(d=>String(d.direction).toLowerCase()==='sent')]){
+    const key=JSON.stringify([f.driveFileId||f.fileId||f.drawingId,f.revisionNo||'',f.drawingType||'']);if(sentSeen.has(key)){addCoverage(sentSeen.get(key),f);continue;}
+    const task=tasks.find(t=>String(t.designTaskId)===String(f.linkedEntityId||f.designTaskId));
+    const row={id:key,date:f.receivedSentDate||f.uploadedAt||f.createdAt||task?.completedAt||'',fileName:f.fileName||task?.taskType||'Sent drawing',drawingType:f.drawingType||task?.taskType||'',revisionNo:f.revisionNo??'',driveUrl:f.driveUrl||'',coverage:[]};
+    addCoverage(row,{...f,floor:f.floor||task?.floor,area:f.area||task?.area});sentSeen.set(key,row);
+    const source=byDrawing.get(String(f.sourceDrawingId||task?.sourceDrawingId||''));if(source)source.sent.push(row);else standalone.push({id:`sent-${key}`,received:null,sent:[row]});
+  }
+  return [...[...groups.values()].map(r=>({id:r.id,received:r,sent:r.sent})),...standalone].sort((a,b)=>String(b.received?.date||b.sent[0]?.date||'').localeCompare(String(a.received?.date||a.sent[0]?.date||'')));
+}
+
+function DrawingCoverage({row,project}){
+  const floors=drawingRegisterCoverage(row,project);
+  if(!floors.length)return <span style={{color:T.inkDim}}>Not tagged</span>;
+  return <details><summary style={{cursor:'pointer',fontWeight:500}}>{floors.slice(0,2).map(f=>f.summary).join(' & ')}{floors.length>2?` +${floors.length-2} floors`:''}</summary><div style={{marginTop:8,maxHeight:220,overflowY:'auto'}}>{floors.flatMap(f=>f.details).map((c,i)=><div key={i} style={{padding:'6px 0',borderTop:`1px solid ${T.line}`,fontSize:12}}>{c.zoneCode&&<strong>{c.zoneCode} · </strong>}{c.floor} | {c.area}</div>)}</div></details>;
+}
+
+function ReceivedSentView({state}){
+  const [projectId,setProjectId]=useState(state.projects?.[0]?.id||'');
+  const [result,setResult]=useState(null),[error,setError]=useState(''),[loading,setLoading]=useState(false),[query,setQuery]=useState(''),[revision,setRevision]=useState(0);
+  const project=(state.projects||[]).find(p=>String(p.id)===String(projectId));
+  useEffect(()=>{let live=true;setResult(null);setError('');if(!projectId){setLoading(false);return;}setLoading(true);projectApi.listDrawingRegister(projectId).then(data=>{if(live)setResult({projectId,data});}).catch(err=>{if(live)setError(err.message||'Could not load drawing register.');}).finally(()=>{if(live)setLoading(false);});return()=>{live=false;};},[projectId,revision]);
+  const groups=project&&result?.projectId===projectId?buildDrawingRegister(project,result.data):[];
+  const filtered=groups.filter(g=>[g.received,...g.sent].filter(Boolean).some(r=>[r.fileName,r.drawingType,r.revisionNo,...r.coverage.flatMap(c=>[c.floor,c.area])].join(' ').toLowerCase().includes(query.toLowerCase())));
+  const cell={padding:'12px 10px',border:`1px solid ${T.line}`,verticalAlign:'top',textAlign:'left',fontFamily:FONT_BODY,fontSize:12,lineHeight:1.5,overflowWrap:'anywhere'};
+  const head={...cell,background:'#D2CDC1',color:T.ink,fontFamily:FONT_MONO,fontSize:10,fontWeight:700};
+  const safeLink=url=>{try{const u=new URL(url);return ['https:','http:'].includes(u.protocol)?u.href:'';}catch{return '';}};
+  const link=r=>safeLink(r.driveUrl)?<a href={safeLink(r.driveUrl)} target="_blank" rel="noreferrer" style={{color:T.blue}}>Open file ↗</a>:<span style={{color:T.inkDim}}>No file link</span>;
+  return <section style={{fontFamily:FONT_BODY}}><h2 style={{fontFamily:FONT_DISPLAY,margin:'4px 0 8px'}}>Received & Sent</h2><p style={{fontSize:13,color:T.inkDim}}>Project drawing register. Expand a floor summary to see every selected zone. Sent files are recorded design outputs; opening this page does not send files.</p>
+    <div style={{display:'flex',gap:12,alignItems:'flex-end',flexWrap:'wrap',marginBottom:16}}><label style={{display:'grid',gap:6,fontSize:12,flex:'1 1 320px'}}>Project<select aria-label="Drawing register project" value={projectId} onChange={e=>{setProjectId(e.target.value);setQuery('');}} style={inputStyle}><option value="">Select a project…</option>{(state.projects||[]).map(p=><option key={p.id} value={p.id}>{p.no||''} · {p.name}{p.status==='Completed'||p.completedAt?' · Completed':''}</option>)}</select></label><input aria-label="Search drawing register" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search drawing, floor, area, type or revision" style={{...inputStyle,flex:'1 1 260px'}}/><button type="button" style={smallBtn} disabled={loading||!projectId} onClick={()=>setRevision(n=>n+1)}>Refresh</button></div>
+    {loading&&<p role="status">Loading drawing register…</p>}{error&&<p role="alert" style={{color:T.redline}}>{error} Update and redeploy the included Apps Script backend, then click Refresh.</p>}
+    {project&&!loading&&!error&&result&&<><p style={{fontSize:12,color:T.inkDim}}>{groups.filter(g=>g.received).length} received file(s) · {groups.reduce((n,g)=>n+g.sent.length,0)} sent file(s)</p><div style={{overflowX:'auto'}}><table style={{width:'100%',minWidth:1380,borderCollapse:'collapse',tableLayout:'fixed'}}><colgroup>{[85,125,205,85,190,60,80,205,160,60,85,80].map((w,i)=><col key={i} style={{width:w}}/>)}</colgroup><thead><tr><th colSpan={7} style={{...head,background:'#D2CDC1',textAlign:'center',fontSize:12}}>RECEIVED</th><th colSpan={5} style={{...head,background:T.navy,color:'#fff',textAlign:'center',fontSize:12}}>SENT</th></tr><tr>{['Date','Project','Floor / Zones','Type','Drawing Name','Rev No.','Link','Floor / Type','Drawing Name','Rev No.','Issue Date','Link'].map((h,i)=><th key={i} style={head}>{h}</th>)}</tr></thead><tbody>{filtered.flatMap(g=>Array.from({length:Math.max(1,g.sent.length)},(_,i)=>{const r=g.received,sent=g.sent[i],span=Math.max(1,g.sent.length);return <tr key={`${g.id}-${i}`} style={{background:i%2?'#fff':'transparent'}}>{i===0&&(r?<><td rowSpan={span} style={cell}>{formatProjectDate(r.date)}</td><td rowSpan={span} style={cell}>{project.no||project.name}</td><td rowSpan={span} style={cell}><DrawingCoverage row={r} project={project}/></td><td rowSpan={span} style={cell}>{r.drawingType||'—'}</td><td rowSpan={span} style={cell}>{r.fileName}</td><td rowSpan={span} style={cell}>{r.revisionNo!==''?r.revisionNo:'—'}</td><td rowSpan={span} style={cell}>{link(r)}</td></>:<td colSpan={7} rowSpan={span} style={{...cell,color:T.inkDim}}>Sent drawing · no received source linked</td>)}{sent?<><td style={cell}><DrawingCoverage row={sent} project={project}/><div style={{fontSize:11,color:T.inkDim,marginTop:6}}>{sent.drawingType}</div></td><td style={cell}>{sent.fileName}</td><td style={cell}>{sent.revisionNo!==''?sent.revisionNo:'—'}</td><td style={cell}>{formatProjectDate(sent.date)}</td><td style={cell}>{link(sent)}</td></>:<td colSpan={5} style={{...cell,color:T.inkDim}}>No sent drawing linked yet</td>}</tr>;}))}{!filtered.length&&<tr><td colSpan={12} style={cell}>No drawings found for this project{query?' matching your search':''}.</td></tr>}</tbody></table></div></>}
+  </section>;
+}
+
 function UploadView({ state, persist }) {
   // Keep this helper local: ProjectsView has its own helper that is not in scope here.
   const uploadProjectIsCompleted = p =>
@@ -5872,6 +5943,7 @@ const NAV = [
   { id: "dashboard", label: "Floor / Zone", icon: LayoutGrid, group: "RECEIVED / SENT" },
   { id: "upload", label: "Received · Upload", icon: Upload, group: "RECEIVED / SENT" },
   { id: "classify", label: "Classify", icon: ClipboardCheck, group: "RECEIVED / SENT" },
+  { id: "drawingRegister", label: "Received & Sent", icon: FileText, group: "RECEIVED / SENT" },
   { id: "timesheet", label: "WIH Sheet", icon: Clock, group: "WIH SHEET" },
   { id: "meetings", label: "Fix Meeting", icon: CalendarDays, group: "WIH SHEET" },
   { id: "executionMain", label: "Execution Dashboard", icon: HardHat, group: "WIH SHEET" },
@@ -5974,6 +6046,7 @@ function StudioApp() {
           {isAdmin && view === "design" && <DesignFlowView state={state} persist={persist} />}
           
           {isAdmin && view === "dashboard" && <DashboardView state={state} persist={persist} />}
+          {isAdmin && view === "drawingRegister" && <ReceivedSentView state={state}/>}
           {isAdmin && view === "upload" && <UploadView state={state} persist={persist} />}
           {isAdmin && view === "classify" && <ClassifyView state={state} persist={persist} />}
           {view === "timesheet" && <TimesheetView state={state} persist={persist} />}

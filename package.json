@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.11.63-completed-floor-zones",
+  "version": "2.11.64-received-sent-register",
   "type": "module",
   "scripts": {
     "dev": "vite",
