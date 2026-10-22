@@ -2374,6 +2374,29 @@ function directoryCorrections(projects,keys,values){
   });
 }
 
+// Apply identity edits and explicit project membership without replacing other people.
+function directoryProjectChanges(projects,keys,values,projectIds,addRole){
+  const selected=new Set(keys), linked=new Set(projectIds);
+  return projects.map(p=>{
+    const contacts={...p.contacts};let changed=false,matched=false;
+    Object.entries(contacts).forEach(([role,c])=>{
+      if(!c||!selected.has(contactKey(c.name||c.company,c.mobile)))return;
+      matched=true;changed=true;
+      if(linked.has(p.id))contacts[role]={...c,...values};else delete contacts[role];
+    });
+    if(linked.has(p.id)&&!matched){
+      const occupied=contacts[addRole];
+      if(!addRole)throw new Error("Choose a role for newly added projects.");
+      if(occupied&&(occupied.name||occupied.company))throw new Error(`${p.name||p.id}: ${addRole} is already assigned. Choose another role or edit that project's team first.`);
+      contacts[addRole]={...values};changed=true;
+    }
+    if(!changed)return p;
+    return {...p,contacts,
+      ...(JSON.stringify(p.contacts?.Owner)!==JSON.stringify(contacts.Owner)?{client:contacts.Owner?.name||""}:{}),
+      ...(JSON.stringify(p.contacts?.Architect)!==JSON.stringify(contacts.Architect)?{architect:contacts.Architect?.name||""}:{})};
+  });
+}
+
 function DirectoryStars({value=0,onChange,disabled=false,name="contact"}){
   return <span role="group" aria-label={`Rating for ${name}`} style={{display:"inline-flex",whiteSpace:"nowrap"}}>{[1,2,3,4,5].map(n=><button key={n} type="button" aria-label={`Rate ${name} ${n} out of 5`} aria-pressed={Number(value)===n} disabled={disabled} onClick={()=>onChange(n)} style={{border:0,background:"transparent",padding:"4px 2px",fontSize:23,color:n<=Number(value)?"#B57812":"#878787",cursor:disabled?"wait":"pointer"}}>{n<=Number(value)?"★":"☆"}</button>)}</span>;
 }
@@ -2383,20 +2406,22 @@ function ProjectDirectory({state,persist}){
   const [role,setRole]=useState("All");
   const [editor,setEditor]=useState(null);
   const [mergeQuery,setMergeQuery]=useState("");
+  const [projectQuery,setProjectQuery]=useState("");
   const [message,setMessage]=useState("");
   const [busy,setBusy]=useState(false);
   const pendingRef=useRef(false),latestRef=useRef(state);latestRef.current=state;
   const directory=buildDirectory(state.projects,state.ratings||{});
   const roles=[...new Set(directory.flatMap(d=>d.roles))].sort();
   const visible=directory.filter(d=>(role==="All"||d.roles.includes(role))&&[d.name,d.company,d.mobile,d.email].join(" ").toLowerCase().includes(query.toLowerCase()));
-  const start=d=>{setEditor({keys:[d.key],name:d.name,company:d.company,email:d.email,mobile:d.mobile,rating:d.rating});setMergeQuery("");};
-  const save=async(keys,values)=>{
+  const start=d=>{setMessage("");setEditor({keys:[d.key],name:d.name,company:d.company,email:d.email,mobile:d.mobile,rating:d.rating,projectIds:d.projects.map(p=>p.id),addRole:d.roles[0]||ROLES[0]});setMergeQuery("");setProjectQuery("");};
+  const save=async(keys,values,projectIds,addRole)=>{
     if(pendingRef.current)return;
     if(Object.hasOwn(values,"name")&&!values.name.trim()&&!values.company.trim()){setMessage("Enter a name or company before saving.");return;}
     const before=latestRef.current;
-    const projects=directoryCorrections(before.projects,keys,values);
+    let projects;
+    try{projects=projectIds?directoryProjectChanges(before.projects,keys,values,projectIds,addRole):directoryCorrections(before.projects,keys,values);}catch(err){setMessage(err.message);return;}
     const changed=projects.filter((p,i)=>p!==before.projects[i]);
-    if(!changed.length)return;
+    if(!changed.length){setEditor(null);return;}
     const next={...before,projects};latestRef.current=next;
     pendingRef.current=true;setBusy(true);setEditor(null);setMessage(`Changes applied · Saving ${changed.length} project(s)…`);
     const failed=[],warnings=[];
@@ -2405,7 +2430,7 @@ function ProjectDirectory({state,persist}){
       try{await projectApi.saveContacts(project.id,contactsObjectToRows(project,project.contacts));}
       catch(err){failed.push({project,error:err});continue;}
       const original=before.projects.find(p=>p.id===project.id);
-      const summaryContactChanged=Object.hasOwn(values,"name")&&["Owner","Architect"].some(role=>{const c=original.contacts?.[role];return c&&keys.includes(contactKey(c.name||c.company,c.mobile));});
+      const summaryContactChanged=original.client!==project.client||original.architect!==project.architect;
       if(summaryContactChanged){
         try{const latest=latestRef.current.projects.find(p=>p.id===project.id)||project;await projectApi.update(frontendProjectToBackend(latest,true));}
         catch(err){warnings.push(project.name||project.id);}
@@ -2416,7 +2441,7 @@ function ProjectDirectory({state,persist}){
       const restored={...latest,projects:latest.projects.map(p=>{
         const failure=failed.find(f=>f.project.id===p.id);if(!failure)return p;
         const original=before.projects.find(x=>x.id===p.id),contacts={...p.contacts};
-        for(const [role,c]of Object.entries(failure.project.contacts||{}))if(JSON.stringify(contacts[role])===JSON.stringify(c))contacts[role]=original.contacts?.[role];
+        for(const role of new Set([...Object.keys(failure.project.contacts||{}),...Object.keys(original.contacts||{})]))if(JSON.stringify(contacts[role])===JSON.stringify(failure.project.contacts?.[role])){if(original.contacts?.[role])contacts[role]=original.contacts[role];else delete contacts[role];}
         return {...p,contacts,...(p.client===failure.project.client?{client:original.client}:{}),...(p.architect===failure.project.architect?{architect:original.architect}:{})};
       })};
       latestRef.current=restored;await persist(restored);
@@ -2424,45 +2449,35 @@ function ProjectDirectory({state,persist}){
     setMessage(failed.length?`Could not save: ${failed.map(f=>f.project.name||f.project.id).join(", ")}. Their previous values were restored; edit these entries and retry.`:warnings.length?`Contacts and ratings saved. Project summary sync failed for ${warnings.join(", ")}; edit and save again to retry.`:"Directory updated in all linked projects. Ratings saved to Google Sheets.");
     pendingRef.current=false;setBusy(false);
   };
-  const removeContact=async d=>{
-    if(pendingRef.current)return;
-    const affected=d.projects.map(p=>p.name||p.id);
-    if(!window.confirm(`Delete ${d.name||d.company||"this contact"} from the directory?\n\nAffected projects (${affected.length}):\n${affected.map(n=>`• ${n}`).join("\n")}\n\nThis removes the contact from those projects, not the projects themselves.`))return;
-    const before=latestRef.current;
-    const projects=before.projects.map(p=>{
-      const contacts={...p.contacts};let changed=false;
-      for(const [role,c] of Object.entries(contacts))if(contactKey(c.name||c.company,c.mobile)===d.key){delete contacts[role];changed=true;}
-      return changed?{...p,contacts}:p;
-    });
-    const changed=projects.filter((p,i)=>p!==before.projects[i]);if(!changed.length)return;
-    pendingRef.current=true;setBusy(true);setMessage(`Deleting contact from ${changed.length} project(s)…`);
-    try{
-      for(const p of changed)await projectApi.saveContacts(p.id,contactsObjectToRows(p,p.contacts));
-      const next={...before,projects};latestRef.current=next;await persist(next);
-      setMessage(`Contact deleted from ${changed.length} project(s).`);
-    }catch(err){setMessage(`Delete failed: ${err?.message||err}. Reload to verify saved project contacts.`);}
-    finally{pendingRef.current=false;setBusy(false);}
-  };
-  return <section aria-label="Project contact directory">
+  const cell={...tdStyle,textAlign:"left",verticalAlign:"top",fontFamily:FONT_BODY,fontSize:13,lineHeight:1.5,padding:"14px 12px",borderRight:`1px solid ${T.line}`,overflowWrap:"anywhere"};
+  const remove=d=>{if(window.confirm(`Delete ${d.name||d.company} from the directory and remove their contact roles from ${d.projects.length} linked project(s)?`))return save([d.key],{},[],"");};
+  return <section aria-label="Project contact directory" style={{fontFamily:FONT_BODY,color:T.ink}}>
     <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:12}}>
       <input aria-label="Search directory" placeholder="Search name, studio, email or phone" value={query} onChange={e=>setQuery(e.target.value)} style={{...inputStyle,maxWidth:380}}/>
       <select aria-label="Directory role" value={role} onChange={e=>setRole(e.target.value)} style={{...inputStyle,maxWidth:260}}>{["All",...roles].map(r=><option key={r}>{r}</option>)}</select>
     </div>
     {message&&<p role="status" style={{fontSize:12}}>{message}</p>}
-    <div style={{overflowX:"auto"}}><table style={{borderCollapse:"collapse",width:"100%",border:`1px solid ${T.line}`}}><thead><tr>{["Name","Company / Studio","Role","Projects","Rating","Edit"].map(h=><th key={h} style={{...thStyle,background:T.paperDim,textAlign:"left"}}>{h}</th>)}</tr></thead><tbody>{visible.map(d=><tr key={d.key}>
-      <td style={tdStyle}>{d.name||"—"}<div style={{fontSize:11,color:T.inkDim}}>{d.mobile}</div></td><td style={tdStyle}>{d.company||"—"}</td><td style={tdStyle}>{d.roles.join(", ")}</td><td style={tdStyle}>{d.projects.map(p=><div key={p.id}>{p.name}</div>)}</td>
-      <td style={tdStyle}><DirectoryStars name={d.name||d.company} value={d.rating} disabled={busy} onChange={rating=>save([d.key],{rating})}/></td>
-      <td style={tdStyle}><button type="button" disabled={busy} onClick={()=>start(d)} style={smallBtn}>Edit / merge</button> <button type="button" disabled={busy} onClick={()=>removeContact(d)} style={{...smallBtn,color:"#963C37",border:"1px solid #C98D88"}}>Delete</button></td>
+    <div style={{overflowX:"auto"}}><table style={{borderCollapse:"collapse",width:"100%",minWidth:1140,tableLayout:"fixed",border:`1px solid ${T.line}`,fontFamily:FONT_BODY}}><colgroup>{[14,15,15,32,13,11].map((w,i)=><col key={i} style={{width:`${w}%`}}/>)}</colgroup><thead><tr>{["Name","Company / Studio","Role","Projects","Rating","Actions"].map(h=><th key={h} style={{...thStyle,background:"#D2CDC1",color:"#1C1C19",fontFamily:FONT_MONO,textAlign:"left",fontSize:10,padding:"12px",borderRight:`1px solid ${T.line}`,borderBottom:`2px solid ${T.ink}`}}>{h}</th>)}</tr></thead><tbody>{visible.map(d=><tr key={d.key}>
+      <td style={cell}><strong>{d.name||"—"}</strong><div style={{fontSize:12,color:T.inkDim}}>{d.mobile}</div></td><td style={cell}>{d.company||"—"}</td><td style={cell}>{d.roles.map(r=><div key={r}>{r}</div>)}</td>
+      <td style={{...cell,padding:0}}><div style={{maxHeight:220,overflowY:"auto"}}>{d.projects.map((p,i)=><div key={p.id} style={{padding:"9px 12px",borderTop:i?`1px solid ${T.line}`:"none",textAlign:"left"}}>{p.no&&<span style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginRight:8}}>{p.no}</span>}{p.name||p.id}</div>)}</div></td>
+      <td style={cell}><DirectoryStars name={d.name||d.company} value={d.rating} disabled={busy} onChange={rating=>save([d.key],{rating})}/></td>
+      <td style={cell}><div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:12}}><button type="button" disabled={busy} onClick={()=>start(d)} style={{...smallBtn,fontFamily:FONT_BODY}}>Edit / merge</button><button type="button" disabled={busy} onClick={()=>remove(d)} style={{...smallBtn,fontFamily:FONT_BODY,color:T.redline,borderColor:T.redline}}>Delete</button></div></td>
     </tr>)}</tbody></table>{!visible.length&&<p>No matching contacts.</p>}</div>
     {editor&&<div role="dialog" aria-modal="true" aria-label="Edit directory contact" style={{position:"fixed",inset:0,zIndex:15000,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}><div style={{background:T.paper,padding:22,width:680,maxWidth:"100%",maxHeight:"90vh",overflowY:"auto"}}>
-      <h3>Edit directory contact</h3>
+      <h3 style={{fontFamily:FONT_DISPLAY}}>Edit directory contact</h3>
+      {message&&<p role="status" style={{fontFamily:FONT_BODY,color:T.redline}}>{message}</p>}
       <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:12}}>{[["Name","name"],["Company / Studio","company"],["Email","email"],["Mobile","mobile"]].map(([label,key])=><Field key={key} label={label}><input aria-label={`Directory ${label}`} value={editor[key]} onChange={e=>setEditor(x=>({...x,[key]:e.target.value}))} style={inputStyle}/></Field>)}</div>
       <DirectoryStars name="edited contact" value={editor.rating} onChange={rating=>setEditor(x=>({...x,rating}))}/>
       <p>Choose any duplicate entries below to give them the same details and rating in every linked project. Different people are combined only when you select them.</p>
       <input aria-label="Find duplicates" placeholder="Find duplicate names or studios" value={mergeQuery} onChange={e=>setMergeQuery(e.target.value)} style={inputStyle}/>
-      <div style={{maxHeight:220,overflowY:"auto",marginTop:12}}>{directory.filter(d=>[d.name,d.company,d.mobile].join(" ").toLowerCase().includes(mergeQuery.toLowerCase())).map(d=><label key={d.key} style={{display:"block",padding:8,borderBottom:`1px solid ${T.line}`}}><input type="checkbox" checked={editor.keys.includes(d.key)} onChange={e=>setEditor(x=>({...x,keys:e.target.checked?[...x.keys,d.key]:x.keys.filter(k=>k!==d.key)}))}/> {d.name||"Unnamed"} · {d.company||"No studio"} · {d.mobile||"No phone"} · {d.projects.length} project(s)</label>)}</div>
-      <p>{new Set(directory.filter(d=>editor.keys.includes(d.key)).flatMap(d=>d.projects.map(p=>p.id))).size} linked project(s) will update.</p>
-      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><button style={smallBtn} onClick={()=>setEditor(null)}>Cancel</button><button disabled={busy||!editor.keys.length} style={{...smallBtn,background:T.navy,color:"#fff"}} onClick={()=>{const {keys,...values}=editor;return save(keys,Object.fromEntries(Object.entries(values).map(([k,v])=>[k,typeof v==="string"?v.trim():v])));}}>Save Changes</button></div>
+      <div style={{maxHeight:220,overflowY:"auto",marginTop:12}}>{directory.filter(d=>[d.name,d.company,d.mobile].join(" ").toLowerCase().includes(mergeQuery.toLowerCase())).map(d=><label key={d.key} style={{display:"block",padding:8,borderBottom:`1px solid ${T.line}`}}><input type="checkbox" checked={editor.keys.includes(d.key)} onChange={e=>setEditor(x=>({...x,keys:e.target.checked?[...x.keys,d.key]:x.keys.filter(k=>k!==d.key),projectIds:e.target.checked?[...new Set([...x.projectIds,...d.projects.map(p=>p.id)])]:x.projectIds}))}/> {d.name||"Unnamed"} · {d.company||"No studio"} · {d.mobile||"No phone"} · {d.projects.length} project(s)</label>)}</div>
+      <h4 style={{fontFamily:FONT_DISPLAY,marginBottom:8}}>Linked projects</h4>
+      <p style={{fontSize:13}}>Check a project to add this contact. Uncheck it to remove their selected contact roles from that project.</p>
+      <Field label="Role for newly added projects"><select aria-label="Role for newly added projects" value={editor.addRole} onChange={e=>setEditor(x=>({...x,addRole:e.target.value}))} style={inputStyle}>{ROLES.map(r=><option key={r}>{r}</option>)}</select></Field>
+      <input aria-label="Search linked projects" placeholder="Search project name or number" value={projectQuery} onChange={e=>setProjectQuery(e.target.value)} style={inputStyle}/>
+      <div style={{maxHeight:240,overflowY:"auto",marginTop:8,border:`1px solid ${T.line}`}}>{state.projects.filter(p=>`${p.no||""} ${p.name||""}`.toLowerCase().includes(projectQuery.toLowerCase())).map(p=><label key={p.id} style={{display:"flex",gap:10,padding:10,borderBottom:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:13}}><input type="checkbox" aria-label={`Link project ${p.name||p.id}`} checked={editor.projectIds.includes(p.id)} onChange={e=>setEditor(x=>({...x,projectIds:e.target.checked?[...x.projectIds,p.id]:x.projectIds.filter(id=>id!==p.id)}))}/><span>{p.no?`${p.no} · `:""}{p.name||p.id}</span></label>)}</div>
+      <p>{editor.projectIds.length} linked project(s) selected.</p>
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><button style={smallBtn} onClick={()=>setEditor(null)}>Cancel</button><button disabled={busy||!editor.keys.length} style={{...smallBtn,background:T.navy,color:"#fff"}} onClick={()=>{const {keys,projectIds,addRole,...values}=editor;return save(keys,Object.fromEntries(Object.entries(values).map(([k,v])=>[k,typeof v==="string"?v.trim():v])),projectIds,addRole);}}>Save Changes</button></div>
     </div></div>}
   </section>;
 }
@@ -2561,7 +2576,7 @@ const projectApi = {
   create: payload => apiRequest("createProject", payload),
   update: payload => apiRequest("updateProject", payload),
   delete: projectId => apiRequest("deleteProject", { projectId }),
-  complete: (projectId, completionOutcome) => apiRequest("completeProject", { projectId, completionOutcome }),
+  complete: projectId => apiRequest("completeProject", { projectId }),
   listContacts: projectId => apiRequest("listProjectContacts", projectId ? { projectId } : {}, "GET"),
   saveContacts: (projectId, contacts) => apiRequest("saveProjectContacts", { projectId, contacts }),
   getWorkflowCapabilities: () => apiRequest("getWorkflowCapabilities",{},"GET"),
@@ -2650,7 +2665,6 @@ function backendProjectToFrontend(row, fallback = {}) {
     plannedCompletionDate: row.plannedCompletionDate || fallback.plannedCompletionDate || "",
     projectStage: row.currentStage || fallback.projectStage || "Onboarding", status, projectStatus: status,
     blocker: row.blocker || fallback.blocker || "", delayReason: row.delayReason || fallback.delayReason || "",
-    completionOutcome: row.completionOutcome || fallback.completionOutcome || "",
     completed: status === "Completed",
     completedDate: status === "Completed" ? (row.completedDate || fallback.completedDate || "") : "",
     completedAt: isTrue(row.completed) || status === "Completed" ? (row.updatedAt || row.completedDate || fallback.completedAt || "") : "",
@@ -2672,7 +2686,6 @@ function frontendProjectToBackend(p, includeId = true) {
     startDate: p.startDate || "", plannedCompletionDate: p.plannedCompletionDate || p.endDate || "",
     currentStage: pc.currentStage || p.projectStage || "Onboarding", projectStatus: pc.projectStatus || p.projectStatus || p.status || "Ongoing",
     blocker: p.blocker || pc.blocker || "", delayReason: p.delayReason || pc.delayReason || "",
-    completionOutcome: p.completionOutcome || "",
     basement: Boolean(s.basement), stiltFloor: Boolean(s.stilt_floor), gf: Boolean(s.gf),
     "1f": Boolean(s["1f"]), "2f": Boolean(s["2f"]), "3f": Boolean(s["3f"]), terrace: Boolean(s.terrace),
     facade: Boolean(s.facade), wallElevation: Boolean(s.wall_elevation), landscape: Boolean(s.landscape),
@@ -3075,7 +3088,7 @@ function UploadView({ state, persist }) {
         </Field>
 
         <Field label="Floors in this drawing — select all that apply">
-          <div style={{display:'flex',flexWrap:'wrap',gap:12,padding:12,border:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:12,color:T.ink}}>{availableFloors.map(f=><label key={f} style={{display:'inline-flex',alignItems:'center',gap:4}}><input type="checkbox" aria-label={`Upload floor ${f}`} checked={floors.includes(f)} disabled={saving} onChange={e=>setFloors(current=>e.target.checked?[...new Set([...current,f])]:current.filter(x=>x!==f))}/> {f}</label>)}</div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:14,padding:12,border:`1px solid ${T.line}`}}>{availableFloors.map(f=><label key={f}><input type="checkbox" aria-label={`Upload floor ${f}`} checked={floors.includes(f)} disabled={saving} onChange={e=>setFloors(current=>e.target.checked?[...new Set([...current,f])]:current.filter(x=>x!==f))}/> {f}</label>)}</div>
           <div style={{fontSize:12,color:T.inkDim,marginTop:6}}>{floors.length?`${floors.length} floor(s) tagged: ${floors.join(', ')}`:'Select at least one floor. One file can cover several floors.'}</div>
           {project && availableFloors.length===0 && <div style={{fontSize:11,color:T.redline,marginTop:5}}>No floors selected for this project in Projects & Scope.</div>}
         </Field>
@@ -3250,9 +3263,9 @@ function ClassifyView({ state, persist }) {
               This project has no zones mapped yet on the Floor | Zone sheet — add its floor/zone breakdown there first.
             </div>
           ) : (
-            <div style={{fontFamily:FONT_BODY,fontSize:12,color:T.ink}}><p style={{fontSize:12,color:T.inkDim}}>Select one or more floors. Each floor selects its areas; untick any area not covered by this drawing.</p>{floors.map(f=>{
+            <div><p>Select one or more floors. Each floor selects its areas; untick any area not covered by this drawing.</p>{floors.map(f=>{
               const ids=letters.filter(z=>project.zones[z]?.floor===f),selected=ids.filter(z=>zones.includes(z));
-              return <fieldset key={f} style={{border:`1px solid ${T.line}`,padding:12,marginBottom:12}}><legend style={{fontFamily:FONT_BODY,fontSize:12}}><label><input type="checkbox" aria-label={`Classify floor ${f}`} checked={selected.length>0} onChange={e=>toggleFloor(f,e.target.checked)}/> {f} <span style={{fontSize:11}}>({selected.length}/{ids.length} areas)</span></label></legend><div style={{display:'flex',gap:12,flexWrap:'wrap',fontFamily:FONT_BODY,fontSize:12}}>{ids.map(z=><label key={z} style={{display:'inline-flex',alignItems:'center',gap:4}}><input type="checkbox" aria-label={`Classify area ${f} ${project.zones[z].room||z}`} checked={zones.includes(z)} onChange={()=>toggleZone(z)}/> {z} · {project.zones[z].room||z}</label>)}</div></fieldset>;
+              return <fieldset key={f} style={{border:`1px solid ${T.line}`,padding:12,marginBottom:12}}><legend><label><input type="checkbox" aria-label={`Classify floor ${f}`} checked={selected.length>0} onChange={e=>toggleFloor(f,e.target.checked)}/> {f} <span style={{fontSize:11}}>({selected.length}/{ids.length} areas)</span></label></legend><div style={{display:'flex',gap:14,flexWrap:'wrap'}}>{ids.map(z=><label key={z}><input type="checkbox" aria-label={`Classify area ${f} ${project.zones[z].room||z}`} checked={zones.includes(z)} onChange={()=>toggleZone(z)}/> {z} · {project.zones[z].room||z}</label>)}</div></fieldset>;
             })}</div>
           )}
         </Field>
@@ -3507,19 +3520,10 @@ function TimesheetView({ state, persist }) {
    projects across the top, zone letters down the side, each cell
    showing that zone's floor + room, colored by live task status.
 --------------------------------------------------------------- */
-// Excel-style zone ordering: A ... Z, AA ... AZ, BA ... ZZ, AAA ...
-const zoneOrdinal = code => {
-  const value=String(code||'').trim().toUpperCase();
-  if(!/^[A-Z]+$/.test(value))return Number.POSITIVE_INFINITY;
-  return [...value].reduce((n,ch)=>n*26+ch.charCodeAt(0)-64,0);
-};
-const compareZoneCodes=(a,b)=>zoneOrdinal(a)-zoneOrdinal(b)||String(a).localeCompare(String(b),undefined,{numeric:true});
 function DashboardView({ state, persist }) {
   const [projectId,setProjectId]=useState("");
   const [editor,setEditor]=useState(null);
   const [bulkEditor,setBulkEditor]=useState(null);
-  const [areaSaving,setAreaSaving]=useState(false);
-  const [bulkSaving,setBulkSaving]=useState(false);
   const projects=(state.projects||[]).filter(p=>p.status!=="Completed"&&p.projectControl?.projectStatus!=="Completed");
   const project=projects.find(p=>String(p.id)===String(projectId))||null;
   const scopeFloors=project?designDashboardScopeFloors(project):[];
@@ -3528,10 +3532,9 @@ function DashboardView({ state, persist }) {
   const addRow=f=>setEditor({mode:"add",floorZoneId:"",zoneCode:"",floor:f||scopeFloors[0]||"",area:""});
   const editRow=r=>setEditor({mode:"edit",floorZoneId:r.floorZoneId||"",zoneCode:r.zoneCode||"",floor:r.floor||"",area:r.area||r.room||""});
   const save=async()=>{
-    if(areaSaving)return;
     if(!project||!editor?.floor||!editor?.area?.trim())return alert("Select a floor and enter Area / Room.");
     let zoneCode=String(editor.zoneCode||"").trim().toUpperCase();
-    if(!/^[A-Z]+$/.test(zoneCode))return alert("Enter a valid Zone Code using letters A–Z (for example A, Z, AA, AB, AZ, BA).");
+    if(!zoneCode)return alert("Enter the Zone Code. Zone Code must be added by the doer.");
     const used=new Set(rows.map(r=>String(r.zoneCode||"").toUpperCase()).filter(Boolean));
     const duplicate=rows.some(r=>{
       const sameRow=editor.floorZoneId?String(r.floorZoneId||"")===String(editor.floorZoneId):String(r.zoneCode||"").toUpperCase()===String(editor.zoneCode||"").toUpperCase();
@@ -3542,7 +3545,6 @@ function DashboardView({ state, persist }) {
     if(editor.mode==="edit"){
       next=rows.map(r=>(editor.floorZoneId&&r.floorZoneId===editor.floorZoneId)||(!editor.floorZoneId&&r.zoneCode===editor.zoneCode)?{...r,zoneCode,floor:editor.floor,area:editor.area.trim()}:r);
     }else next=[...rows,{floorZoneId:"",zoneCode,floor:editor.floor,area:editor.area.trim(),seq:rows.length+1}];
-    setAreaSaving(true);
     try{
       const saved=await projectApi.saveFloorZones(project.id,next);
       const finalRows=(saved||next);
@@ -3551,7 +3553,6 @@ function DashboardView({ state, persist }) {
       await persist({...state,projects:(state.projects||[]).map(p=>p.id===project.id?updated:p)});
       setEditor(null);
     }catch(e){alert(`Floor / Zone save failed: ${e?.message||e}`);}
-    finally{setAreaSaving(false);}
   };
 
   const parseBulkPreview=()=>{
@@ -3563,12 +3564,11 @@ function DashboardView({ state, persist }) {
       const zoneCode=String(parts.shift()||"").trim().toUpperCase();
       const area=parts.join("|").trim();
       const floor=String(bulkEditor.floor||scopeFloors[0]||"").trim();
-      return {lineIndex:item.lineIndex,zoneCode,floor,area,valid:usedFloors.has(floor)&&/^[A-Z]+$/.test(zoneCode)&&!!area};
+      return {lineIndex:item.lineIndex,zoneCode,floor,area,valid:usedFloors.has(floor)&&!!zoneCode&&!!area};
     });
   };
 
   const saveBulk=async()=>{
-    if(bulkSaving)return;
     if(!project||!bulkEditor)return;
     const preview=parseBulkPreview();
     if(!preview.length)return alert("Enter at least one Zone Code | Area / Room line.");
@@ -3585,7 +3585,6 @@ function DashboardView({ state, persist }) {
     }
 
     const next=[...rows,...pending];
-    setBulkSaving(true);
     try{
       const saved=await projectApi.saveFloorZones(project.id,next);
       const finalRows=(saved||next);
@@ -3594,7 +3593,6 @@ function DashboardView({ state, persist }) {
       await persist({...state,projects:(state.projects||[]).map(p=>p.id===project.id?updated:p)});
       setBulkEditor(null);
     }catch(e){alert(`Bulk Floor / Zone save failed: ${e?.message||e}`);}
-    finally{setBulkSaving(false);}
   };
   const remove=async r=>{
     if(!project)return;
@@ -3610,22 +3608,18 @@ function DashboardView({ state, persist }) {
   return <div>
     <h2 style={{fontFamily:FONT_DISPLAY,fontSize:22,margin:"4px 0"}}>Floor / Zone</h2>
     <div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim,marginBottom:16}}>Projects come from Project → Projects & Scope. Only floors selected in that project's scope are available here. Saved areas automatically flow into Design Dashboard.</div>
-    <div style={{fontFamily:FONT_MONO,fontSize:10,fontWeight:700,color:T.inkDim,marginBottom:8}}>FLOOR / ZONE MATRIX · SELECT A PROJECT COLUMN TO EDIT ITS AREAS BELOW</div>
-    <div style={{border:`1px solid ${T.line}`,background:"transparent",marginBottom:18,overflow:"auto",maxHeight:"68vh"}}>
-      {(()=>{
-        const floorOrder=["-1F","SF","GF","1F","2F","3F","4F","Terrace","Facade","Landscape"];
-        const allFloors=[...new Set([...floorOrder,...projects.flatMap(p=>designDashboardScopeFloors(p))])];
-        const zoneCodes=[...new Set(projects.flatMap(p=>(p.floorZones||Object.entries(p.zones||{}).map(([zoneCode,v])=>({zoneCode,...v}))).map(r=>String(r.zoneCode||"").trim().toUpperCase()).filter(Boolean)))].sort(compareZoneCodes);
-        const cell={padding:"7px 8px",borderRight:`1px solid ${T.line}`,borderBottom:`1px solid ${T.line}`,fontFamily:FONT_MONO,fontSize:11,whiteSpace:"nowrap",textAlign:"left"};
-        return <table style={{borderCollapse:"separate",borderSpacing:0,width:"max-content",minWidth:"100%"}}>
-          <thead><tr><th style={{...cell,position:"sticky",left:0,top:0,zIndex:4,minWidth:90,background:"#D2CDC1",borderBottom:`2px solid ${T.ink}`}}>Zone</th>{projects.map(p=><th key={p.id} style={{...cell,position:"sticky",top:0,zIndex:3,minWidth:235,maxWidth:300,background:String(p.id)===String(projectId)?"#c9dce4":"#D2CDC1",borderBottom:`2px solid ${T.ink}`}}><button type="button" onClick={()=>setProjectId(String(p.id))} title="Select this project to manage its areas" style={{border:0,background:"transparent",font:"inherit",fontWeight:800,cursor:"pointer",textAlign:"left",color:T.ink,whiteSpace:"normal"}}>{p.name||p.no||p.projectNo}</button><div style={{fontSize:9,fontWeight:400,marginTop:3}}>{p.no||p.projectNo}</div></th>)}</tr></thead>
-          <tbody>
-            {allFloors.map((f,i)=><tr key={'floor-'+f}><th style={{...cell,position:"sticky",left:0,zIndex:2,background:"#fff",fontWeight:800}}>{f}</th>{projects.map(p=>{const scope=designDashboardScopeFloors(p);return <td key={p.id} style={{...cell,background:"transparent"}}>{scope.includes(f)?f:""}</td>})}</tr>)}
-            {zoneCodes.map((z,i)=><tr key={'zone-'+z}><th style={{...cell,position:"sticky",left:0,zIndex:2,background:"#fff",fontWeight:800}}>{z}</th>{projects.map(p=>{const r=(p.floorZones||Object.entries(p.zones||{}).map(([zoneCode,v])=>({zoneCode,floor:v?.floor,area:v?.room}))).find(x=>String(x.zoneCode||"").trim().toUpperCase()===z);return <td key={p.id} style={{...cell,background:"transparent"}}>{r?[r.floor,r.area||r.room].filter(Boolean).join(" | "):""}</td>})}</tr>)}
-            {!projects.length&&<tr><td style={{...cell,padding:16}}>No ongoing projects found.</td></tr>}
-          </tbody>
-        </table>;
-      })()}
+    <div style={{border:`1px solid ${T.line}`,background:"#fff",marginBottom:18,overflowX:"auto"}}>
+      <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,tableLayout:"fixed"}}>
+        <colgroup><col style={{width:"9%"}}/><col style={{width:"18%"}}/><col style={{width:"55%"}}/><col style={{width:"8%"}}/><col style={{width:"10%"}}/></colgroup>
+        <thead><tr style={{background:T.paper2}}>{["Project No.","Project","Scope / Floors","Areas","Action"].map(h=><th key={h} style={{padding:10,textAlign:"left",borderBottom:`1px solid ${T.line}`,whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
+        <tbody>{projects.map(p=>{const count=(p.floorZones||Object.keys(p.zones||{})).length;return <tr key={p.id}>
+          <td style={{padding:10,borderBottom:`1px solid ${T.line}`,fontFamily:FONT_MONO}}>{p.no||p.projectNo}</td>
+          <td style={{padding:10,borderBottom:`1px solid ${T.line}`,fontWeight:700}}>{p.name}</td>
+          <td style={{padding:10,borderBottom:`1px solid ${T.line}`,whiteSpace:"normal",overflowWrap:"anywhere",wordBreak:"break-word",lineHeight:1.45,minWidth:260,maxWidth:520}}>{designDashboardScopeFloors(p).join(", ")||"No scope selected"}</td>
+          <td style={{padding:10,borderBottom:`1px solid ${T.line}`}}>{count}</td>
+          <td style={{padding:10,borderBottom:`1px solid ${T.line}`}}><button type="button" onClick={()=>setProjectId(String(p.id))} style={{...smallBtn,background:T.navy,color:"#fff"}}>OPEN</button></td>
+        </tr>})}</tbody>
+      </table>
     </div>
 
     {project&&<div>
@@ -3645,11 +3639,11 @@ function DashboardView({ state, persist }) {
       <div style={{width:"min(650px,96vw)",background:T.paper,border:`1px solid ${T.line}`}}>
         <div style={{background:T.navy,color:"#fff",padding:14,fontFamily:FONT_DISPLAY,fontSize:18}}>{editor.mode==="edit"?"Edit":"Add"} Floor / Zone · {project.no}</div>
         <div style={{padding:16,display:"grid",gridTemplateColumns:"160px 1fr",gap:12}}>
-          <Field label="Zone Code"><input value={editor.zoneCode} onChange={e=>setEditor(x=>({...x,zoneCode:e.target.value.toUpperCase()}))} placeholder="Zone Code (A, Z, AA, AB, BA…)" style={inputStyle}/></Field>
+          <Field label="Zone Code"><input value={editor.zoneCode} onChange={e=>setEditor(x=>({...x,zoneCode:e.target.value.toUpperCase()}))} placeholder="Enter Zone Code (e.g. A)" style={inputStyle}/></Field>
           <Field label="Floor from Project Scope"><select value={editor.floor} onChange={e=>setEditor(x=>({...x,floor:e.target.value}))} style={inputStyle}>{scopeFloors.map(f=><option key={f}>{f}</option>)}</select></Field>
           <div style={{gridColumn:"1 / -1"}}><Field label="Area / Room"><input value={editor.area} onChange={e=>setEditor(x=>({...x,area:e.target.value}))} placeholder="Living Room, Bedroom, Washroom..." style={inputStyle}/></Field></div>
         </div>
-        <div style={{padding:14,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}><button type="button" onClick={()=>setEditor(null)} style={{...smallBtn,background:"#fff"}}>Cancel</button><button type="button" onClick={save} disabled={areaSaving} style={{...smallBtn,background:T.navy,color:"#fff"}}>{areaSaving?"Saving area…":"Save Floor / Zone"}</button></div>
+        <div style={{padding:14,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}><button type="button" onClick={()=>setEditor(null)} style={{...smallBtn,background:"#fff"}}>Cancel</button><button type="button" onClick={save} style={{...smallBtn,background:T.navy,color:"#fff"}}>Save Floor / Zone</button></div>
       </div>
     </div>}
 
@@ -3677,8 +3671,8 @@ function DashboardView({ state, persist }) {
           <div style={{marginTop:10,padding:10,background:T.paper2,border:`1px solid ${T.line}`,fontFamily:FONT_MONO,fontSize:10,lineHeight:1.6}}>Example:<br/><b>A | Living Room</b><br/><b>B | Dining Room</b><br/><b>Only this format is applicable: Zone Code | Area / Room, one per line.</b><br/><b>Zone Code is entered by the doer; the selected floor is applied automatically.</b></div>
         </div>
         <div style={{padding:14,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}>
-          <button type="button" disabled={bulkSaving} onClick={()=>setBulkEditor(null)} style={{...smallBtn,background:"#fff"}}>Cancel</button>
-          <button type="button" disabled={bulkSaving} onClick={saveBulk} style={{...smallBtn,background:T.navy,color:"#fff",opacity:bulkSaving?.65:1,cursor:bulkSaving?"wait":"pointer"}}>{bulkSaving?"Saving areas…":"Save All Areas"}</button>
+          <button type="button" onClick={()=>setBulkEditor(null)} style={{...smallBtn,background:"#fff"}}>Cancel</button>
+          <button type="button" onClick={saveBulk} style={{...smallBtn,background:T.navy,color:"#fff"}}>Save All Areas</button>
         </div>
       </div>
     </div>}
@@ -3753,11 +3747,9 @@ function ProjectOnboarding({ state, persist, selectedId, setSelectedId, initialM
   const [mode, setMode] = useState(initialMode);
   const [draft, setDraft] = useState(emptyDraft());
   const [saved, setSaved] = useState(false);
-  const [creating, setCreating] = useState(false);
 
   const saveNew = async () => {
-    if (!draft.name.trim() || creating) return;
-    setCreating(true);
+    if (!draft.name.trim()) return;
     const cleanContacts = {};
     Object.entries(draft.contacts).forEach(([role, c]) => {
       if (c && (String(c.name||"").trim()||String(c.company||"").trim())) cleanContacts[role] = { name:String(c.name||"").trim(), company:String(c.company||"").trim(), email:String(c.email||"").trim(), mobile:String(c.mobile||"").trim() };
@@ -3804,11 +3796,10 @@ function ProjectOnboarding({ state, persist, selectedId, setSelectedId, initialM
       }
     } catch (err) {
       alert(`Google Sheets save failed: ${err?.message || err}`);
-      setCreating(false);
       return;
     }
     await persist({ ...state, projects: [...state.projects, created] });
-    setDraft(emptyDraft()); setSelectedId(created.id); setMode("browse"); setSaved(true); setCreating(false);
+    setDraft(emptyDraft()); setSelectedId(created.id); setMode("browse"); setSaved(true);
     setTimeout(() => setSaved(false), 2400);
   };
 
@@ -3857,7 +3848,7 @@ function ProjectOnboarding({ state, persist, selectedId, setSelectedId, initialM
               <Field label="Start date"><input type="date" style={inputStyle} value={draft.startDate} onChange={(e) => setDraft({ ...draft, startDate: e.target.value })} /></Field>
               <Field label="Target completion"><input type="date" style={inputStyle} value={draft.endDate} onChange={(e) => setDraft({ ...draft, endDate: e.target.value })} /></Field>
             </div>
-            <Btn onClick={saveNew} disabled={!draft.name.trim() || creating}><ClipboardCheck size={14} /> {creating ? "Creating project…" : "Create project"}</Btn>
+            <Btn onClick={saveNew} disabled={!draft.name.trim()}><ClipboardCheck size={14} /> Create project</Btn>
           </div>
           <div>
             <div style={{ fontFamily: FONT_MONO, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: T.inkDim, marginBottom: 10 }}>Initial team / contacts</div>
@@ -4521,6 +4512,7 @@ function DrawingControlDashboard({state,projectId}){
   const logs=wih.filter(r=>/completed|done/i.test(String(r.status||r.task?.status||''))).map(r=>({person:r.assigneeName||r.task?.assigneeName||'Unassigned',duration:Number(r.totalMinutes||0)/60}));
   const totalHours=logs.reduce((sum,r)=>sum+r.duration,0),personHours=Object.entries(logs.reduce((sum,r)=>{sum[r.person]=(sum[r.person]||0)+r.duration;return sum;},{})).sort((a,b)=>b[1]-a[1]);
   const receivedCols=[['Layout','layoutReceived'],['FC','fcReceived'],['Detail','detailReceived'],['3D','3dReceived']];
+  const sentCols=[['Wall Electricals',/wall.?electr|^we$/i],['FC',/false ceiling|^fc$/i],['RCP',/lighting layout|wiring|rcp|light drawings/i],['Detail',/detail|bathroom|facade/i]];
   const cell={padding:'5px 5px',border:'1px solid #C7C7C7',fontFamily:FONT_MONO,fontSize:10,verticalAlign:'middle',height:25};
   const head={...cell,background:'#BDBDBD',fontWeight:700,textAlign:'center',whiteSpace:'normal',height:62};
   const displayStatus=(status,date,title,key)=>{const tone=sheetDashboardTone(status);return <td key={key} title={title||status||'No linked task'} style={{...cell,background:tone.bg,color:tone.fg,textAlign:'left',lineHeight:1.4}}>{status}{status==='Completed'&&date&&<div style={{fontSize:8}}>{String(date).slice(0,10)}</div>}</td>;};
@@ -4540,16 +4532,17 @@ function DrawingControlDashboard({state,projectId}){
       <div style={{minWidth:0,background:'#fff'}}>
         <table style={{width:'100%',borderCollapse:'collapse',marginBottom:8}}><tbody>{[[`Project ${project.no||project.projectNo||''}:`,project.name],['Start Date:',formatProjectDate(project.startDate)],['Time in hours:',loading?'Loading…':totalHours.toFixed(1)]].map(([label,value])=><tr key={label}><td style={{...cell,fontFamily:FONT_BODY,fontWeight:700,width:220}}>{label}</td><td style={{...cell,fontFamily:FONT_BODY}}>{value}</td></tr>)}</tbody></table>
         <div style={{overflowX:'auto',border:'1px solid #777'}}>
-          <table aria-label="Project design matrix" style={{borderCollapse:'collapse',tableLayout:'fixed',minWidth:1750,width:'100%'}}>
-            <colgroup><col style={{width:250}}/><col style={{width:55}}/><col style={{width:45}}/><col style={{width:170}}/>{Array.from({length:4},(_,i)=><col key={'r'+i} style={{width:48}}/>)}{SHEET_DASHBOARD_WORK.map(d=><col key={d.label} style={{width:112}}/>)}}</colgroup>
-            <thead><tr><th colSpan={4} style={{...cell,background:'#BDBDBD'}}/><th colSpan={4} style={{...cell,background:'#FCE5CD',textAlign:'center'}}>Drawings Received</th><th colSpan={11} style={{...cell,background:'#E6B8AF',textAlign:'center'}}>Work Status</th></tr><tr>{['FLR | CN | AREA','FLR','CN','AREA'].map((h,i)=><th key={h} style={{...head,textAlign:'left',...(i===0?{position:'sticky',left:0,zIndex:2}:{})}}>{h}</th>)}{receivedCols.map(([label])=><th key={label} style={head}>{label}</th>)}{SHEET_DASHBOARD_WORK.map(d=><th key={d.label} style={head}>{d.label}</th>)}}</tr></thead>
+          <table aria-label="Project design matrix" style={{borderCollapse:'collapse',tableLayout:'fixed',minWidth:2530,width:'100%'}}>
+            <colgroup><col style={{width:250}}/><col style={{width:55}}/><col style={{width:45}}/><col style={{width:170}}/>{Array.from({length:4},(_,i)=><col key={'r'+i} style={{width:48}}/>)}{SHEET_DASHBOARD_WORK.map(d=><col key={d.label} style={{width:112}}/>)}{sentCols.map(([label])=><col key={'s'+label} style={{width:44}}/>)}{['Wall Electricals','FC Framing','Wiring'].map(label=><col key={label} style={{width:100}}/>)}</colgroup>
+            <thead><tr><th colSpan={4} style={{...cell,background:'#BDBDBD'}}/><th colSpan={4} style={{...cell,background:'#FCE5CD',textAlign:'center'}}>Drawings Received</th><th colSpan={11} style={{...cell,background:'#E6B8AF',textAlign:'center'}}>Work Status</th><th colSpan={4} style={{...cell,background:'#FCE5CD',textAlign:'center'}}>Drawings Sent</th><th colSpan={3} style={{...cell,background:'#E6B8AF'}}/></tr><tr>{['FLR | CN | AREA','FLR','CN','AREA'].map((h,i)=><th key={h} style={{...head,textAlign:'left',...(i===0?{position:'sticky',left:0,zIndex:2}:{})}}>{h}</th>)}{receivedCols.map(([label])=><th key={label} style={head}>{label}</th>)}{SHEET_DASHBOARD_WORK.map(d=><th key={d.label} style={head}>{d.label}</th>)}<th colSpan={4} style={head}>Wall Electricals | FC | RCP | Detail</th>{['Wall Electricals','FC Framing','Wiring'].map(h=><th key={h} style={head}>{h}</th>)}</tr></thead>
             <tbody>{zones.map((z,i)=>{const area=z.area||z.room,cn=z.zoneCode||z.cn||'',dbRow=(payload?.rows||[]).find(r=>eq(r.floor,z.floor)&&eq(r.area,area));const bg=i%2?'#F2F2F2':'#fff';const boundary=i===0||zones[i-1].floor!==z.floor;const identity={...cell,background:bg,borderTop:boundary?'2px solid #111':'1px solid #C7C7C7'};
               const room=project.designExecutionBoard?.rooms?.find(r=>eq(r.flr||r.floor,z.floor)&&eq(r.area,area));
               return <tr key={JSON.stringify([z.floor,area])} style={{background:bg,borderTop:boundary?'2px solid #111':undefined}}><td style={{...identity,position:'sticky',left:0,zIndex:1}}>{z.floor} | {cn} | {area}</td><td style={identity}>{z.floor}</td><td style={identity}>{cn}</td><td style={identity}>{area}</td>
               {receivedCols.map(([label,key])=><td key={key} style={{...cell,textAlign:'center'}}>{payload?<input type="checkbox" aria-label={`${z.floor} ${area} ${label} received`} checked={sheetDashboardFlag(dbRow?.[key])} disabled style={{accentColor:'#888',opacity:1}}/>:'—'}</td>)}
               {SHEET_DASHBOARD_WORK.map(def=>{const result=liveWork(def,z,dbRow);return displayStatus(result.status,result.date,result.title,def.label);})}
-</tr>;
-            })}{!zones.length&&!loading&&<tr><td colSpan={19} style={{...cell,padding:18}}>No floor/area rows for this project. Add them in Floor & Zone.</td></tr>}</tbody>
+              {sentCols.map(([label,pattern])=>{const sent=Array.isArray(payload?.sentFiles)?payload.sentFiles:null;const checked=sent?.some(f=>pattern.test(String(f.drawingType||f.fileName||''))&&sheetDashboardCovers(f,z,parents));return <td key={label} style={{...cell,textAlign:'center'}}>{sent?<input type="checkbox" aria-label={`${z.floor} ${area} ${label} sent`} checked={!!checked} disabled style={{accentColor:'#888',opacity:1}}/>:<span title="Update the Apps Script backend to load sent records">—</span>}</td>;})}
+              {['wallElectrical','falseCeiling','lightDrawings'].map(key=>{const status=room?.cells?.[key]?.executionStatus;return displayStatus(status?sheetDashboardStatus([{status}]):'','','Execution status',key);})}</tr>;
+            })}{!zones.length&&!loading&&<tr><td colSpan={26} style={{...cell,padding:18}}>No floor/area rows for this project. Add them in Floor & Zone.</td></tr>}</tbody>
           </table>
         </div>
         <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:12,fontFamily:FONT_MONO,fontSize:10}}>{['Pending','Open','Aligned','In-progress','Up for review','Completed'].map(status=><span key={status} style={{padding:'5px 8px',background:sheetDashboardTone(status).bg,color:sheetDashboardTone(status).fg}}>{status}</span>)}</div>
@@ -4881,8 +4874,6 @@ function ProjectView({ state, persist }) {
   const [editProjectId, setEditProjectId] = useState(null);
   const [editDraft, setEditDraft] = useState(null);
   const [isProjectEditorOpen, setIsProjectEditorOpen] = useState(false);
-  const [showProjectTeam,setShowProjectTeam] = useState(false);
-  const [teamRatingBusy,setTeamRatingBusy] = useState(false);
   const project = state.projects.find(p => p.id === selectedId) || state.projects[0];
   const [board, setBoard] = useState(null);
 
@@ -4897,21 +4888,17 @@ function ProjectView({ state, persist }) {
     ["Bath Elevation","bath_elevation"],["Furniture","wardrobe"],["Onboarding","onboarding"]
   ];
 
-  // Keep the scrollable table exactly as wide as its grid tracks, including Completed.
-  const ongoingGridColumns = `65px 300px 180px 180px repeat(${scopeFields.length},78px) 105px`;
-  const ongoingGridWidth = 65 + 300 + 180 + 180 + scopeFields.length * 78 + 105;
-
   const isCompletedProject = p => (p.status==="Completed" || p.projectControl?.projectStatus==="Completed" || Boolean(p.completedAt));
   const ongoingProjects = state.projects.filter(p=>!isCompletedProject(p));
   const completedProjects = state.projects.filter(isCompletedProject);
-  const completeProject = async (p,e,outcome="survived") => {
+  const completeProject = async (p,e) => {
     if(e)e.stopPropagation();
     if(completionPendingRef.current[p.id])return;
     completionPendingRef.current[p.id]=true;
     const previousSelection=selectedId;
     const now=new Date().toISOString();
     const before=latestProjectStateRef.current.projects.find(x=>x.id===p.id)||p;
-    const statusFields=x=>({status:x.status,projectStatus:x.projectStatus,completed:x.completed,completedAt:x.completedAt,completedDate:x.completedDate,completionOutcome:x.completionOutcome});
+    const statusFields=x=>({status:x.status,projectStatus:x.projectStatus,completed:x.completed,completedAt:x.completedAt,completedDate:x.completedDate});
     const applyStatus=async (fields,control)=>{
       const latest=latestProjectStateRef.current;
       const next={...latest,projects:latest.projects.map(x=>x.id===p.id?{...x,...fields,projectControl:{...x.projectControl,...control}}:x)};
@@ -4919,7 +4906,7 @@ function ProjectView({ state, persist }) {
       await persist(next);
     };
     // Update React state before waiting for Google Sheets.
-    const localSave=applyStatus({status:"Completed",projectStatus:"Completed",completed:true,completedAt:now,completedDate:now.slice(0,10),completionOutcome:outcome},{projectStatus:"Completed",completedAt:now});
+    const localSave=applyStatus({status:"Completed",projectStatus:"Completed",completed:true,completedAt:now,completedDate:now.slice(0,10)},{projectStatus:"Completed",completedAt:now});
     if(selectedId===p.id){
       const next=latestProjectStateRef.current.projects.find(x=>!isCompletedProject(x));
       setSelectedId(next?.id||null);
@@ -4933,11 +4920,11 @@ function ProjectView({ state, persist }) {
       await localSave;
       await scopeSaveRequestsRef.current[p.id];
       if(pendingScope)await projectApi.update(frontendProjectToBackend(pendingScope.project,true));
-      const completedRow=await projectApi.complete(p.id,outcome);
+      const completedRow=await projectApi.complete(p.id);
       const current=latestProjectStateRef.current.projects.find(x=>x.id===p.id);
       if(current){
         const synced=backendProjectToFrontend(completedRow,current);
-        await applyStatus({...statusFields(synced),completionOutcome:outcome},{projectStatus:synced.projectControl?.projectStatus,completedAt:synced.projectControl?.completedAt});
+        await applyStatus(statusFields(synced),{projectStatus:synced.projectControl?.projectStatus,completedAt:synced.projectControl?.completedAt});
       }
     } catch(err) {
       await applyStatus(statusFields(before),{projectStatus:before.projectControl?.projectStatus,completedAt:before.projectControl?.completedAt});
@@ -5227,7 +5214,7 @@ function ProjectView({ state, persist }) {
     </div>}
 
     <div style={{display:"flex",alignItems:"center",gap:0,borderBottom:`1px solid ${T.line}`,marginBottom:18,overflowX:"auto",background:"#fff"}}>
-      {[["list","Projects & Scope"],["team","Directory"],["line","Line of Work"]].map(([id,label])=>
+      {[["list","Projects & Scope"],["team","Teams & Ratings"],["line","Line of Work"]].map(([id,label])=>
         <button type="button" key={id} onClick={(e)=>{e.preventDefault();e.stopPropagation();setTab(id);}} style={{
           padding:"11px 16px",border:"none",borderBottom:`3px solid ${tab===id?T.cyan:"transparent"}`,
           background:tab===id?T.navy:"transparent",color:tab===id?"#fff":T.inkDim,cursor:"pointer",
@@ -5247,15 +5234,15 @@ function ProjectView({ state, persist }) {
       </div>
 
       <div style={{overflowX:"auto",border:`1px solid ${T.line}`,background:"#fff"}}>
-        <div style={{width:ongoingGridWidth,minWidth:"100%"}}>
+        <div style={{minWidth:1750}}>
           <div style={{
             display:"grid",
-            gridTemplateColumns:ongoingGridColumns,
+            gridTemplateColumns:`65px 300px 180px 180px repeat(${scopeFields.length},78px) 105px`,
             background:"#D2CDC1",color:"#1C1C19",borderBottom:`2px solid ${T.ink}`,
             fontFamily:FONT_MONO,fontSize:8,fontWeight:700
           }}>
             {["S. No","Current Project","Client","Architect",...scopeFields.map(([label])=>label),"Completed"].map((h,i)=>
-              <div key={i} style={{padding:"9px 6px",borderRight:`1px solid ${T.line}`,textAlign:i>=4?"center":"left",display:"flex",alignItems:"center",justifyContent:i>=4?"center":"flex-start",background:"#D2CDC1",boxSizing:"border-box"}}>
+              <div key={i} style={{background:"#D2CDC1",color:"#1C1C19",padding:"9px 6px",borderRight:`1px solid ${T.line}`,textAlign:i>=4?"center":"left",display:"flex",alignItems:"center",justifyContent:i>=4?"center":"flex-start"}}>
                 {h}
               </div>
             )}
@@ -5265,7 +5252,7 @@ function ProjectView({ state, persist }) {
             const sc=scopeFor(p);
             const selected=p.id===project?.id;
             return <div key={p.id} onClick={()=>setSelectedId(p.id)} style={{
-              display:"grid",gridTemplateColumns:ongoingGridColumns,
+              display:"grid",gridTemplateColumns:`65px 300px 180px 180px repeat(${scopeFields.length},78px) 105px`,
               borderBottom:`1px solid ${T.line}`,background:selected?"#F3F1EA":"#fff",cursor:"pointer",
               fontFamily:FONT_BODY,fontSize:10
             }}>
@@ -5278,7 +5265,12 @@ function ProjectView({ state, persist }) {
                     onClick={(e)=>{e.stopPropagation();openProjectEditor(p);}}
                     style={{border:`1px solid ${T.blue}`,background:"#fff",color:T.blue,padding:"4px 7px",fontFamily:FONT_MONO,fontSize:8,fontWeight:700,cursor:"pointer"}}
                   >EDIT</button>
-
+                  <button
+                    type="button"
+                    onClick={(e)=>deleteProject(p,e)}
+                    title={`Delete ${p.name}`}
+                    style={{border:"1px solid #9B3B35",background:"#fff",color:"#9B3B35",padding:"4px 7px",fontFamily:FONT_MONO,fontSize:8,fontWeight:700,cursor:"pointer"}}
+                  >DELETE</button>
                 </span>
               </div>
               <div style={{padding:8,borderRight:`1px solid ${T.line}`}}>{p.client||sc.client||"—"}</div>
@@ -5290,10 +5282,9 @@ function ProjectView({ state, persist }) {
                   color:on?"#245C2B":"#999",cursor:"pointer",fontSize:16,fontWeight:800
                 }}>{on?"☑":"☐"}</button>;
               })}
-              <div style={{display:"flex",gap:5,alignItems:"center",justifyContent:"center",padding:5,background:"#fff",borderRight:`1px solid ${T.line}`,boxSizing:"border-box"}}>
-                <button type="button" onClick={e=>completeProject(p,e,"not_survived")} title="Completed — did not survive to the end" aria-label={`Mark ${p.name||"project"} completed, did not survive`} style={{...smallBtn,background:"#F5DEDC",color:"#963C37",border:"1px solid #C98D88",padding:"6px 9px",fontWeight:700}}>✕</button>
-                <button type="button" onClick={e=>completeProject(p,e,"survived")} title="Completed — survived to the end" aria-label={`Mark ${p.name||"project"} completed, survived`} style={{...smallBtn,background:"#DFEDE0",color:"#2F7042",border:"1px solid #91B69A",padding:"6px 9px",fontWeight:700}}>✓</button>
-              </div>
+              <button type="button" onClick={e=>completeProject(p,e)} title="Mark project completed" aria-label={`Mark ${p.name||"project"} completed`} style={{border:0,background:"#D2CDC1",cursor:"pointer",fontFamily:FONT_BODY,fontSize:28,fontWeight:700,color:"#1C1C19",display:"flex",alignItems:"center",justifyContent:"center",minHeight:44}}>
+                <span aria-hidden="true">☐</span>
+              </button>
             </div>;
           })}
         </div>
@@ -5301,69 +5292,24 @@ function ProjectView({ state, persist }) {
 
       {project&&<section aria-label="Project summary" style={{marginTop:16,border:`1px solid ${T.line}`,background:T.paper2,padding:16}}>
         <div style={{fontFamily:FONT_MONO,fontSize:10,color:T.cyan,marginBottom:12}}>PROJECT INFORMATION</div>
-        <div style={{display:"flex",alignItems:"center",gap:18,flexWrap:"wrap"}}>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(6,minmax(0,1fr))",gap:14,flex:"1 1 850px",minWidth:0}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:14}}>
           {[["Project No.",project.no],["Project Name",project.name],["Client",project.client||project.contacts?.Owner?.name],["Architect",project.architect||project.contacts?.Architect?.name],["Address",project.address],["Project Type",project.type]].map(([label,value])=><div key={label}><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginBottom:5}}>{label}</div><div style={{fontFamily:FONT_BODY,fontSize:13,overflowWrap:"anywhere"}}>{value||"—"}</div></div>)}
         </div>
-        <div style={{display:"flex",justifyContent:"center",alignItems:"center",flex:"0 0 90px"}}>
-          <button type="button" style={{...smallBtn,border:`1px solid ${T.blue}`,color:T.blue,background:"#fff"}} onClick={()=>setShowProjectTeam(v=>!v)}>{showProjectTeam?"Hide Team":"View Team"}</button>
-        </div>
-        </div>
-        {showProjectTeam&&<div style={{marginTop:14,borderTop:`1px solid ${T.line}`,paddingTop:14}}>
-          <div style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,marginBottom:10}}>PROJECT TEAM · {project.name}</div>
-          <div style={{overflowX:"auto"}}>
-          <div style={{display:"grid",gridTemplateColumns:"minmax(160px,1.3fr) minmax(120px,1fr) minmax(190px,1.4fr) minmax(145px,auto)",gap:12,minWidth:680,padding:"8px",background:T.paper2,borderBottom:`1px solid ${T.ink}`,fontFamily:FONT_MONO,fontSize:10,fontWeight:700}}><span>TEAM MEMBER</span><span>MOBILE NUMBER</span><span>EMAIL ID</span><span>RATING</span></div>
-          {Object.entries(project.contacts||{}).filter(([,c])=>c&&(String(c.name||"").trim()||String(c.company||"").trim())).map(([role,c])=>{
-            const key=contactKey(c.name||c.company,c.mobile);
-            const rating=Number(c.rating||state.ratings?.[key]?.rating||0);
-            return <div key={role} style={{display:"grid",gridTemplateColumns:"minmax(160px,1.3fr) minmax(120px,1fr) minmax(190px,1.4fr) minmax(145px,auto)",alignItems:"center",gap:12,padding:"9px 8px",borderBottom:`1px solid ${T.line}`,minWidth:680}}>
-              <div><strong style={{fontFamily:FONT_BODY,fontSize:13}}>{c.name||c.company}</strong><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim}}>{role}{c.company?` · ${c.company}`:""}</div></div>
-              <div style={{fontFamily:FONT_MONO,fontSize:12,overflowWrap:"anywhere"}}>{c.mobile||"—"}</div>
-              <div style={{fontFamily:FONT_BODY,fontSize:12,overflowWrap:"anywhere"}}>{c.email||"—"}</div>
-              <DirectoryStars name={c.name||c.company} value={rating} disabled={teamRatingBusy} onChange={async value=>{
-                const before=latestProjectStateRef.current;
-                const projects=directoryCorrections(before.projects,[key],{rating:value});
-                const changed=projects.filter((p,i)=>p!==before.projects[i]);
-                if(!changed.length)return;
-                const next={...before,projects};setTeamRatingBusy(true);
-                try{await persist(next);for(const p of changed)await projectApi.saveContacts(p.id,contactsObjectToRows(p,p.contacts));setProjectSaveMessage("Team rating saved to Google Sheets.");}
-                catch(err){await persist(before);setProjectSaveMessage(`Team rating save failed: ${err?.message||err}`);}
-                finally{setTeamRatingBusy(false);}
-              }}/>
-            </div>;
-          })}
-          {!Object.values(project.contacts||{}).some(c=>c&&(c.name||c.company))&&<div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim}}>No team contacts assigned to this project.</div>}
-          </div>
-        </div>}
       </section>}
 
       {project && editDraft && isProjectEditorOpen && <div style={{marginTop:16,border:`2px solid ${T.navy}`,background:"#fff",padding:16}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:14}}>
           <div>
-            <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.cyan}}>Project Details · Editable (Client & Architect read-only) / Contacts · Editable</div>
+            <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.cyan}}>Project Details · Read Only / Contacts · Editable</div>
             <div style={{fontFamily:FONT_DISPLAY,fontSize:18,fontWeight:700,marginTop:3}}>{editDraft.name || "Selected Project"}</div>
           </div>
           <div style={{display:"flex",gap:8}}>
-            
+            <button onClick={()=>openProjectEditor(project)} style={{...smallBtn}}>Reset Form</button>
             <button onClick={()=>setIsProjectEditorOpen(false)} style={{...smallBtn}}>Collapse</button>
           </div>
         </div>
-        <section aria-label="Editable project details" style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:12}}>
-          {[
-            ["Project No.","no"],["Project Name","name"],["Client","client"],["Architect","architect"],
-            ["Address","address"],["Project Type","type"],["Start Date","startDate"],
-            ["Planned Completion","plannedCompletionDate"],["Project Status","projectStatus"]
-          ].map(([label,key])=>{
-            const locked=key==="client"||key==="architect";
-            const value=editDraft[key]||"";
-            return <div key={key}>
-              <label style={{display:"block",fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginBottom:5}}>{label}</label>
-              {locked ? <div style={{fontFamily:FONT_BODY,fontSize:13,overflowWrap:"anywhere",padding:"9px 0"}}>{value||"—"}</div>
-              : key==="type" ? <select aria-label={label} value={value} onChange={e=>setEditDraft(d=>({...d,[key]:e.target.value}))} style={{...inputStyle,width:"100%"}}>{["Residence","Commercial","Hospitality","Retail","Other"].map(v=><option key={v} value={v}>{v}</option>)}</select>
-              : key==="projectStatus" ? <select aria-label={label} value={value} onChange={e=>setEditDraft(d=>({...d,[key]:e.target.value}))} style={{...inputStyle,width:"100%"}}>{["Ongoing","On Hold","Completed","Cancelled"].concat(value&&! ["Ongoing","On Hold","Completed","Cancelled"].includes(value)?[value]:[]).map(v=><option key={v} value={v}>{v}</option>)}</select>
-              : <input aria-label={label} type={key==="startDate"||key==="plannedCompletionDate"?"date":"text"} value={value} onChange={e=>setEditDraft(d=>({...d,[key]:e.target.value}))} style={{...inputStyle,width:"100%",boxSizing:"border-box"}}/>}
-            </div>;
-          })}
+        <section aria-label="Read-only project details" style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:12}}>
+          {[["Project No.",project.no],["Project Name",project.name],["Client",project.client||project.contacts?.Owner?.name],["Architect",project.architect||project.contacts?.Architect?.name],["Address",project.address],["Project Type",project.type],["Start Date",formatProjectDate(project.startDate)],["Planned Completion",formatProjectDate(project.plannedCompletionDate||project.endDate)],["Project Status",project.projectStatus||project.status]].map(([label,value])=><div key={label}><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginBottom:5}}>{label}</div><div style={{fontFamily:FONT_BODY,fontSize:13,overflowWrap:"anywhere"}}>{value||"—"}</div></div>)}
         </section>
         <div style={{marginTop:18,paddingTop:14,borderTop:`1px solid ${T.line}`}}>
           <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.cyan,marginBottom:10}}>Project Contacts · Editable</div>
@@ -5380,8 +5326,7 @@ function ProjectView({ state, persist }) {
         </div>
         <div style={{display:"flex",gap:8,marginTop:16}}>
           <Btn onClick={saveProjectEditor}><ClipboardCheck size={14}/> Save Project</Btn>
-          <button type="button" style={{...smallBtn,border:"1px solid #9B3B35",color:"#9B3B35",background:"#fff"}} onClick={()=>deleteProject(project)}>Delete Project</button>
-          
+          <Btn variant="ghost" onClick={()=>openProjectEditor(project)}>Reset</Btn>
         </div>
         <div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim,marginTop:10}}>Edit Client through Owner and edit Architect in the contact list above. Save Project closes this editor and updates the summary immediately.</div>
       </div>}
@@ -5396,7 +5341,7 @@ function ProjectView({ state, persist }) {
             <div style={{display:"grid",gridTemplateColumns:"70px 1.5fr 1fr 1fr 130px",background:"#D2CDC1",borderBottom:`2px solid ${T.ink}`,fontFamily:FONT_MONO,fontSize:9,fontWeight:700}}>
               {["S. No","Project","Client","Architect","Completed Date"].map(h=><div key={h} style={{padding:"9px 8px",borderRight:`1px solid ${T.line}`}}>{h}</div>)}
             </div>
-            {completedProjects.map((p,i)=><div key={p.id} style={{display:"grid",gridTemplateColumns:"70px 1.5fr 1fr 1fr 130px",borderBottom:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:10,background:p.completionOutcome==="not_survived"?"#F7E8E6":"#EAF3EA"}}>
+            {completedProjects.map((p,i)=><div key={p.id} style={{display:"grid",gridTemplateColumns:"70px 1.5fr 1fr 1fr 130px",borderBottom:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:10,background:"#F7F6F2"}}>
               <div style={{padding:8,borderRight:`1px solid ${T.line}`}}>{p.no||i+1}</div>
               <div style={{padding:8,borderRight:`1px solid ${T.line}`,fontWeight:700}}>{p.name}</div>
               <div style={{padding:8,borderRight:`1px solid ${T.line}`}}>{p.client||"—"}</div>
@@ -5449,7 +5394,7 @@ function ProjectView({ state, persist }) {
       </div>}
     </div>}
 
-    {tab==="team"&&<ProjectDirectory state={state} persist={persist}/>}
+    {tab==="team"&&<ProjectTeamView state={state} persist={persist} selectedId={selectedId}/>}
     {tab==="line"&&<ProjectLineOfWorkView state={state} persist={persist} selectedId={selectedId || null} />}
   </div>;
 }
