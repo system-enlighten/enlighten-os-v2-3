@@ -2315,6 +2315,8 @@ const ROLE_CATEGORIES = [
   { category: "Design", roles: ["Architect", "Principal Lighting Designer", "Lighting Designer", "Lighting Engineer", "Process Coordinator"] },
   { category: "Construction", roles: ["Site Supervisor", "Electrical Contractor", "POP Contractor", "Stone Contractor", "Furniture Contractor", "Lighting Supplier", "Automation"] },
 ];
+// Preserve the saved Owner role key so existing Sheet rows continue to match.
+const contactRoleLabel = role => role === "Owner" ? "Client" : role;
 const ROLES = ROLE_CATEGORIES.flatMap((c) => c.roles);
 const TEAM_DEPARTMENTS = ["Design", "Execution", "Project Management", "Accounts", "Admin", "Management"];
 const TEAM_DESIGNATIONS = [
@@ -2374,6 +2376,43 @@ function directoryCorrections(projects,keys,values){
   });
 }
 
+function directoryRoleAssignments(projects,keys){
+  const selected=new Set(keys);
+  return Object.fromEntries(projects.map(p=>[p.id,Object.entries(p.contacts||{}).filter(([,c])=>c&&selected.has(contactKey(c.name||c.company,c.mobile))).map(([role])=>role)]));
+}
+
+function directoryMergeSelection(editor,entry,checked,projects){
+  const keys=checked?[...new Set([...editor.keys,entry.key])]:editor.keys.filter(k=>k!==entry.key);
+  const incoming=directoryRoleAssignments(projects,[entry.key]),remaining=directoryRoleAssignments(projects,keys);
+  const assignments={...editor.assignments};
+  for(const p of projects){
+    assignments[p.id]=checked?[...new Set([...(assignments[p.id]||[]),...incoming[p.id]])]:(assignments[p.id]||[]).filter(r=>!incoming[p.id].includes(r)||remaining[p.id].includes(r));
+  }
+  return {...editor,keys,assignments};
+}
+
+// Each project has its own explicit role selection. Other people's roles stay intact.
+function directoryProjectChanges(projects,keys,values,projectIds,addRole,assignments){
+  const selected=new Set(keys),linked=new Set(projectIds||[]);
+  return projects.map(p=>{
+    const contacts={...p.contacts};let changed=false;
+    const existing=Object.entries(contacts).filter(([,c])=>c&&selected.has(contactKey(c.name||c.company,c.mobile))).map(([r])=>r);
+    const desired=assignments?(assignments[p.id]||[]):linked.has(p.id)?existing.length?existing:[addRole]:[];
+    for(const role of existing){if(desired.includes(role))contacts[role]={...contacts[role],...values};else delete contacts[role];changed=true;}
+    for(const role of desired){
+      if(existing.includes(role))continue;
+      if(!role)throw new Error("Choose a role for newly added projects.");
+      const occupied=contacts[role];
+      if(occupied&&(occupied.name||occupied.company))throw new Error(`${p.name||p.id}: ${contactRoleLabel(role)} is already assigned. Choose another role or edit that project's team first.`);
+      contacts[role]={...values};changed=true;
+    }
+    if(!changed)return p;
+    return {...p,contacts,
+      ...(JSON.stringify(p.contacts?.Owner)!==JSON.stringify(contacts.Owner)?{client:contacts.Owner?.name||""}:{}),
+      ...(JSON.stringify(p.contacts?.Architect)!==JSON.stringify(contacts.Architect)?{architect:contacts.Architect?.name||""}:{})};
+  });
+}
+
 function DirectoryStars({value=0,onChange,disabled=false,name="contact"}){
   return <span role="group" aria-label={`Rating for ${name}`} style={{display:"inline-flex",whiteSpace:"nowrap"}}>{[1,2,3,4,5].map(n=><button key={n} type="button" aria-label={`Rate ${name} ${n} out of 5`} aria-pressed={Number(value)===n} disabled={disabled} onClick={()=>onChange(n)} style={{border:0,background:"transparent",padding:"4px 2px",fontSize:23,color:n<=Number(value)?"#B57812":"#878787",cursor:disabled?"wait":"pointer"}}>{n<=Number(value)?"★":"☆"}</button>)}</span>;
 }
@@ -2383,20 +2422,22 @@ function ProjectDirectory({state,persist}){
   const [role,setRole]=useState("All");
   const [editor,setEditor]=useState(null);
   const [mergeQuery,setMergeQuery]=useState("");
+  const [projectQuery,setProjectQuery]=useState("");
   const [message,setMessage]=useState("");
   const [busy,setBusy]=useState(false);
   const pendingRef=useRef(false),latestRef=useRef(state);latestRef.current=state;
   const directory=buildDirectory(state.projects,state.ratings||{});
   const roles=[...new Set(directory.flatMap(d=>d.roles))].sort();
-  const visible=directory.filter(d=>(role==="All"||d.roles.includes(role))&&[d.name,d.company,d.mobile,d.email].join(" ").toLowerCase().includes(query.toLowerCase()));
-  const start=d=>{setEditor({keys:[d.key],name:d.name,company:d.company,email:d.email,mobile:d.mobile,rating:d.rating});setMergeQuery("");};
-  const save=async(keys,values)=>{
+  const visible=directory.filter(d=>(role==="All"||d.roles.includes(role))&&[d.name,d.company,d.mobile,d.email,...d.roles.map(contactRoleLabel)].join(" ").toLowerCase().includes(query.toLowerCase()));
+  const start=d=>{setMessage("");setEditor({keys:[d.key],name:d.name,company:d.company,email:d.email,mobile:d.mobile,rating:d.rating,assignments:directoryRoleAssignments(state.projects,[d.key])});setMergeQuery("");setProjectQuery("");};
+  const save=async(keys,values,projectIds,addRole,assignments)=>{
     if(pendingRef.current)return;
     if(Object.hasOwn(values,"name")&&!values.name.trim()&&!values.company.trim()){setMessage("Enter a name or company before saving.");return;}
     const before=latestRef.current;
-    const projects=directoryCorrections(before.projects,keys,values);
+    let projects;
+    try{projects=assignments||projectIds?directoryProjectChanges(before.projects,keys,values,projectIds,addRole,assignments):directoryCorrections(before.projects,keys,values);}catch(err){setMessage(err.message);return;}
     const changed=projects.filter((p,i)=>p!==before.projects[i]);
-    if(!changed.length)return;
+    if(!changed.length){setEditor(null);return;}
     const next={...before,projects};latestRef.current=next;
     pendingRef.current=true;setBusy(true);setEditor(null);setMessage(`Changes applied · Saving ${changed.length} project(s)…`);
     const failed=[],warnings=[];
@@ -2405,7 +2446,7 @@ function ProjectDirectory({state,persist}){
       try{await projectApi.saveContacts(project.id,contactsObjectToRows(project,project.contacts));}
       catch(err){failed.push({project,error:err});continue;}
       const original=before.projects.find(p=>p.id===project.id);
-      const summaryContactChanged=Object.hasOwn(values,"name")&&["Owner","Architect"].some(role=>{const c=original.contacts?.[role];return c&&keys.includes(contactKey(c.name||c.company,c.mobile));});
+      const summaryContactChanged=original.client!==project.client||original.architect!==project.architect;
       if(summaryContactChanged){
         try{const latest=latestRef.current.projects.find(p=>p.id===project.id)||project;await projectApi.update(frontendProjectToBackend(latest,true));}
         catch(err){warnings.push(project.name||project.id);}
@@ -2416,7 +2457,7 @@ function ProjectDirectory({state,persist}){
       const restored={...latest,projects:latest.projects.map(p=>{
         const failure=failed.find(f=>f.project.id===p.id);if(!failure)return p;
         const original=before.projects.find(x=>x.id===p.id),contacts={...p.contacts};
-        for(const [role,c]of Object.entries(failure.project.contacts||{}))if(JSON.stringify(contacts[role])===JSON.stringify(c))contacts[role]=original.contacts?.[role];
+        for(const role of new Set([...Object.keys(failure.project.contacts||{}),...Object.keys(original.contacts||{})]))if(JSON.stringify(contacts[role])===JSON.stringify(failure.project.contacts?.[role])){if(original.contacts?.[role])contacts[role]=original.contacts[role];else delete contacts[role];}
         return {...p,contacts,...(p.client===failure.project.client?{client:original.client}:{}),...(p.architect===failure.project.architect?{architect:original.architect}:{})};
       })};
       latestRef.current=restored;await persist(restored);
@@ -2424,45 +2465,41 @@ function ProjectDirectory({state,persist}){
     setMessage(failed.length?`Could not save: ${failed.map(f=>f.project.name||f.project.id).join(", ")}. Their previous values were restored; edit these entries and retry.`:warnings.length?`Contacts and ratings saved. Project summary sync failed for ${warnings.join(", ")}; edit and save again to retry.`:"Directory updated in all linked projects. Ratings saved to Google Sheets.");
     pendingRef.current=false;setBusy(false);
   };
-  const removeContact=async d=>{
-    if(pendingRef.current)return;
-    const affected=d.projects.map(p=>p.name||p.id);
-    if(!window.confirm(`Delete ${d.name||d.company||"this contact"} from the directory?\n\nAffected projects (${affected.length}):\n${affected.map(n=>`• ${n}`).join("\n")}\n\nThis removes the contact from those projects, not the projects themselves.`))return;
-    const before=latestRef.current;
-    const projects=before.projects.map(p=>{
-      const contacts={...p.contacts};let changed=false;
-      for(const [role,c] of Object.entries(contacts))if(contactKey(c.name||c.company,c.mobile)===d.key){delete contacts[role];changed=true;}
-      return changed?{...p,contacts}:p;
-    });
-    const changed=projects.filter((p,i)=>p!==before.projects[i]);if(!changed.length)return;
-    pendingRef.current=true;setBusy(true);setMessage(`Deleting contact from ${changed.length} project(s)…`);
-    try{
-      for(const p of changed)await projectApi.saveContacts(p.id,contactsObjectToRows(p,p.contacts));
-      const next={...before,projects};latestRef.current=next;await persist(next);
-      setMessage(`Contact deleted from ${changed.length} project(s).`);
-    }catch(err){setMessage(`Delete failed: ${err?.message||err}. Reload to verify saved project contacts.`);}
-    finally{pendingRef.current=false;setBusy(false);}
-  };
-  return <section aria-label="Project contact directory">
+  const cell={...tdStyle,textAlign:"left",verticalAlign:"top",fontFamily:FONT_BODY,fontSize:13,lineHeight:1.5,padding:"14px 12px",borderRight:`1px solid ${T.line}`,overflowWrap:"anywhere"};
+  return <section aria-label="Project contact directory" style={{fontFamily:FONT_BODY,color:T.ink}}>
     <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:12}}>
       <input aria-label="Search directory" placeholder="Search name, studio, email or phone" value={query} onChange={e=>setQuery(e.target.value)} style={{...inputStyle,maxWidth:380}}/>
-      <select aria-label="Directory role" value={role} onChange={e=>setRole(e.target.value)} style={{...inputStyle,maxWidth:260}}>{["All",...roles].map(r=><option key={r}>{r}</option>)}</select>
+      <select aria-label="Directory role" value={role} onChange={e=>setRole(e.target.value)} style={{...inputStyle,maxWidth:260}}>{["All",...roles].map(r=><option key={r} value={r}>{contactRoleLabel(r)}</option>)}</select>
     </div>
     {message&&<p role="status" style={{fontSize:12}}>{message}</p>}
-    <div style={{overflowX:"auto"}}><table style={{borderCollapse:"collapse",width:"100%",border:`1px solid ${T.line}`}}><thead><tr>{["Name","Company / Studio","Role","Projects","Rating","Edit"].map(h=><th key={h} style={{...thStyle,background:T.paperDim,textAlign:"left"}}>{h}</th>)}</tr></thead><tbody>{visible.map(d=><tr key={d.key}>
-      <td style={tdStyle}>{d.name||"—"}<div style={{fontSize:11,color:T.inkDim}}>{d.mobile}</div></td><td style={tdStyle}>{d.company||"—"}</td><td style={tdStyle}>{d.roles.join(", ")}</td><td style={tdStyle}>{d.projects.map(p=><div key={p.id}>{p.name}</div>)}</td>
-      <td style={tdStyle}><DirectoryStars name={d.name||d.company} value={d.rating} disabled={busy} onChange={rating=>save([d.key],{rating})}/></td>
-      <td style={tdStyle}><button type="button" disabled={busy} onClick={()=>start(d)} style={smallBtn}>Edit / merge</button> <button type="button" disabled={busy} onClick={()=>removeContact(d)} style={{...smallBtn,color:"#963C37",border:"1px solid #C98D88"}}>Delete</button></td>
+    <div style={{overflowX:"auto"}}><table style={{borderCollapse:"collapse",width:"100%",minWidth:1140,tableLayout:"fixed",border:`1px solid ${T.line}`,fontFamily:FONT_BODY}}><colgroup>{[14,15,15,32,13,11].map((w,i)=><col key={i} style={{width:`${w}%`}}/>)}</colgroup><thead><tr>{["Name","Company / Studio","Role","Projects","Rating","Actions"].map(h=><th key={h} style={{...thStyle,background:"#D2CDC1",color:"#1C1C19",fontFamily:FONT_MONO,textAlign:"left",fontSize:10,padding:"12px",borderRight:`1px solid ${T.line}`,borderBottom:`2px solid ${T.ink}`}}>{h}</th>)}</tr></thead><tbody>{visible.map(d=><tr key={d.key}>
+      <td style={cell}><strong>{d.name||"—"}</strong><div style={{fontSize:12,color:T.inkDim}}>{d.mobile}</div></td><td style={cell}>{d.company||"—"}</td><td style={cell}>{d.roles.map(r=><div key={r}>{contactRoleLabel(r)}</div>)}</td>
+      <td style={{...cell,padding:0}}><div style={{maxHeight:220,overflowY:"auto"}}>{d.projects.map((p,i)=><div key={p.id} style={{padding:"9px 12px",borderTop:i?`1px solid ${T.line}`:"none",textAlign:"left"}}>{p.no&&<span style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginRight:8}}>{p.no}</span>}{p.name||p.id}<div style={{fontSize:11,color:T.inkDim,marginTop:3}}>{Object.entries(state.projects.find(x=>x.id===p.id)?.contacts||{}).filter(([,c])=>c&&contactKey(c.name||c.company,c.mobile)===d.key).map(([r])=>contactRoleLabel(r)).join(" · ")}</div></div>)}</div></td>
+      <td style={cell}><DirectoryStars name={d.name||d.company} value={d.rating} disabled={busy} onChange={rating=>save([d.key],{rating})}/></td>
+      <td style={cell}><div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:12}}><button type="button" disabled={busy} onClick={()=>start(d)} style={{...smallBtn,fontFamily:FONT_BODY}}>Edit / merge</button></div></td>
     </tr>)}</tbody></table>{!visible.length&&<p>No matching contacts.</p>}</div>
-    {editor&&<div role="dialog" aria-modal="true" aria-label="Edit directory contact" style={{position:"fixed",inset:0,zIndex:15000,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}><div style={{background:T.paper,padding:22,width:680,maxWidth:"100%",maxHeight:"90vh",overflowY:"auto"}}>
-      <h3>Edit directory contact</h3>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:12}}>{[["Name","name"],["Company / Studio","company"],["Email","email"],["Mobile","mobile"]].map(([label,key])=><Field key={key} label={label}><input aria-label={`Directory ${label}`} value={editor[key]} onChange={e=>setEditor(x=>({...x,[key]:e.target.value}))} style={inputStyle}/></Field>)}</div>
+    {editor&&<div role="dialog" aria-modal="true" aria-label="Edit directory contact" style={{position:"fixed",inset:0,zIndex:15000,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}><div style={{background:T.paper,padding:22,width:760,maxWidth:"100%",maxHeight:"90vh",overflowY:"auto",fontFamily:FONT_BODY,fontSize:13,lineHeight:1.55,color:T.ink}}>
+      <h3 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:"0 0 20px"}}>Edit directory contact</h3>
+      {message&&<p role="status" style={{fontFamily:FONT_BODY,color:T.redline}}>{message}</p>}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(230px,1fr))",gap:12}}>{[["Name","name"],["Company / Studio","company"],["Email","email"],["Mobile","mobile"]].map(([label,key])=><label key={key} style={{display:"grid",gap:6,fontFamily:FONT_BODY,fontSize:12,fontWeight:600,color:T.inkDim}}>{label}<input aria-label={`Directory ${label}`} value={editor[key]} onChange={e=>setEditor(x=>({...x,[key]:e.target.value}))} style={{...inputStyle,fontFamily:FONT_BODY,fontSize:13,fontWeight:400}}/></label>)}</div>
       <DirectoryStars name="edited contact" value={editor.rating} onChange={rating=>setEditor(x=>({...x,rating}))}/>
       <p>Choose any duplicate entries below to give them the same details and rating in every linked project. Different people are combined only when you select them.</p>
-      <input aria-label="Find duplicates" placeholder="Find duplicate names or studios" value={mergeQuery} onChange={e=>setMergeQuery(e.target.value)} style={inputStyle}/>
-      <div style={{maxHeight:220,overflowY:"auto",marginTop:12}}>{directory.filter(d=>[d.name,d.company,d.mobile].join(" ").toLowerCase().includes(mergeQuery.toLowerCase())).map(d=><label key={d.key} style={{display:"block",padding:8,borderBottom:`1px solid ${T.line}`}}><input type="checkbox" checked={editor.keys.includes(d.key)} onChange={e=>setEditor(x=>({...x,keys:e.target.checked?[...x.keys,d.key]:x.keys.filter(k=>k!==d.key)}))}/> {d.name||"Unnamed"} · {d.company||"No studio"} · {d.mobile||"No phone"} · {d.projects.length} project(s)</label>)}</div>
-      <p>{new Set(directory.filter(d=>editor.keys.includes(d.key)).flatMap(d=>d.projects.map(p=>p.id))).size} linked project(s) will update.</p>
-      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><button style={smallBtn} onClick={()=>setEditor(null)}>Cancel</button><button disabled={busy||!editor.keys.length} style={{...smallBtn,background:T.navy,color:"#fff"}} onClick={()=>{const {keys,...values}=editor;return save(keys,Object.fromEntries(Object.entries(values).map(([k,v])=>[k,typeof v==="string"?v.trim():v])));}}>Save Changes</button></div>
+      <input aria-label="Find duplicates" placeholder="Find names, studios or designations" value={mergeQuery} onChange={e=>setMergeQuery(e.target.value)} style={{...inputStyle,fontFamily:FONT_BODY,fontSize:13,fontWeight:400}}/>
+      <div style={{maxHeight:240,overflowY:"auto",marginTop:12,border:`1px solid ${T.line}`}}>{directory.filter(d=>[d.name,d.company,d.mobile,...d.roles.map(contactRoleLabel)].join(" ").toLowerCase().includes(mergeQuery.toLowerCase())).map(d=><label key={d.key} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"12px",borderBottom:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:13,lineHeight:1.5,cursor:"pointer"}}><input type="checkbox" aria-label={`Merge ${d.name||d.company}`} style={{width:16,height:16,marginTop:3,flexShrink:0,accentColor:T.navy}} checked={editor.keys.includes(d.key)} onChange={e=>setEditor(x=>directoryMergeSelection(x,d,e.target.checked,state.projects))}/><span style={{minWidth:0}}><strong style={{fontWeight:600}}>{d.name||"Unnamed"}</strong><span style={{display:"block",fontSize:12,color:T.inkDim}}>{d.company||"No studio"} · {d.mobile||"No phone"} · {d.projects.length} project(s)</span><span style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:5}}>{d.roles.map(r=><span key={r} style={{background:T.paperDim,border:`1px solid ${T.line}`,padding:"2px 7px",fontFamily:FONT_BODY,fontSize:11,fontWeight:500,color:T.ink}}>{contactRoleLabel(r)}</span>)}</span></span></label>)}</div>
+      <h4 style={{fontFamily:FONT_DISPLAY,marginBottom:8}}>Project roles</h4>
+      <p style={{fontSize:13}}>Each checkbox is a separate assignment in that project. Uncheck Lighting Designer to remove only that role; Principal Lighting Designer stays selected. Use Add role to assign another designation.</p>
+      <input aria-label="Search linked projects" placeholder="Search project name, number or role" value={projectQuery} onChange={e=>setProjectQuery(e.target.value)} style={{...inputStyle,fontFamily:FONT_BODY,fontSize:13,fontWeight:400}}/>
+      <div style={{maxHeight:360,overflowY:"auto",marginTop:8,border:`1px solid ${T.line}`}}>{state.projects.filter(p=>`${p.no||""} ${p.name||""} ${[...new Set([...(editor.assignments[p.id]||[]),...directoryRoleAssignments([p],editor.keys)[p.id]])].map(contactRoleLabel).join(" ")}`.toLowerCase().includes(projectQuery.toLowerCase())).sort((a,b)=>Number(!!editor.assignments[b.id]?.length)-Number(!!editor.assignments[a.id]?.length)).map(p=>{
+        const original=directoryRoleAssignments([p],editor.keys)[p.id],assigned=editor.assignments[p.id]||[];
+        const shown=[...new Set([...original,...assigned])];
+        return <div key={p.id} style={{padding:12,borderBottom:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:13}}>
+          <strong>{p.no?`${p.no} · `:""}{p.name||p.id}</strong>
+          <div style={{display:"grid",gap:8,margin:"10px 0"}}>{shown.length?shown.map(r=><label key={r} style={{display:"flex",alignItems:"center",gap:9}}><input type="checkbox" aria-label={`${contactRoleLabel(r)} in ${p.name||p.id}`} checked={assigned.includes(r)} onChange={e=>setEditor(x=>({...x,assignments:{...x.assignments,[p.id]:e.target.checked?[...new Set([...(x.assignments[p.id]||[]),r])]:(x.assignments[p.id]||[]).filter(v=>v!==r)}}))}/><span>{contactRoleLabel(r)}</span></label>):<span style={{fontSize:12,color:T.inkDim}}>No roles assigned</span>}</div>
+          <select aria-label={`Add role in ${p.name||p.id}`} value="" style={{...inputStyle,fontFamily:FONT_BODY,fontSize:12,maxWidth:330}} onChange={e=>{const r=e.target.value;if(r)setEditor(x=>({...x,assignments:{...x.assignments,[p.id]:[...new Set([...(x.assignments[p.id]||[]),r])]}}));}}><option value="">Add role…</option>{[...new Set([...ROLES,...original])].filter(r=>!assigned.includes(r)).map(r=>{const c=p.contacts?.[r],occupied=c&&(c.name||c.company)&&!editor.keys.includes(contactKey(c.name||c.company,c.mobile));return <option key={r} value={r} disabled={!!occupied}>{contactRoleLabel(r)}{occupied?` — assigned to ${c.name||c.company}`:""}</option>;})}</select>
+        </div>;
+      })}</div>
+      <p>{Object.values(editor.assignments).filter(rs=>rs.length).length} project(s) · {Object.values(editor.assignments).reduce((n,rs)=>n+rs.length,0)} role assignment(s) selected.</p>
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><button style={{...smallBtn,fontFamily:FONT_BODY,fontSize:13,padding:"9px 14px"}} onClick={()=>setEditor(null)}>Cancel</button><button disabled={busy||!editor.keys.length} style={{...smallBtn,fontFamily:FONT_BODY,fontSize:13,padding:"9px 14px",background:T.navy,color:"#fff"}} onClick={()=>{const {keys,assignments,...values}=editor;return save(keys,Object.fromEntries(Object.entries(values).map(([k,v])=>[k,typeof v==="string"?v.trim():v])),undefined,undefined,assignments);}}>Save Changes</button></div>
     </div></div>}
   </section>;
 }
@@ -3516,14 +3553,21 @@ const zoneOrdinal = code => {
 const compareZoneCodes=(a,b)=>zoneOrdinal(a)-zoneOrdinal(b)||String(a).localeCompare(String(b),undefined,{numeric:true});
 function DashboardView({ state, persist }) {
   const [projectId,setProjectId]=useState("");
+  const [projectGroup,setProjectGroup]=useState("ongoing");
   const [editor,setEditor]=useState(null);
   const [bulkEditor,setBulkEditor]=useState(null);
   const [areaSaving,setAreaSaving]=useState(false);
   const [bulkSaving,setBulkSaving]=useState(false);
-  const projects=(state.projects||[]).filter(p=>p.status!=="Completed"&&p.projectControl?.projectStatus!=="Completed");
+  const completed=p=>[p.status,p.projectStatus,p.projectControl?.projectStatus].some(v=>String(v||"").toLowerCase()==="completed")||p.completed===true||String(p.completed).toLowerCase()==="true"||Boolean(p.completedAt)||Boolean(p.completedDate);
+  const allProjects=state.projects||[];
+  const ongoingProjects=allProjects.filter(p=>!completed(p)),completedProjects=allProjects.filter(completed);
+  const projects=projectGroup==="completed"?completedProjects:ongoingProjects;
+  const switchGroup=group=>{if(areaSaving||bulkSaving)return;setProjectGroup(group);setProjectId("");setEditor(null);setBulkEditor(null);};
   const project=projects.find(p=>String(p.id)===String(projectId))||null;
-  const scopeFloors=project?designDashboardScopeFloors(project):[];
+
   const rows=project?(project.floorZones||Object.entries(project.zones||{}).map(([zoneCode,v],i)=>({floorZoneId:"",zoneCode,floor:v?.floor||"",area:v?.room||"",seq:i+1}))):[];
+
+  const scopeFloors=project?[...new Set([...designDashboardScopeFloors(project),...rows.map(r=>String(r.floor||"")).filter(Boolean)])]:[];
 
   const addRow=f=>setEditor({mode:"add",floorZoneId:"",zoneCode:"",floor:f||scopeFloors[0]||"",area:""});
   const editRow=r=>setEditor({mode:"edit",floorZoneId:r.floorZoneId||"",zoneCode:r.zoneCode||"",floor:r.floor||"",area:r.area||r.room||""});
@@ -3610,6 +3654,11 @@ function DashboardView({ state, persist }) {
   return <div>
     <h2 style={{fontFamily:FONT_DISPLAY,fontSize:22,margin:"4px 0"}}>Floor / Zone</h2>
     <div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim,marginBottom:16}}>Projects come from Project → Projects & Scope. Only floors selected in that project's scope are available here. Saved areas automatically flow into Design Dashboard.</div>
+    <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"center",marginBottom:14}} role="group" aria-label="Floor / Zone project status">
+      {[["ongoing","Ongoing Projects",ongoingProjects.length],["completed","Completed Projects",completedProjects.length]].map(([id,label,count])=><button key={id} type="button" aria-pressed={projectGroup===id} disabled={areaSaving||bulkSaving} onClick={()=>switchGroup(id)} style={{...smallBtn,fontFamily:FONT_BODY,fontSize:13,padding:"10px 14px",background:projectGroup===id?T.navy:"#fff",color:projectGroup===id?"#fff":T.ink}}>{`${label} (${count})`}</button>)}
+    </div>
+    {projectGroup==="completed"&&<div role="status" style={{padding:"10px 12px",marginBottom:14,background:T.paperDim,border:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:13}}>Completed project records: select a project to add or update its floors and areas. Saving here keeps the project completed.</div>}
+    <label style={{display:"grid",gap:6,fontFamily:FONT_BODY,fontSize:12,maxWidth:560,marginBottom:16}}>Find and open a project<select aria-label="Floor / Zone project" value={project?.id||""} disabled={areaSaving||bulkSaving} onChange={e=>{setProjectId(e.target.value);setEditor(null);setBulkEditor(null);}} style={inputStyle}><option value="">Select {projectGroup==="completed"?"a completed":"an ongoing"} project…</option>{projects.map(p=><option key={p.id} value={p.id}>{p.no||p.projectNo||""} · {p.name||p.id}</option>)}</select></label>
     <div style={{fontFamily:FONT_MONO,fontSize:10,fontWeight:700,color:T.inkDim,marginBottom:8}}>FLOOR / ZONE MATRIX · SELECT A PROJECT COLUMN TO EDIT ITS AREAS BELOW</div>
     <div style={{border:`1px solid ${T.line}`,background:"transparent",marginBottom:18,overflow:"auto",maxHeight:"68vh"}}>
       {(()=>{
@@ -3622,7 +3671,7 @@ function DashboardView({ state, persist }) {
           <tbody>
             {allFloors.map((f,i)=><tr key={'floor-'+f}><th style={{...cell,position:"sticky",left:0,zIndex:2,background:"#fff",fontWeight:800}}>{f}</th>{projects.map(p=>{const scope=designDashboardScopeFloors(p);return <td key={p.id} style={{...cell,background:"transparent"}}>{scope.includes(f)?f:""}</td>})}</tr>)}
             {zoneCodes.map((z,i)=><tr key={'zone-'+z}><th style={{...cell,position:"sticky",left:0,zIndex:2,background:"#fff",fontWeight:800}}>{z}</th>{projects.map(p=>{const r=(p.floorZones||Object.entries(p.zones||{}).map(([zoneCode,v])=>({zoneCode,floor:v?.floor,area:v?.room}))).find(x=>String(x.zoneCode||"").trim().toUpperCase()===z);return <td key={p.id} style={{...cell,background:"transparent"}}>{r?[r.floor,r.area||r.room].filter(Boolean).join(" | "):""}</td>})}</tr>)}
-            {!projects.length&&<tr><td style={{...cell,padding:16}}>No ongoing projects found.</td></tr>}
+            {!projects.length&&<tr><td style={{...cell,padding:16}}>No {projectGroup=== "completed"?"completed":"ongoing"} projects found.</td></tr>}
           </tbody>
         </table>;
       })()}
@@ -3630,7 +3679,7 @@ function DashboardView({ state, persist }) {
 
     {project&&<div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-        <div><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.cyan}}>SELECTED PROJECT · {project.no||project.projectNo}</div><h3 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:"3px 0"}}>{project.name}</h3></div>
+        <div><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.cyan}}>SELECTED PROJECT · {project.no||project.projectNo}</div><h3 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:"3px 0"}}>{project.name}</h3><span style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>Status: {completed(project)?"Completed":project.status||"Ongoing"}</span></div>
         <div style={{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"flex-end"}}><button type="button" disabled={!scopeFloors.length} onClick={()=>setBulkEditor({floor:scopeFloors[0]||"",text:""})} style={{...smallBtn,background:T.navy,color:"#fff",padding:"9px 14px"}}>+ BULK ADD AREAS</button><button type="button" disabled={!scopeFloors.length} onClick={()=>addRow(scopeFloors[0])} style={{...smallBtn,background:"#fff",padding:"9px 14px"}}>+ ADD ONE</button></div>
       </div>
       {scopeFloors.map(f=>{const fr=rows.filter(r=>String(r.floor)===f);return <div key={f} style={{border:`1px solid ${T.line}`,background:"#fff",marginBottom:10}}>
@@ -3967,10 +4016,10 @@ function ProjectScopeView({ state, persist, selectedId }) {
 function ProjectTeamContactFields({contacts, onChange}) {
   return <div style={{display:"flex",flexDirection:"column",gap:18,marginBottom:16}}>
     {ROLE_CATEGORIES.map(({category,roles}) => <div key={category}>
-      <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".08em",textTransform:"uppercase",color:categoryColor(category),marginBottom:8}}>{category}</div>
+      <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".08em",textTransform:"uppercase",color:categoryColor(category),marginBottom:8}}>{contactRoleLabel(category)}</div>
       <div style={{borderTop:`2px solid ${T.ink}`}}>{roles.map(role => <div key={role} style={{display:"grid",gridTemplateColumns:"170px repeat(4,minmax(110px,1fr))",gap:8,padding:"10px 0",borderBottom:`1px solid ${T.line}`,alignItems:"center"}}>
-        <div style={{fontFamily:FONT_MONO,fontSize:11.5,color:T.inkDim}}>{role}</div>
-        {[["name","Contact name"],["company","Company / Studio"],["email","Email"],["mobile","Mobile"]].map(([field,label]) => <input key={field} aria-label={`${role} ${label}`} style={inputStyle} placeholder={label} value={contacts[role]?.[field] || ""} onChange={e=>onChange(role,field,e.target.value)}/>)}
+        <div style={{fontFamily:FONT_MONO,fontSize:11.5,color:T.inkDim}}>{contactRoleLabel(role)}</div>
+        {[["name","Contact name"],["company","Company / Studio"],["email","Email"],["mobile","Mobile"]].map(([field,label]) => <input key={field} aria-label={`${contactRoleLabel(role)} ${label}`} style={inputStyle} placeholder={label} value={contacts[role]?.[field] || ""} onChange={e=>onChange(role,field,e.target.value)}/>)}
       </div>)}</div>
     </div>)}
   </div>;
@@ -4057,7 +4106,7 @@ function ProjectTeamView({ state, persist, selectedId }) {
   return <div>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}><div><h2 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:0,color:T.ink}}>Team & Ratings</h2><div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim,marginTop:4}}>Project contacts are shown here by default. Turn on Directory to see the consolidated directory view.</div></div><div style={{display:"flex",gap:8}}>{!editing && <Btn disabled={saving} variant="ghost" onClick={start}>Edit / add contacts</Btn>}<Btn variant="ghost" style={directoryMode ? {borderColor:"transparent"} : undefined} disabled={saving} onClick={()=>{setEditing(false);setDirectoryMode(v=>!v);}}>{directoryMode?"Directory On":"Directory"}</Btn></div></div>
     {saveMessage&&<p role="status" style={{fontFamily:FONT_BODY,fontSize:12}}>{saveMessage}</p>}
-    {directoryMode ? <ProjectDirectory state={{...state,projects:directoryProjects}} persist={async next=>{++contactsRevisionRef.current;latestRef.current=next;const current=next.projects.find(p=>p.id===selectedRef.current);if(current)setLoadedContacts(current.contacts||{});await persist(next);}}/> : editing ? <><ProjectTeamContactFields contacts={draft} onChange={(role,field,value)=>setDraft(d=>({...d,[role]:{...(d[role]||{}),[field]:value}}))}/><div style={{display:"flex",gap:8}}><Btn disabled={saving} onClick={save}><ClipboardCheck size={14}/> {saving ? "Saving…" : "Save contacts"}</Btn><Btn disabled={saving} variant="ghost" onClick={()=>setEditing(false)}>Cancel</Btn></div></> : <div style={{display:"flex",flexDirection:"column",gap:16}}>{ROLE_CATEGORIES.map(({category,roles})=>{const entries=roles.filter(r=>contacts?.[r]);if(!entries.length)return null;return <div key={category}><div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".08em",textTransform:"uppercase",color:categoryColor(category),marginBottom:8}}>{category}</div><div style={{borderTop:`2px solid ${T.ink}`,borderBottom:`1px solid ${T.line}`}}>{entries.map((role,idx)=>{const c=contacts[role];return <div key={role} style={{display:"grid",gridTemplateColumns:"170px repeat(4,minmax(100px,1fr))",padding:"10px 0",borderTop:idx===0?"none":`1px solid ${T.line}`}}><div style={{fontFamily:FONT_MONO,fontSize:11.5,color:T.inkDim}}>{role}</div><div style={{fontFamily:FONT_BODY,fontSize:13}}>{c.name||"—"}</div><div style={{fontFamily:FONT_BODY,fontSize:13}}>{c.company||"—"}</div><div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>{c.email||"—"}</div><div style={{fontFamily:FONT_MONO,fontSize:12,color:T.blue}}>{c.mobile||"—"}</div></div>})}</div></div>})}{Object.keys(contacts).length===0&&<div style={{color:T.inkDim}}>No contacts on file.</div>}</div>}
+    {directoryMode ? <ProjectDirectory state={{...state,projects:directoryProjects}} persist={async next=>{++contactsRevisionRef.current;latestRef.current=next;const current=next.projects.find(p=>p.id===selectedRef.current);if(current)setLoadedContacts(current.contacts||{});await persist(next);}}/> : editing ? <><ProjectTeamContactFields contacts={draft} onChange={(role,field,value)=>setDraft(d=>({...d,[role]:{...(d[role]||{}),[field]:value}}))}/><div style={{display:"flex",gap:8}}><Btn disabled={saving} onClick={save}><ClipboardCheck size={14}/> {saving ? "Saving…" : "Save contacts"}</Btn><Btn disabled={saving} variant="ghost" onClick={()=>setEditing(false)}>Cancel</Btn></div></> : <div style={{display:"flex",flexDirection:"column",gap:16}}>{ROLE_CATEGORIES.map(({category,roles})=>{const entries=roles.filter(r=>contacts?.[r]);if(!entries.length)return null;return <div key={category}><div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".08em",textTransform:"uppercase",color:categoryColor(category),marginBottom:8}}>{contactRoleLabel(category)}</div><div style={{borderTop:`2px solid ${T.ink}`,borderBottom:`1px solid ${T.line}`}}>{entries.map((role,idx)=>{const c=contacts[role];return <div key={role} style={{display:"grid",gridTemplateColumns:"170px repeat(4,minmax(100px,1fr))",padding:"10px 0",borderTop:idx===0?"none":`1px solid ${T.line}`}}><div style={{fontFamily:FONT_MONO,fontSize:11.5,color:T.inkDim}}>{contactRoleLabel(role)}</div><div style={{fontFamily:FONT_BODY,fontSize:13}}>{c.name||"—"}</div><div style={{fontFamily:FONT_BODY,fontSize:13}}>{c.company||"—"}</div><div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>{c.email||"—"}</div><div style={{fontFamily:FONT_MONO,fontSize:12,color:T.blue}}>{c.mobile||"—"}</div></div>})}</div></div>})}{Object.keys(contacts).length===0&&<div style={{color:T.inkDim}}>No contacts on file.</div>}</div>}
   </div>;
 }
 
@@ -4226,7 +4275,7 @@ function ProjectLineOfWorkView({state,persist,selectedId}) {
           <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",minWidth:720}}><thead><tr>{["Step","Subtask","Type / meeting mode","Responsible","Est. hours","Output required","Optional",...(editing?["Action"]:[])].map(h=><th key={h} style={{...thStyle,textAlign:"left",background:T.paperDim,color:T.ink}}>{h}</th>)}</tr></thead><tbody>{g.rows.map((sub,i)=><tr key={rowId(sub)} style={{background:sub.taskCategory==="Meeting"?(sub.meetingMode==="Phone / Zoom allowed"?"#B4A5D7":"#D7A5BF"):"#fff"}}>
             <td style={{...tdStyle,width:45}}>{i+1}</td><td style={{...tdStyle,textAlign:"left"}}>{editing?<input disabled={busy} style={fieldStyle} value={sub.subtask||""} onChange={e=>mutate([rowId(sub)],{subtask:e.target.value})}/>:sub.subtask}</td>
             <td style={tdStyle}>{editing?<><select aria-label={`Task type ${rowId(sub)}`} style={fieldStyle} value={sub.taskCategory||'Design'} onChange={e=>mutate([rowId(sub)],{taskCategory:e.target.value,meetingMode:e.target.value==='Meeting'?'In person':'',completionUploadRequired:e.target.value!=='Meeting'})}><option>Design</option><option>Meeting</option></select>{sub.taskCategory==='Meeting'&&<select aria-label={`Meeting mode ${rowId(sub)}`} style={fieldStyle} value={sub.meetingMode||'In person'} onChange={e=>mutate([rowId(sub)],{meetingMode:e.target.value})}><option>In person</option><option>Phone / Zoom allowed</option></select>}</>:sub.taskCategory==='Meeting'?`Meeting · ${sub.meetingMode||'In person'}`:'Design · floor / area'}</td>
-            <td style={{...tdStyle,textAlign:"left"}}>{editing?<select aria-label={`Responsible ${rowId(sub)}`} disabled={busy} style={fieldStyle} value={sub.responsible||""} onChange={e=>mutate([rowId(sub)],{responsible:e.target.value})}><option value="">Inherit task owner / unassigned</option>{people.map(n=><option key={n}>{n}</option>)}</select>:sub.responsible||"Inherit task owner"}</td>
+            <td style={{...tdStyle,textAlign:"left"}}>{editing?<select aria-label={`Responsible ${rowId(sub)}`} disabled={busy} style={fieldStyle} value={sub.responsible||""} onChange={e=>mutate([rowId(sub)],{responsible:e.target.value})}><option value="">Inherit task assignee / unassigned</option>{people.map(n=><option key={n}>{n}</option>)}</select>:sub.responsible||"Inherit task assignee"}</td>
             <td style={tdStyle}>{editing?<input disabled={busy} type="number" min="0" step="0.25" style={{...fieldStyle,width:85}} value={sub.hours??""} onChange={e=>mutate([rowId(sub)],{hours:e.target.value})}/>:sub.hours||"—"}</td>
             <td style={tdStyle}>{editing?<input disabled={busy} aria-label={`Output required ${rowId(sub)}`} type="checkbox" checked={sub.completionUploadRequired!==false&&String(sub.completionUploadRequired)!=="false"} onChange={e=>mutate([rowId(sub)],{completionUploadRequired:e.target.checked})}/>:sub.completionUploadRequired!==false&&String(sub.completionUploadRequired)!=="false"?"Yes":"Optional"}</td>
             <td style={tdStyle}>{editing?<input disabled={busy} aria-label={`Optional ${rowId(sub)}`} type="checkbox" checked={sub.optional===true||String(sub.optional)==="true"} onChange={e=>mutate([rowId(sub)],{optional:e.target.checked})}/>:sub.optional===true||String(sub.optional)==="true"?"Yes":"No"}</td>
@@ -4646,7 +4695,7 @@ function DesignFlowView({state,persist}){
       <div style={{width:"min(900px,96vw)",background:T.paper,border:`1px solid ${T.line}`}}>
         <div style={{background:T.navy,color:"#fff",padding:14,fontFamily:FONT_DISPLAY,fontSize:18}}>Edit Project · {editing.no}</div>
         <div style={{padding:16,display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          {[["Project No.","no"],["Project Name","name"],["Client / Owner","client"],["Architect","architect"],["Address","address"]].map(([lab,key])=><Field key={key} label={lab}><input value={projectDraft[key]||""} onChange={e=>setProjectDraft(d=>({...d,[key]:e.target.value}))} style={inputStyle}/></Field>)}
+          {[["Project No.","no"],["Project Name","name"],["Client","client"],["Architect","architect"],["Address","address"]].map(([lab,key])=><Field key={key} label={lab}><input value={projectDraft[key]||""} onChange={e=>setProjectDraft(d=>({...d,[key]:e.target.value}))} style={inputStyle}/></Field>)}
           <Field label="Project Type"><select value={projectDraft.projectType||"Residence"} onChange={e=>setProjectDraft(d=>({...d,projectType:e.target.value}))} style={inputStyle}><option>Residence</option><option>Commercial</option><option>Hospitality</option><option>Retail</option><option>Other</option></select></Field>
         </div>
         <div style={{padding:16,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}><button type="button" onClick={()=>setEditId("")} style={{...smallBtn,background:"#fff"}}>Cancel</button><button type="button" onClick={saveProject} style={{...smallBtn,background:T.navy,color:"#fff"}}>Save Project</button></div>
@@ -4665,7 +4714,7 @@ function DesignFlowView({state,persist}){
       </table>
     </div>
     {editing&&<div style={{position:"fixed",inset:0,zIndex:10001,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-      <div style={{width:"min(900px,96vw)",background:T.paper,border:`1px solid ${T.line}`}}><div style={{background:T.navy,color:"#fff",padding:14,fontFamily:FONT_DISPLAY,fontSize:18}}>Edit Project · {editing.no}</div><div style={{padding:16,display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>{[["Project No.","no"],["Project Name","name"],["Client / Owner","client"],["Architect","architect"],["Address","address"]].map(([lab,key])=><Field key={key} label={lab}><input value={projectDraft[key]||""} onChange={e=>setProjectDraft(d=>({...d,[key]:e.target.value}))} style={inputStyle}/></Field>)}</div><div style={{padding:16,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}><button type="button" onClick={()=>setEditId("")} style={{...smallBtn,background:"#fff"}}>Cancel</button><button type="button" onClick={saveProject} style={{...smallBtn,background:T.navy,color:"#fff"}}>Save Project</button></div></div>
+      <div style={{width:"min(900px,96vw)",background:T.paper,border:`1px solid ${T.line}`}}><div style={{background:T.navy,color:"#fff",padding:14,fontFamily:FONT_DISPLAY,fontSize:18}}>Edit Project · {editing.no}</div><div style={{padding:16,display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>{[["Project No.","no"],["Project Name","name"],["Client","client"],["Architect","architect"],["Address","address"]].map(([lab,key])=><Field key={key} label={lab}><input value={projectDraft[key]||""} onChange={e=>setProjectDraft(d=>({...d,[key]:e.target.value}))} style={inputStyle}/></Field>)}</div><div style={{padding:16,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}><button type="button" onClick={()=>setEditId("")} style={{...smallBtn,background:"#fff"}}>Cancel</button><button type="button" onClick={saveProject} style={{...smallBtn,background:T.navy,color:"#fff"}}>Save Project</button></div></div>
     </div>}
   </div>;
 }
@@ -5317,7 +5366,7 @@ function ProjectView({ state, persist }) {
             const key=contactKey(c.name||c.company,c.mobile);
             const rating=Number(c.rating||state.ratings?.[key]?.rating||0);
             return <div key={role} style={{display:"grid",gridTemplateColumns:"minmax(160px,1.3fr) minmax(120px,1fr) minmax(190px,1.4fr) minmax(145px,auto)",alignItems:"center",gap:12,padding:"9px 8px",borderBottom:`1px solid ${T.line}`,minWidth:680}}>
-              <div><strong style={{fontFamily:FONT_BODY,fontSize:13}}>{c.name||c.company}</strong><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim}}>{role}{c.company?` · ${c.company}`:""}</div></div>
+              <div><strong style={{fontFamily:FONT_BODY,fontSize:13}}>{c.name||c.company}</strong><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim}}>{contactRoleLabel(role)}{c.company?` · ${c.company}`:""}</div></div>
               <div style={{fontFamily:FONT_MONO,fontSize:12,overflowWrap:"anywhere"}}>{c.mobile||"—"}</div>
               <div style={{fontFamily:FONT_BODY,fontSize:12,overflowWrap:"anywhere"}}>{c.email||"—"}</div>
               <DirectoryStars name={c.name||c.company} value={rating} disabled={teamRatingBusy} onChange={async value=>{
@@ -5383,7 +5432,7 @@ function ProjectView({ state, persist }) {
           <button type="button" style={{...smallBtn,border:"1px solid #9B3B35",color:"#9B3B35",background:"#fff"}} onClick={()=>deleteProject(project)}>Delete Project</button>
           
         </div>
-        <div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim,marginTop:10}}>Edit Client through Owner and edit Architect in the contact list above. Save Project closes this editor and updates the summary immediately.</div>
+        <div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim,marginTop:10}}>Edit Client and Architect in the contact list above. Save Project closes this editor and updates the summary immediately.</div>
       </div>}
 
       <div style={{marginTop:22}}>
@@ -5508,7 +5557,7 @@ function DirectoryView({ state, persist }) {
       <div style={{ fontFamily: FONT_BODY, fontSize: 13, color: T.inkDim, marginBottom: 16 }}>Auto-built from every project's contacts — every vendor, contractor, architect, and designer you've worked with, deduplicated, with what they've worked on. Rate and leave a testimonial once you've finished working with them.</div>
       <div style={{ marginBottom: 16 }}>
         <Chip active={roleFilter === "All"} onClick={() => setRoleFilter("All")}>All ({directory.length})</Chip>
-        {rolesPresent.map((r) => <Chip key={r} active={roleFilter === r} onClick={() => setRoleFilter(r)}>{r}</Chip>)}
+        {rolesPresent.map((r) => <Chip key={r} active={roleFilter === r} onClick={() => setRoleFilter(r)}>{contactRoleLabel(r)}</Chip>)}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {filtered.map((d) => (
@@ -5521,7 +5570,7 @@ function DirectoryView({ state, persist }) {
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                 {d.roles.map((r) => (
-                  <span key={r} style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.inkDim, background: T.paperDim, padding: "2px 7px", borderRadius: 10 }}>{r}</span>
+                  <span key={r} style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.inkDim, background: T.paperDim, padding: "2px 7px", borderRadius: 10 }}>{contactRoleLabel(r)}</span>
                 ))}
               </div>
               <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: T.inkDim }}>
@@ -5949,7 +5998,7 @@ function MemberProjectsView({state}) {
     <div style={{display:'flex',justifyContent:'space-between',gap:12,flexWrap:'wrap',marginBottom:18}}><div><h2 style={{fontFamily:FONT_DISPLAY,margin:0}}>Projects</h2><div style={{fontSize:12,color:T.inkDim,marginTop:6}}>View only · Project information, contacts and planned work</div></div><select aria-label="View project" style={{...inputStyle,minWidth:260}} value={p.id} onChange={e=>setSelected(e.target.value)}>{projects.map(x=><option key={x.id} value={x.id}>{x.no} · {x.name}</option>)}</select></div>
     <div style={{display:'flex',gap:8,marginBottom:16}}>{[['scope','Projects & Scope'],['team','Teams & Ratings'],['line','Line of Work']].map(([id,label])=><Btn key={id} variant={tab===id?'dark':'ghost'} onClick={()=>setTab(id)}>{label}</Btn>)}</div>
     {tab==='scope'&&<><table style={{borderCollapse:'collapse',width:'100%'}}><tbody>{[['Project',p.name],['Number',p.no],['Client',p.client||p.contacts?.Owner?.name],['Architect',p.architect||p.contacts?.Architect?.name],['Address',p.address],['Type',p.type],['Status',p.status],['Start',formatProjectDate(p.startDate)],['End',p.endDate]].map(([label,value])=><tr key={label}><td style={{...tdStyle,textAlign:'left',width:170,color:T.inkDim}}>{label}</td><td style={{...tdStyle,textAlign:'left'}}>{String(value??'—')}</td></tr>)}</tbody></table><div style={{marginTop:18,fontFamily:FONT_BODY,fontSize:13}}><strong>Project scope</strong><div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:10}}>{Object.entries(p.scope||{}).filter(([,v])=>v===true).map(([k])=><span key={k} style={{background:T.paperDim,padding:'7px 10px'}}>{k.replace(/_/g,' ')}</span>)}</div></div></>}
-    {tab==='team'&&<>{ROLE_CATEGORIES.map(({category,roles})=>{const entries=roles.filter(r=>p.contacts?.[r]);return entries.length?<div key={category} style={{marginBottom:20}}><div style={{fontFamily:FONT_MONO,color:categoryColor(category),marginBottom:8}}>{category}</div><table style={{width:'100%',borderCollapse:'collapse'}}><tbody>{entries.map(r=><tr key={r}>{[r,p.contacts[r].name,p.contacts[r].company,p.contacts[r].email,p.contacts[r].mobile].map((v,i)=><td key={i} style={{...tdStyle,textAlign:'left'}}>{String(v??'—')||'—'}</td>)}</tr>)}</tbody></table></div>:null;})}</>}
+    {tab==='team'&&<>{ROLE_CATEGORIES.map(({category,roles})=>{const entries=roles.filter(r=>p.contacts?.[r]);return entries.length?<div key={category} style={{marginBottom:20}}><div style={{fontFamily:FONT_MONO,color:categoryColor(category),marginBottom:8}}>{contactRoleLabel(category)}</div><table style={{width:'100%',borderCollapse:'collapse'}}><tbody>{entries.map(r=><tr key={r}>{[contactRoleLabel(r),p.contacts[r].name,p.contacts[r].company,p.contacts[r].email,p.contacts[r].mobile].map((v,i)=><td key={i} style={{...tdStyle,textAlign:'left'}}>{String(v??'—')||'—'}</td>)}</tr>)}</tbody></table></div>:null;})}</>}
     {tab==='line'&&<>{workflowGroups(workflow.filter(r=>String(r.workflowVersion)==='1')).map(g=><details key={g.first.lineWorkId||g.first.id} open style={{border:`1px solid ${T.line}`,marginBottom:12}}><summary style={{padding:12,background:T.paperDim}}><strong>{g.first.milestone}</strong> · {g.first.tasks}</summary><table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Step','Subtask','Responsible','Estimated hours'].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{g.rows.map((r,i)=><tr key={r.lineWorkId||r.id}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{r.subtask}</td><td style={tdStyle}>{r.responsible||'Unassigned'}</td><td style={tdStyle}>{r.hours||'—'}</td></tr>)}</tbody></table></details>)}{!workflow.some(r=>String(r.workflowVersion)==='1')&&<div style={{color:T.inkDim}}>The admin has not saved the detailed workflow for this project.</div>}</>}
   </div>;
 }
@@ -5975,7 +6024,7 @@ function ProjectPermissionsView({state,persist}){
   const role=projectRole(state,p.id),admin=role==='Admin';
   const scoped={...state,projects:[p]};
   const saveScoped=async next=>persist({...state,projects:state.projects.map(x=>x.id===p.id?(next.projects.find(n=>n.id===p.id)||x):x)});
-  return <div><h2>Projects</h2><select aria-label="Assigned project" style={inputStyle} value={p.id} onChange={e=>{setSelected(e.target.value);setTab('scope');}}>{state.projects.map(x=><option key={x.id} value={x.id}>{x.no} · {x.name}</option>)}</select><p>Project role: <b>{role}</b> · {admin?'Manage this project':'View only'}</p><div style={{display:'flex',gap:8,marginBottom:18}}>{[['scope','Projects & Scope'],['line','Line of Work'],['floor','Floor & Zone'],['site','Site Punch-in']].map(([id,label])=><Btn key={id} onClick={()=>setTab(id)} variant={tab===id?'dark':'ghost'}>{label}</Btn>)}</div>
+  return <div><h2>Projects</h2><select aria-label="Assigned project" style={inputStyle} value={p.id} onChange={e=>{setSelected(e.target.value);setTab('scope');}}>{state.projects.map(x=><option key={x.id} value={x.id}>{x.no} · {x.name}</option>)}</select><p>Project role: <b>{contactRoleLabel(role)}</b> · {admin?'Manage this project':'View only'}</p><div style={{display:'flex',gap:8,marginBottom:18}}>{[['scope','Projects & Scope'],['line','Line of Work'],['floor','Floor & Zone'],['site','Site Punch-in']].map(([id,label])=><Btn key={id} onClick={()=>setTab(id)} variant={tab===id?'dark':'ghost'}>{label}</Btn>)}</div>
   {tab==='scope'&&(admin?<ProjectScopeAdmin key={p.id} project={p} onSaved={async row=>saveScoped({...scoped,projects:[backendProjectToFrontend(row,p)]})}/>:<MemberProjectsView key={p.id} state={scoped}/>)}
   {tab==='line'&&(admin?<ProjectLineOfWorkView key={p.id} state={scoped} persist={saveScoped} selectedId={p.id}/>:<ReadOnlyProjectWork state={state} project={p}/>)}
   {tab==='floor'&&(admin?<DashboardView key={p.id} state={scoped} persist={saveScoped}/>:<table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Zone','Floor','Area'].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{(p.floorZones||[]).map((r,i)=><tr key={r.floorZoneId||i}>{[r.zoneCode,r.floor,r.area].map((v,j)=><td key={j} style={tdStyle}>{v}</td>)}</tr>)}</tbody></table>)}
