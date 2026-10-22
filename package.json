@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.11.60-directory-editor",
+  "version": "2.11.61-client-labels",
   "type": "module",
   "scripts": {
     "dev": "vite",
