@@ -2568,17 +2568,20 @@ const ENLIGHTEN_API_URL = "/api";
 
 async function apiRequest(action, payload = {}, method = "POST") {
   let response;
+  const generation=AUTH_SESSION_GENERATION;
+  const authHeaders=AUTH_ID_TOKEN?{Authorization:`Bearer ${AUTH_ID_TOKEN}`}:{ };
   if (method === "GET") {
     const qs = new URLSearchParams({ action, ...Object.fromEntries(Object.entries(payload).map(([k,v]) => [k, String(v)])) });
-    response = await fetch(`${ENLIGHTEN_API_URL}?${qs.toString()}`,{headers:{Authorization:`Bearer ${AUTH_ID_TOKEN}`}});
+    response = await fetch(`${ENLIGHTEN_API_URL}?${qs.toString()}`,{credentials:"same-origin",headers:authHeaders});
   } else {
     response = await fetch(ENLIGHTEN_API_URL, {
       method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8", Authorization:`Bearer ${AUTH_ID_TOKEN}` },
+      credentials:"same-origin",
+      headers: { "Content-Type": "text/plain;charset=utf-8", ...authHeaders },
       body: JSON.stringify({ action, payload })
     });
   }
-  if(response.status===401){AUTH_ID_TOKEN="";window.dispatchEvent(new Event("enlighten-auth-expired"));}
+  if(response.status===401&&generation===AUTH_SESSION_GENERATION){AUTH_ID_TOKEN="";window.dispatchEvent(new Event("enlighten-auth-expired"));}
   const raw = await response.text();
   let json;
   try { json = JSON.parse(raw); }
@@ -2617,7 +2620,9 @@ const projectApi = {
   saveSitePunchIn: payload => apiRequest('saveSitePunchIn',payload),
   deleteSitePunchIn: payload => apiRequest('deleteSitePunchIn',payload),
   listFloorZones: projectId => apiRequest("listFloorZones", projectId ? { projectId } : {}, "GET"),
+  deleteFloorZones: (projectId,targets) => apiRequest("deleteFloorZones",{projectId,targets}),
   saveFloorZones: (projectId, rows) => apiRequest("saveFloorZones", { projectId, rows }),
+  listDrawingRegister: projectId => apiRequest("listDrawingRegister", {projectId}, "GET"),
   receiveDrawing: payload => apiRequest("receiveDrawing", payload),
   classifyDrawing: payload => apiRequest("classifyReceivedDrawing", payload),
   listTeam: () => apiRequest("listTeamMembers", {}, "GET"),
@@ -2792,6 +2797,7 @@ function normalizeStudioState(base) {
 
 function useStudioState() {
   const [state, setState] = useState(null);
+  const stateRef=useRef(state);stateRef.current=state;
   const [loading, setLoading] = useState(true);
   const [saveErr, setSaveErr] = useState(false);
   const [backendErr, setBackendErr] = useState("");
@@ -2902,17 +2908,19 @@ function useStudioState() {
     })();
   }, []);
 
-  const persist = useCallback(async (next) => {
+  const persist = useCallback(async (update) => {
+    const before=stateRef.current;
+    const next=typeof update==='function'?update(before):update;
     if(currentUser?.appAccess?.toLowerCase()!=="admin"){
-      const changed=(next.projects||[]).filter(p=>JSON.stringify(p)!==JSON.stringify(state?.projects?.find(x=>String(x.id)===String(p.id))));
-      if(!changed.length||changed.some(p=>currentUser?.appAccess?.toLowerCase()==='viewer'||currentUser?.projectRoles?.[p.id]!=='Admin')||(next.projects||[]).length!==(state?.projects||[]).length)throw new Error("Projects are view only.");
-      setState({...state,projects:next.projects});return next;
+      const changed=(next.projects||[]).filter(p=>JSON.stringify(p)!==JSON.stringify(before?.projects?.find(x=>String(x.id)===String(p.id))));
+      if(!changed.length||changed.some(p=>currentUser?.appAccess?.toLowerCase()==='viewer'||currentUser?.projectRoles?.[p.id]!=='Admin')||(next.projects||[]).length!==(before?.projects||[]).length)throw new Error("Projects are view only.");
+      const resolved={...before,projects:next.projects};stateRef.current=resolved;setState(resolved);return resolved;
     }
-    setState(next);
+    stateRef.current=next;setState(next);
     const ok = await localStateSet(STORE_KEY, JSON.stringify(next));
     setSaveErr(!ok);
     return next;
-  }, [currentUser,state]);
+  }, [currentUser]);
 
   return { state, loading, saveErr, backendErr, currentUser, persist };
 }
@@ -3017,6 +3025,88 @@ function Chip({ active, onClick, children, title }) {
 /* ---------------------------------------------------------------
    VIEW: UPLOAD (Stage 1 of intake)
 --------------------------------------------------------------- */
+function drawingRegisterCoverage(row,project){
+  const areas=project.floorZones||Object.entries(project.zones||{}).map(([zoneCode,z])=>({zoneCode,floor:z.floor,area:z.room}));
+  const coverage=row.coverage||[];
+  const floors=[...new Set(coverage.map(c=>c.floor).filter(Boolean))];
+  return floors.map(floor=>{
+    const selected=coverage.filter(c=>c.floor===floor),known=areas.filter(a=>String(a.floor)===String(floor));
+    const full=selected.some(c=>!c.area)||(known.length>0&&known.every(a=>selected.some(c=>String(c.area).trim().toLowerCase()===String(a.area||a.room).trim().toLowerCase())));
+    const tag=c=>{const saved=known.find(a=>String(a.area||a.room).trim().toLowerCase()===String(c.area).trim().toLowerCase());if(saved?.tag||saved?.category)return saved.tag||saved.category;const name=String(c.area||'');return /bedroom|bed room/i.test(name)?'Bedroom':/toilet|washroom|bathroom|powder/i.test(name)?'Toilets':/kitchen|pantry/i.test(name)?'Kitchen':/stair/i.test(name)?'Staircase':/office|meeting|md room|md cabin/i.test(name)?'Office':/living|lounge|lobby|dining|dinning|reception|porch/i.test(name)?'Social Spaces':/puja|pooja|mandir/i.test(name)?'Mandir':name;};
+    const summary=full?(row.drawingType||'Layout'):[...new Set(selected.map(tag).filter(Boolean))].join(' ∞ ');
+    return {floor,summary:`${floor} | ${summary||row.drawingType||'Drawing'}`,details:selected.map(c=>{const z=known.find(a=>String(a.area||a.room).trim().toLowerCase()===String(c.area||'').trim().toLowerCase());return {floor,zoneCode:c.zoneCode||z?.zoneCode||'',area:c.area||'Whole floor'};})};
+  });
+}
+
+function buildDrawingRegister(project,data){
+  const drawings=(data.drawings||[]).filter(d=>String(d.projectId)===String(project.id));
+  const files=(data.files||[]).filter(f=>String(f.projectId)===String(project.id));
+  const tasks=(data.tasks||[]).filter(t=>String(t.projectId)===String(project.id));
+  const parse=v=>{if(Array.isArray(v))return v;try{const a=JSON.parse(v||'[]');return Array.isArray(a)?a:[];}catch{return [];}};
+  const groups=new Map(),byDrawing=new Map();
+  const addCoverage=(entry,r)=>{const list=r.area?[{floor:r.floor,area:r.area,zoneCode:r.zoneCode||''}]:parse(r.floorTags).length?parse(r.floorTags).map(f=>({floor:f,area:''})):String(r.floor||'').split(',').map(f=>({floor:f.trim(),area:''}));list.filter(c=>c.floor).forEach(c=>{if(!entry.coverage.some(a=>a.floor===c.floor&&a.area===c.area))entry.coverage.push(c);});};
+  for(const d of drawings){
+    if(String(d.direction||'Received').toLowerCase()==='sent')continue;
+    const file=files.find(f=>f.linkedEntityId===d.drawingId)||files.find(f=>d.driveFileId&&f.driveFileId===d.driveFileId);
+    const key=JSON.stringify([d.driveFileId||file?.driveFileId||d.drawingId,d.revisionNo||'',d.drawingType||'']);
+    if(!groups.has(key))groups.set(key,{id:key,date:d.receivedSentDate||d.createdAt||file?.uploadedAt||'',fileName:d.fileName||file?.fileName||'Drawing',drawingType:d.drawingType||'',revisionNo:d.revisionNo??'',driveUrl:d.driveUrl||file?.driveUrl||'',mimeType:d.mimeType||file?.mimeType||'',coverage:[],sent:[]});
+    const row=groups.get(key);addCoverage(row,d);byDrawing.set(String(d.drawingId),row);
+  }
+  // Additional received file rows without a Drawing_Register counterpart remain visible.
+  for(const f of files.filter(f=>String(f.direction).toLowerCase()==='received')){
+    if(drawings.some(d=>f.linkedEntityId===d.drawingId||(f.driveFileId&&f.driveFileId===d.driveFileId)))continue;
+    const key=String(f.fileId||f.driveFileId);if(groups.has(key))continue;
+    const row={id:key,date:f.uploadedAt||'',fileName:f.fileName||'Drawing',drawingType:f.drawingType||'',revisionNo:f.revisionNo??'',driveUrl:f.driveUrl||'',mimeType:f.mimeType||'',coverage:[],sent:[]};addCoverage(row,f);groups.set(key,row);
+  }
+  // Classified area rows supersede the upload's whole-floor tags for the same file.
+  for(const r of groups.values())r.coverage=r.coverage.filter(c=>c.area||!r.coverage.some(a=>a.floor===c.floor&&a.area));
+  const sentSeen=new Map(),standalone=[];
+  for(const f of [...files.filter(f=>String(f.direction).toLowerCase()==='sent'),...drawings.filter(d=>String(d.direction).toLowerCase()==='sent')]){
+    const key=JSON.stringify([f.driveFileId||f.fileId||f.drawingId,f.revisionNo||'',f.drawingType||'']);if(sentSeen.has(key)){addCoverage(sentSeen.get(key),f);continue;}
+    const task=tasks.find(t=>String(t.designTaskId)===String(f.linkedEntityId||f.designTaskId));
+    const row={id:key,date:f.receivedSentDate||f.uploadedAt||f.createdAt||task?.completedAt||'',fileName:f.fileName||task?.taskType||'Sent drawing',drawingType:f.drawingType||task?.taskType||'',revisionNo:f.revisionNo??'',driveUrl:f.driveUrl||'',mimeType:f.mimeType||'',coverage:[]};
+    addCoverage(row,{...f,floor:f.floor||task?.floor,area:f.area||task?.area});sentSeen.set(key,row);
+    const source=byDrawing.get(String(f.sourceDrawingId||task?.sourceDrawingId||''));if(source)source.sent.push(row);else standalone.push({id:`sent-${key}`,received:null,sent:[row]});
+  }
+  return [...[...groups.values()].map(r=>({id:r.id,received:r,sent:r.sent})),...standalone].sort((a,b)=>String(b.received?.date||b.sent[0]?.date||'').localeCompare(String(a.received?.date||a.sent[0]?.date||'')));
+}
+
+function drawingFileType(row){
+  const name=String(row.fileName||'').split(/[?#]/)[0].trim();
+  const ext=name.match(/\.([a-z0-9]+)$/i)?.[1]?.toUpperCase();
+  if(ext)return ext==='JPG'||ext==='JPE'?'JPEG':ext;
+  const mime=String(row.mimeType||'').toLowerCase();
+  if(mime.includes('pdf'))return 'PDF';
+  if(mime.includes('jpeg')||mime.includes('jpg'))return 'JPEG';
+  if(mime.includes('dwg')||mime.includes('acad'))return 'DWG';
+  if(mime.includes('png'))return 'PNG';
+  return 'FILE';
+}
+
+function DrawingCoverage({row,project}){
+  const floors=drawingRegisterCoverage(row,project);
+  if(!floors.length)return <span style={{color:T.inkDim}}>Not tagged</span>;
+  return <div style={{display:'grid',gap:8}}>{floors.map(f=><details key={f.floor} style={{display:'block'}}><summary style={{cursor:'pointer',fontWeight:500,lineHeight:1.5}}>{f.summary}</summary><div style={{marginTop:8,maxHeight:220,overflowY:'auto'}}>{f.details.map((c,i)=><div key={i} style={{padding:'6px 0',borderTop:`1px solid ${T.line}`,fontSize:12}}>{c.zoneCode&&<strong>{c.zoneCode} · </strong>}{c.floor} | {c.area}</div>)}</div></details>)}</div>;
+}
+
+function ReceivedSentView({state}){
+  const [projectId,setProjectId]=useState(state.projects?.[0]?.id||'');
+  const [result,setResult]=useState(null),[error,setError]=useState(''),[loading,setLoading]=useState(false),[query,setQuery]=useState(''),[revision,setRevision]=useState(0);
+  const project=(state.projects||[]).find(p=>String(p.id)===String(projectId));
+  useEffect(()=>{let live=true;setResult(null);setError('');if(!projectId){setLoading(false);return;}setLoading(true);projectApi.listDrawingRegister(projectId).then(data=>{if(live)setResult({projectId,data});}).catch(err=>{if(live)setError(err.message||'Could not load drawing register.');}).finally(()=>{if(live)setLoading(false);});return()=>{live=false;};},[projectId,revision]);
+  const groups=project&&result?.projectId===projectId?buildDrawingRegister(project,result.data):[];
+  const filtered=groups.filter(g=>[g.received,...g.sent].filter(Boolean).some(r=>[r.fileName,r.drawingType,r.revisionNo,...r.coverage.flatMap(c=>[c.floor,c.area])].join(' ').toLowerCase().includes(query.toLowerCase())));
+  const cell={padding:'12px 10px',border:`1px solid ${T.line}`,verticalAlign:'top',textAlign:'left',fontFamily:FONT_BODY,fontSize:12,lineHeight:1.5,overflowWrap:'anywhere'};
+  const head={...cell,background:'#D2CDC1',color:T.ink,fontFamily:FONT_MONO,fontSize:10,fontWeight:700,border:'1px solid #9D998F',borderBottom:'1px solid #B8B5AC'};
+  const safeLink=url=>{try{const u=new URL(url);return ['https:','http:'].includes(u.protocol)?u.href:'';}catch{return '';}};
+  const link=r=>safeLink(r.driveUrl)?<a href={safeLink(r.driveUrl)} target="_blank" rel="noreferrer" aria-label={`Open ${drawingFileType(r)} file ${r.fileName}`} style={{color:T.blue,fontWeight:600,whiteSpace:'nowrap'}}>{drawingFileType(r)}</a>:<span style={{color:T.inkDim}}>No file link</span>;
+  return <section style={{fontFamily:FONT_BODY}}><h2 style={{fontFamily:FONT_DISPLAY,margin:'4px 0 8px'}}>Received / Sent</h2><p style={{fontSize:13,color:T.inkDim}}>Project drawing register. Expand a floor summary to see every selected zone. Sent files are recorded design outputs; opening this page does not send files.</p>
+    <div style={{display:'flex',gap:12,alignItems:'flex-end',flexWrap:'wrap',marginBottom:16}}><label style={{display:'grid',gap:6,fontSize:12,flex:'1 1 320px'}}>Project<select aria-label="Drawing register project" value={projectId} onChange={e=>{setProjectId(e.target.value);setQuery('');}} style={inputStyle}><option value="">Select a project…</option>{(state.projects||[]).map(p=><option key={p.id} value={p.id}>{p.no||''} · {p.name}{p.status==='Completed'||p.completedAt?' · Completed':''}</option>)}</select></label><input aria-label="Search drawing register" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search drawing, floor, area, type or revision" style={{...inputStyle,flex:'1 1 260px'}}/><button type="button" style={smallBtn} disabled={loading||!projectId} onClick={()=>setRevision(n=>n+1)}>Refresh</button></div>
+    {loading&&<p role="status" style={{fontFamily:FONT_BODY,fontSize:13,fontWeight:400,lineHeight:1.5,color:T.inkDim,margin:"12px 0"}}>Loading drawing register…</p>}{error&&<p role="alert" style={{color:T.redline}}>{error} Update and redeploy the included Apps Script backend, then click Refresh.</p>}
+    {project&&!loading&&!error&&result&&<><p style={{fontSize:12,color:T.inkDim}}>{groups.filter(g=>g.received).length} received file(s) · {groups.reduce((n,g)=>n+g.sent.length,0)} sent file(s)</p><div style={{overflowX:'auto'}}><table style={{width:'100%',minWidth:1380,borderCollapse:'collapse',tableLayout:'fixed'}}><colgroup>{[85,125,205,85,190,60,80,205,160,60,85,80].map((w,i)=><col key={i} style={{width:w}}/>)}</colgroup><thead><tr><th colSpan={7} style={{...head,background:'#D2CDC1',textAlign:'center',fontSize:12,borderRight:`3px solid ${T.ink}`}}>RECEIVED</th><th colSpan={5} style={{...head,background:T.navy,color:'#fff',textAlign:'center',fontSize:12,borderLeft:`3px solid ${T.ink}`}}>SENT</th></tr><tr>{['Date','Project','Floor / Zones','Type','Drawing Name','Rev No.','Link','Floor / Type','Drawing Name','Rev No.','Issue Date','Link'].map((h,i)=><th key={i} style={{...head,...(i===7?{borderLeft:`3px solid ${T.ink}`}:{})}}>{h}</th>)}</tr></thead><tbody>{filtered.flatMap(g=>Array.from({length:Math.max(1,g.sent.length)},(_,i)=>{const r=g.received,sent=g.sent[i],span=Math.max(1,g.sent.length);return <tr key={`${g.id}-${i}`} style={{background:i%2?'#fff':'transparent'}}>{i===0&&(r?<><td rowSpan={span} style={cell}>{formatProjectDate(r.date)}</td><td rowSpan={span} style={cell}>{project.no||project.name}</td><td rowSpan={span} style={cell}><DrawingCoverage row={r} project={project}/></td><td rowSpan={span} style={cell}>{r.drawingType||'—'}</td><td rowSpan={span} style={cell}>{r.fileName}</td><td rowSpan={span} style={cell}>{r.revisionNo!==''?r.revisionNo:'—'}</td><td rowSpan={span} style={{...cell,borderRight:`3px solid ${T.ink}`}}>{link(r)}</td></>:<td colSpan={7} rowSpan={span} style={{...cell,color:T.inkDim}}>Sent drawing · no received source linked</td>)}{sent?<><td style={{...cell,borderLeft:`3px solid ${T.ink}`}}><DrawingCoverage row={sent} project={project}/><div style={{fontSize:11,color:T.inkDim,marginTop:6}}>{sent.drawingType}</div></td><td style={cell}>{sent.fileName}</td><td style={cell}>{sent.revisionNo!==''?sent.revisionNo:'—'}</td><td style={cell}>{formatProjectDate(sent.date)}</td><td style={cell}>{link(sent)}</td></>:<td colSpan={5} style={{...cell,color:T.inkDim,borderLeft:`3px solid ${T.ink}`}}>No sent drawing linked yet</td>}</tr>;}))}{!filtered.length&&<tr><td colSpan={12} style={cell}>No drawings found for this project{query?' matching your search':''}.</td></tr>}</tbody></table></div></>}
+  </section>;
+}
+
 function UploadView({ state, persist }) {
   // Keep this helper local: ProjectsView has its own helper that is not in scope here.
   const uploadProjectIsCompleted = p =>
@@ -3558,6 +3648,43 @@ function DashboardView({ state, persist }) {
   const [bulkEditor,setBulkEditor]=useState(null);
   const [areaSaving,setAreaSaving]=useState(false);
   const [bulkSaving,setBulkSaving]=useState(false);
+  const [deletingProjects,setDeletingProjects]=useState({});
+  const [deleteMessage,setDeleteMessage]=useState("");
+  const deleteQueueRef=useRef(new Map()),persistRef=useRef(persist);persistRef.current=persist;
+  const projectRows=p=>p.floorZones||Object.entries(p.zones||{}).map(([zoneCode,v],i)=>({floorZoneId:"",zoneCode,floor:v?.floor||"",area:v?.room||"",seq:i+1}));
+  const rowKey=r=>r.floorZoneId?`id:${r.floorZoneId}`:`zone:${r.zoneCode}`;
+  const setRows=(p,list)=>({...p,floorZones:list,zones:Object.fromEntries(list.map(r=>[r.zoneCode,{floor:r.floor,room:r.area||r.room}]))});
+  const drainDeletes=async(id,entry)=>{
+    if(entry.running)return;entry.running=true;
+    while(entry.pending.length){
+      const batch=entry.pending.splice(0),removed=batch.flat();
+      try{await projectApi.deleteFloorZones(id,removed.map(r=>({floorZoneId:r.floorZoneId||"",zoneCode:r.zoneCode,floor:r.floor})));}
+      catch(err){
+        try{await persistRef.current(latest=>({...latest,projects:latest.projects.map(p=>{
+          if(p.id!==id)return p;const current=projectRows(p),keys=new Set(current.map(rowKey));
+          const restored=[...current,...removed.filter(r=>!keys.has(rowKey(r)))].sort((a,b)=>(Number(a.seq)||0)-(Number(b.seq)||0)||compareZoneCodes(a.zoneCode,b.zoneCode));
+          return setRows(p,restored);
+        })}));}catch(_){}
+        entry.failed=true;entry.errorMessage=`Could not delete areas in ${entry.name}: ${err.message||err}. The affected rows were restored. Please retry.`;setDeleteMessage(entry.errorMessage);
+      }
+    }
+    deleteQueueRef.current.delete(id);setDeletingProjects(current=>{const next={...current};delete next[id];return next;});
+    setDeleteMessage(entry.failed?entry.errorMessage:`Zone deletions saved for ${entry.name}.`);
+  };
+  const removeRows=async(targets)=>{
+    if(!project||areaSaving||bulkSaving||!targets.length)return;
+    const id=project.id,keys=new Set(targets.map(rowKey));let removed=[];
+    try{
+      await persistRef.current(latest=>({...latest,projects:latest.projects.map(p=>{
+        if(p.id!==id)return p;const current=projectRows(p);removed=current.filter(r=>keys.has(rowKey(r)));
+        return removed.length?setRows(p,current.filter(r=>!keys.has(rowKey(r)))):p;
+      })}));
+    }catch(err){setDeleteMessage(`Could not update areas: ${err.message||err}`);return;}
+    if(!removed.length)return;
+    let entry=deleteQueueRef.current.get(id);if(!entry){entry={pending:[],running:false,name:project.name||project.no||id,failed:false};deleteQueueRef.current.set(id,entry);}
+    entry.pending.push(removed);setDeletingProjects(current=>({...current,[id]:true}));setDeleteMessage("Areas removed · Saving deletions in the background…");
+    return drainDeletes(id,entry);
+  };
   const completed=p=>[p.status,p.projectStatus,p.projectControl?.projectStatus].some(v=>String(v||"").toLowerCase()==="completed")||p.completed===true||String(p.completed).toLowerCase()==="true"||Boolean(p.completedAt)||Boolean(p.completedDate);
   const allProjects=state.projects||[];
   const ongoingProjects=allProjects.filter(p=>!completed(p)),completedProjects=allProjects.filter(completed);
@@ -3569,10 +3696,11 @@ function DashboardView({ state, persist }) {
 
   const scopeFloors=project?[...new Set([...designDashboardScopeFloors(project),...rows.map(r=>String(r.floor||"")).filter(Boolean)])]:[];
 
-  const addRow=f=>setEditor({mode:"add",floorZoneId:"",zoneCode:"",floor:f||scopeFloors[0]||"",area:""});
-  const editRow=r=>setEditor({mode:"edit",floorZoneId:r.floorZoneId||"",zoneCode:r.zoneCode||"",floor:r.floor||"",area:r.area||r.room||""});
+  const projectDeleting=!!deletingProjects[project?.id];
+  const addRow=f=>{if(deleteQueueRef.current.has(project?.id))return;setEditor({mode:"add",floorZoneId:"",zoneCode:"",floor:f||scopeFloors[0]||"",area:""});};
+  const editRow=r=>{if(deleteQueueRef.current.has(project?.id))return;setEditor({mode:"edit",floorZoneId:r.floorZoneId||"",zoneCode:r.zoneCode||"",floor:r.floor||"",area:r.area||r.room||""});};
   const save=async()=>{
-    if(areaSaving)return;
+    if(areaSaving||bulkSaving||deleteQueueRef.current.has(project?.id))return;
     if(!project||!editor?.floor||!editor?.area?.trim())return alert("Select a floor and enter Area / Room.");
     let zoneCode=String(editor.zoneCode||"").trim().toUpperCase();
     if(!/^[A-Z]+$/.test(zoneCode))return alert("Enter a valid Zone Code using letters A–Z (for example A, Z, AA, AB, AZ, BA).");
@@ -3612,7 +3740,7 @@ function DashboardView({ state, persist }) {
   };
 
   const saveBulk=async()=>{
-    if(bulkSaving)return;
+    if(bulkSaving||areaSaving||deleteQueueRef.current.has(project?.id))return;
     if(!project||!bulkEditor)return;
     const preview=parseBulkPreview();
     if(!preview.length)return alert("Enter at least one Zone Code | Area / Room line.");
@@ -3640,18 +3768,15 @@ function DashboardView({ state, persist }) {
     }catch(e){alert(`Bulk Floor / Zone save failed: ${e?.message||e}`);}
     finally{setBulkSaving(false);}
   };
-  const remove=async r=>{
-    if(!project)return;
-    const next=rows.filter(x=>x!==r && !(r.floorZoneId&&x.floorZoneId===r.floorZoneId));
-    try{
-      const saved=await projectApi.saveFloorZones(project.id,next);
-      const finalRows=saved||next,zones={}; finalRows.forEach(x=>{zones[x.zoneCode]={floor:x.floor,room:x.area};});
-      const updated={...project,floorZones:finalRows,zones};
-      await persist({...state,projects:(state.projects||[]).map(p=>p.id===project.id?updated:p)});
-    }catch(e){alert(`Floor / Zone delete failed: ${e?.message||e}`);}
+  const remove=r=>removeRows([r]);
+  const removeFloor=f=>{
+    const targets=rows.filter(r=>String(r.floor)===String(f));
+    if(!targets.length)return;
+    if(window.confirm(`Delete all ${targets.length} areas on ${f} in ${project.name||project.no}? This removes the floor's zone list.`))return removeRows(targets);
   };
 
   return <div>
+    {(deleteMessage||Object.keys(deletingProjects).length>0)&&<p role="status" style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim}}>{Object.keys(deletingProjects).length?"Saving zone deletions in the background…":deleteMessage}</p>}
     <h2 style={{fontFamily:FONT_DISPLAY,fontSize:22,margin:"4px 0"}}>Floor / Zone</h2>
     <div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim,marginBottom:16}}>Projects come from Project → Projects & Scope. Only floors selected in that project's scope are available here. Saved areas automatically flow into Design Dashboard.</div>
     <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"center",marginBottom:14}} role="group" aria-label="Floor / Zone project status">
@@ -3680,12 +3805,12 @@ function DashboardView({ state, persist }) {
     {project&&<div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
         <div><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.cyan}}>SELECTED PROJECT · {project.no||project.projectNo}</div><h3 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:"3px 0"}}>{project.name}</h3><span style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>Status: {completed(project)?"Completed":project.status||"Ongoing"}</span></div>
-        <div style={{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"flex-end"}}><button type="button" disabled={!scopeFloors.length} onClick={()=>setBulkEditor({floor:scopeFloors[0]||"",text:""})} style={{...smallBtn,background:T.navy,color:"#fff",padding:"9px 14px"}}>+ BULK ADD AREAS</button><button type="button" disabled={!scopeFloors.length} onClick={()=>addRow(scopeFloors[0])} style={{...smallBtn,background:"#fff",padding:"9px 14px"}}>+ ADD ONE</button></div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"flex-end"}}><button type="button" disabled={!scopeFloors.length||projectDeleting||areaSaving||bulkSaving} onClick={()=>setBulkEditor({floor:scopeFloors[0]||"",text:""})} style={{...smallBtn,background:T.navy,color:"#fff",padding:"9px 14px"}}>+ BULK ADD AREAS</button><button type="button" disabled={!scopeFloors.length||projectDeleting||areaSaving||bulkSaving} onClick={()=>addRow(scopeFloors[0])} style={{...smallBtn,background:"#fff",padding:"9px 14px"}}>+ ADD ONE</button></div>
       </div>
       {scopeFloors.map(f=>{const fr=rows.filter(r=>String(r.floor)===f);return <div key={f} style={{border:`1px solid ${T.line}`,background:"#fff",marginBottom:10}}>
-        <div style={{display:"flex",justifyContent:"space-between",padding:"10px 12px",background:T.paper2,borderBottom:`1px solid ${T.line}`}}><strong>{f} · {fr.length} areas</strong><button type="button" onClick={()=>addRow(f)} style={{...smallBtn,background:"#fff"}}>+ AREA</button></div>
+        <div style={{display:"flex",justifyContent:"space-between",padding:"10px 12px",background:T.paper2,borderBottom:`1px solid ${T.line}`}}><strong>{f} · {fr.length} areas</strong><div style={{display:"flex",gap:8}}>{fr.length>0&&<button type="button" disabled={areaSaving||bulkSaving} aria-label={`Delete all areas on ${f}`} onClick={()=>removeFloor(f)} style={{...smallBtn,background:"#fff",color:T.redline}}>DELETE FLOOR AREAS</button>}<button type="button" disabled={projectDeleting||areaSaving||bulkSaving} onClick={()=>addRow(f)} style={{...smallBtn,background:"#fff"}}>+ AREA</button></div></div>
         <div style={{display:"grid",gridTemplateColumns:"100px 1fr 180px",fontSize:11,fontWeight:700,borderBottom:`1px solid ${T.line}`}}><div style={{padding:8}}>Zone</div><div style={{padding:8}}>Area / Room</div><div style={{padding:8}}>Action</div></div>
-        {fr.map((r,i)=><div key={r.floorZoneId||r.zoneCode||i} style={{display:"grid",gridTemplateColumns:"100px 1fr 180px",fontSize:12,borderBottom:i<fr.length-1?`1px solid ${T.line}`:"none"}}><div style={{padding:8,fontFamily:FONT_MONO}}>{r.zoneCode||"—"}</div><div style={{padding:8,fontWeight:600}}>{r.area||r.room}</div><div style={{padding:6,display:"flex",gap:6}}><button type="button" onClick={()=>editRow(r)} style={{...smallBtn,background:"#fff"}}>EDIT</button><button type="button" onClick={()=>remove(r)} style={{...smallBtn,background:"#fff"}}>DELETE</button></div></div>)}
+        {fr.map((r,i)=><div key={r.floorZoneId||r.zoneCode||i} style={{display:"grid",gridTemplateColumns:"100px 1fr 180px",fontSize:12,borderBottom:i<fr.length-1?`1px solid ${T.line}`:"none"}}><div style={{padding:8,fontFamily:FONT_MONO}}>{r.zoneCode||"—"}</div><div style={{padding:8,fontWeight:600}}>{r.area||r.room}</div><div style={{padding:6,display:"flex",gap:6}}><button type="button" disabled={projectDeleting||areaSaving||bulkSaving} onClick={()=>editRow(r)} style={{...smallBtn,background:"#fff"}}>EDIT</button><button type="button" disabled={areaSaving||bulkSaving} onClick={()=>remove(r)} style={{...smallBtn,background:"#fff"}}>DELETE</button></div></div>)}
         {!fr.length&&<div style={{padding:10,fontSize:11,color:T.inkDim}}>No areas entered for {f}.</div>}
       </div>})}
     </div>}
@@ -5872,6 +5997,7 @@ const NAV = [
   { id: "dashboard", label: "Floor / Zone", icon: LayoutGrid, group: "RECEIVED / SENT" },
   { id: "upload", label: "Received · Upload", icon: Upload, group: "RECEIVED / SENT" },
   { id: "classify", label: "Classify", icon: ClipboardCheck, group: "RECEIVED / SENT" },
+  { id: "drawingRegister", label: "Received / Sent", icon: FileText, group: "RECEIVED / SENT" },
   { id: "timesheet", label: "WIH Sheet", icon: Clock, group: "WIH SHEET" },
   { id: "meetings", label: "Fix Meeting", icon: CalendarDays, group: "WIH SHEET" },
   { id: "executionMain", label: "Execution Dashboard", icon: HardHat, group: "WIH SHEET" },
@@ -5974,6 +6100,7 @@ function StudioApp() {
           {isAdmin && view === "design" && <DesignFlowView state={state} persist={persist} />}
           
           {isAdmin && view === "dashboard" && <DashboardView state={state} persist={persist} />}
+          {isAdmin && view === "drawingRegister" && <ReceivedSentView state={state}/>}
           {isAdmin && view === "upload" && <UploadView state={state} persist={persist} />}
           {isAdmin && view === "classify" && <ClassifyView state={state} persist={persist} />}
           {view === "timesheet" && <TimesheetView state={state} persist={persist} />}
@@ -6023,7 +6150,11 @@ function ProjectPermissionsView({state,persist}){
   if(!p)return <p>No assigned projects. Ask your system Admin to assign a project role in Team & Tasks.</p>;
   const role=projectRole(state,p.id),admin=role==='Admin';
   const scoped={...state,projects:[p]};
-  const saveScoped=async next=>persist({...state,projects:state.projects.map(x=>x.id===p.id?(next.projects.find(n=>n.id===p.id)||x):x)});
+  const saveScoped=async update=>persist(latest=>{
+    const scope={...latest,projects:latest.projects.filter(x=>x.id===p.id)};
+    const next=typeof update==='function'?update(scope):update;
+    return {...latest,projects:latest.projects.map(x=>x.id===p.id?(next.projects.find(n=>n.id===p.id)||x):x)};
+  });
   return <div><h2>Projects</h2><select aria-label="Assigned project" style={inputStyle} value={p.id} onChange={e=>{setSelected(e.target.value);setTab('scope');}}>{state.projects.map(x=><option key={x.id} value={x.id}>{x.no} · {x.name}</option>)}</select><p>Project role: <b>{contactRoleLabel(role)}</b> · {admin?'Manage this project':'View only'}</p><div style={{display:'flex',gap:8,marginBottom:18}}>{[['scope','Projects & Scope'],['line','Line of Work'],['floor','Floor & Zone'],['site','Site Punch-in']].map(([id,label])=><Btn key={id} onClick={()=>setTab(id)} variant={tab===id?'dark':'ghost'}>{label}</Btn>)}</div>
   {tab==='scope'&&(admin?<ProjectScopeAdmin key={p.id} project={p} onSaved={async row=>saveScoped({...scoped,projects:[backendProjectToFrontend(row,p)]})}/>:<MemberProjectsView key={p.id} state={scoped}/>)}
   {tab==='line'&&(admin?<ProjectLineOfWorkView key={p.id} state={scoped} persist={saveScoped} selectedId={p.id}/>:<ReadOnlyProjectWork state={state} project={p}/>)}
@@ -6078,30 +6209,68 @@ function ProjectGantt({state,projectId}){
 }
 
 let AUTH_ID_TOKEN='';
+let AUTH_SESSION_GENERATION=0;
 function clearStudioCaches(){try{for(let i=localStorage.length-1;i>=0;i--){const k=localStorage.key(i);if(k&&/enlighten/i.test(k))localStorage.removeItem(k);}}catch(_){}}
 export default function App(){
-  const [token,setToken]=useState('');
+  const [signedIn,setSignedIn]=useState(false);
   const [config,setConfig]=useState(null);
   const [error,setError]=useState('');
-  const buttonRef=useRef(null);
-  const signOut=()=>{AUTH_ID_TOKEN='';clearStudioCaches();setToken('');window.google?.accounts?.id?.disableAutoSelect();};
-  useEffect(()=>{const expired=()=>{signOut();setError('Your sign-in expired. Sign in again.');};window.addEventListener('enlighten-auth-expired',expired);fetch('/api?action=authConfig').then(r=>r.json()).then(r=>{if(!r.data?.clientId)throw Error('Admin setup required: configure GOOGLE_CLIENT_ID in Vercel.');setConfig(r.data);}).catch(e=>setError(e.message));return()=>window.removeEventListener('enlighten-auth-expired',expired);},[]);
+  const [checking,setChecking]=useState(true);
+  const [signingIn,setSigningIn]=useState(false);
+  const buttonRef=useRef(null),attemptRef=useRef(0),signingInRef=useRef(false);
+  const enter=()=>{AUTH_ID_TOKEN='';AUTH_SESSION_GENERATION++;clearStudioCaches();setError('');setSignedIn(true);};
+  const signOut=async()=>{
+    if(signingInRef.current)return;
+    setChecking(true);setError('');attemptRef.current++;
+    try{
+      const response=await fetch('/api',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'authSignOut'})});
+      const result=await response.json();if(!response.ok||!result.ok)throw Error(result.error?.message||'Could not sign out. Please retry.');
+      AUTH_ID_TOKEN='';AUTH_SESSION_GENERATION++;clearStudioCaches();setSignedIn(false);window.google?.accounts?.id?.disableAutoSelect();
+    }catch(e){setError(e.message||'Could not sign out. Check your connection and retry.');}
+    finally{setChecking(false);}
+  };
   useEffect(()=>{
-    if(!config||token)return;
     let active=true;
-    const renderButton=()=>{if(!active||!buttonRef.current)return;window.google.accounts.id.initialize({client_id:config.clientId,auto_select:false,callback:response=>{if(!active||!response.credential)return;AUTH_ID_TOKEN=response.credential;clearStudioCaches();setError('');setToken(response.credential);}});window.google.accounts.id.renderButton(buttonRef.current,{type:'standard',theme:'outline',size:'medium',shape:'pill',text:'signin_with',logo_alignment:'left'});};
+    const expired=()=>{attemptRef.current++;AUTH_ID_TOKEN='';AUTH_SESSION_GENERATION++;clearStudioCaches();setSignedIn(false);setChecking(false);setError('Your session has ended. Sign in again to continue.');};
+    window.addEventListener('enlighten-auth-expired',expired);
+    Promise.all([fetch('/api?action=authConfig',{credentials:'same-origin'}).then(r=>r.json()),fetch('/api?action=authSession',{credentials:'same-origin'}).then(r=>r.json())]).then(([configuration,session])=>{
+      if(!active)return;
+      if(!configuration.data?.clientId)throw Error('Admin setup required: configure GOOGLE_CLIENT_ID in Vercel.');
+      setConfig(configuration.data);
+      if(!session.ok)throw Error(session.error?.message||'Could not check sign-in. Refresh to retry.');
+      if(session.data?.signedIn)enter();
+    }).catch(e=>{if(active)setError(e.message);}).finally(()=>{if(active)setChecking(false);});
+    return()=>{active=false;window.removeEventListener('enlighten-auth-expired',expired);};
+  },[]);
+  useEffect(()=>{
+    if(!config||signedIn||checking)return;
+    let active=true;
+    const renderButton=()=>{
+      if(!active||!buttonRef.current)return;
+      window.google.accounts.id.initialize({client_id:config.clientId,auto_select:false,callback:async response=>{
+        if(!active||!response.credential||signingInRef.current)return;
+        const attempt=++attemptRef.current;signingInRef.current=true;setSigningIn(true);setError('');
+        try{
+          const reply=await fetch('/api',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'text/plain;charset=utf-8',Authorization:`Bearer ${response.credential}`},body:JSON.stringify({action:'authSession'})});
+          const result=await reply.json();if(!reply.ok||!result.ok||!result.data?.signedIn)throw Error(result.error?.message||'Could not complete sign-in. Please retry.');
+          if(active&&attempt===attemptRef.current)enter();
+        }catch(e){if(active&&attempt===attemptRef.current)setError(e.message||'Could not complete sign-in. Please retry.');}
+        finally{signingInRef.current=false;if(active)setSigningIn(false);}
+      }});
+      window.google.accounts.id.renderButton(buttonRef.current,{type:'standard',theme:'outline',size:'medium',shape:'pill',text:'signin_with',logo_alignment:'left'});
+    };
     if(window.google?.accounts?.id){renderButton();return()=>{active=false;};}
     let script=document.getElementById('enlighten-google-login');if(!script){script=document.createElement('script');script.id='enlighten-google-login';script.src='https://accounts.google.com/gsi/client';script.async=true;document.head.appendChild(script);}
-    script.addEventListener('load',renderButton);const failed=()=>setError('Google sign-in could not load. Check your connection.');script.addEventListener('error',failed);
+    script.addEventListener('load',renderButton);const failed=()=>{if(active)setError('Google sign-in could not load. Check your connection.');};script.addEventListener('error',failed);
     return()=>{active=false;script.removeEventListener('load',renderButton);script.removeEventListener('error',failed);};
-  },[config,token]);
-  if(token)return <><div style={{background:T.navy,color:'#fff',padding:'8px 18px',display:'flex',justifyContent:'flex-end',fontFamily:FONT_BODY,fontSize:12}}><button onClick={signOut} style={{...smallBtn,background:'#fff'}}>Sign out / switch account</button></div><StudioApp/></>;
+  },[config,signedIn,checking]);
+  if(signedIn)return <><div style={{background:T.navy,color:'#fff',padding:'8px 18px',display:'flex',justifyContent:'flex-end',alignItems:'center',gap:12,fontFamily:FONT_BODY,fontSize:12}}>{error&&<span role="alert">{error}</span>}<button disabled={checking} onClick={signOut} style={{...smallBtn,background:'#fff'}}>{checking?'Signing out…':'Sign out / switch account'}</button></div><StudioApp/></>;
   return <main className="enlighten-landing" aria-label="enLIGHTen sign in">
     <section className="enlighten-landing__center" aria-label="Welcome to enLIGHTen">
       <img className="enlighten-landing__logo" src="/enlighten-wordmark.svg" alt="enLIGHTen" width="710" height="140" />
       <div className="enlighten-landing__signin">
         <div className="enlighten-landing__google" ref={buttonRef}/>
-        {!config&&!error&&<p className="enlighten-landing__hint" role="status">Loading sign-in…</p>}
+        {(checking||signingIn||(!config&&!error))&&<p className="enlighten-landing__hint" role="status">{signingIn?'Signing in…':checking?'Checking sign-in…':'Loading sign-in…'}</p>}
         {error&&<p className="enlighten-landing__error" role="alert">{error}</p>}
       </div>
     </section>
