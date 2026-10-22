@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.11.43-directory-layout-projects",
+  "version": "2.11.60-directory-editor",
   "type": "module",
   "scripts": {
     "dev": "vite",
