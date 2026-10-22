@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.11.61-client-labels",
+  "version": "2.11.62-project-role-checkboxes",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -2376,21 +2376,35 @@ function directoryCorrections(projects,keys,values){
   });
 }
 
-// Apply identity edits and explicit project membership without replacing other people.
-function directoryProjectChanges(projects,keys,values,projectIds,addRole){
-  const selected=new Set(keys), linked=new Set(projectIds);
+function directoryRoleAssignments(projects,keys){
+  const selected=new Set(keys);
+  return Object.fromEntries(projects.map(p=>[p.id,Object.entries(p.contacts||{}).filter(([,c])=>c&&selected.has(contactKey(c.name||c.company,c.mobile))).map(([role])=>role)]));
+}
+
+function directoryMergeSelection(editor,entry,checked,projects){
+  const keys=checked?[...new Set([...editor.keys,entry.key])]:editor.keys.filter(k=>k!==entry.key);
+  const incoming=directoryRoleAssignments(projects,[entry.key]),remaining=directoryRoleAssignments(projects,keys);
+  const assignments={...editor.assignments};
+  for(const p of projects){
+    assignments[p.id]=checked?[...new Set([...(assignments[p.id]||[]),...incoming[p.id]])]:(assignments[p.id]||[]).filter(r=>!incoming[p.id].includes(r)||remaining[p.id].includes(r));
+  }
+  return {...editor,keys,assignments};
+}
+
+// Each project has its own explicit role selection. Other people's roles stay intact.
+function directoryProjectChanges(projects,keys,values,projectIds,addRole,assignments){
+  const selected=new Set(keys),linked=new Set(projectIds||[]);
   return projects.map(p=>{
-    const contacts={...p.contacts};let changed=false,matched=false;
-    Object.entries(contacts).forEach(([role,c])=>{
-      if(!c||!selected.has(contactKey(c.name||c.company,c.mobile)))return;
-      matched=true;changed=true;
-      if(linked.has(p.id))contacts[role]={...c,...values};else delete contacts[role];
-    });
-    if(linked.has(p.id)&&!matched){
-      const occupied=contacts[addRole];
-      if(!addRole)throw new Error("Choose a role for newly added projects.");
-      if(occupied&&(occupied.name||occupied.company))throw new Error(`${p.name||p.id}: ${contactRoleLabel(addRole)} is already assigned. Choose another role or edit that project's team first.`);
-      contacts[addRole]={...values};changed=true;
+    const contacts={...p.contacts};let changed=false;
+    const existing=Object.entries(contacts).filter(([,c])=>c&&selected.has(contactKey(c.name||c.company,c.mobile))).map(([r])=>r);
+    const desired=assignments?(assignments[p.id]||[]):linked.has(p.id)?existing.length?existing:[addRole]:[];
+    for(const role of existing){if(desired.includes(role))contacts[role]={...contacts[role],...values};else delete contacts[role];changed=true;}
+    for(const role of desired){
+      if(existing.includes(role))continue;
+      if(!role)throw new Error("Choose a role for newly added projects.");
+      const occupied=contacts[role];
+      if(occupied&&(occupied.name||occupied.company))throw new Error(`${p.name||p.id}: ${contactRoleLabel(role)} is already assigned. Choose another role or edit that project's team first.`);
+      contacts[role]={...values};changed=true;
     }
     if(!changed)return p;
     return {...p,contacts,
@@ -2415,13 +2429,13 @@ function ProjectDirectory({state,persist}){
   const directory=buildDirectory(state.projects,state.ratings||{});
   const roles=[...new Set(directory.flatMap(d=>d.roles))].sort();
   const visible=directory.filter(d=>(role==="All"||d.roles.includes(role))&&[d.name,d.company,d.mobile,d.email,...d.roles.map(contactRoleLabel)].join(" ").toLowerCase().includes(query.toLowerCase()));
-  const start=d=>{setMessage("");setEditor({keys:[d.key],name:d.name,company:d.company,email:d.email,mobile:d.mobile,rating:d.rating,projectIds:d.projects.map(p=>p.id),addRole:d.roles[0]||ROLES[0]});setMergeQuery("");setProjectQuery("");};
-  const save=async(keys,values,projectIds,addRole)=>{
+  const start=d=>{setMessage("");setEditor({keys:[d.key],name:d.name,company:d.company,email:d.email,mobile:d.mobile,rating:d.rating,assignments:directoryRoleAssignments(state.projects,[d.key])});setMergeQuery("");setProjectQuery("");};
+  const save=async(keys,values,projectIds,addRole,assignments)=>{
     if(pendingRef.current)return;
     if(Object.hasOwn(values,"name")&&!values.name.trim()&&!values.company.trim()){setMessage("Enter a name or company before saving.");return;}
     const before=latestRef.current;
     let projects;
-    try{projects=projectIds?directoryProjectChanges(before.projects,keys,values,projectIds,addRole):directoryCorrections(before.projects,keys,values);}catch(err){setMessage(err.message);return;}
+    try{projects=assignments||projectIds?directoryProjectChanges(before.projects,keys,values,projectIds,addRole,assignments):directoryCorrections(before.projects,keys,values);}catch(err){setMessage(err.message);return;}
     const changed=projects.filter((p,i)=>p!==before.projects[i]);
     if(!changed.length){setEditor(null);return;}
     const next={...before,projects};latestRef.current=next;
@@ -2460,7 +2474,7 @@ function ProjectDirectory({state,persist}){
     {message&&<p role="status" style={{fontSize:12}}>{message}</p>}
     <div style={{overflowX:"auto"}}><table style={{borderCollapse:"collapse",width:"100%",minWidth:1140,tableLayout:"fixed",border:`1px solid ${T.line}`,fontFamily:FONT_BODY}}><colgroup>{[14,15,15,32,13,11].map((w,i)=><col key={i} style={{width:`${w}%`}}/>)}</colgroup><thead><tr>{["Name","Company / Studio","Role","Projects","Rating","Actions"].map(h=><th key={h} style={{...thStyle,background:"#D2CDC1",color:"#1C1C19",fontFamily:FONT_MONO,textAlign:"left",fontSize:10,padding:"12px",borderRight:`1px solid ${T.line}`,borderBottom:`2px solid ${T.ink}`}}>{h}</th>)}</tr></thead><tbody>{visible.map(d=><tr key={d.key}>
       <td style={cell}><strong>{d.name||"—"}</strong><div style={{fontSize:12,color:T.inkDim}}>{d.mobile}</div></td><td style={cell}>{d.company||"—"}</td><td style={cell}>{d.roles.map(r=><div key={r}>{contactRoleLabel(r)}</div>)}</td>
-      <td style={{...cell,padding:0}}><div style={{maxHeight:220,overflowY:"auto"}}>{d.projects.map((p,i)=><div key={p.id} style={{padding:"9px 12px",borderTop:i?`1px solid ${T.line}`:"none",textAlign:"left"}}>{p.no&&<span style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginRight:8}}>{p.no}</span>}{p.name||p.id}</div>)}</div></td>
+      <td style={{...cell,padding:0}}><div style={{maxHeight:220,overflowY:"auto"}}>{d.projects.map((p,i)=><div key={p.id} style={{padding:"9px 12px",borderTop:i?`1px solid ${T.line}`:"none",textAlign:"left"}}>{p.no&&<span style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginRight:8}}>{p.no}</span>}{p.name||p.id}<div style={{fontSize:11,color:T.inkDim,marginTop:3}}>{Object.entries(state.projects.find(x=>x.id===p.id)?.contacts||{}).filter(([,c])=>c&&contactKey(c.name||c.company,c.mobile)===d.key).map(([r])=>contactRoleLabel(r)).join(" · ")}</div></div>)}</div></td>
       <td style={cell}><DirectoryStars name={d.name||d.company} value={d.rating} disabled={busy} onChange={rating=>save([d.key],{rating})}/></td>
       <td style={cell}><div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:12}}><button type="button" disabled={busy} onClick={()=>start(d)} style={{...smallBtn,fontFamily:FONT_BODY}}>Edit / merge</button></div></td>
     </tr>)}</tbody></table>{!visible.length&&<p>No matching contacts.</p>}</div>
@@ -2471,14 +2485,21 @@ function ProjectDirectory({state,persist}){
       <DirectoryStars name="edited contact" value={editor.rating} onChange={rating=>setEditor(x=>({...x,rating}))}/>
       <p>Choose any duplicate entries below to give them the same details and rating in every linked project. Different people are combined only when you select them.</p>
       <input aria-label="Find duplicates" placeholder="Find names, studios or designations" value={mergeQuery} onChange={e=>setMergeQuery(e.target.value)} style={{...inputStyle,fontFamily:FONT_BODY,fontSize:13,fontWeight:400}}/>
-      <div style={{maxHeight:240,overflowY:"auto",marginTop:12,border:`1px solid ${T.line}`}}>{directory.filter(d=>[d.name,d.company,d.mobile,...d.roles.map(contactRoleLabel)].join(" ").toLowerCase().includes(mergeQuery.toLowerCase())).map(d=><label key={d.key} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"12px",borderBottom:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:13,lineHeight:1.5,cursor:"pointer"}}><input type="checkbox" aria-label={`Merge ${d.name||d.company}`} style={{width:16,height:16,marginTop:3,flexShrink:0,accentColor:T.navy}} checked={editor.keys.includes(d.key)} onChange={e=>setEditor(x=>({...x,keys:e.target.checked?[...x.keys,d.key]:x.keys.filter(k=>k!==d.key),projectIds:e.target.checked?[...new Set([...x.projectIds,...d.projects.map(p=>p.id)])]:x.projectIds}))}/><span style={{minWidth:0}}><strong style={{fontWeight:600}}>{d.name||"Unnamed"}</strong><span style={{display:"block",fontSize:12,color:T.inkDim}}>{d.company||"No studio"} · {d.mobile||"No phone"} · {d.projects.length} project(s)</span><span style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:5}}>{d.roles.map(r=><span key={r} style={{background:T.paperDim,border:`1px solid ${T.line}`,padding:"2px 7px",fontFamily:FONT_BODY,fontSize:11,fontWeight:500,color:T.ink}}>{contactRoleLabel(r)}</span>)}</span></span></label>)}</div>
-      <h4 style={{fontFamily:FONT_DISPLAY,marginBottom:8}}>Linked projects</h4>
-      <p style={{fontSize:13}}>Check a project to add this contact. Uncheck it to remove their selected contact roles from that project.</p>
-      <label style={{display:"grid",gap:6,fontFamily:FONT_BODY,fontSize:12,fontWeight:600,color:T.inkDim,marginBottom:12}}>Role for newly added projects<select aria-label="Role for newly added projects" value={editor.addRole} onChange={e=>setEditor(x=>({...x,addRole:e.target.value}))} style={{...inputStyle,fontFamily:FONT_BODY,fontSize:13,fontWeight:400}}>{ROLES.map(r=><option key={r} value={r}>{contactRoleLabel(r)}</option>)}</select></label>
-      <input aria-label="Search linked projects" placeholder="Search project name or number" value={projectQuery} onChange={e=>setProjectQuery(e.target.value)} style={{...inputStyle,fontFamily:FONT_BODY,fontSize:13,fontWeight:400}}/>
-      <div style={{maxHeight:240,overflowY:"auto",marginTop:8,border:`1px solid ${T.line}`}}>{state.projects.filter(p=>`${p.no||""} ${p.name||""}`.toLowerCase().includes(projectQuery.toLowerCase())).map(p=><label key={p.id} style={{display:"flex",gap:10,padding:10,borderBottom:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:13}}><input type="checkbox" aria-label={`Link project ${p.name||p.id}`} checked={editor.projectIds.includes(p.id)} onChange={e=>setEditor(x=>({...x,projectIds:e.target.checked?[...x.projectIds,p.id]:x.projectIds.filter(id=>id!==p.id)}))}/><span>{p.no?`${p.no} · `:""}{p.name||p.id}<span style={{display:"block",fontSize:12,color:T.inkDim,marginTop:3}}>Role: {Object.entries(p.contacts||{}).filter(([,c])=>c&&editor.keys.includes(contactKey(c.name||c.company,c.mobile))).map(([r])=>contactRoleLabel(r)).join(", ")||contactRoleLabel(editor.addRole)}</span></span></label>)}</div>
-      <p>{editor.projectIds.length} linked project(s) selected.</p>
-      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><button style={{...smallBtn,fontFamily:FONT_BODY,fontSize:13,padding:"9px 14px"}} onClick={()=>setEditor(null)}>Cancel</button><button disabled={busy||!editor.keys.length} style={{...smallBtn,fontFamily:FONT_BODY,fontSize:13,padding:"9px 14px",background:T.navy,color:"#fff"}} onClick={()=>{const {keys,projectIds,addRole,...values}=editor;return save(keys,Object.fromEntries(Object.entries(values).map(([k,v])=>[k,typeof v==="string"?v.trim():v])),projectIds,addRole);}}>Save Changes</button></div>
+      <div style={{maxHeight:240,overflowY:"auto",marginTop:12,border:`1px solid ${T.line}`}}>{directory.filter(d=>[d.name,d.company,d.mobile,...d.roles.map(contactRoleLabel)].join(" ").toLowerCase().includes(mergeQuery.toLowerCase())).map(d=><label key={d.key} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"12px",borderBottom:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:13,lineHeight:1.5,cursor:"pointer"}}><input type="checkbox" aria-label={`Merge ${d.name||d.company}`} style={{width:16,height:16,marginTop:3,flexShrink:0,accentColor:T.navy}} checked={editor.keys.includes(d.key)} onChange={e=>setEditor(x=>directoryMergeSelection(x,d,e.target.checked,state.projects))}/><span style={{minWidth:0}}><strong style={{fontWeight:600}}>{d.name||"Unnamed"}</strong><span style={{display:"block",fontSize:12,color:T.inkDim}}>{d.company||"No studio"} · {d.mobile||"No phone"} · {d.projects.length} project(s)</span><span style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:5}}>{d.roles.map(r=><span key={r} style={{background:T.paperDim,border:`1px solid ${T.line}`,padding:"2px 7px",fontFamily:FONT_BODY,fontSize:11,fontWeight:500,color:T.ink}}>{contactRoleLabel(r)}</span>)}</span></span></label>)}</div>
+      <h4 style={{fontFamily:FONT_DISPLAY,marginBottom:8}}>Project roles</h4>
+      <p style={{fontSize:13}}>Each checkbox is a separate assignment in that project. Uncheck Lighting Designer to remove only that role; Principal Lighting Designer stays selected. Use Add role to assign another designation.</p>
+      <input aria-label="Search linked projects" placeholder="Search project name, number or role" value={projectQuery} onChange={e=>setProjectQuery(e.target.value)} style={{...inputStyle,fontFamily:FONT_BODY,fontSize:13,fontWeight:400}}/>
+      <div style={{maxHeight:360,overflowY:"auto",marginTop:8,border:`1px solid ${T.line}`}}>{state.projects.filter(p=>`${p.no||""} ${p.name||""} ${[...new Set([...(editor.assignments[p.id]||[]),...directoryRoleAssignments([p],editor.keys)[p.id]])].map(contactRoleLabel).join(" ")}`.toLowerCase().includes(projectQuery.toLowerCase())).sort((a,b)=>Number(!!editor.assignments[b.id]?.length)-Number(!!editor.assignments[a.id]?.length)).map(p=>{
+        const original=directoryRoleAssignments([p],editor.keys)[p.id],assigned=editor.assignments[p.id]||[];
+        const shown=[...new Set([...original,...assigned])];
+        return <div key={p.id} style={{padding:12,borderBottom:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:13}}>
+          <strong>{p.no?`${p.no} · `:""}{p.name||p.id}</strong>
+          <div style={{display:"grid",gap:8,margin:"10px 0"}}>{shown.length?shown.map(r=><label key={r} style={{display:"flex",alignItems:"center",gap:9}}><input type="checkbox" aria-label={`${contactRoleLabel(r)} in ${p.name||p.id}`} checked={assigned.includes(r)} onChange={e=>setEditor(x=>({...x,assignments:{...x.assignments,[p.id]:e.target.checked?[...new Set([...(x.assignments[p.id]||[]),r])]:(x.assignments[p.id]||[]).filter(v=>v!==r)}}))}/><span>{contactRoleLabel(r)}</span></label>):<span style={{fontSize:12,color:T.inkDim}}>No roles assigned</span>}</div>
+          <select aria-label={`Add role in ${p.name||p.id}`} value="" style={{...inputStyle,fontFamily:FONT_BODY,fontSize:12,maxWidth:330}} onChange={e=>{const r=e.target.value;if(r)setEditor(x=>({...x,assignments:{...x.assignments,[p.id]:[...new Set([...(x.assignments[p.id]||[]),r])]}}));}}><option value="">Add role…</option>{[...new Set([...ROLES,...original])].filter(r=>!assigned.includes(r)).map(r=>{const c=p.contacts?.[r],occupied=c&&(c.name||c.company)&&!editor.keys.includes(contactKey(c.name||c.company,c.mobile));return <option key={r} value={r} disabled={!!occupied}>{contactRoleLabel(r)}{occupied?` — assigned to ${c.name||c.company}`:""}</option>;})}</select>
+        </div>;
+      })}</div>
+      <p>{Object.values(editor.assignments).filter(rs=>rs.length).length} project(s) · {Object.values(editor.assignments).reduce((n,rs)=>n+rs.length,0)} role assignment(s) selected.</p>
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><button style={{...smallBtn,fontFamily:FONT_BODY,fontSize:13,padding:"9px 14px"}} onClick={()=>setEditor(null)}>Cancel</button><button disabled={busy||!editor.keys.length} style={{...smallBtn,fontFamily:FONT_BODY,fontSize:13,padding:"9px 14px",background:T.navy,color:"#fff"}} onClick={()=>{const {keys,assignments,...values}=editor;return save(keys,Object.fromEntries(Object.entries(values).map(([k,v])=>[k,typeof v==="string"?v.trim():v])),undefined,undefined,assignments);}}>Save Changes</button></div>
     </div></div>}
   </section>;
 }
