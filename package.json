@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.11.64-received-sent-register",
+  "version": "2.11.68-received-sent-label",
   "type": "module",
   "scripts": {
     "dev": "vite",

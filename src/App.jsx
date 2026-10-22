@@ -2568,17 +2568,20 @@ const ENLIGHTEN_API_URL = "/api";
 
 async function apiRequest(action, payload = {}, method = "POST") {
   let response;
+  const generation=AUTH_SESSION_GENERATION;
+  const authHeaders=AUTH_ID_TOKEN?{Authorization:`Bearer ${AUTH_ID_TOKEN}`}:{ };
   if (method === "GET") {
     const qs = new URLSearchParams({ action, ...Object.fromEntries(Object.entries(payload).map(([k,v]) => [k, String(v)])) });
-    response = await fetch(`${ENLIGHTEN_API_URL}?${qs.toString()}`,{headers:{Authorization:`Bearer ${AUTH_ID_TOKEN}`}});
+    response = await fetch(`${ENLIGHTEN_API_URL}?${qs.toString()}`,{credentials:"same-origin",headers:authHeaders});
   } else {
     response = await fetch(ENLIGHTEN_API_URL, {
       method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8", Authorization:`Bearer ${AUTH_ID_TOKEN}` },
+      credentials:"same-origin",
+      headers: { "Content-Type": "text/plain;charset=utf-8", ...authHeaders },
       body: JSON.stringify({ action, payload })
     });
   }
-  if(response.status===401){AUTH_ID_TOKEN="";window.dispatchEvent(new Event("enlighten-auth-expired"));}
+  if(response.status===401&&generation===AUTH_SESSION_GENERATION){AUTH_ID_TOKEN="";window.dispatchEvent(new Event("enlighten-auth-expired"));}
   const raw = await response.text();
   let json;
   try { json = JSON.parse(raw); }
@@ -3042,14 +3045,14 @@ function buildDrawingRegister(project,data){
     if(String(d.direction||'Received').toLowerCase()==='sent')continue;
     const file=files.find(f=>f.linkedEntityId===d.drawingId)||files.find(f=>d.driveFileId&&f.driveFileId===d.driveFileId);
     const key=JSON.stringify([d.driveFileId||file?.driveFileId||d.drawingId,d.revisionNo||'',d.drawingType||'']);
-    if(!groups.has(key))groups.set(key,{id:key,date:d.receivedSentDate||d.createdAt||file?.uploadedAt||'',fileName:d.fileName||file?.fileName||'Drawing',drawingType:d.drawingType||'',revisionNo:d.revisionNo??'',driveUrl:d.driveUrl||file?.driveUrl||'',coverage:[],sent:[]});
+    if(!groups.has(key))groups.set(key,{id:key,date:d.receivedSentDate||d.createdAt||file?.uploadedAt||'',fileName:d.fileName||file?.fileName||'Drawing',drawingType:d.drawingType||'',revisionNo:d.revisionNo??'',driveUrl:d.driveUrl||file?.driveUrl||'',mimeType:d.mimeType||file?.mimeType||'',coverage:[],sent:[]});
     const row=groups.get(key);addCoverage(row,d);byDrawing.set(String(d.drawingId),row);
   }
   // Additional received file rows without a Drawing_Register counterpart remain visible.
   for(const f of files.filter(f=>String(f.direction).toLowerCase()==='received')){
     if(drawings.some(d=>f.linkedEntityId===d.drawingId||(f.driveFileId&&f.driveFileId===d.driveFileId)))continue;
     const key=String(f.fileId||f.driveFileId);if(groups.has(key))continue;
-    const row={id:key,date:f.uploadedAt||'',fileName:f.fileName||'Drawing',drawingType:f.drawingType||'',revisionNo:f.revisionNo??'',driveUrl:f.driveUrl||'',coverage:[],sent:[]};addCoverage(row,f);groups.set(key,row);
+    const row={id:key,date:f.uploadedAt||'',fileName:f.fileName||'Drawing',drawingType:f.drawingType||'',revisionNo:f.revisionNo??'',driveUrl:f.driveUrl||'',mimeType:f.mimeType||'',coverage:[],sent:[]};addCoverage(row,f);groups.set(key,row);
   }
   // Classified area rows supersede the upload's whole-floor tags for the same file.
   for(const r of groups.values())r.coverage=r.coverage.filter(c=>c.area||!r.coverage.some(a=>a.floor===c.floor&&a.area));
@@ -3057,17 +3060,29 @@ function buildDrawingRegister(project,data){
   for(const f of [...files.filter(f=>String(f.direction).toLowerCase()==='sent'),...drawings.filter(d=>String(d.direction).toLowerCase()==='sent')]){
     const key=JSON.stringify([f.driveFileId||f.fileId||f.drawingId,f.revisionNo||'',f.drawingType||'']);if(sentSeen.has(key)){addCoverage(sentSeen.get(key),f);continue;}
     const task=tasks.find(t=>String(t.designTaskId)===String(f.linkedEntityId||f.designTaskId));
-    const row={id:key,date:f.receivedSentDate||f.uploadedAt||f.createdAt||task?.completedAt||'',fileName:f.fileName||task?.taskType||'Sent drawing',drawingType:f.drawingType||task?.taskType||'',revisionNo:f.revisionNo??'',driveUrl:f.driveUrl||'',coverage:[]};
+    const row={id:key,date:f.receivedSentDate||f.uploadedAt||f.createdAt||task?.completedAt||'',fileName:f.fileName||task?.taskType||'Sent drawing',drawingType:f.drawingType||task?.taskType||'',revisionNo:f.revisionNo??'',driveUrl:f.driveUrl||'',mimeType:f.mimeType||'',coverage:[]};
     addCoverage(row,{...f,floor:f.floor||task?.floor,area:f.area||task?.area});sentSeen.set(key,row);
     const source=byDrawing.get(String(f.sourceDrawingId||task?.sourceDrawingId||''));if(source)source.sent.push(row);else standalone.push({id:`sent-${key}`,received:null,sent:[row]});
   }
   return [...[...groups.values()].map(r=>({id:r.id,received:r,sent:r.sent})),...standalone].sort((a,b)=>String(b.received?.date||b.sent[0]?.date||'').localeCompare(String(a.received?.date||a.sent[0]?.date||'')));
 }
 
+function drawingFileType(row){
+  const name=String(row.fileName||'').split(/[?#]/)[0].trim();
+  const ext=name.match(/\.([a-z0-9]+)$/i)?.[1]?.toUpperCase();
+  if(ext)return ext==='JPG'||ext==='JPE'?'JPEG':ext;
+  const mime=String(row.mimeType||'').toLowerCase();
+  if(mime.includes('pdf'))return 'PDF';
+  if(mime.includes('jpeg')||mime.includes('jpg'))return 'JPEG';
+  if(mime.includes('dwg')||mime.includes('acad'))return 'DWG';
+  if(mime.includes('png'))return 'PNG';
+  return 'FILE';
+}
+
 function DrawingCoverage({row,project}){
   const floors=drawingRegisterCoverage(row,project);
   if(!floors.length)return <span style={{color:T.inkDim}}>Not tagged</span>;
-  return <details><summary style={{cursor:'pointer',fontWeight:500}}>{floors.slice(0,2).map(f=>f.summary).join(' & ')}{floors.length>2?` +${floors.length-2} floors`:''}</summary><div style={{marginTop:8,maxHeight:220,overflowY:'auto'}}>{floors.flatMap(f=>f.details).map((c,i)=><div key={i} style={{padding:'6px 0',borderTop:`1px solid ${T.line}`,fontSize:12}}>{c.zoneCode&&<strong>{c.zoneCode} · </strong>}{c.floor} | {c.area}</div>)}</div></details>;
+  return <div style={{display:'grid',gap:8}}>{floors.map(f=><details key={f.floor} style={{display:'block'}}><summary style={{cursor:'pointer',fontWeight:500,lineHeight:1.5}}>{f.summary}</summary><div style={{marginTop:8,maxHeight:220,overflowY:'auto'}}>{f.details.map((c,i)=><div key={i} style={{padding:'6px 0',borderTop:`1px solid ${T.line}`,fontSize:12}}>{c.zoneCode&&<strong>{c.zoneCode} · </strong>}{c.floor} | {c.area}</div>)}</div></details>)}</div>;
 }
 
 function ReceivedSentView({state}){
@@ -3078,13 +3093,13 @@ function ReceivedSentView({state}){
   const groups=project&&result?.projectId===projectId?buildDrawingRegister(project,result.data):[];
   const filtered=groups.filter(g=>[g.received,...g.sent].filter(Boolean).some(r=>[r.fileName,r.drawingType,r.revisionNo,...r.coverage.flatMap(c=>[c.floor,c.area])].join(' ').toLowerCase().includes(query.toLowerCase())));
   const cell={padding:'12px 10px',border:`1px solid ${T.line}`,verticalAlign:'top',textAlign:'left',fontFamily:FONT_BODY,fontSize:12,lineHeight:1.5,overflowWrap:'anywhere'};
-  const head={...cell,background:'#D2CDC1',color:T.ink,fontFamily:FONT_MONO,fontSize:10,fontWeight:700};
+  const head={...cell,background:'#D2CDC1',color:T.ink,fontFamily:FONT_MONO,fontSize:10,fontWeight:700,border:'1px solid #9D998F',borderBottom:`2px solid ${T.ink}`};
   const safeLink=url=>{try{const u=new URL(url);return ['https:','http:'].includes(u.protocol)?u.href:'';}catch{return '';}};
-  const link=r=>safeLink(r.driveUrl)?<a href={safeLink(r.driveUrl)} target="_blank" rel="noreferrer" style={{color:T.blue}}>Open file ↗</a>:<span style={{color:T.inkDim}}>No file link</span>;
-  return <section style={{fontFamily:FONT_BODY}}><h2 style={{fontFamily:FONT_DISPLAY,margin:'4px 0 8px'}}>Received & Sent</h2><p style={{fontSize:13,color:T.inkDim}}>Project drawing register. Expand a floor summary to see every selected zone. Sent files are recorded design outputs; opening this page does not send files.</p>
+  const link=r=>safeLink(r.driveUrl)?<a href={safeLink(r.driveUrl)} target="_blank" rel="noreferrer" aria-label={`Open ${drawingFileType(r)} file ${r.fileName}`} style={{color:T.blue,fontWeight:600,whiteSpace:'nowrap'}}>{drawingFileType(r)}</a>:<span style={{color:T.inkDim}}>No file link</span>;
+  return <section style={{fontFamily:FONT_BODY}}><h2 style={{fontFamily:FONT_DISPLAY,margin:'4px 0 8px'}}>Received / Sent</h2><p style={{fontSize:13,color:T.inkDim}}>Project drawing register. Expand a floor summary to see every selected zone. Sent files are recorded design outputs; opening this page does not send files.</p>
     <div style={{display:'flex',gap:12,alignItems:'flex-end',flexWrap:'wrap',marginBottom:16}}><label style={{display:'grid',gap:6,fontSize:12,flex:'1 1 320px'}}>Project<select aria-label="Drawing register project" value={projectId} onChange={e=>{setProjectId(e.target.value);setQuery('');}} style={inputStyle}><option value="">Select a project…</option>{(state.projects||[]).map(p=><option key={p.id} value={p.id}>{p.no||''} · {p.name}{p.status==='Completed'||p.completedAt?' · Completed':''}</option>)}</select></label><input aria-label="Search drawing register" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search drawing, floor, area, type or revision" style={{...inputStyle,flex:'1 1 260px'}}/><button type="button" style={smallBtn} disabled={loading||!projectId} onClick={()=>setRevision(n=>n+1)}>Refresh</button></div>
-    {loading&&<p role="status">Loading drawing register…</p>}{error&&<p role="alert" style={{color:T.redline}}>{error} Update and redeploy the included Apps Script backend, then click Refresh.</p>}
-    {project&&!loading&&!error&&result&&<><p style={{fontSize:12,color:T.inkDim}}>{groups.filter(g=>g.received).length} received file(s) · {groups.reduce((n,g)=>n+g.sent.length,0)} sent file(s)</p><div style={{overflowX:'auto'}}><table style={{width:'100%',minWidth:1380,borderCollapse:'collapse',tableLayout:'fixed'}}><colgroup>{[85,125,205,85,190,60,80,205,160,60,85,80].map((w,i)=><col key={i} style={{width:w}}/>)}</colgroup><thead><tr><th colSpan={7} style={{...head,background:'#D2CDC1',textAlign:'center',fontSize:12}}>RECEIVED</th><th colSpan={5} style={{...head,background:T.navy,color:'#fff',textAlign:'center',fontSize:12}}>SENT</th></tr><tr>{['Date','Project','Floor / Zones','Type','Drawing Name','Rev No.','Link','Floor / Type','Drawing Name','Rev No.','Issue Date','Link'].map((h,i)=><th key={i} style={head}>{h}</th>)}</tr></thead><tbody>{filtered.flatMap(g=>Array.from({length:Math.max(1,g.sent.length)},(_,i)=>{const r=g.received,sent=g.sent[i],span=Math.max(1,g.sent.length);return <tr key={`${g.id}-${i}`} style={{background:i%2?'#fff':'transparent'}}>{i===0&&(r?<><td rowSpan={span} style={cell}>{formatProjectDate(r.date)}</td><td rowSpan={span} style={cell}>{project.no||project.name}</td><td rowSpan={span} style={cell}><DrawingCoverage row={r} project={project}/></td><td rowSpan={span} style={cell}>{r.drawingType||'—'}</td><td rowSpan={span} style={cell}>{r.fileName}</td><td rowSpan={span} style={cell}>{r.revisionNo!==''?r.revisionNo:'—'}</td><td rowSpan={span} style={cell}>{link(r)}</td></>:<td colSpan={7} rowSpan={span} style={{...cell,color:T.inkDim}}>Sent drawing · no received source linked</td>)}{sent?<><td style={cell}><DrawingCoverage row={sent} project={project}/><div style={{fontSize:11,color:T.inkDim,marginTop:6}}>{sent.drawingType}</div></td><td style={cell}>{sent.fileName}</td><td style={cell}>{sent.revisionNo!==''?sent.revisionNo:'—'}</td><td style={cell}>{formatProjectDate(sent.date)}</td><td style={cell}>{link(sent)}</td></>:<td colSpan={5} style={{...cell,color:T.inkDim}}>No sent drawing linked yet</td>}</tr>;}))}{!filtered.length&&<tr><td colSpan={12} style={cell}>No drawings found for this project{query?' matching your search':''}.</td></tr>}</tbody></table></div></>}
+    {loading&&<p role="status" style={{fontFamily:FONT_BODY,fontSize:13,fontWeight:400,lineHeight:1.5,color:T.inkDim,margin:"12px 0"}}>Loading drawing register…</p>}{error&&<p role="alert" style={{color:T.redline}}>{error} Update and redeploy the included Apps Script backend, then click Refresh.</p>}
+    {project&&!loading&&!error&&result&&<><p style={{fontSize:12,color:T.inkDim}}>{groups.filter(g=>g.received).length} received file(s) · {groups.reduce((n,g)=>n+g.sent.length,0)} sent file(s)</p><div style={{overflowX:'auto'}}><table style={{width:'100%',minWidth:1380,borderCollapse:'collapse',tableLayout:'fixed'}}><colgroup>{[85,125,205,85,190,60,80,205,160,60,85,80].map((w,i)=><col key={i} style={{width:w}}/>)}</colgroup><thead><tr><th colSpan={7} style={{...head,background:'#D2CDC1',textAlign:'center',fontSize:12,borderRight:`3px solid ${T.ink}`}}>RECEIVED</th><th colSpan={5} style={{...head,background:T.navy,color:'#fff',textAlign:'center',fontSize:12,borderLeft:`3px solid ${T.ink}`}}>SENT</th></tr><tr>{['Date','Project','Floor / Zones','Type','Drawing Name','Rev No.','Link','Floor / Type','Drawing Name','Rev No.','Issue Date','Link'].map((h,i)=><th key={i} style={{...head,...(i===7?{borderLeft:`3px solid ${T.ink}`}:{})}}>{h}</th>)}</tr></thead><tbody>{filtered.flatMap(g=>Array.from({length:Math.max(1,g.sent.length)},(_,i)=>{const r=g.received,sent=g.sent[i],span=Math.max(1,g.sent.length);return <tr key={`${g.id}-${i}`} style={{background:i%2?'#fff':'transparent'}}>{i===0&&(r?<><td rowSpan={span} style={cell}>{formatProjectDate(r.date)}</td><td rowSpan={span} style={cell}>{project.no||project.name}</td><td rowSpan={span} style={cell}><DrawingCoverage row={r} project={project}/></td><td rowSpan={span} style={cell}>{r.drawingType||'—'}</td><td rowSpan={span} style={cell}>{r.fileName}</td><td rowSpan={span} style={cell}>{r.revisionNo!==''?r.revisionNo:'—'}</td><td rowSpan={span} style={{...cell,borderRight:`3px solid ${T.ink}`}}>{link(r)}</td></>:<td colSpan={7} rowSpan={span} style={{...cell,color:T.inkDim}}>Sent drawing · no received source linked</td>)}{sent?<><td style={{...cell,borderLeft:`3px solid ${T.ink}`}}><DrawingCoverage row={sent} project={project}/><div style={{fontSize:11,color:T.inkDim,marginTop:6}}>{sent.drawingType}</div></td><td style={cell}>{sent.fileName}</td><td style={cell}>{sent.revisionNo!==''?sent.revisionNo:'—'}</td><td style={cell}>{formatProjectDate(sent.date)}</td><td style={cell}>{link(sent)}</td></>:<td colSpan={5} style={{...cell,color:T.inkDim,borderLeft:`3px solid ${T.ink}`}}>No sent drawing linked yet</td>}</tr>;}))}{!filtered.length&&<tr><td colSpan={12} style={cell}>No drawings found for this project{query?' matching your search':''}.</td></tr>}</tbody></table></div></>}
   </section>;
 }
 
@@ -5943,7 +5958,7 @@ const NAV = [
   { id: "dashboard", label: "Floor / Zone", icon: LayoutGrid, group: "RECEIVED / SENT" },
   { id: "upload", label: "Received · Upload", icon: Upload, group: "RECEIVED / SENT" },
   { id: "classify", label: "Classify", icon: ClipboardCheck, group: "RECEIVED / SENT" },
-  { id: "drawingRegister", label: "Received & Sent", icon: FileText, group: "RECEIVED / SENT" },
+  { id: "drawingRegister", label: "Received / Sent", icon: FileText, group: "RECEIVED / SENT" },
   { id: "timesheet", label: "WIH Sheet", icon: Clock, group: "WIH SHEET" },
   { id: "meetings", label: "Fix Meeting", icon: CalendarDays, group: "WIH SHEET" },
   { id: "executionMain", label: "Execution Dashboard", icon: HardHat, group: "WIH SHEET" },
@@ -6151,30 +6166,68 @@ function ProjectGantt({state,projectId}){
 }
 
 let AUTH_ID_TOKEN='';
+let AUTH_SESSION_GENERATION=0;
 function clearStudioCaches(){try{for(let i=localStorage.length-1;i>=0;i--){const k=localStorage.key(i);if(k&&/enlighten/i.test(k))localStorage.removeItem(k);}}catch(_){}}
 export default function App(){
-  const [token,setToken]=useState('');
+  const [signedIn,setSignedIn]=useState(false);
   const [config,setConfig]=useState(null);
   const [error,setError]=useState('');
-  const buttonRef=useRef(null);
-  const signOut=()=>{AUTH_ID_TOKEN='';clearStudioCaches();setToken('');window.google?.accounts?.id?.disableAutoSelect();};
-  useEffect(()=>{const expired=()=>{signOut();setError('Your sign-in expired. Sign in again.');};window.addEventListener('enlighten-auth-expired',expired);fetch('/api?action=authConfig').then(r=>r.json()).then(r=>{if(!r.data?.clientId)throw Error('Admin setup required: configure GOOGLE_CLIENT_ID in Vercel.');setConfig(r.data);}).catch(e=>setError(e.message));return()=>window.removeEventListener('enlighten-auth-expired',expired);},[]);
+  const [checking,setChecking]=useState(true);
+  const [signingIn,setSigningIn]=useState(false);
+  const buttonRef=useRef(null),attemptRef=useRef(0),signingInRef=useRef(false);
+  const enter=()=>{AUTH_ID_TOKEN='';AUTH_SESSION_GENERATION++;clearStudioCaches();setError('');setSignedIn(true);};
+  const signOut=async()=>{
+    if(signingInRef.current)return;
+    setChecking(true);setError('');attemptRef.current++;
+    try{
+      const response=await fetch('/api',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'authSignOut'})});
+      const result=await response.json();if(!response.ok||!result.ok)throw Error(result.error?.message||'Could not sign out. Please retry.');
+      AUTH_ID_TOKEN='';AUTH_SESSION_GENERATION++;clearStudioCaches();setSignedIn(false);window.google?.accounts?.id?.disableAutoSelect();
+    }catch(e){setError(e.message||'Could not sign out. Check your connection and retry.');}
+    finally{setChecking(false);}
+  };
   useEffect(()=>{
-    if(!config||token)return;
     let active=true;
-    const renderButton=()=>{if(!active||!buttonRef.current)return;window.google.accounts.id.initialize({client_id:config.clientId,auto_select:false,callback:response=>{if(!active||!response.credential)return;AUTH_ID_TOKEN=response.credential;clearStudioCaches();setError('');setToken(response.credential);}});window.google.accounts.id.renderButton(buttonRef.current,{type:'standard',theme:'outline',size:'medium',shape:'pill',text:'signin_with',logo_alignment:'left'});};
+    const expired=()=>{attemptRef.current++;AUTH_ID_TOKEN='';AUTH_SESSION_GENERATION++;clearStudioCaches();setSignedIn(false);setChecking(false);setError('Your session has ended. Sign in again to continue.');};
+    window.addEventListener('enlighten-auth-expired',expired);
+    Promise.all([fetch('/api?action=authConfig',{credentials:'same-origin'}).then(r=>r.json()),fetch('/api?action=authSession',{credentials:'same-origin'}).then(r=>r.json())]).then(([configuration,session])=>{
+      if(!active)return;
+      if(!configuration.data?.clientId)throw Error('Admin setup required: configure GOOGLE_CLIENT_ID in Vercel.');
+      setConfig(configuration.data);
+      if(!session.ok)throw Error(session.error?.message||'Could not check sign-in. Refresh to retry.');
+      if(session.data?.signedIn)enter();
+    }).catch(e=>{if(active)setError(e.message);}).finally(()=>{if(active)setChecking(false);});
+    return()=>{active=false;window.removeEventListener('enlighten-auth-expired',expired);};
+  },[]);
+  useEffect(()=>{
+    if(!config||signedIn||checking)return;
+    let active=true;
+    const renderButton=()=>{
+      if(!active||!buttonRef.current)return;
+      window.google.accounts.id.initialize({client_id:config.clientId,auto_select:false,callback:async response=>{
+        if(!active||!response.credential||signingInRef.current)return;
+        const attempt=++attemptRef.current;signingInRef.current=true;setSigningIn(true);setError('');
+        try{
+          const reply=await fetch('/api',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'text/plain;charset=utf-8',Authorization:`Bearer ${response.credential}`},body:JSON.stringify({action:'authSession'})});
+          const result=await reply.json();if(!reply.ok||!result.ok||!result.data?.signedIn)throw Error(result.error?.message||'Could not complete sign-in. Please retry.');
+          if(active&&attempt===attemptRef.current)enter();
+        }catch(e){if(active&&attempt===attemptRef.current)setError(e.message||'Could not complete sign-in. Please retry.');}
+        finally{signingInRef.current=false;if(active)setSigningIn(false);}
+      }});
+      window.google.accounts.id.renderButton(buttonRef.current,{type:'standard',theme:'outline',size:'medium',shape:'pill',text:'signin_with',logo_alignment:'left'});
+    };
     if(window.google?.accounts?.id){renderButton();return()=>{active=false;};}
     let script=document.getElementById('enlighten-google-login');if(!script){script=document.createElement('script');script.id='enlighten-google-login';script.src='https://accounts.google.com/gsi/client';script.async=true;document.head.appendChild(script);}
-    script.addEventListener('load',renderButton);const failed=()=>setError('Google sign-in could not load. Check your connection.');script.addEventListener('error',failed);
+    script.addEventListener('load',renderButton);const failed=()=>{if(active)setError('Google sign-in could not load. Check your connection.');};script.addEventListener('error',failed);
     return()=>{active=false;script.removeEventListener('load',renderButton);script.removeEventListener('error',failed);};
-  },[config,token]);
-  if(token)return <><div style={{background:T.navy,color:'#fff',padding:'8px 18px',display:'flex',justifyContent:'flex-end',fontFamily:FONT_BODY,fontSize:12}}><button onClick={signOut} style={{...smallBtn,background:'#fff'}}>Sign out / switch account</button></div><StudioApp/></>;
+  },[config,signedIn,checking]);
+  if(signedIn)return <><div style={{background:T.navy,color:'#fff',padding:'8px 18px',display:'flex',justifyContent:'flex-end',alignItems:'center',gap:12,fontFamily:FONT_BODY,fontSize:12}}>{error&&<span role="alert">{error}</span>}<button disabled={checking} onClick={signOut} style={{...smallBtn,background:'#fff'}}>{checking?'Signing out…':'Sign out / switch account'}</button></div><StudioApp/></>;
   return <main className="enlighten-landing" aria-label="enLIGHTen sign in">
     <section className="enlighten-landing__center" aria-label="Welcome to enLIGHTen">
       <img className="enlighten-landing__logo" src="/enlighten-wordmark.svg" alt="enLIGHTen" width="710" height="140" />
       <div className="enlighten-landing__signin">
         <div className="enlighten-landing__google" ref={buttonRef}/>
-        {!config&&!error&&<p className="enlighten-landing__hint" role="status">Loading sign-in…</p>}
+        {(checking||signingIn||(!config&&!error))&&<p className="enlighten-landing__hint" role="status">{signingIn?'Signing in…':checking?'Checking sign-in…':'Loading sign-in…'}</p>}
         {error&&<p className="enlighten-landing__error" role="alert">{error}</p>}
       </div>
     </section>
