@@ -1,0 +1,23 @@
+/* Consistent arrow spacing for single-choice dropdowns throughout the app. */
+#root select:not([multiple]):not([size]),
+#root select:not([multiple])[size="1"] {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 40px !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%235B6775' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 12px 8px !important;
+}
+
+/* Retain the system indicator in high-contrast accessibility modes. */
+@media (forced-colors: active) {
+  #root select:not([multiple]):not([size]),
+  #root select:not([multiple])[size="1"] {
+    appearance: auto;
+    -webkit-appearance: auto;
+    -moz-appearance: auto;
+    background-image: none !important;
+  }
+}

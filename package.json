@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.11.70-instant-zone-delete",
+  "version": "2.11.72-instant-project-create",
   "type": "module",
   "scripts": {
     "dev": "vite",

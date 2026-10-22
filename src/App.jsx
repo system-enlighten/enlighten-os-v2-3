@@ -2783,6 +2783,7 @@ function normalizeStudioState(base) {
   }));
   return {
     projects,
+    pendingProjectCreates: base.pendingProjectCreates||[],
     people: base.people || DEFAULT_PEOPLE,
     teamMaster: base.teamMaster || [],
     templates,
@@ -2820,7 +2821,7 @@ function useStudioState() {
       try {
         const user = await projectApi.getCurrentUser();
         setCurrentUser(user);
-        localState={...localState,currentUser:user};
+        localState={...localState,currentUser:user,pendingProjectCreates:(localState.pendingProjectCreates||[]).filter(j=>j.ownerEmail===user.email)};
         if (!user?.authorized) {
           setBackendErr(user?.message || "Admin access required.");
           localState = { ...localState, currentUser: user, accessDenied: true };
@@ -3923,15 +3924,47 @@ function lineOfWorkDefaults(project, people) {
 
 /* stale ProjectSelector removed cleanly */
 
+const PROJECT_CREATE_JOBS=new Map();
+function runProjectCreateJob(persist,job){
+  if(PROJECT_CREATE_JOBS.has(job.id))return PROJECT_CREATE_JOBS.get(job.id);
+  const work=(async()=>{
+    try{
+      await persist(latest=>({...latest,pendingProjectCreates:(latest.pendingProjectCreates||[]).map(j=>j.id===job.id?{...j,status:'saving',error:''}:j)}));
+      const project=job.project,contacts=contactsObjectToRows(project,project.contacts);
+      const row=await projectApi.create({...frontendProjectToBackend(project,true),initialContacts:contacts});
+      // Compatible with an older backend while deployments roll out.
+      if(row.initialContactsSaved!==true&&contacts.length)await projectApi.saveContacts(row.projectId||project.id,contacts.map(c=>({...c,projectId:row.projectId||project.id})));
+      const created=backendProjectToFrontend(row,project);
+      await persist(latest=>({...latest,projects:latest.projects.some(p=>p.id===created.id)?latest.projects.map(p=>p.id===created.id?{...p,...created}:p):[...latest.projects,created],pendingProjectCreates:(latest.pendingProjectCreates||[]).filter(j=>j.id!==job.id)}));
+      return created;
+    }catch(err){
+      await persist(latest=>({...latest,pendingProjectCreates:(latest.pendingProjectCreates||[]).map(j=>j.id===job.id?{...j,status:'error',error:err.message||String(err)}:j)}));
+      return null;
+    }finally{PROJECT_CREATE_JOBS.delete(job.id);}
+  })();
+  PROJECT_CREATE_JOBS.set(job.id,work);return work;
+}
+
+function PendingProjectCreations({state,persist}){
+  const jobs=state.pendingProjectCreates||[];if(!jobs.length)return null;
+  return <div style={{margin:'12px 0',display:'grid',gap:8}}>{jobs.map(job=>{
+    const saving=job.status==='saving'&&PROJECT_CREATE_JOBS.has(job.id);
+    return <div key={job.id} role="status" style={{border:`1px solid ${T.line}`,background:T.paperDim,padding:'12px 14px',fontFamily:FONT_BODY,fontSize:13,display:'flex',justifyContent:'space-between',gap:12,alignItems:'center'}}><div><strong>{job.project.no} · {job.project.name}</strong><div style={{color:job.error?T.redline:T.inkDim,marginTop:4}}>{saving?'Saving new project in the background…':job.error||'Creation was interrupted. Retry to finish saving; your details are retained.'}</div></div>{!saving&&<button type="button" style={smallBtn} onClick={()=>runProjectCreateJob(persist,job)}>Retry</button>}</div>;
+  })}</div>;
+}
+
 function ProjectOnboarding({ state, persist, selectedId, setSelectedId, initialMode = "browse" }) {
   const [mode, setMode] = useState(initialMode);
   const [draft, setDraft] = useState(emptyDraft());
   const [saved, setSaved] = useState(false);
   const [creating, setCreating] = useState(false);
+  const creatingRef=useRef(false);
 
   const saveNew = async () => {
-    if (!draft.name.trim() || creating) return;
-    setCreating(true);
+    if (!draft.name.trim() || creatingRef.current) return;
+    const duplicate=[...(state.projects||[]),...(state.pendingProjectCreates||[]).map(j=>j.project)].some(p=>String(p.no||'').trim().toLowerCase()===draft.no.trim().toLowerCase()&&String(p.name||'').trim().toLowerCase()===draft.name.trim().toLowerCase());
+    if(duplicate){alert('This project already exists or is being saved.');return;}
+    creatingRef.current=true;setCreating(true);
     const cleanContacts = {};
     Object.entries(draft.contacts).forEach(([role, c]) => {
       if (c && (String(c.name||"").trim()||String(c.company||"").trim())) cleanContacts[role] = { name:String(c.name||"").trim(), company:String(c.company||"").trim(), email:String(c.email||"").trim(), mobile:String(c.mobile||"").trim() };
@@ -3940,7 +3973,7 @@ function ProjectOnboarding({ state, persist, selectedId, setSelectedId, initialM
     const architectName = (cleanContacts.Architect?.name || "").trim();
 
     const project = {
-      id: uid(),
+      id: 'PRJ-'+(globalThis.crypto?.randomUUID?.()||uid()+uid()),
       no: draft.no.trim() || "—",
       name: draft.name.trim(),
       client: ownerName,
@@ -3968,22 +4001,13 @@ function ProjectOnboarding({ state, persist, selectedId, setSelectedId, initialM
       },
       lineOfWork: []
     };
-    let created = project;
-    try {
-      const row = await projectApi.create(frontendProjectToBackend(project, false));
-      created = backendProjectToFrontend(row, project);
-      if (Object.keys(cleanContacts).length) {
-        await projectApi.saveContacts(created.id, contactsObjectToRows(created, cleanContacts));
-        created = {...created, contacts: cleanContacts};
-      }
-    } catch (err) {
-      alert(`Google Sheets save failed: ${err?.message || err}`);
-      setCreating(false);
-      return;
-    }
-    await persist({ ...state, projects: [...state.projects, created] });
-    setDraft(emptyDraft()); setSelectedId(created.id); setMode("browse"); setSaved(true); setCreating(false);
-    setTimeout(() => setSaved(false), 2400);
+    const job={id:project.id,ownerEmail:state.currentUser?.email||'',project,status:'saving',error:''};
+    const localSave=persist(latest=>({...latest,pendingProjectCreates:[...(latest.pendingProjectCreates||[]),job]}));
+    setDraft(emptyDraft());setMode('browse');setSaved(false);setCreating(false);
+    setSelectedId(selectedId||state.projects?.[0]?.id||null);
+    try{await localSave;return await runProjectCreateJob(persist,job);}
+    catch(err){alert(`Could not queue this project: ${err.message||err}`);}
+    finally{creatingRef.current=false;}
   };
 
   const updateProject = async (projectId, patch) => {
@@ -5391,6 +5415,8 @@ function ProjectView({ state, persist }) {
         + New Project
       </button></div>
     </div>
+
+    <PendingProjectCreations state={state} persist={persist}/>
 
     {(showNewProject || showExistingProjects) && <div style={{border:`1px solid ${T.line}`,background:"#fff",padding:16,marginBottom:16}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
