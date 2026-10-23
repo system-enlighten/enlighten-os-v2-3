@@ -2603,6 +2603,9 @@ async function apiRequest(action, payload = {}, method = "POST", timeoutMs=0) {
 }
 
 const projectApi = {
+  getProjectWorkspace:()=>apiRequest("getProjectWorkspace",{},"GET"),
+  saveProjectMeeting:payload=>apiRequest("saveProjectMeeting",payload),
+  deleteProjectMeeting:payload=>apiRequest("deleteProjectMeeting",payload),
   getCurrentUser: () => apiRequest("getCurrentUser", {}, "GET"),
   listAll: () => apiRequest("listProjects", { activeOnly: false }, "GET"),
   create: payload => apiRequest("createProject", payload),
@@ -2804,6 +2807,33 @@ function normalizeStudioState(base) {
   };
 }
 
+function workspaceIntakes(workspace){
+  const files=workspace.files||[];
+  return (workspace.drawings||[]).filter(d=>String(d.direction||'Received').toLowerCase()==='received').map(d=>{
+    const file=files.find(f=>f.linkedEntityId===d.drawingId)||files.find(f=>f.driveFileId&&f.driveFileId===d.driveFileId)||{};
+    let floors=[];try{floors=JSON.parse(d.floorTags||'[]');}catch(_){}
+    return {id:d.drawingId,projectId:d.projectId,floor:d.floor||'',floors:floors.length?floors:String(d.floor||'').split(',').map(x=>x.trim()).filter(Boolean),zone:'',areas:d.area?[d.area]:[],drawingType:canonicalDrawingType(d.drawingType),fileName:file.fileName||'Drawing',driveUrl:d.driveUrl||file.driveUrl||'',note:d.notes||'',date:d.receivedSentDate||'',uploadedAt:d.createdAt||'',classified:d.classified===true||String(d.classified)==='true',source:'Received Upload'};
+  });
+}
+function mergeMemberState(before,next,user){
+  const viewer=user.appAccess.toLowerCase()==='viewer',assigned=id=>!!user.projectRoles?.[id];
+  if(next.projects.length!==before.projects.length||next.projects.some(p=>!before.projects.some(x=>x.id===p.id)))throw Error('Only System Admin can add or remove projects.');
+  for(const p of next.projects){const previous=before.projects.find(x=>x.id===p.id);if(JSON.stringify(p)===JSON.stringify(previous))continue;
+    if(viewer||!assigned(p.id))throw Error('Project is view only.');
+    if(user.projectRoles[p.id]!=='Admin'){
+      const keys=new Set([...Object.keys(p),...Object.keys(previous)]);
+      if([...keys].some(k=>!['floorZones','zones'].includes(k)&&JSON.stringify(p[k])!==JSON.stringify(previous[k])))throw Error('Project Admin controls scope and Line of Work.');
+    }
+  }
+  const result={...before,projects:next.projects};
+  for(const field of ['intakes','tasks','meetings','pendingReceivedUploads']){
+    if(next[field]===undefined||JSON.stringify(next[field])===JSON.stringify(before[field]))continue;
+    if(viewer)throw Error('This account is view only.');
+    if(next[field].some(r=>!assigned(r.projectId||r.metadata?.projectId)))throw Error('Project access required.');
+    result[field]=next[field];
+  }
+  return result;
+}
 function useStudioState() {
   const [state, setState] = useState(null);
   const stateRef=useRef(state);stateRef.current=state;
@@ -2838,7 +2868,7 @@ function useStudioState() {
         }
 
         if(user.appAccess.toLowerCase()!=="admin"){
-          const [remote,contacts,work,zones,people]=await Promise.all([projectApi.listAll(),projectApi.listContacts(),projectApi.listLineOfWork(),projectApi.listFloorZones(),projectApi.listProjectPeople()]);
+          const [remote,contacts,work,zones,people,workspace,templates]=await Promise.all([projectApi.listAll(),projectApi.listContacts(),projectApi.listLineOfWork(),projectApi.listFloorZones(),projectApi.listProjectPeople(),projectApi.getProjectWorkspace(),projectApi.listDrawingTaskMaster()]);
           const projects=(remote||[]).map(r=>{
             const base=backendProjectToFrontend(r,{}),id=String(r.projectId);
             const profile=contactRowsToObject((contacts||[]).filter(c=>String(c.projectId)===id));
@@ -2846,7 +2876,7 @@ function useStudioState() {
             const areas=(zones||[]).filter(x=>String(x.projectId)===id);
             return {...base,contacts:profile,lineOfWorkResidence:plan,lineOfWork:plan,floorZones:areas};
           });
-          localState={projects,people:[user.name],teamMaster:people.length?people:[{userId:user.userId,name:user.name,active:true}],templates:[],intakes:[],tasks:[],ratings:{},meetings:[],siteVisits:[],scopeSheet:[],currentUser:user};
+          localState={...localState,projects,people:people.map(m=>m.name),teamMaster:people.length?people:[{userId:user.userId,name:user.name,active:true}],templates,intakes:workspaceIntakes(workspace),tasks:[],ratings:{},meetings:workspace.meetings||[],siteVisits:[],scopeSheet:[],currentUser:user};
           setState(localState);return;
         }
         const [remote, remoteContacts, remoteLineOfWork, remoteFloorZones, remoteTeam, remoteDepartments, remoteDesignations, remoteDrawingTaskMaster] = await Promise.all([
@@ -2906,6 +2936,9 @@ function useStudioState() {
           };
           try { await localStateSet(STORE_KEY, JSON.stringify(localState)); } catch {}
         }
+        const workspace=await projectApi.getProjectWorkspace();
+        const remoteMeetings=workspace.meetings||[],knownMeetingIds=new Set(workspace.meetingIds||remoteMeetings.map(m=>m.id));
+        localState={...localState,intakes:workspaceIntakes(workspace),meetings:[...remoteMeetings,...(localState.meetings||[]).filter(m=>!knownMeetingIds.has(m.id)&&m.active!==false)]};
         setBackendErr("");
       } catch (err) {
         localState={projects:[],people:[],tasks:[],intakes:[],currentUser:null,accessDenied:true};
@@ -2921,9 +2954,8 @@ function useStudioState() {
     const before=stateRef.current;
     const next=typeof update==='function'?update(before):update;
     if(currentUser?.appAccess?.toLowerCase()!=="admin"){
-      const changed=(next.projects||[]).filter(p=>JSON.stringify(p)!==JSON.stringify(before?.projects?.find(x=>String(x.id)===String(p.id))));
-      if(!changed.length||changed.some(p=>currentUser?.appAccess?.toLowerCase()==='viewer'||currentUser?.projectRoles?.[p.id]!=='Admin')||(next.projects||[]).length!==(before?.projects||[]).length)throw new Error("Projects are view only.");
-      const resolved={...before,projects:next.projects};stateRef.current=resolved;setState(resolved);return resolved;
+      const resolved=mergeMemberState(before,next,currentUser);stateRef.current=resolved;setState(resolved);
+      const ok=await localStateSet(STORE_KEY,JSON.stringify(resolved));setSaveErr(!ok);return resolved;
     }
     stateRef.current=next;setState(next);
     const ok = await localStateSet(STORE_KEY, JSON.stringify(next));
@@ -3478,7 +3510,8 @@ function ClassifyView({ state, persist }) {
    VIEW: TIMESHEET
 --------------------------------------------------------------- */
 function TimesheetView({ state, persist }) {
-  const canAssign=state.currentUser?.appAccess?.toLowerCase()==="admin";
+  const assignProject=id=>state.currentUser?.appAccess?.toLowerCase()!=="viewer"&&projectRole(state,id)==="Admin";
+  const canAssign=(state.projects||[]).some(p=>assignProject(p.id));
   const canWork=canAssign||state.currentUser?.permissions?.wih==="own-edit";
   const [person, setPerson] = useState("All");
   const [taskSection, setTaskSection] = useState("Pending");
@@ -3534,7 +3567,7 @@ function TimesheetView({ state, persist }) {
         {id:"documentationBoqTaskId",no:"documentationBoqDesignNo",st:"documentationBoqStatus",title:"Documentation & BOQ",drawingType:"Detail"},
         {id:"furnitureTaskId",no:"furnitureDesignNo",st:"furnitureStatus",title:"Furniture / Joinery",drawingType:"Detail"}
       ];
-      const projects=(state.projects||[]).filter(p=>!p.completed&&!/completed/i.test(String(p.projectStatus||p.status||"")));
+      const projects=(state.projects||[]).filter(p=>assignProject(p.id)&&!p.completed&&!/completed/i.test(String(p.projectStatus||p.status||"")));
       const dashboards=canAssign?await Promise.all(projects.map(async p=>{
         try{return {p,payload:await projectApi.getDesignDashboard(p.id)};}catch(e){console.warn("WIH dashboard sync failed",p.id,e);return {p,payload:null};}
       })):[];
@@ -3549,7 +3582,7 @@ function TimesheetView({ state, persist }) {
           if(existing){
             byId.set(key,{...existing,designTaskId:taskId||existing.designTaskId,projectId:p.id,task:{...(existing.task||{}),taskType:existing.task?.taskType || d.title,projectName:p.name,floor:r.floor||existing.task?.floor||"",area:r.area||existing.task?.area||"",dependencyDrawingType:d.drawingType,designNo:designNo||existing.task?.designNo||"",status:r?.[d.st]||existing.task?.status||existing.status||"Not Started"},status:r?.[d.st]||existing.status||existing.task?.status||"Not Started"});
           }else{
-            byId.set(key,{designTaskId:taskId||key,projectId:p.id,assigneeName:"",totalMinutes:0,status:String(r?.[d.st]||"Not Started"),task:{taskType:existing.task?.taskType || d.title,projectName:p.name,floor:r.floor||"",area:r.area||"",dependencyDrawingType:d.drawingType,designNo:designNo||key,status:String(r?.[d.st]||"Not Started")}});
+            byId.set(key,{designTaskId:taskId||key,projectId:p.id,assigneeName:"",totalMinutes:0,status:String(r?.[d.st]||"Not Started"),task:{taskType:d.title,projectName:p.name,floor:r.floor||"",area:r.area||"",dependencyDrawingType:d.drawingType,designNo:designNo||key,status:String(r?.[d.st]||"Not Started")}});
           }
         }));
       });
@@ -3575,7 +3608,8 @@ function TimesheetView({ state, persist }) {
     }
   },[]);
 
-  const displayTasks=remoteTasks.length?remoteTasks.map(r=>({
+  const visibleRemoteTasks=remoteTasks.filter(r=>state.currentUser?.appAccess?.toLowerCase()==='admin'||projectRole(state,r.projectId)&&(assignProject(r.projectId)||String(r.assigneeUserId)===String(state.currentUser?.userId)));
+  const displayTasks=visibleRemoteTasks.length?visibleRemoteTasks.map(r=>({
     ...r,
     id:r.designTaskId,
     designTaskId:r.designTaskId,
@@ -3594,7 +3628,7 @@ function TimesheetView({ state, persist }) {
     assignee:r.assigneeName||r.task?.assigneeName||"",
     hours:Number(r.totalMinutes||0)/60,
     status:String(r.status||r.task?.status||"Not Started")
-  })):(state.tasks||[]);
+  })):(state.tasks||[]).filter(t=>assignProject(t.projectId));
   const isDone=s=>/completed|done/i.test(String(s));
   const isProgress=s=>/in progress/i.test(String(s));
   const isPaused=s=>/paused/i.test(String(s));
@@ -3608,7 +3642,7 @@ function TimesheetView({ state, persist }) {
   const sectionTasks=displayTasks.filter(t=>taskSection==="All"?true:taskSection==="Completed"?isDone(t.status):taskSection==="Unallotted"?!isDone(t.status)&&!t.assignee:!isDone(t.status)&&!!t.assignee);
   const tasks=sectionTasks.filter(t=>person==="All"||t.assignee===person);
   const people=[...new Set([...(teamNames.length?teamNames:(state.people||[])),...displayTasks.map(t=>t.assignee).filter(Boolean)])];
-  const bulkProjects=[...new Map(displayTasks.filter(t=>!isDone(t.status)).map(t=>[String(t.projectId),{id:String(t.projectId),name:t.projectName||String(t.projectId)}])).values()];
+  const bulkProjects=[...new Map(displayTasks.filter(t=>assignProject(t.projectId)&&!isDone(t.status)).map(t=>[String(t.projectId),{id:String(t.projectId),name:t.projectName||String(t.projectId)}])).values()];
   const bulkProjectTasks=displayTasks.filter(t=>String(t.projectId)===String(bulkProjectId)&&!isDone(t.status)&&t.designTaskId);
   const bulkTaskGroups=[...new Map(bulkProjectTasks.map(t=>[t.title,{title:t.title,tasks:bulkProjectTasks.filter(x=>x.title===t.title)}])).values()];
   const openBulkAssign=()=>{
@@ -3677,10 +3711,10 @@ function TimesheetView({ state, persist }) {
     {!loadingRemote&&tasks.length===0&&<div style={{color:T.inkDim,fontFamily:FONT_BODY,fontSize:13,padding:"20px 0"}}>No WIH tasks yet. Received drawings create tasks automatically.</div>}
     <div style={{display:"flex",flexDirection:"column",gap:8}}>{tasks.map(t=><div key={t.id} style={{background:"#fff",border:`1px solid ${T.line}`,borderRadius:8,padding:"12px 14px",display:"grid",gridTemplateColumns:"1.5fr 1fr 150px 90px 230px",gap:10,alignItems:"center"}}>
       <div><div style={{fontFamily:FONT_BODY,fontSize:13,fontWeight:700}}>{t.title}</div>{t.milestone&&<div style={{fontFamily:FONT_BODY,fontSize:11,color:T.blue,marginTop:3}}>{t.milestone} → {t.parentTask}</div>}{t.drawingReviewRequired&&<div style={{fontSize:11,color:T.orange,marginTop:3}}>Additional / revised drawing received — review scope</div>}{isBlocked(t.status)&&<div style={{fontSize:11,color:T.inkDim,marginTop:3}}>Waiting for preceding subtask</div>}<div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginTop:3}}>{t.projectName} · {t.floor||"—"} · {t.area||"—"} · {t.drawingType||"—"}</div>{t.designNo&&<div style={{fontFamily:FONT_MONO,fontSize:11,color:T.blue,fontWeight:800,marginTop:3}}>{t.designNo}</div>}</div>
-      {canAssign?<select disabled={!t.designTaskId||busyId===t.designTaskId||isDone(t.status)} value={t.assignee||""} onChange={e=>assign(t,e.target.value)} style={{...inputStyle,padding:"7px 8px",fontSize:12}}><option value="">Assign team member</option>{people.map(n=><option key={n}>{n}</option>)}</select>:<span style={{fontSize:12}}>{t.assignee}</span>}
+      {assignProject(t.projectId)?<select disabled={!t.designTaskId||busyId===t.designTaskId||isDone(t.status)} value={t.assignee||""} onChange={e=>assign(t,e.target.value)} style={{...inputStyle,padding:"7px 8px",fontSize:12}}><option value="">Assign team member</option>{people.map(n=><option key={n}>{n}</option>)}</select>:<span style={{fontSize:12}}>{t.assignee}</span>}
       <StatusPill status={isDone(t.status)?"Done":isBlocked(t.status)?"Blocked":isProgress(t.status)?"In progress":"To do"}/>
       <div style={{fontFamily:FONT_MONO,fontSize:12}}>{Number(t.hours||0).toFixed(2)} h</div>
-      <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{canWork&&t.optional&&!isDone(t.status)&&!isBlocked(t.status)&&<button disabled={busyId===t.designTaskId} onClick={()=>action(t,"skip")} style={smallBtn}>SKIP OPTIONAL STEP</button>}{canWork&&t.drawingReviewRequired&&<button disabled={busyId===t.designTaskId} onClick={()=>action(t,"review")} style={smallBtn}>MARK DRAWING REVIEWED</button>}{canWork&&!isDone(t.status)&&!isProgress(t.status)&&!isPaused(t.status)&&<button disabled={!t.assignee||busyId===t.designTaskId||isBlocked(t.status)} onClick={()=>action(t,"start")} style={smallBtn}>START</button>}{canWork&&isProgress(t.status)&&<button disabled={busyId===t.designTaskId} onClick={()=>action(t,"pause")} style={smallBtn}>PAUSE</button>}{canWork&&isPaused(t.status)&&<button disabled={busyId===t.designTaskId} onClick={()=>action(t,"resume")} style={smallBtn}>RESUME</button>}{canWork&&!isDone(t.status)&&<button disabled={!t.assignee||busyId===t.designTaskId||isBlocked(t.status)} onClick={()=>setCompleteEditor({task:t,file:null,actualHours:t.hours||"",notes:""})} style={{...smallBtn,background:T.navy,color:"#fff"}}>COMPLETE / UPLOAD</button>}</div>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{(canWork&&(assignProject(t.projectId)||t.assigneeUserId===state.currentUser?.userId))&&t.optional&&!isDone(t.status)&&!isBlocked(t.status)&&<button disabled={busyId===t.designTaskId} onClick={()=>action(t,"skip")} style={smallBtn}>SKIP OPTIONAL STEP</button>}{(canWork&&(assignProject(t.projectId)||t.assigneeUserId===state.currentUser?.userId))&&t.drawingReviewRequired&&<button disabled={busyId===t.designTaskId} onClick={()=>action(t,"review")} style={smallBtn}>MARK DRAWING REVIEWED</button>}{(canWork&&(assignProject(t.projectId)||t.assigneeUserId===state.currentUser?.userId))&&!isDone(t.status)&&!isProgress(t.status)&&!isPaused(t.status)&&<button disabled={!t.assignee||busyId===t.designTaskId||isBlocked(t.status)} onClick={()=>action(t,"start")} style={smallBtn}>START</button>}{(canWork&&(assignProject(t.projectId)||t.assigneeUserId===state.currentUser?.userId))&&isProgress(t.status)&&<button disabled={busyId===t.designTaskId} onClick={()=>action(t,"pause")} style={smallBtn}>PAUSE</button>}{(canWork&&(assignProject(t.projectId)||t.assigneeUserId===state.currentUser?.userId))&&isPaused(t.status)&&<button disabled={busyId===t.designTaskId} onClick={()=>action(t,"resume")} style={smallBtn}>RESUME</button>}{(canWork&&(assignProject(t.projectId)||t.assigneeUserId===state.currentUser?.userId))&&!isDone(t.status)&&<button disabled={!t.assignee||busyId===t.designTaskId||isBlocked(t.status)} onClick={()=>setCompleteEditor({task:t,file:null,actualHours:t.hours||"",notes:""})} style={{...smallBtn,background:T.navy,color:"#fff"}}>COMPLETE / UPLOAD</button>}</div>
     </div>)}</div>
     {bulkAssignOpen&&<div style={{position:"fixed",inset:0,zIndex:13900,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}><div style={{width:"min(760px,96vw)",maxHeight:"88vh",overflow:"auto",background:T.paper,border:`1px solid ${T.line}`}}><div style={{background:T.navy,color:"#fff",padding:15,fontFamily:FONT_DISPLAY,fontSize:19}}>Project-wise Task Assignment</div><div style={{padding:16}}><div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,marginBottom:14}}>Select one project, then assign each task type once. The selected team member will be applied to every open task of that type in this project.</div><Field label="PROJECT"><select value={bulkProjectId} onChange={e=>{setBulkProjectId(e.target.value);setBulkAssignments({});}} style={inputStyle}>{bulkProjects.map(p=><option key={p.id} value={p.id}>{p.no||p.projectNo||"—"} — {p.name}</option>)}</select></Field>{bulkTaskGroups.length===0?<div style={{fontFamily:FONT_BODY,color:T.inkDim,padding:"14px 0"}}>No open WIH tasks for this project.</div>:<div style={{border:`1px solid ${T.line}`}}>{bulkTaskGroups.map(g=><div key={g.title} style={{display:"grid",gridTemplateColumns:"1.4fr 90px 1fr",gap:10,alignItems:"center",padding:"11px 12px",borderBottom:`1px solid ${T.line}`,background:"#fff"}}><div><div style={{fontFamily:FONT_BODY,fontWeight:700,fontSize:13}}>{g.title}</div><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim}}>{g.tasks.length} open task{g.tasks.length===1?"":"s"}</div></div><div style={{fontFamily:FONT_MONO,fontSize:11,color:T.inkDim}}>{[...new Set(g.tasks.map(t=>t.floor).filter(Boolean))].join(", ")||"—"}</div><select value={bulkAssignments[g.title]||""} onChange={e=>setBulkAssignments(x=>({...x,[g.title]:e.target.value}))} style={{...inputStyle,padding:"7px 8px",fontSize:12}}><option value="">Keep current / unassigned</option>{people.map(n=><option key={n}>{n}</option>)}</select></div>)}</div>}<div style={{marginTop:12,fontFamily:FONT_MONO,fontSize:11,color:T.inkDim}}>{bulkProjectTasks.length} total open task{bulkProjectTasks.length===1?"":"s"} in selected project.</div></div><div style={{padding:14,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}><button disabled={bulkSaving} onClick={()=>setBulkAssignOpen(false)} style={{...smallBtn,background:"#fff"}}>Cancel</button><button disabled={bulkSaving||!bulkTaskGroups.length} onClick={saveBulkAssignments} style={{...smallBtn,background:T.navy,color:"#fff",padding:"9px 14px"}}>{bulkSaving?"SAVING…":"SAVE PROJECT ASSIGNMENTS"}</button></div></div></div>}
     {completeEditor&&<div style={{position:"fixed",inset:0,zIndex:14000,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}><div style={{width:"min(650px,96vw)",background:T.paper,border:`1px solid ${T.line}`}}><div style={{background:T.navy,color:"#fff",padding:14,fontFamily:FONT_DISPLAY,fontSize:18}}>Complete WIH Task · {completeEditor.task.designNo||completeEditor.task.title}</div><div style={{padding:16}}><Field label={completeEditor.task.completionUploadRequired===false?"Output / meeting record (optional)":"Completed drawing / output file *"}><input type="file" style={{...inputStyle,padding:8}} onChange={e=>setCompleteEditor(x=>({...x,file:e.target.files?.[0]||null}))}/></Field><Field label="Actual time taken (hours) *"><input type="number" min="0.01" step="0.25" value={completeEditor.actualHours} onChange={e=>setCompleteEditor(x=>({...x,actualHours:e.target.value}))} style={inputStyle}/></Field><Field label={completeEditor.task.taskCategory==='Meeting'?"Meeting minutes / outcome *":"Completion remarks"}><textarea value={completeEditor.notes} onChange={e=>setCompleteEditor(x=>({...x,notes:e.target.value}))} style={{...inputStyle,minHeight:70}}/></Field></div><div style={{padding:14,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}><button onClick={()=>setCompleteEditor(null)} style={{...smallBtn,background:"#fff"}}>Cancel</button><button onClick={finish} style={{...smallBtn,background:T.navy,color:"#fff"}}>Upload & Complete Task</button></div></div></div>}
@@ -4875,6 +4909,7 @@ function DesignFlowView({state,persist}){
   const [taskId,setTaskId]=useState("");
   const [taskDraft,setTaskDraft]=useState({drawings:"",tasks:"",time:"",hours:"",plannedStart:"",plannedCompletion:"",responsible:"",status:"Not Started"});
   const [projectDraft,setProjectDraft]=useState({});
+  const canEditProject=id=>state.currentUser?.appAccess?.toLowerCase()!=='viewer'&&projectRole(state,id)==='Admin';
   const seen=new Set();
   const projects=(state.projects||[]).filter(p=>{
     if(p.completed||p.status==="Completed"||p.projectControl?.projectStatus==="Completed")return false;
@@ -4930,7 +4965,7 @@ function DesignFlowView({state,persist}){
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
       <div><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.cyan}}>SELECTED PROJECT · {opened.no||opened.projectNo}</div><h2 style={{fontFamily:FONT_DISPLAY,margin:"3px 0"}}>{opened.name}</h2></div>
       <div style={{display:"flex",gap:8}}>
-        <button type="button" onClick={()=>openProjectEdit(opened)} style={{...smallBtn,background:"#fff",cursor:"pointer",padding:"9px 14px"}}>EDIT PROJECT</button>
+        {canEditProject(opened.id)&&<button type="button" onClick={()=>openProjectEdit(opened)} style={{...smallBtn,background:"#fff",cursor:"pointer",padding:"9px 14px"}}>EDIT PROJECT</button>}
         <button type="button" onClick={()=>setOpenId("")} style={{...smallBtn,background:"#fff",cursor:"pointer",padding:"9px 14px"}}>PROJECT LIST</button>
       </div>
     </div>
@@ -4969,7 +5004,7 @@ function DesignFlowView({state,persist}){
       <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
         <thead><tr style={{background:T.paper2}}>{["S. No","Project No.","Project","Client","Architect","Scope / Floors","Open Tasks","Completed Tasks","Action"].map(h=><th key={h} style={{padding:10,textAlign:"left",borderBottom:`1px solid ${T.line}`}}>{h}</th>)}</tr></thead>
         <tbody>{projects.map((p,i)=>{const c=counts(p);return <tr key={p.id}>
-          <td style={{padding:10,borderBottom:`1px solid ${T.line}`}}>{i+1}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`,fontFamily:FONT_MONO}}>{p.no||p.projectNo||"—"}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`,fontWeight:700}}>{p.name}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`}}>{p.client||"—"}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`}}>{p.architect||"—"}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`,minWidth:190,maxWidth:520,whiteSpace:"normal",overflowWrap:"anywhere",lineHeight:1.45}}>{designDashboardScopeFloors(p).length?designDashboardScopeFloors(p).join(", "):"No scope selected"}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`,fontWeight:700}}>{c.open}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`,fontWeight:700}}>{c.completed}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`}}><div style={{display:"flex",gap:6}}><button type="button" onClick={()=>setOpenId(String(p.id))} style={{...smallBtn,background:T.navy,color:"#fff"}}>OPEN</button><button type="button" onClick={()=>openProjectEdit(p)} style={{...smallBtn,background:"#fff"}}>EDIT PROJECT</button></div></td>
+          <td style={{padding:10,borderBottom:`1px solid ${T.line}`}}>{i+1}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`,fontFamily:FONT_MONO}}>{p.no||p.projectNo||"—"}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`,fontWeight:700}}>{p.name}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`}}>{p.client||"—"}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`}}>{p.architect||"—"}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`,minWidth:190,maxWidth:520,whiteSpace:"normal",overflowWrap:"anywhere",lineHeight:1.45}}>{designDashboardScopeFloors(p).length?designDashboardScopeFloors(p).join(", "):"No scope selected"}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`,fontWeight:700}}>{c.open}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`,fontWeight:700}}>{c.completed}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`}}><div style={{display:"flex",gap:6}}><button type="button" onClick={()=>setOpenId(String(p.id))} style={{...smallBtn,background:T.navy,color:"#fff"}}>OPEN</button>{canEditProject(p.id)&&<button type="button" onClick={()=>openProjectEdit(p)} style={{...smallBtn,background:"#fff"}}>EDIT PROJECT</button>}</div></td>
         </tr>})}</tbody>
       </table>
     </div>
@@ -5115,6 +5150,10 @@ function ExecutionMainView({state,persist}){
     await persist({...state,meetings:(state.meetings||[]).map(m=>m.id===id?{...m,...patch,updatedAt:new Date().toISOString()}:m)});
   };
 
+  const saveMeetingNotes=async meeting=>{
+    try{const saved=await projectApi.saveProjectMeeting(meeting);await persist(latest=>({...latest,meetings:(latest.meetings||[]).map(m=>m.id===saved.id?{...m,active:true,updatedAt:saved.updatedAt}:m)}));alert('Meeting notes saved to Google Sheets.');}catch(e){alert(`Meeting notes could not be saved: ${e.message}`);}
+  };
+
   return <div>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"end",gap:12,marginBottom:16,flexWrap:"wrap"}}>
       <div><h2 style={{fontFamily:FONT_DISPLAY,fontSize:22,margin:0,color:T.ink}}>Execution Dashboard</h2>
@@ -5164,7 +5203,7 @@ function ExecutionMainView({state,persist}){
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginTop:10,paddingTop:10,borderTop:`1px solid ${T.line}`}}>
           <Field label="MOM"><textarea value={m.mom||""} onChange={e=>updateMeeting(m.id,{mom:e.target.value})} style={{...inputStyle,minHeight:78,borderRadius:0}} placeholder="Minutes / key decisions"/></Field>
-          <Field label="Action Items"><textarea value={m.actionItems||""} onChange={e=>updateMeeting(m.id,{actionItems:e.target.value})} style={{...inputStyle,minHeight:78,borderRadius:0}} placeholder="Action · responsible person · due date"/></Field>
+          <Field label="Action Items"><textarea value={m.actionItems||""} onChange={e=>updateMeeting(m.id,{actionItems:e.target.value})} style={{...inputStyle,minHeight:78,borderRadius:0}} placeholder="Action · responsible person · due date"/></Field><button type="button" style={smallBtn} onClick={()=>saveMeetingNotes(m)}>Save MOM</button>
         </div>
       </div>)}
       {!projectMeetings.length&&<div style={{padding:18,border:`1px solid ${T.line}`,background:"#fff",fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>No meetings for this project yet. Schedule them from Fix Meeting.</div>}
@@ -5874,24 +5913,37 @@ function MeetingsView({ state, persist }) {
   const activeProjects=(state.projects||[]).filter(p=>p.status!=="Completed"&&p.projectControl?.projectStatus!=="Completed");
   const [form,setForm]=useState({projectId:activeProjects[0]?.id||"",date:todayISO(),time:"10:00",title:"",participants:"",location:"",agenda:"",happened:false,mom:"",actionItems:"",nextDate:""});
   const [openMomId,setOpenMomId]=useState(null);
+  const [meetingBusy,setMeetingBusy]=useState(false),[meetingError,setMeetingError]=useState('');
   const projectName=id=>state.projects.find(p=>p.id===id)?.name||"—";
 
-  const addMeeting=async()=>{
-    if(!form.title.trim())return;
-    const meeting={id:uid(),...form,title:form.title.trim(),createdAt:new Date().toISOString()};
-    await persist({...state,meetings:[meeting,...(state.meetings||[])]});
-    setForm({...form,title:"",agenda:"",participants:"",location:"",happened:false,nextDate:""});
+  const saveMeeting=async meeting=>{
+    if(meetingBusy)return false;setMeetingBusy(true);setMeetingError('');
+    try{const saved=await projectApi.saveProjectMeeting(meeting);await persist(latest=>({...latest,meetings:[saved,...(latest.meetings||[]).filter(m=>m.id!==saved.id)]}));return true;}
+    catch(e){setMeetingError(e.message);return false;}finally{setMeetingBusy(false);}
   };
-  const updateMeeting=async(id,patch)=>await persist({...state,meetings:(state.meetings||[]).map(m=>m.id===id?{...m,...patch,updatedAt:new Date().toISOString()}:m)});
-  const removeMeeting=async id=>await persist({...state,meetings:(state.meetings||[]).filter(m=>m.id!==id)});
+  const addMeeting=async()=>{
+    if(!form.title.trim()||!form.projectId)return;
+    const saved=await saveMeeting({id:uid(),...form,title:form.title.trim()});
+    if(saved)setForm(current=>({...current,title:'',agenda:'',participants:'',location:'',happened:false,nextDate:''}));
+  };
+  const updateMeeting=async(id,patch)=>{const meeting=(state.meetings||[]).find(m=>m.id===id);if(meeting)await saveMeeting({...meeting,...patch});};
+  const removeMeeting=async id=>{
+    const meeting=(state.meetings||[]).find(m=>m.id===id);if(!meeting||meetingBusy)return;
+    setMeetingBusy(true);setMeetingError('');
+    try{if(meeting.active===undefined)await projectApi.saveProjectMeeting(meeting);await projectApi.deleteProjectMeeting({id,projectId:meeting.projectId});await persist(latest=>({...latest,meetings:(latest.meetings||[]).filter(m=>m.id!==id)}));}catch(e){setMeetingError(e.message);}finally{setMeetingBusy(false);}
+  };
 
+  const refreshMeetings=async()=>{
+    if(meetingBusy)return;setMeetingBusy(true);setMeetingError('');
+    try{const workspace=await projectApi.getProjectWorkspace();const known=new Set(workspace.meetingIds||[]);await persist(latest=>({...latest,meetings:[...(workspace.meetings||[]),...(latest.meetings||[]).filter(m=>!known.has(m.id))]}));}catch(e){setMeetingError(e.message);}finally{setMeetingBusy(false);}
+  };
   const nowKey=new Date().toISOString().slice(0,10);
   const meetings=[...(state.meetings||[])].sort((a,b)=>`${b.date||""} ${b.time||""}`.localeCompare(`${a.date||""} ${a.time||""}`));
   const upcoming=meetings.filter(m=>!m.happened&&(m.date||"")>=nowKey);
   const past=meetings.filter(m=>m.happened||(m.date||"")<nowKey);
 
   return <div>
-    <div style={{marginBottom:18}}><h2 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:0,color:T.ink}}>Fix Meeting</h2><div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim,marginTop:4}}>Schedule meetings here. MOM is maintained in Execution Dashboard, but past MOM can be opened from this history.</div></div>
+    <div style={{marginBottom:18}}><button type="button" disabled={meetingBusy} onClick={refreshMeetings} style={{...smallBtn,float:'right'}}>Refresh meetings</button><h2 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:0,color:T.ink}}>Fix Meeting</h2><div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim,marginTop:4}}>Schedule meetings here. MOM is maintained in Execution Dashboard, but past MOM can be opened from this history.</div></div>
 
     <div style={{background:"#fff",border:`1px solid ${T.line}`,padding:16,marginBottom:22}}>
       <div style={{fontFamily:FONT_MONO,fontSize:11,letterSpacing:".08em",textTransform:"uppercase",color:T.inkDim,marginBottom:12}}>Fix a Meeting</div>
@@ -5906,7 +5958,7 @@ function MeetingsView({ state, persist }) {
         <Field label="Location / Link"><input style={{...inputStyle,borderRadius:0}} value={form.location} onChange={e=>setForm({...form,location:e.target.value})}/></Field>
       </div>
       <Field label="Agenda"><textarea style={{...inputStyle,minHeight:60,borderRadius:0}} value={form.agenda} onChange={e=>setForm({...form,agenda:e.target.value})}/></Field>
-      <Btn onClick={addMeeting} disabled={!form.title.trim()}><CalendarDays size={14}/> Fix Meeting</Btn>
+      {meetingError&&<p role="alert" style={{color:T.redline,fontFamily:FONT_BODY,fontSize:13}}>{meetingError}</p>}<Btn onClick={addMeeting} disabled={meetingBusy||!form.projectId||!form.title.trim()}><CalendarDays size={14}/> Fix Meeting</Btn>
     </div>
 
     <div style={{fontFamily:FONT_MONO,fontSize:10,fontWeight:700,letterSpacing:".08em",marginBottom:8}}>UPCOMING / SCHEDULED</div>
@@ -5915,8 +5967,8 @@ function MeetingsView({ state, persist }) {
         <div style={{display:"grid",gridTemplateColumns:"1.5fr 1fr auto auto",gap:10,alignItems:"center"}}>
           <div><strong style={{fontFamily:FONT_DISPLAY,fontSize:14}}>{m.title}</strong><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginTop:3}}>{projectName(m.projectId)} · {m.date} {m.time} · {m.location||"—"}</div></div>
           <div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim}}>{m.participants||"—"}</div>
-          <button onClick={()=>updateMeeting(m.id,{happened:true})} style={{...smallBtn}}>Mark Happened</button>
-          <button onClick={()=>removeMeeting(m.id)} style={{border:"none",background:"transparent",cursor:"pointer"}}><X size={14} color={T.inkDim}/></button>
+          <button disabled={meetingBusy} onClick={()=>updateMeeting(m.id,{happened:true})} style={{...smallBtn}}>Mark Happened</button>
+          <button disabled={meetingBusy} aria-label={`Cancel meeting ${m.title}`} onClick={()=>removeMeeting(m.id)} style={{border:"none",background:"transparent",cursor:"pointer"}}><X size={14} color={T.inkDim}/></button>
         </div>
       </div>)}
       {!upcoming.length&&<div style={{padding:14,border:`1px solid ${T.line}`,background:"#fff",fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>No upcoming meetings.</div>}
@@ -6080,7 +6132,7 @@ function SettingsView({ state, persist }) {
   const set = (k,v)=>setForm(f=>({...f,[k]:v}));
   return <div>
     <ProjectRoleManager state={state}/>
-    <div style={{marginBottom:20}}><h2 style={{fontFamily:FONT_DISPLAY,fontSize:24,margin:"0 0 5px"}}>Team Master</h2><div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim}}>Enter each employee once. The Gmail ID is the login identity. Set <b>App Access = Admin</b> for administrators; User = project permissions assigned below + own WIH editing; Viewer = assigned projects and own WIH view only. App Access Admin is the system administrator; Project Admin is assigned separately for each project. Active team members automatically become selectable in Responsible Person / Assignee dropdowns.</div></div>
+    <div style={{marginBottom:20}}><h2 style={{fontFamily:FONT_DISPLAY,fontSize:24,margin:"0 0 5px"}}>Team Master</h2><div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim}}>Enter each employee once. The Gmail ID is the login identity. Set <b>App Access = Admin</b> for administrators; User = project-wise Admin/User permissions assigned below + own WIH editing; Viewer = assigned projects and own WIH view only. App Access Admin is the system administrator; Project Admin is assigned separately for each project. Active team members automatically become selectable in Responsible Person / Assignee dropdowns.</div></div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:20}}>
       {[["Department Master",departments,newDepartment,setNewDepartment,"department"],["Designation / Role Master",designations,newDesignation,setNewDesignation,"designation"]].map(([title,items,newValue,setNewValue,kind])=>
         <div key={kind} style={{background:"#fff",border:`1px solid ${T.line}`,padding:14}}>
@@ -6150,6 +6202,12 @@ function SidebarNavigation({items,view,onChange,pendingCount}){
   })}</nav>;
 }
 
+function projectNavigationItems(user){
+  if(user?.appAccess?.toLowerCase()==='admin')return NAV;
+  const ids=user?.appAccess?.toLowerCase()==='viewer'?['project','design','drawingRegister','timesheet','site']:['project','design','dashboard','upload','classify','drawingRegister','timesheet','meetings','site'];
+  return NAV.filter(n=>ids.includes(n.id));
+}
+
 function StudioApp() {
   const { state, loading, saveErr, backendErr, currentUser, persist } = useStudioState();
   const [view, setView] = useState("project");
@@ -6178,7 +6236,7 @@ function StudioApp() {
   }
 
   const isAdmin=currentUser?.appAccess?.toLowerCase()==="admin";
-  const allowedNav=isAdmin?NAV:NAV.filter(n=>["project","timesheet"].includes(n.id));
+  const allowedNav=projectNavigationItems(currentUser);
   const pendingCount = state.intakes.filter((i) => !i.classified).length;
   const viewLabel = NAV.find((n) => n.id === view)?.label;
 
@@ -6220,16 +6278,16 @@ function StudioApp() {
         <div style={{ padding: "28px 32px", overflowY: "auto" }}>
           {view === "project" && (isAdmin?<ProjectView state={state} persist={persist} />:<ProjectPermissionsView state={state} persist={persist}/>)}
           {isAdmin && view === "designLineOfWork" && <DesignLineOfWorkView state={state} persist={persist} />}
-          {isAdmin && view === "design" && <DesignFlowView state={state} persist={persist} />}
+          {allowedNav.some(n=>n.id==="design") && view === "design" && <DesignFlowView state={state} persist={persist} />}
           
-          {isAdmin && view === "dashboard" && <DashboardView state={state} persist={persist} />}
-          {isAdmin && view === "drawingRegister" && <ReceivedSentView state={state}/>}
-          {isAdmin && view === "upload" && <UploadView state={state} persist={persist} />}
-          {isAdmin && view === "classify" && <ClassifyView state={state} persist={persist} />}
+          {allowedNav.some(n=>n.id==="dashboard") && view === "dashboard" && <DashboardView state={state} persist={persist} />}
+          {allowedNav.some(n=>n.id==="drawingRegister") && view === "drawingRegister" && <ReceivedSentView state={state}/>}
+          {allowedNav.some(n=>n.id==="upload") && view === "upload" && <UploadView state={state} persist={persist} />}
+          {allowedNav.some(n=>n.id==="classify") && view === "classify" && <ClassifyView state={state} persist={persist} />}
           {view === "timesheet" && <TimesheetView state={state} persist={persist} />}
-          {isAdmin && view === "meetings" && <MeetingsView state={state} persist={persist} />}
+          {allowedNav.some(n=>n.id==="meetings") && view === "meetings" && <MeetingsView state={state} persist={persist} />}
           {isAdmin && view === "executionMain" && <ExecutionMainView state={state} persist={persist} />}
-          {isAdmin && view === "site" && <ProjectPunchInsView state={state}/>}
+          {allowedNav.some(n=>n.id==="site") && view === "site" && <ProjectPunchInsView state={state}/>}
           {isAdmin && view === "settings" && <SettingsView state={state} persist={persist} />}
         </div>
       </div>
@@ -6281,7 +6339,7 @@ function ProjectPermissionsView({state,persist}){
   return <div><h2>Projects</h2><select aria-label="Assigned project" style={inputStyle} value={p.id} onChange={e=>{setSelected(e.target.value);setTab('scope');}}>{state.projects.map(x=><option key={x.id} value={x.id}>{x.no} · {x.name}</option>)}</select><p>Project role: <b>{contactRoleLabel(role)}</b> · {admin?'Manage this project':'View only'}</p><div style={{display:'flex',gap:8,marginBottom:18}}>{[['scope','Projects & Scope'],['line','Line of Work'],['floor','Floor & Zone'],['site','Site Punch-in']].map(([id,label])=><Btn key={id} onClick={()=>setTab(id)} variant={tab===id?'dark':'ghost'}>{label}</Btn>)}</div>
   {tab==='scope'&&(admin?<ProjectScopeAdmin key={p.id} project={p} onSaved={async row=>saveScoped({...scoped,projects:[backendProjectToFrontend(row,p)]})}/>:<MemberProjectsView key={p.id} state={scoped}/>)}
   {tab==='line'&&(admin?<ProjectLineOfWorkView key={p.id} state={scoped} persist={saveScoped} selectedId={p.id}/>:<ReadOnlyProjectWork state={state} project={p}/>)}
-  {tab==='floor'&&(admin?<DashboardView key={p.id} state={scoped} persist={saveScoped}/>:<table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Zone','Floor','Area'].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{(p.floorZones||[]).map((r,i)=><tr key={r.floorZoneId||i}>{[r.zoneCode,r.floor,r.area].map((v,j)=><td key={j} style={tdStyle}>{v}</td>)}</tr>)}</tbody></table>)}
+  {tab==='floor'&&((state.currentUser.appAccess.toLowerCase()!=='viewer')?<DashboardView key={p.id} state={scoped} persist={saveScoped}/>:<table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Zone','Floor','Area'].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{(p.floorZones||[]).map((r,i)=><tr key={r.floorZoneId||i}>{[r.zoneCode,r.floor,r.area].map((v,j)=><td key={j} style={tdStyle}>{v}</td>)}</tr>)}</tbody></table>)}
   {tab==='site'&&<ProjectPunchInsView key={p.id} state={scoped}/>}
   </div>;
 }
@@ -6297,14 +6355,15 @@ function ProjectScopeAdmin({project,onSaved}){
 }
 function ProjectPunchInsView({state}){
   const [projectId,setProjectId]=useState(state.projects[0]?.id||''),[rows,setRows]=useState([]),[draft,setDraft]=useState(null),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);
-  const admin=projectRole(state,projectId)==='Admin';
+  const admin=projectRole(state,projectId)==='Admin'&&state.currentUser?.appAccess?.toLowerCase()!=='viewer';
+  const canPunch=!!projectRole(state,projectId)&&state.currentUser?.appAccess?.toLowerCase()!=='viewer';
   useEffect(()=>{let active=true;setRows([]);setDraft(null);setMessage('');if(projectId)projectApi.listSitePunchIns(projectId).then(r=>{if(active)setRows(r);}).catch(e=>{if(active)setMessage(e.message);});return()=>{active=false;};},[projectId]);
   const save=async()=>{setBusy(true);try{const payload={...draft,projectId,checkInAt:draft.checkInAt?new Date(draft.checkInAt).toISOString():'',checkOutAt:draft.checkOutAt?new Date(draft.checkOutAt).toISOString():''};await projectApi.saveSitePunchIn(payload);setRows(await projectApi.listSitePunchIns(projectId));setDraft(null);setMessage('Punch-in saved to Google Sheets.');}catch(e){setMessage(e.message);}finally{setBusy(false);}};
   const edit=r=>{const localDate=iso=>{if(!iso)return '';const d=new Date(iso);if(isNaN(d))return '';return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);};setDraft({punchId:r.punchId,userId:r.userId,purpose:r.purpose||'',checkInAt:localDate(r.checkInAt),checkOutAt:localDate(r.checkOutAt)});};
   const remove=async r=>{if(!window.confirm('Delete this punch-in record?'))return;setBusy(true);try{await projectApi.deleteSitePunchIn({projectId,punchId:r.punchId});setRows(await projectApi.listSitePunchIns(projectId));}catch(e){setMessage(e.message);}finally{setBusy(false);}};
-  return <section><h2>Site Punch-in Records</h2><select aria-label="Punch-in project" value={projectId} style={inputStyle} onChange={e=>setProjectId(e.target.value)}>{state.projects.map(p=><option key={p.id} value={p.id}>{p.no} · {p.name}</option>)}</select><p>{admin?'Project Admin · manage records and dates':'View only'}</p>{admin&&<Btn disabled={!projectId||busy} onClick={()=>setDraft({userId:state.currentUser.userId,purpose:'',checkInAt:'',checkOutAt:''})}>Add Punch-in Record</Btn>}
-  {admin&&draft&&<div style={{border:`1px solid ${T.line}`,padding:16,marginTop:14}}><Field label="Team member"><select style={inputStyle} value={draft.userId} onChange={e=>setDraft(d=>({...d,userId:e.target.value}))}>{(state.teamMaster||[]).map(m=><option key={m.userId} value={m.userId}>{m.name}</option>)}</select></Field>{[['checkInAt','Entry date & time'],['checkOutAt','Exit date & time (optional)']].map(([k,label])=><Field key={k} label={label}><input type="datetime-local" style={inputStyle} value={draft[k]} onChange={e=>setDraft(d=>({...d,[k]:e.target.value}))}/></Field>)}<Field label="Purpose"><input style={inputStyle} value={draft.purpose} onChange={e=>setDraft(d=>({...d,purpose:e.target.value}))}/></Field><Btn disabled={busy||!draft.checkInAt||!draft.userId} onClick={save}>Save Punch-in</Btn><button style={smallBtn} onClick={()=>setDraft(null)}>Cancel</button></div>}
-  <p role="status">{message}</p><table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Member','Entry','Exit','Purpose',...(admin?['Actions']:[])].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{rows.map(r=><tr key={r.punchId}><td style={tdStyle}>{r.person}</td><td style={tdStyle}>{r.checkInAt?new Date(r.checkInAt).toLocaleString('en-IN'):'—'}</td><td style={tdStyle}>{r.checkOutAt?new Date(r.checkOutAt).toLocaleString('en-IN'):'—'}</td><td style={tdStyle}>{r.purpose}</td>{admin&&<td style={tdStyle}><button disabled={busy} style={smallBtn} onClick={()=>edit(r)}>Edit Dates</button><button disabled={busy} style={smallBtn} onClick={()=>remove(r)}>Delete</button></td>}</tr>)}</tbody></table>{!rows.length&&<p>No punch-in records.</p>}</section>;
+  return <section><h2>Site Punch-in Records</h2><select aria-label="Punch-in project" value={projectId} style={inputStyle} onChange={e=>setProjectId(e.target.value)}>{state.projects.map(p=><option key={p.id} value={p.id}>{p.no} · {p.name}</option>)}</select><p>{admin?'Project Admin · manage records and dates':canPunch?'Add or update your own records · only Admin can delete':'View only'}</p>{canPunch&&<Btn disabled={!projectId||busy} onClick={()=>setDraft({userId:state.currentUser.userId,purpose:'',checkInAt:'',checkOutAt:''})}>Add Punch-in Record</Btn>}
+  {canPunch&&draft&&<div style={{border:`1px solid ${T.line}`,padding:16,marginTop:14}}><Field label="Team member"><select style={inputStyle} value={draft.userId} onChange={e=>setDraft(d=>({...d,userId:e.target.value}))}>{(state.teamMaster||[]).filter(m=>admin||m.userId===state.currentUser.userId).map(m=><option key={m.userId} value={m.userId}>{m.name}</option>)}</select></Field>{[['checkInAt','Entry date & time'],['checkOutAt','Exit date & time (optional)']].map(([k,label])=><Field key={k} label={label}><input type="datetime-local" style={inputStyle} value={draft[k]} onChange={e=>setDraft(d=>({...d,[k]:e.target.value}))}/></Field>)}<Field label="Purpose"><input style={inputStyle} value={draft.purpose} onChange={e=>setDraft(d=>({...d,purpose:e.target.value}))}/></Field><Btn disabled={busy||!draft.checkInAt||!draft.userId} onClick={save}>Save Punch-in</Btn><button style={smallBtn} onClick={()=>setDraft(null)}>Cancel</button></div>}
+  <p role="status">{message}</p><table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Member','Entry','Exit','Purpose',...(canPunch?['Actions']:[])].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{rows.map(r=><tr key={r.punchId}><td style={tdStyle}>{r.person}</td><td style={tdStyle}>{r.checkInAt?new Date(r.checkInAt).toLocaleString('en-IN'):'—'}</td><td style={tdStyle}>{r.checkOutAt?new Date(r.checkOutAt).toLocaleString('en-IN'):'—'}</td><td style={tdStyle}>{r.purpose}</td>{canPunch&&<td style={tdStyle}>{(admin||r.userId===state.currentUser.userId)&&<button disabled={busy} style={smallBtn} onClick={()=>edit(r)}>Edit Dates</button>}{admin&&<button disabled={busy} style={smallBtn} onClick={()=>remove(r)}>Delete</button>}</td>}</tr>)}</tbody></table>{!rows.length&&<p>No punch-in records.</p>}</section>;
 }
 
 

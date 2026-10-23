@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.11.80-floor-wise-activation",
+  "version": "2.11.81-project-admin-user-controls",
   "type": "module",
   "scripts": {
     "dev": "vite",
