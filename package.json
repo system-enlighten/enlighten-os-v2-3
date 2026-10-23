@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.11.91-scope-linked-drawings",
+  "version": "2.11.92-dashboard-theme",
   "type": "module",
   "scripts": {
     "dev": "vite",

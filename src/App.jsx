@@ -612,7 +612,7 @@ const PROJECT_SCOPE_SHEET_ROWS = [
   }
 ];
 
-const PROJECT_SCOPE_BOOLEAN_FIELDS = ['Basement', 'Stilt Floor', 'GF', '1F', '2F', '3F', 'Terrace', 'Facade', 'Landscape', 'Bath Elevation', 'Wardrobe', 'Kitchen', 'Onboarding', 'Art Curation'];
+const PROJECT_SCOPE_BOOLEAN_FIELDS = ['Basement', 'Stilt Floor', 'GF', '1F', '2F', '3F', 'Terrace', 'Facade', 'Landscape', 'Bath Elevation', 'Wardrobe', 'Kitchen', 'Art Curation', 'Onboarding'];
 
 
 /*
@@ -621,7 +621,7 @@ Source workbook: Scope of work.xlsx
 Columns:
 S. No | Current Project | Client | Architect | Basement | Stilt Floor |
 GF | 1F | 2F | 3F | Terrace | Facade | Landscape |
-Bath Elevation | Wardrobe | Kitchen | Onboarding | Art Curation
+Bath Elevation | Wardrobe | Kitchen | Art Curation | Onboarding
 
 Boolean scope fields must be displayed as real interactive checkboxes.
 The stored data remains boolean true/false; the UI must never show the
@@ -4228,7 +4228,7 @@ function ProjectScopeView({ state, persist, selectedId }) {
     setRow(found ? {...found} : {serial:"",project:project.name,client:"",architect:"",basement:false,stilt_floor:false,gf:false,"1f":false,"2f":false,"3f":false,terrace:false,facade:false,wall_elevation:false,art_curation:false,landscape:false,bath_elevation:false,wardrobe:false,kitchen:false,onboarding:false});
   }, [project?.id, state.scopeSheet]);
   if (!project || !row) return null;
-  const boolFields = [["basement","Basement"],["stilt_floor","Stilt Floor"],["gf","GF"],["1f","1F"],["2f","2F"],["3f","3F"],["terrace","Terrace"],["facade","Facade"],["landscape","Landscape"],["bath_elevation","Bath Elevation"],["wardrobe","Furniture"],["onboarding","Onboarding"],["art_curation","Art Curation"]];
+  const boolFields = [["basement","Basement"],["stilt_floor","Stilt Floor"],["gf","GF"],["1f","1F"],["2f","2F"],["3f","3F"],["terrace","Terrace"],["facade","Facade"],["landscape","Landscape"],["bath_elevation","Bath Elevation"],["wardrobe","Furniture"],["art_curation","Art Curation"],["onboarding","Onboarding"]];
   const update = (patch) => setRow(r => ({...r,...patch}));
   const save = async () => {
     const next = allRows.some(r => (r.project||"").trim().toLowerCase() === (project.name||"").trim().toLowerCase())
@@ -4836,7 +4836,7 @@ function sheetDashboardStatus(records){
   return 'Pending';
 }
 function sheetDashboardTone(status){
-  return ({Pending:{bg:'#DD6666',fg:'#301818'},Open:{bg:'#B7E879',fg:'#243900'},Aligned:{bg:'#FFFF9B',fg:'#363500'},'In-progress':{bg:'#FFF200',fg:'#373400'},'Up for review':{bg:'#D3F3A7',fg:'#254010'},Completed:{bg:'#684A9F',fg:'#fff'}})[status]||{bg:'transparent',fg:T.ink};
+  return ({Pending:{bg:'#F4E5E0',fg:'#853D32'},Open:{bg:'#E8F2E9',fg:'#245C2B'},Aligned:{bg:'#F3F1EA',fg:'#625B48'},'In-progress':{bg:'#FFF4D6',fg:'#7A5A00'},'Up for review':{bg:'#E6EEF4',fg:'#1D4E89'},Completed:{bg:'#E8E3EF',fg:'#58416E'}})[status]||{bg:'transparent',fg:T.ink};
 }
 function sheetDashboardCovers(record,zone,parents){
   const eq=(a,b)=>String(a||'').trim().toLowerCase()===String(b||'').trim().toLowerCase();
@@ -4895,8 +4895,8 @@ function DrawingControlDashboard({state,projectId,deferLoad=false}){
   const totalHours=logs.reduce((sum,r)=>sum+r.duration,0),personHours=Object.entries(logs.reduce((sum,r)=>{sum[r.person]=(sum[r.person]||0)+r.duration;return sum;},{})).sort((a,b)=>b[1]-a[1]);
   const workColumns=SHEET_DASHBOARD_WORK.filter(def=>!def.scopeKey||sheetDashboardFlag(project.scope?.[def.scopeKey]));
   const receivedCols=[['Layout','layoutReceived'],['FC','fcReceived'],['Detail','detailReceived'],['3D','3dReceived']];
-  const cell={padding:'2px 5px',border:'1px solid #C7C7C7',fontFamily:FONT_MONO,fontSize:10,verticalAlign:'middle',height:20,lineHeight:1.2,whiteSpace:'normal',overflowWrap:'anywhere'};
-  const head={...cell,background:'#BDBDBD',fontWeight:700,textAlign:'center',whiteSpace:'normal',height:62,...(showHours?{overflowWrap:'normal',wordBreak:'normal',hyphens:'none'}:{})};
+  const cell={padding:'2px 5px',border:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:10,verticalAlign:'middle',height:20,lineHeight:1.2,whiteSpace:'normal',overflowWrap:'anywhere'};
+  const head={...cell,background:'#D2CDC1',color:'#1C1C19',fontFamily:FONT_MONO,fontSize:9,borderBottom:`2px solid ${T.ink}`,fontWeight:700,textAlign:'center',whiteSpace:'normal',height:62,...(showHours?{overflowWrap:'normal',wordBreak:'normal',hyphens:'none'}:{})};
   const displayStatus=(status,date,title,key)=>{const tone=sheetDashboardTone(status);return <td key={key} title={title||status||'No linked task'} style={{...cell,background:tone.bg,color:tone.fg,textAlign:'left',lineHeight:1.2}}>{status}{status==='Completed'&&date&&<div style={{fontSize:8}}>{String(date).slice(0,10)}</div>}</td>;};
   const liveWork=(def,z,dbRow)=>{
     let records=tasks.filter(t=>def.match.test(String(t.parentTask||t.taskType||''))&&sheetDashboardCovers(t,z,parents));
@@ -4914,14 +4914,14 @@ function DrawingControlDashboard({state,projectId,deferLoad=false}){
       <div style={{minWidth:0,background:'#fff'}}>
         <table style={{width:'100%',borderCollapse:'collapse',marginBottom:8}}><tbody>{[[`Project ${project.no||project.projectNo||''}:`,project.name],['Start Date:',formatProjectDate(project.startDate)],['Time in hours:',loading?'Loading…':totalHours.toFixed(1)]].map(([label,value])=><tr key={label}><td style={{...cell,fontFamily:FONT_BODY,fontWeight:700,width:220}}>{label}</td><td style={{...cell,fontFamily:FONT_BODY}}>{label==='Time in hours:'?<div style={{display:'flex',gap:12,alignItems:'center',flexWrap:'wrap'}}><span>{value}</span><button type="button" aria-label={`Hours by person for ${project.name}`} aria-expanded={showHours} aria-controls={`project-hours-${project.id}`} style={{...smallBtn,fontFamily:FONT_BODY,fontSize:12}} onClick={()=>setShowHours(open=>!open)}>{showHours?'Hide hours by person':'Hours by person'}</button></div>:value}</td></tr>)}</tbody></table>
 
-        <div role={showHours?'region':undefined} aria-label={showHours?`Scrollable design table for ${project.name}`:undefined} tabIndex={showHours?0:undefined} style={{width:'100%',minWidth:0,overflowX:showHours?'auto':'visible',border:'1px solid #777',boxSizing:'border-box'}}>
+        <div role={showHours?'region':undefined} aria-label={showHours?`Scrollable design table for ${project.name}`:undefined} tabIndex={showHours?0:undefined} style={{width:'100%',minWidth:0,overflowX:showHours?'auto':'visible',border:`1px solid ${T.line}`,boxSizing:'border-box'}}>
           <table aria-label="Project design matrix" style={{borderCollapse:'collapse',tableLayout:'fixed',width:'100%',...(showHours?{minWidth:Math.max(fullTableWidth,568+112*workColumns.length)}:{})}}>
             <colgroup><col style={{width:showHours?56:'4%'}}/><col style={{width:showHours?48:'4%'}}/><col style={{width:showHours?240:'20%'}}/>{Array.from({length:4},(_,i)=><col key={'r'+i} style={{width:showHours?56:'4%'}}/>)}{workColumns.map(d=><col key={d.label} style={{width:showHours?112:`${56/workColumns.length}%`}}/>)}</colgroup>
-            <thead><tr><th colSpan={3} style={{...cell,background:'#BDBDBD'}}/><th colSpan={4} style={{...cell,background:'#FCE5CD',textAlign:'center'}}>Drawings Received</th><th colSpan={workColumns.length} style={{...cell,background:'#E6B8AF',textAlign:'center'}}>Work Status</th></tr><tr>{['FLR','CN','AREA'].map(h=><th key={h} style={{...head,textAlign:'left'}}>{h}</th>)}{receivedCols.map(([label])=><th key={label} style={head}>{label}</th>)}{workColumns.map(d=><th key={d.label} style={head}>{d.label}</th>)}</tr></thead>
-            <tbody>{zones.map((z,i)=>{const area=z.area||z.room,cn=z.zoneCode||z.cn||'',dbRow=(payload?.rows||[]).find(r=>eq(r.floor,z.floor)&&eq(r.area,area));const bg=i%2?'#F2F2F2':'#fff';const boundary=i===0||zones[i-1].floor!==z.floor;const identity={...cell,background:bg,borderTop:boundary?'2px solid #111':'1px solid #C7C7C7'};
+            <thead><tr><th colSpan={3} style={{...cell,background:'#D2CDC1',color:'#1C1C19',fontFamily:FONT_MONO,fontWeight:700,borderBottom:`1px solid ${T.ink}`}}/><th colSpan={4} style={{...cell,background:'#D2CDC1',color:'#1C1C19',fontFamily:FONT_MONO,fontWeight:700,borderBottom:`1px solid ${T.ink}`,textAlign:'center'}}>Drawings Received</th><th colSpan={workColumns.length} style={{...cell,background:'#D2CDC1',color:'#1C1C19',fontFamily:FONT_MONO,fontWeight:700,borderBottom:`1px solid ${T.ink}`,textAlign:'center'}}>Work Status</th></tr><tr>{['FLR','CN','AREA'].map(h=><th key={h} style={{...head,textAlign:'left'}}>{h}</th>)}{receivedCols.map(([label])=><th key={label} style={head}>{label}</th>)}{workColumns.map(d=><th key={d.label} style={head}>{d.label}</th>)}</tr></thead>
+            <tbody>{zones.map((z,i)=>{const area=z.area||z.room,cn=z.zoneCode||z.cn||'',dbRow=(payload?.rows||[]).find(r=>eq(r.floor,z.floor)&&eq(r.area,area));const bg=i%2?'#F3F1EA':'#fff';const boundary=i===0||zones[i-1].floor!==z.floor;const identity={...cell,background:bg,borderTop:boundary?`2px solid ${T.line}`:`1px solid ${T.line}`};
               const room=project.designExecutionBoard?.rooms?.find(r=>eq(r.flr||r.floor,z.floor)&&eq(r.area,area));
-              return <tr key={JSON.stringify([z.floor,area])} style={{background:bg,borderTop:boundary?'2px solid #111':undefined}}><td style={identity}>{z.floor}</td><td style={identity}>{cn}</td><td style={identity}>{area}</td>
-              {receivedCols.map(([label,key])=><td key={key} style={{...cell,textAlign:'center'}}>{payload?<input type="checkbox" aria-label={`${z.floor} ${area} ${label} received`} checked={sheetDashboardFlag(dbRow?.[key])} disabled style={{accentColor:'#888',opacity:1,width:12,height:12,margin:0,maxWidth:'100%'}}/>:'—'}</td>)}
+              return <tr key={JSON.stringify([z.floor,area])} style={{background:bg,borderTop:boundary?`2px solid ${T.line}`:undefined}}><td style={identity}>{z.floor}</td><td style={identity}>{cn}</td><td style={identity}>{area}</td>
+              {receivedCols.map(([label,key])=><td key={key} style={{...cell,textAlign:'center'}}>{payload?<input type="checkbox" aria-label={`${z.floor} ${area} ${label} received`} checked={sheetDashboardFlag(dbRow?.[key])} disabled style={{accentColor:T.blue,opacity:1,width:12,height:12,margin:0,maxWidth:'100%'}}/>:'—'}</td>)}
               {workColumns.map(def=>{const result=liveWork(def,z,dbRow);return displayStatus(result.status,result.date,result.title,def.label);})}
 </tr>;
             })}{!zones.length&&!loading&&<tr><td colSpan={3+receivedCols.length+workColumns.length} style={{...cell,padding:18}}>No floor/area rows for this project. Add them in Floor & Zone.</td></tr>}</tbody>
@@ -4930,7 +4930,7 @@ function DrawingControlDashboard({state,projectId,deferLoad=false}){
         <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:12,fontFamily:FONT_MONO,fontSize:10}}>{['Pending','Open','Aligned','In-progress','Up for review','Completed'].map(status=><span key={status} style={{padding:'5px 8px',background:sheetDashboardTone(status).bg,color:sheetDashboardTone(status).fg}}>{status}</span>)}</div>
         <p style={{fontSize:11,color:T.inkDim}}>Receipt and sent checkboxes reflect saved drawing records. Update work through WIH and manage floors/areas in Floor & Zone.</p>
       </div>
-      {showHours&&<aside id={`project-hours-${project.id}`} aria-label="Hours by Person" style={{border:`1px solid ${T.line}`,background:'#fff',position:'sticky',top:0,minWidth:0}}><div style={{padding:12,borderBottom:`1px solid ${T.line}`}}><div style={{fontFamily:FONT_MONO,fontSize:9,fontWeight:700,marginBottom:8}}>HOURS BY PERSON</div>{personHours.map(([person,hours])=><div key={person} style={{display:'flex',justifyContent:'space-between',gap:12,fontFamily:FONT_BODY,fontSize:11,padding:'4px 0'}}><span>{person}</span><strong>{hours.toFixed(1)} h</strong></div>)}{!personHours.length&&<div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim}}>{loading?'Loading hours…':'No completed WIH hours yet.'}</div>}</div></aside>}
+      {showHours&&<aside id={`project-hours-${project.id}`} aria-label="Hours by Person" style={{border:`1px solid ${T.line}`,background:'#fff',position:'sticky',top:0,minWidth:0}}><div style={{padding:12,borderBottom:`1px solid ${T.line}`,background:'#FAF9F5'}}><div style={{fontFamily:FONT_MONO,fontSize:9,fontWeight:700,marginBottom:8,background:'#D2CDC1',color:'#1C1C19',padding:'9px 10px',borderBottom:`2px solid ${T.ink}`}}>HOURS BY PERSON</div>{personHours.map(([person,hours])=><div key={person} style={{display:'flex',justifyContent:'space-between',gap:12,fontFamily:FONT_BODY,fontSize:11,padding:'4px 0'}}><span>{person}</span><strong>{hours.toFixed(1)} h</strong></div>)}{!personHours.length&&<div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim}}>{loading?'Loading hours…':'No completed WIH hours yet.'}</div>}</div></aside>}
 
     </div>
   </div>;
@@ -4974,7 +4974,7 @@ function ProjectInfoScopeMerged({state,persist,project}){
   const scopeFields=[
     ["Basement","basement"],["Stilt Floor","stiltFloor"],["GF","gf"],["1F","f1"],["2F","f2"],["3F","f3"],
     ["Terrace","terrace"],["Facade","facade"],["Landscape","landscape"],
-    ["Bath Elevation","bathElevation"],["Furniture","wardrobe"],["Onboarding","onboarding"],["Art Curation","art_curation"]];
+    ["Bath Elevation","bathElevation"],["Furniture","wardrobe"],["Art Curation","art_curation"],["Onboarding","onboarding"]];
   const updateProject=async patch=>{
     const projects=state.projects.map(p=>p.id===project.id?{...p,...patch}:p);
     await persist({...state,projects});
@@ -5024,7 +5024,7 @@ function ProjectInfoScopeMerged({state,persist,project}){
 
 
 function InlineProjectScope({project,state,persist}){
-  const fields=[["Basement","basement"],["Stilt Floor","stiltFloor"],["GF","gf"],["1F","f1"],["2F","f2"],["3F","f3"],["Terrace","terrace"],["Facade","facade"],["Landscape","landscape"],["Bath Elev.","bathElevation"],["Furniture","wardrobe"],["Onboarding","onboarding"],["Art Curation","art_curation"]];
+  const fields=[["Basement","basement"],["Stilt Floor","stiltFloor"],["GF","gf"],["1F","f1"],["2F","f2"],["3F","f3"],["Terrace","terrace"],["Facade","facade"],["Landscape","landscape"],["Bath Elev.","bathElevation"],["Furniture","wardrobe"],["Art Curation","art_curation"],["Onboarding","onboarding"]];
   const toggle=async(key,e)=>{
     e&&e.stopPropagation();
     const projects=state.projects.map(p=>p.id===project.id?{...p,scope:{...(p.scope||{}),[key]:!Boolean(p.scope?.[key])}}:p);
@@ -5196,7 +5196,7 @@ function ProjectView({ state, persist }) {
   const scopeFields = [
     ["Basement","basement"],["Stilt Floor","stilt_floor"],["GF","gf"],["1F","1f"],["2F","2f"],["3F","3f"],
     ["Terrace","terrace"],["Facade","facade"],["Landscape","landscape"],
-    ["Bath Elevation","bath_elevation"],["Furniture","wardrobe"],["Onboarding","onboarding"],["Art Curation","art_curation"]];
+    ["Bath Elevation","bath_elevation"],["Furniture","wardrobe"],["Art Curation","art_curation"],["Onboarding","onboarding"]];
 
   // Keep the scrollable table exactly as wide as its grid tracks, including Completed.
   const ongoingGridColumns = `65px 300px 180px 180px repeat(${scopeFields.length},78px) 105px`;
@@ -6318,7 +6318,7 @@ function ReadOnlyProjectWork({project,state}){
 function ProjectScopeAdmin({project,onSaved}){
   const [draft,setDraft]=useState(project),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
   const save=async()=>{setBusy(true);try{const row=await projectApi.update(frontendProjectToBackend(draft,true));await onSaved(row);setMessage('Saved to Google Sheets.');}catch(e){setMessage(e.message);}finally{setBusy(false);}};
-  const fields=[['Basement','basement'],['Stilt Floor','stilt_floor'],['GF','gf'],['1F','1f'],['2F','2f'],['3F','3f'],['Terrace','terrace'],['Facade','facade'],['Landscape','landscape'],['Bath Elevation','bath_elevation'],['Furniture','wardrobe'],['Onboarding','onboarding'],['Art Curation','art_curation']];
+  const fields=[['Basement','basement'],['Stilt Floor','stilt_floor'],['GF','gf'],['1F','1f'],['2F','2f'],['3F','3f'],['Terrace','terrace'],['Facade','facade'],['Landscape','landscape'],['Bath Elevation','bath_elevation'],['Furniture','wardrobe'],['Art Curation','art_curation'],['Onboarding','onboarding']];
   return <section><h3>{project.name} · Scope & Status</h3><Field label="Project status"><select style={inputStyle} value={draft.status} onChange={e=>setDraft(d=>({...d,status:e.target.value,projectStatus:e.target.value,projectControl:{...d.projectControl,projectStatus:e.target.value}}))}><option>Ongoing</option><option>On Hold</option><option>Completed</option></select></Field><div style={{display:'flex',gap:16,flexWrap:'wrap',marginBottom:16}}>{fields.map(([label,k])=><label key={k}><input type="checkbox" checked={!!draft.scope?.[k]} onChange={e=>setDraft(d=>({...d,scope:{...d.scope,[k]:e.target.checked}}))}/> {label}</label>)}</div><Btn disabled={busy} onClick={save}>{busy?'Saving…':'Save Scope & Status'}</Btn><p role="status">{message}</p></section>;
 }
 function ProjectPunchInsView({state}){
