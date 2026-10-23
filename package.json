@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.11.74-fast-workflow-save",
+  "version": "2.11.76-expanded-main-menu",
   "type": "module",
   "scripts": {
     "dev": "vite",

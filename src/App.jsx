@@ -6066,13 +6066,10 @@ const NAV = [
 ];
 
 function SidebarNavigation({items,view,onChange,pendingCount}){
-  const activeGroup=items.find(n=>n.id===view)?.group||items[0]?.group;
-  const [expanded,setExpanded]=useState(activeGroup);
-  useEffect(()=>setExpanded(activeGroup),[activeGroup]);
   const groups=[...new Set(items.map(n=>n.group))];
   return <nav aria-label="Main navigation">{groups.map(group=>{
-    const open=expanded===group,id='nav-'+group.replace(/[^a-z0-9]/gi,'-');
-    return <section key={group}><button type="button" aria-expanded={open} aria-controls={id} onClick={()=>setExpanded(open?null:group)} style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 20px 8px',fontFamily:FONT_MONO,fontSize:9,letterSpacing:'.1em',color:T.cyan,background:'transparent',border:0,textAlign:'left',cursor:'pointer'}}><span>{group}{group==='RECEIVED / SENT'&&pendingCount>0?` (${pendingCount})`:''}</span><span aria-hidden="true">{open?'▾':'▸'}</span></button>{open&&<div id={id}>{items.filter(n=>n.group===group).map(n=>{const Icon=n.icon,active=view===n.id;return <button key={n.id} type="button" aria-current={active?'page':undefined} onClick={()=>onChange(n.id)} style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'11px 20px',background:active?T.navy2:'transparent',border:0,borderLeft:`3px solid ${active?T.cyan:'transparent'}`,color:active?'#fff':'#B7C4D6',cursor:'pointer',fontFamily:FONT_BODY,fontSize:13,textAlign:'left'}}><Icon size={15}/><span style={{flex:1}}>{n.label}</span>{n.id==='classify'&&pendingCount>0&&<span style={{background:T.amber,color:'#fff',fontSize:10,padding:'1px 6px',borderRadius:10}}>{pendingCount}</span>}{active&&<ChevronRight size={13}/>}</button>;})}</div>}</section>;
+    const id='nav-'+group.replace(/[^a-z0-9]/gi,'-');
+    return <section key={group}><div style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 20px 8px',fontFamily:FONT_MONO,fontSize:9,letterSpacing:'.1em',color:T.cyan,background:'transparent',border:0,textAlign:'left'}}><span>{group}{group==='RECEIVED / SENT'&&pendingCount>0?` (${pendingCount})`:''}</span></div><div id={id}>{items.filter(n=>n.group===group).map(n=>{const Icon=n.icon,active=view===n.id;return <button key={n.id} type="button" aria-current={active?'page':undefined} onClick={()=>onChange(n.id)} style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'11px 20px',background:active?T.navy2:'transparent',border:0,borderLeft:`3px solid ${active?T.cyan:'transparent'}`,color:active?'#fff':'#B7C4D6',cursor:'pointer',fontFamily:FONT_BODY,fontSize:13,textAlign:'left'}}><Icon size={15}/><span style={{flex:1}}>{n.label}</span>{n.id==='classify'&&pendingCount>0&&<span style={{background:T.amber,color:'#fff',fontSize:10,padding:'1px 6px',borderRadius:10}}>{pendingCount}</span>}{active&&<ChevronRight size={13}/>}</button>;})}</div></section>;
   })}</nav>;
 }
 
@@ -6235,11 +6232,26 @@ function ProjectPunchInsView({state}){
 
 function StageActivationPanel({state,project,row,disabled,onActivated}){
   const [reference,setReference]=useState('');
-  const [chosen,setChosen]=useState([]),[confirmed,setConfirmed]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
+  const [selection,setSelection]=useState({scope:'',excluded:[]});
+  const [confirmed,setConfirmed]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
   const zones=project.floorZones||[];
   const key=z=>JSON.stringify([z.floor,z.area]);
-  const activate=async()=>{setBusy(true);try{await projectApi.queueWorkflowTask({projectId:project.id,lineWorkId:row.lineWorkId,coverage:zones.filter(z=>chosen.includes(key(z))).map(z=>({floor:z.floor,area:z.area})),milestoneConfirmed:confirmed,activationReference:reference});await onActivated();setMessage('Stage queued in WIH. Start its parent task to open shared meetings and floor-wise design subtasks.');}catch(e){setMessage(e.message);}finally{setBusy(false);}};
-  return <div style={{padding:12,border:`1px solid ${T.line}`,marginBottom:12}}><Field label="Drawing package / revision reference (optional)"><input disabled={disabled||busy} style={inputStyle} value={reference} onChange={e=>setReference(e.target.value)}/></Field><strong>Starting milestone:</strong> {row.startingMilestone||'Confirm prerequisite'}<p>Choose the floors / areas in this drawing package. Meetings are shared within this activation; design steps repeat for each selected floor / area.</p><div style={{display:'flex',gap:12,flexWrap:'wrap'}}>{zones.map((z,i)=><label key={z.floorZoneId||i}><input type="checkbox" disabled={disabled||busy} checked={chosen.includes(key(z))} onChange={e=>setChosen(x=>e.target.checked?[...x,key(z)]:x.filter(k=>k!==key(z)))}/> {z.floor} · {z.area}</label>)}</div>{!zones.length&&<p>Add floors and zones before activating a stage.</p>}<label style={{display:'block',margin:'12px 0'}}><input type="checkbox" disabled={disabled||busy} checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/> Starting milestone and required approvals are satisfied</label><Btn disabled={disabled||busy||!confirmed||!chosen.length} onClick={activate}>{busy?'Activating…':'Activate selected floors / areas'}</Btn><p role="status">{message}</p></div>;
+  const scope=JSON.stringify([project.id,row.lineWorkId]);
+  const excluded=selection.scope===scope?selection.excluded:[];
+  const chosen=zones.filter(z=>!excluded.includes(key(z)));
+  const toggle=(z,checked)=>setSelection({scope,excluded:checked?excluded.filter(k=>k!==key(z)):[...excluded,key(z)]});
+  const activate=async()=>{setBusy(true);try{await projectApi.queueWorkflowTask({projectId:project.id,lineWorkId:row.lineWorkId,coverage:chosen.map(z=>({floor:z.floor,area:z.area})),milestoneConfirmed:confirmed,activationReference:reference});await onActivated();setMessage('Stage queued in WIH. Start its parent task to open shared meetings and floor-wise design subtasks.');}catch(e){setMessage(e.message);}finally{setBusy(false);}};
+  const guidance={fontFamily:FONT_BODY,fontSize:13,fontWeight:400,lineHeight:1.5,color:T.inkDim,margin:'10px 0'};
+  return <div style={{padding:12,border:`1px solid ${T.line}`,marginBottom:12,fontFamily:FONT_BODY,fontSize:13,fontWeight:400,lineHeight:1.5,color:T.ink}}>
+    <Field label="Drawing package / revision reference (optional)"><input disabled={disabled||busy} style={inputStyle} value={reference} onChange={e=>setReference(e.target.value)}/></Field>
+    <p style={guidance}><strong style={{fontWeight:600,color:T.ink}}>Starting milestone:</strong> {row.startingMilestone||'Confirm prerequisite'}</p>
+    <p style={guidance}>All floors / areas are selected by default. Deselect any that are not in this drawing package. Meetings are shared within this activation; design steps repeat for each selected floor / area.</p>
+    <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>{zones.map((z,i)=><label key={z.floorZoneId||i} style={{...guidance,display:'inline-flex',gap:6,alignItems:'center',margin:0}}><input type="checkbox" disabled={disabled||busy} checked={!excluded.includes(key(z))} onChange={e=>toggle(z,e.target.checked)}/> {z.floor} · {z.area}</label>)}</div>
+    {!zones.length&&<p style={guidance}>Add floors and zones before activating a stage.</p>}
+    <label style={{...guidance,display:'flex',alignItems:'center',gap:6,margin:'12px 0'}}><input type="checkbox" disabled={disabled||busy} checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/> Starting milestone and required approvals are satisfied</label>
+    <Btn disabled={disabled||busy||!confirmed||!chosen.length} onClick={activate}>{busy?'Activating…':'Activate selected floors / areas'}</Btn>
+    {message&&<p role="status" style={guidance}>{message}</p>}
+  </div>;
 }
 function ProjectGantt({state,projectId}){
   const [rows,setRows]=useState([]),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[editor,setEditor]=useState(null),[rangeStart,setRangeStart]=useState(new Date().toISOString().slice(0,10)),[days,setDays]=useState(90),[floor,setFloor]=useState('All');
