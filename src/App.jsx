@@ -4862,7 +4862,8 @@ function queueDesignDashboardLoad(work){
 function DrawingControlDashboard({state,projectId,deferLoad=false}){
   const project=(state.projects||[]).find(p=>String(p.id)===String(projectId));
   const [payload,setPayload]=useState(null),[wih,setWih]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[revision,setRevision]=useState(0),[floor,setFloor]=useState('All');
-  const sectionRef=useRef(null),[ready,setReady]=useState(!deferLoad);
+  const sectionRef=useRef(null),[ready,setReady]=useState(!deferLoad),[showHours,setShowHours]=useState(false);
+  useEffect(()=>setShowHours(false),[project?.id]);
   useEffect(()=>{
     if(ready)return;
     if(typeof IntersectionObserver==='undefined'){setReady(true);return;}
@@ -4887,7 +4888,7 @@ function DrawingControlDashboard({state,projectId,deferLoad=false}){
   const logs=wih.filter(r=>/completed|done/i.test(String(r.status||r.task?.status||''))).map(r=>({person:r.assigneeName||r.task?.assigneeName||'Unassigned',duration:Number(r.totalMinutes||0)/60}));
   const totalHours=logs.reduce((sum,r)=>sum+r.duration,0),personHours=Object.entries(logs.reduce((sum,r)=>{sum[r.person]=(sum[r.person]||0)+r.duration;return sum;},{})).sort((a,b)=>b[1]-a[1]);
   const receivedCols=[['Layout','layoutReceived'],['FC','fcReceived'],['Detail','detailReceived'],['3D','3dReceived']];
-  const cell={padding:'5px 5px',border:'1px solid #C7C7C7',fontFamily:FONT_MONO,fontSize:10,verticalAlign:'middle',height:25};
+  const cell={padding:'5px 5px',border:'1px solid #C7C7C7',fontFamily:FONT_MONO,fontSize:10,verticalAlign:'middle',height:25,whiteSpace:'normal',overflowWrap:'anywhere'};
   const head={...cell,background:'#BDBDBD',fontWeight:700,textAlign:'center',whiteSpace:'normal',height:62};
   const displayStatus=(status,date,title,key)=>{const tone=sheetDashboardTone(status);return <td key={key} title={title||status||'No linked task'} style={{...cell,background:tone.bg,color:tone.fg,textAlign:'left',lineHeight:1.4}}>{status}{status==='Completed'&&date&&<div style={{fontSize:8}}>{String(date).slice(0,10)}</div>}</td>;};
   const liveWork=(def,z,dbRow)=>{
@@ -4902,17 +4903,18 @@ function DrawingControlDashboard({state,projectId,deferLoad=false}){
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,marginBottom:16}}><h2 style={{fontFamily:FONT_DISPLAY,fontSize:30,fontWeight:700,margin:0}}>System Design</h2><div style={{display:'flex',gap:8,alignItems:'center'}}><label style={{fontSize:12}}>Floor <select aria-label="Dashboard floor" value={floor} onChange={e=>setFloor(e.target.value)} style={{...inputStyle,width:130}}><option>All</option>{[...new Set(unique.map(z=>z.floor))].map(f=><option key={f}>{f}</option>)}</select></label><Btn disabled={loading} variant="ghost" onClick={()=>setRevision(x=>x+1)}>Refresh Dashboard</Btn></div></div>
     {error&&<p role="alert" style={{color:T.redline}}>{error}</p>}
     {loading&&<p style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim}}>{ready?'Loading project drawings and WIH status…':'Drawing details load as you scroll to this project.'}</p>}
-    <div style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) 330px',gap:16,alignItems:'start'}}>
+    <div style={{width:'100%',minWidth:0}}>
       <div style={{minWidth:0,background:'#fff'}}>
-        <table style={{width:'100%',borderCollapse:'collapse',marginBottom:8}}><tbody>{[[`Project ${project.no||project.projectNo||''}:`,project.name],['Start Date:',formatProjectDate(project.startDate)],['Time in hours:',loading?'Loading…':totalHours.toFixed(1)]].map(([label,value])=><tr key={label}><td style={{...cell,fontFamily:FONT_BODY,fontWeight:700,width:220}}>{label}</td><td style={{...cell,fontFamily:FONT_BODY}}>{value}</td></tr>)}</tbody></table>
-        <div style={{overflowX:'auto',border:'1px solid #777'}}>
-          <table aria-label="Project design matrix" style={{borderCollapse:'collapse',tableLayout:'fixed',minWidth:1750,width:'100%'}}>
-            <colgroup><col style={{width:250}}/><col style={{width:55}}/><col style={{width:45}}/><col style={{width:170}}/>{Array.from({length:4},(_,i)=><col key={'r'+i} style={{width:48}}/>)}{SHEET_DASHBOARD_WORK.map(d=><col key={d.label} style={{width:112}}/>)}}</colgroup>
+        <table style={{width:'100%',borderCollapse:'collapse',marginBottom:8}}><tbody>{[[`Project ${project.no||project.projectNo||''}:`,project.name],['Start Date:',formatProjectDate(project.startDate)],['Time in hours:',loading?'Loading…':totalHours.toFixed(1)]].map(([label,value])=><tr key={label}><td style={{...cell,fontFamily:FONT_BODY,fontWeight:700,width:220}}>{label}</td><td style={{...cell,fontFamily:FONT_BODY}}>{label==='Time in hours:'?<div style={{display:'flex',gap:12,alignItems:'center',flexWrap:'wrap'}}><span>{value}</span><button type="button" aria-label={`Hours by person for ${project.name}`} aria-expanded={showHours} aria-controls={`project-hours-${project.id}`} style={{...smallBtn,fontFamily:FONT_BODY,fontSize:12}} onClick={()=>setShowHours(open=>!open)}>{showHours?'Hide hours by person':'Hours by person'}</button></div>:value}</td></tr>)}</tbody></table>
+        {showHours&&<section id={`project-hours-${project.id}`} aria-label="Hours by Person" style={{border:`1px solid ${T.line}`,background:T.paperDim,padding:14,margin:'10px 0 16px'}}><div style={{fontFamily:FONT_BODY,fontSize:12,fontWeight:600,marginBottom:10}}>Hours by person · {project.name}</div><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(min(100%,180px),1fr))',gap:'8px 18px'}}>{personHours.map(([person,hours])=><div key={person} style={{display:'flex',justifyContent:'space-between',gap:12,fontFamily:FONT_BODY,fontSize:12}}><span>{person}</span><strong>{hours.toFixed(1)} h</strong></div>)}</div>{!personHours.length&&<div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>{loading?'Loading hours…':'No completed WIH hours yet.'}</div>}</section>}
+        <div style={{width:'100%',minWidth:0,border:'1px solid #777',boxSizing:'border-box'}}>
+          <table aria-label="Project design matrix" style={{borderCollapse:'collapse',tableLayout:'fixed',width:'100%'}}>
+            <colgroup><col style={{width:'17%'}}/><col style={{width:'3%'}}/><col style={{width:'3%'}}/><col style={{width:'12%'}}/>{Array.from({length:4},(_,i)=><col key={'r'+i} style={{width:'3%'}}/>)}{SHEET_DASHBOARD_WORK.map(d=><col key={d.label} style={{width:`${53/SHEET_DASHBOARD_WORK.length}%`}}/>)}</colgroup>
             <thead><tr><th colSpan={4} style={{...cell,background:'#BDBDBD'}}/><th colSpan={4} style={{...cell,background:'#FCE5CD',textAlign:'center'}}>Drawings Received</th><th colSpan={11} style={{...cell,background:'#E6B8AF',textAlign:'center'}}>Work Status</th></tr><tr>{['FLR | CN | AREA','FLR','CN','AREA'].map((h,i)=><th key={h} style={{...head,textAlign:'left',...(i===0?{position:'sticky',left:0,zIndex:2}:{})}}>{h}</th>)}{receivedCols.map(([label])=><th key={label} style={head}>{label}</th>)}{SHEET_DASHBOARD_WORK.map(d=><th key={d.label} style={head}>{d.label}</th>)}}</tr></thead>
             <tbody>{zones.map((z,i)=>{const area=z.area||z.room,cn=z.zoneCode||z.cn||'',dbRow=(payload?.rows||[]).find(r=>eq(r.floor,z.floor)&&eq(r.area,area));const bg=i%2?'#F2F2F2':'#fff';const boundary=i===0||zones[i-1].floor!==z.floor;const identity={...cell,background:bg,borderTop:boundary?'2px solid #111':'1px solid #C7C7C7'};
               const room=project.designExecutionBoard?.rooms?.find(r=>eq(r.flr||r.floor,z.floor)&&eq(r.area,area));
               return <tr key={JSON.stringify([z.floor,area])} style={{background:bg,borderTop:boundary?'2px solid #111':undefined}}><td style={{...identity,position:'sticky',left:0,zIndex:1}}>{z.floor} | {cn} | {area}</td><td style={identity}>{z.floor}</td><td style={identity}>{cn}</td><td style={identity}>{area}</td>
-              {receivedCols.map(([label,key])=><td key={key} style={{...cell,textAlign:'center'}}>{payload?<input type="checkbox" aria-label={`${z.floor} ${area} ${label} received`} checked={sheetDashboardFlag(dbRow?.[key])} disabled style={{accentColor:'#888',opacity:1}}/>:'—'}</td>)}
+              {receivedCols.map(([label,key])=><td key={key} style={{...cell,textAlign:'center'}}>{payload?<input type="checkbox" aria-label={`${z.floor} ${area} ${label} received`} checked={sheetDashboardFlag(dbRow?.[key])} disabled style={{accentColor:'#888',opacity:1,width:12,height:12,margin:0,maxWidth:'100%'}}/>:'—'}</td>)}
               {SHEET_DASHBOARD_WORK.map(def=>{const result=liveWork(def,z,dbRow);return displayStatus(result.status,result.date,result.title,def.label);})}
 </tr>;
             })}{!zones.length&&!loading&&<tr><td colSpan={19} style={{...cell,padding:18}}>No floor/area rows for this project. Add them in Floor & Zone.</td></tr>}</tbody>
@@ -4921,7 +4923,7 @@ function DrawingControlDashboard({state,projectId,deferLoad=false}){
         <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:12,fontFamily:FONT_MONO,fontSize:10}}>{['Pending','Open','Aligned','In-progress','Up for review','Completed'].map(status=><span key={status} style={{padding:'5px 8px',background:sheetDashboardTone(status).bg,color:sheetDashboardTone(status).fg}}>{status}</span>)}</div>
         <p style={{fontSize:11,color:T.inkDim}}>Receipt and sent checkboxes reflect saved drawing records. Update work through WIH and manage floors/areas in Floor & Zone.</p>
       </div>
-      <aside aria-label="Hours by Person" style={{border:`1px solid ${T.line}`,background:'#fff',position:'sticky',top:0}}><div style={{padding:12,borderBottom:`1px solid ${T.line}`}}><div style={{fontFamily:FONT_MONO,fontSize:9,fontWeight:700,marginBottom:8}}>HOURS BY PERSON</div>{personHours.slice(0,6).map(([p,h])=><div key={p} style={{display:'flex',justifyContent:'space-between',fontFamily:FONT_BODY,fontSize:11,padding:'4px 0'}}><span>{p}</span><strong>{h.toFixed(1)} h</strong></div>)}{!personHours.length&&<div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim}}>{loading?'Loading hours…':'No completed WIH hours yet.'}</div>}</div></aside>
+
     </div>
   </div>;
 }

@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.11.84-scrolling-design-dashboards",
+  "version": "2.11.85-full-width-design-table",
   "type": "module",
   "scripts": {
     "dev": "vite",
