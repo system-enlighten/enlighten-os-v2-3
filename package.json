@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.11.72-instant-project-create",
+  "version": "2.11.73-simpler-workflow",
   "type": "module",
   "scripts": {
     "dev": "vite",
