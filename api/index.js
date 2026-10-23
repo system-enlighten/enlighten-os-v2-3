@@ -24,6 +24,46 @@ export async function fetchAppsScript(url,options,maxRedirects=8) {
   }
   throw new Error('Too many Apps Script redirects.');
 }
+export const maxDuration=300;
+const UPLOAD_CHUNK_BYTES=2*1024*1024;
+export function createUploadTicket(data,secret){
+  const payload=Buffer.from(JSON.stringify({...data,expires:Date.now()+24*60*60*1000})).toString('base64url');
+  return payload+'.'+createHmac('sha256',secret).update('received-upload:'+payload).digest('hex');
+}
+export function verifyUploadTicket(value,secret,identity,host){
+  try{
+    const [payload,signature,extra]=String(value||'').split('.');
+    const expected=createHmac('sha256',secret).update('received-upload:'+payload).digest('hex');
+    if(extra||!signature||signature.length!==expected.length||!timingSafeEqual(Buffer.from(signature),Buffer.from(expected)))return null;
+    const data=JSON.parse(Buffer.from(payload,'base64url').toString());
+    if(data.sub!==identity.sub||data.host!==host||!Number.isFinite(data.expires)||data.expires<Date.now())return null;
+    const url=new URL(data.sessionUrl);
+    if(url.protocol!=='https:'||url.hostname!=='www.googleapis.com'||url.pathname!=='/upload/drive/v3/files'||!url.searchParams.get('upload_id'))return null;
+    return data;
+  }catch(_){return null;}
+}
+export async function transferUploadChunk(ticket,payload,secret){
+  const total=ticket.metadata.fileSize,offset=Number(payload.offset),probe=payload.probe===true;
+  let body=Buffer.alloc(0);
+  if(!probe){
+    if(typeof payload.chunk!=='string'||payload.chunk.length>Math.ceil(UPLOAD_CHUNK_BYTES/3)*4)throw Error('Upload chunk is too large.');
+    body=Buffer.from(payload.chunk,'base64');
+    if(!Number.isSafeInteger(offset)||offset<0||offset%262144||!body.length||body.length>UPLOAD_CHUNK_BYTES||offset+body.length>total||(offset+body.length<total&&body.length%262144))throw Error('Invalid drawing chunk range.');
+  }
+  const response=await fetch(ticket.sessionUrl,{method:'PUT',redirect:'manual',headers:{'Content-Type':ticket.metadata.mimeType||'application/octet-stream','Content-Range':probe?'bytes */'+total:'bytes '+offset+'-'+(offset+body.length-1)+'/'+total},body});
+  if(response.status===308){
+    const range=response.headers.get('range'),match=/^bytes=0-(\d+)$/.exec(range||'');
+    const nextOffset=match?Number(match[1])+1:0;
+    if(nextOffset>total)throw Error('Invalid upload progress returned by Drive.');
+    return {nextOffset,complete:false};
+  }
+  if(response.ok){
+    const file=await response.json();if(!file.id)throw Error('Drive did not confirm the uploaded file.');
+    return {complete:true,nextOffset:total,completionTicket:createUploadTicket({...ticket,driveFileId:file.id},secret)};
+  }
+  if(response.status===404||response.status===410)throw Error('The upload session expired. Start this upload again.');
+  throw Error('Google Drive could not accept this file part. Retry to resume the upload.');
+}
 export const SESSION_SECONDS=12*60*60;
 const SESSION_COOKIE='enlighten_session';
 function requestHost(req){return String(req.headers?.host||'').toLowerCase();}
@@ -93,9 +133,26 @@ export default async function handler(req,res) {
     const payload=method==='GET'?Object.fromEntries(Object.entries(query).filter(([k])=>k!=='action')):body.payload||{};
     if(!payload||Array.isArray(payload)||typeof payload!=='object')return send(400,{ok:false,error:{message:'Invalid payload'}});
     // Browser-supplied email, roles, or identity envelopes never become authentication.
-    const signed=signRequest(action,payload,identity,secret);
+    if(action==='uploadReceivedChunk'){
+      const ticket=verifyUploadTicket(payload.uploadTicket,secret,identity,requestHost(req));
+      if(!ticket)return send(403,{ok:false,error:{message:'This upload session is invalid or expired. Start the upload again.'}});
+      try{return send(200,{ok:true,data:await transferUploadChunk(ticket,payload,secret)});}catch(e){return send(502,{ok:false,error:{message:e.message}});}
+    }
+    let backendPayload=payload;
+    if(action==='finishReceivedUpload'){
+      const ticket=verifyUploadTicket(payload.completionTicket,secret,identity,requestHost(req));
+      if(!ticket?.driveFileId)return send(403,{ok:false,error:{message:'Upload completion has not been verified.'}});
+      backendPayload={...ticket.metadata,driveFileId:ticket.driveFileId};
+    }
+    const signed=signRequest(action,backendPayload,identity,secret);
     const response=await fetchAppsScript(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(signed)});
     const raw=await response.text();let result;try{result=JSON.parse(raw);}catch(_){return send(502,{ok:false,error:{message:'Apps Script did not return JSON. Check its deployment access and URL.'}});}
+    if(action==='beginReceivedUpload'&&result.ok&&!result.data?.drawing){
+      const metadata=Object.fromEntries(['projectId','drawingId','floor','floors','area','drawingType','fileName','mimeType','fileSize','notes','receivedSentDate'].map(k=>[k,payload[k]]));
+      const ticket=createUploadTicket({sub:identity.sub,host:requestHost(req),metadata,sessionUrl:result.data?.sessionUrl},secret);
+      if(!verifyUploadTicket(ticket,secret,identity,requestHost(req)))return send(502,{ok:false,error:{message:'Google Drive returned an invalid upload session.'}});
+      result.data={uploadTicket:ticket,chunkBytes:UPLOAD_CHUNK_BYTES};
+    }
     return send(response.ok?200:502,result);
   }catch(_){return send(502,{ok:false,error:{message:'The backend request failed. Check the deployment configuration.'}});}
 }

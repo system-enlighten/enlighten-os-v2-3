@@ -2587,8 +2587,9 @@ async function apiRequest(action, payload = {}, method = "POST", timeoutMs=0) {
   }
   if(response.status===401&&generation===AUTH_SESSION_GENERATION){AUTH_ID_TOKEN="";window.dispatchEvent(new Event("enlighten-auth-expired"));}
   raw = await response.text();
-  }catch(err){if(err.name==='AbortError')throw new Error('Saving could not be confirmed within 45 seconds. Your draft is retained; retry to confirm the save.');throw err;}
+  }catch(err){if(err.name==='AbortError')throw new Error(`The request could not be confirmed within ${Math.round(timeoutMs/1000)} seconds. Your details are retained; retry to check the result.`);if(err instanceof TypeError)throw new Error('The connection ended before the server confirmed the result. Your details are retained. Check your connection, then retry.');throw err;}
   finally{if(timeout)clearTimeout(timeout);}
+  if(response.status===413)throw new Error("This request exceeds the upload size limit. Redeploy the latest frontend and backend to use drawing uploads in smaller parts.");
   let json;
   try { json = JSON.parse(raw); }
   catch (_) {
@@ -2790,6 +2791,7 @@ function normalizeStudioState(base) {
   return {
     projects,
     pendingProjectCreates: base.pendingProjectCreates||[],
+    pendingReceivedUploads: base.pendingReceivedUploads||[],
     people: base.people || DEFAULT_PEOPLE,
     teamMaster: base.teamMaster || [],
     templates,
@@ -2827,7 +2829,7 @@ function useStudioState() {
       try {
         const user = await projectApi.getCurrentUser();
         setCurrentUser(user);
-        localState={...localState,currentUser:user,pendingProjectCreates:(localState.pendingProjectCreates||[]).filter(j=>j.ownerEmail===user.email)};
+        localState={...localState,currentUser:user,pendingProjectCreates:(localState.pendingProjectCreates||[]).filter(j=>j.ownerEmail===user.email),pendingReceivedUploads:(localState.pendingReceivedUploads||[]).filter(j=>j.ownerEmail===user.email)};
         if (!user?.authorized) {
           setBackendErr(user?.message || "Admin access required.");
           localState = { ...localState, currentUser: user, accessDenied: true };
@@ -3114,6 +3116,71 @@ function ReceivedSentView({state}){
   </section>;
 }
 
+const RECEIVED_UPLOAD_JOBS=new Map();
+let receivedUploadChain=Promise.resolve();
+const uploadFileBase64=file=>new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||'').split(',')[1]||'');reader.onerror=()=>reject(Error('Could not read this file. Select it again.'));reader.readAsDataURL(file);});
+function runReceivedUploadJob(persist,job,file){
+  let entry=RECEIVED_UPLOAD_JOBS.get(job.id);
+  if(entry?.work)return entry.work;
+  if(!entry){entry={file};RECEIVED_UPLOAD_JOBS.set(job.id,entry);}else if(file)entry.file=file;
+  const generation=AUTH_SESSION_GENERATION;
+  const update=patch=>generation===AUTH_SESSION_GENERATION?persist(latest=>({...latest,pendingReceivedUploads:(latest.pendingReceivedUploads||[]).map(j=>j.id===job.id?{...j,...patch}:j)})):Promise.resolve();
+  const work=receivedUploadChain.catch(()=>{}).then(async()=>{
+    if(generation!==AUTH_SESSION_GENERATION)return;
+    try{
+      if(!entry.file)throw Error('Select the same file again to resume this upload.');
+      const metadata={...job.metadata,drawingId:job.id};
+      let saved;
+      await update({status:'uploading',error:'',progress:0,phase:'Preparing drawing…'});
+      if(entry.file.size<=2*1024*1024){
+        const fileBase64=await uploadFileBase64(entry.file);
+        await update({phase:'Saving to Google Drive and Sheets…'});
+        saved=await apiRequest('receiveDrawing',{...metadata,fileBase64},'POST',180000);
+      }else{
+        if(!entry.session){
+          await update({phase:'Opening Google Drive upload…'});
+          entry.session=await apiRequest('beginReceivedUpload',metadata,'POST',120000);
+        }
+        if(entry.session.drawing)saved=entry.session.drawing;
+        else{
+          // Probe on each retry so bytes accepted before a lost response are not sent again.
+          let result=entry.completion||await apiRequest('uploadReceivedChunk',{uploadTicket:entry.session.uploadTicket,probe:true},'POST',90000);
+          let stalled=0;
+          while(!result.complete){
+            if(generation!==AUTH_SESSION_GENERATION)return;
+            const offset=result.nextOffset,end=Math.min(offset+entry.session.chunkBytes,entry.file.size);
+            if(offset>=end)throw Error('Drive has not confirmed upload completion. Retry to check its status.');
+            await update({progress:Math.floor(offset/entry.file.size*100),phase:'Uploading drawing parts…'});
+            const chunk=await uploadFileBase64(entry.file.slice(offset,end));
+            const next=await apiRequest('uploadReceivedChunk',{uploadTicket:entry.session.uploadTicket,offset,chunk},'POST',90000);
+            stalled=next.nextOffset<=offset?stalled+1:0;if(stalled>1)throw Error('Upload progress stopped. Retry to resume.');
+            result=next;
+          }
+          entry.completion=result;
+          await update({progress:100,phase:'File uploaded · saving drawing register…'});
+          saved=await apiRequest('finishReceivedUpload',{completionTicket:result.completionTicket},'POST',120000);
+        }
+      }
+      if(generation!==AUTH_SESSION_GENERATION)return;
+      const newIntake={id:saved.drawingId,projectId:metadata.projectId,floor:metadata.floors.join(', '),floors:metadata.floors,zone:'',areas:[],drawingType:canonicalDrawingType(metadata.drawingType),fileName:metadata.fileName,driveUrl:saved.driveUrl||'',note:metadata.notes,date:saved.receivedSentDate||metadata.receivedSentDate,uploadedAt:saved.createdAt||new Date().toISOString(),classified:saved.classified===true||String(saved.classified)==='true',source:'Received Upload'};
+      await persist(latest=>({...latest,intakes:[newIntake,...(latest.intakes||[]).filter(i=>i.id!==newIntake.id)],pendingReceivedUploads:(latest.pendingReceivedUploads||[]).filter(j=>j.id!==job.id)}));
+      RECEIVED_UPLOAD_JOBS.delete(job.id);
+    }catch(e){
+      if(/session.*expired|invalid or expired/i.test(e.message)){entry.session=null;entry.completion=null;}
+      await update({status:'error',error:e.message||'Upload could not be confirmed. Retry to check or resume it.'});
+    }finally{entry.work=null;}
+  });
+  entry.work=work;receivedUploadChain=work;return work;
+}
+function PendingReceivedUploads({state,persist}){
+  const jobs=state.pendingReceivedUploads||[];
+  if(!jobs.length)return null;
+  return <div style={{display:'grid',gap:10,marginBottom:18,fontFamily:FONT_BODY,fontSize:13}}><div style={{color:T.inkDim}}>Uploads continue while you use other pages. Keep this browser tab open until they finish.</div>{jobs.map(job=>{
+    const entry=RECEIVED_UPLOAD_JOBS.get(job.id),running=!!entry?.work;
+    const retry=file=>runReceivedUploadJob(persist,job,file);
+    return <div key={job.id} role={job.error?'alert':'status'} style={{padding:12,border:`1px solid ${T.line}`,background:T.paperDim}}><strong>{job.metadata.fileName}</strong><div style={{marginTop:4,color:job.error?T.redline:T.inkDim}}>{job.error|| (running?(job.phase||'Waiting for another upload…'):'Upload interrupted. Retry to check or resume it.')}</div>{running&&<progress aria-label={`Upload progress ${job.metadata.fileName}`} max="100" value={job.progress>0?job.progress:undefined} style={{width:'100%',marginTop:8}}/>}{!running&&(entry?.file?<button type="button" style={{...smallBtn,marginTop:8}} onClick={()=>retry()}>Retry upload</button>:<label style={{display:'block',marginTop:8}}>Select the same file to retry<input type="file" onChange={e=>{const f=e.target.files?.[0];if(!f)return;if(f.name!==job.metadata.fileName||f.size!==job.metadata.fileSize){alert('Choose the same drawing file for this upload.');return;}retry(f);}}/></label>)}</div>;
+  })}</div>;
+}
 function UploadView({ state, persist }) {
   // Keep this helper local: ProjectsView has its own helper that is not in scope here.
   const uploadProjectIsCompleted = p =>
@@ -3126,7 +3193,7 @@ function UploadView({ state, persist }) {
   const [drawingType, setDrawingType] = useState(canonicalDrawingType((state.templates||DEFAULT_TEMPLATES)[0]?.drawingType || "Layout"));
   const [file, setFile] = useState(null);
   const [note, setNote] = useState("");
-  const [saving,setSaving]=useState(false);
+  const saving=false;
   const [justAdded, setJustAdded] = useState(false);
   const fileRef=useRef(null);
 
@@ -3164,36 +3231,20 @@ function UploadView({ state, persist }) {
     setFloors(current=>current.filter(f=>availableFloors.includes(f)));
   },[projectId,project?.scope]);
 
-  const fileToBase64=(f)=>new Promise((resolve,reject)=>{
-    const reader=new FileReader();
-    reader.onload=()=>resolve(String(reader.result||"").split(",")[1]||"");
-    reader.onerror=reject;
-    reader.readAsDataURL(f);
-  });
-
-  const submit = async () => {
-    if (!projectId || !floors.length || !drawingType || !file || saving) return;
-    setSaving(true);
-    try{
-      if(floors.length>1){const capabilities=await projectApi.getWorkflowCapabilities();if(!capabilities?.multiFloorUpload)throw new Error("Deploy the v2.11.24 Apps Script backend before uploading a multi-floor file.");}
-      const fileBase64=await fileToBase64(file);
-      const saved=await projectApi.receiveDrawing({
-        projectId,floor:floors.join(", "),floors:[...floors],area:"",drawingType,
-        fileName:file.name,mimeType:file.type||"application/octet-stream",fileBase64,
-        notes:note,receivedSentDate:todayISO()
-      });
-      const newIntake={
-        id:saved?.drawingId||uid(), projectId, floor:floors.join(", "), floors:[...floors], zone:"", areas:[], drawingType:canonicalDrawingType(drawingType),
-        fileName:file.name, driveUrl:saved?.driveUrl||"", note, date:saved?.receivedSentDate||todayISO(),
-        uploadedAt:saved?.createdAt||new Date().toISOString(), classified:false, source:"Received Upload"
-      };
-      await persist({ ...state, intakes: [newIntake, ...(state.intakes||[])] });
-      setFile(null); setNote("");
-      if(fileRef.current)fileRef.current.value="";
-      setJustAdded(true); setTimeout(()=>setJustAdded(false),2200);
-    }catch(err){
-      alert(`Received drawing save failed: ${err?.message||err}`);
-    }finally{setSaving(false);}
+  const submitLock=useRef(false);
+  const submit = () => {
+    if(!projectId||!floors.length||!drawingType||!file||submitLock.current)return;
+    if(!file.size){alert('Choose a non-empty drawing file.');return;}
+    submitLock.current=true;
+    const metadata={projectId,floor:floors.join(', '),floors:[...floors],area:'',drawingType,fileName:file.name,mimeType:file.type||'application/octet-stream',fileSize:file.size,notes:note,receivedSentDate:todayISO()};
+    const duplicate=(state.pendingReceivedUploads||[]).some(j=>j.metadata.projectId===projectId&&j.metadata.fileName===file.name&&j.metadata.fileSize===file.size&&JSON.stringify(j.metadata.floors)===JSON.stringify(floors));
+    if(duplicate){submitLock.current=false;alert('This drawing is already in the upload queue. Use its Retry button if needed.');return;}
+    const job={id:'DRW-UPL-'+crypto.randomUUID(),metadata,ownerEmail:state.currentUser?.email||'',status:'queued',phase:'Waiting to upload…',progress:0};
+    const selectedFile=file;
+    const savedLocally=persist(latest=>({...latest,pendingReceivedUploads:[...(latest.pendingReceivedUploads||[]),job]}));
+    setFile(null);setNote('');if(fileRef.current)fileRef.current.value='';
+    setJustAdded(true);setTimeout(()=>setJustAdded(false),2200);
+    Promise.resolve(savedLocally).then(()=>{submitLock.current=false;return runReceivedUploadJob(persist,job,selectedFile);}).catch(e=>alert(e.message)).finally(()=>{submitLock.current=false;});
   };
 
   const pending = (state.intakes||[]).filter((i) => !i.classified);
@@ -3236,11 +3287,11 @@ function UploadView({ state, persist }) {
         <Btn onClick={submit} disabled={!file||!floors.length||saving}>
           <Upload size={14} /> {saving?"Uploading to Google Drive…":"Log received drawing"}
         </Btn>
-        {justAdded && <div style={{ marginTop: 12, fontFamily: FONT_MONO, fontSize: 12, color: T.green }}>Saved to Google Sheets + project Drive folder — technical area classification is the next step →</div>}
+        {justAdded && <div style={{ marginTop: 12, fontFamily: FONT_MONO, fontSize: 12, color: T.green }}>Added to the upload queue. It will appear for classification after Google Drive and Sheets confirm the save.</div>}
       </div>
 
       <div>
-        <h2 style={{ fontFamily: FONT_DISPLAY, fontSize: 20, margin: "4px 0 18px", color: T.ink }}>Awaiting classification ({pending.length})</h2>
+        <PendingReceivedUploads state={state} persist={persist}/><h2 style={{ fontFamily: FONT_DISPLAY, fontSize: 20, margin: "4px 0 18px", color: T.ink }}>Awaiting classification ({pending.length})</h2>
         {pending.length === 0 && <div style={{ color: T.inkDim, fontFamily: FONT_BODY, fontSize: 13 }}>Nothing waiting — every received drawing has been classified into tasks.</div>}
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {pending.map((i) => {
@@ -6155,6 +6206,7 @@ function StudioApp() {
       {/* Main canvas */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         <TitleBlock view={viewLabel} sub={view === "timesheet" ? `${state.tasks.length} tasks` : view === "classify" ? `${pendingCount} pending` : view === "project" ? "Onboarding · Scope · Team · Line of Work" : view === "meetings" ? `${(state.meetings || []).length} meetings` : view === "executionMain" ? "Milestones · MOM" : view === "site" ? `${(state.siteVisits || []).length} site visits` : undefined} />
+        {view!=='upload'&&(state.pendingReceivedUploads||[]).length>0&&<div role="status" style={{padding:'8px 24px',fontFamily:FONT_BODY,fontSize:12,background:T.amberBg,color:T.ink}}>{state.pendingReceivedUploads.length} drawing upload(s) pending. <button type="button" style={smallBtn} onClick={()=>setView('upload')}>View uploads</button></div>}
         {saveErr && (
           <div style={{ background: T.redlineBg, color: T.redline, fontFamily: FONT_MONO, fontSize: 12, padding: "8px 24px", display: "flex", alignItems: "center", gap: 6 }}>
             <AlertTriangle size={13} /> Couldn't save — changes may not persist.

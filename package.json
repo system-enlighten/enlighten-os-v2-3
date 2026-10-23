@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.11.78-activation-popup",
+  "version": "2.11.79-faster-actions-upload-recovery",
   "type": "module",
   "scripts": {
     "dev": "vite",
