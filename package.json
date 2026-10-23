@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.11.86-clean-design-columns",
+  "version": "2.11.87-toggle-right-hours-panel",
   "type": "module",
   "scripts": {
     "dev": "vite",
