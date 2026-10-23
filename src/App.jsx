@@ -2603,6 +2603,7 @@ async function apiRequest(action, payload = {}, method = "POST", timeoutMs=0) {
 }
 
 const projectApi = {
+  saveMemberProjectRoles:payload=>apiRequest("saveMemberProjectRoles",payload,"POST",60000),
   getProjectWorkspace:()=>apiRequest("getProjectWorkspace",{},"GET"),
   saveProjectMeeting:payload=>apiRequest("saveProjectMeeting",payload),
   deleteProjectMeeting:payload=>apiRequest("deleteProjectMeeting",payload),
@@ -6060,13 +6061,12 @@ function SettingsView({ state, persist }) {
   const [designations, setDesignations] = useState(state.designationMaster || TEAM_DESIGNATIONS.map((name,i)=>({masterId:`ROL-${String(i+1).padStart(3,"0")}`,name,active:true})));
   const [newDepartment, setNewDepartment] = useState("");
   const [newDesignation, setNewDesignation] = useState("");
-  const [drawingTemplates, setDrawingTemplates] = useState((state.templates || DEFAULT_TEMPLATES).map((t,i)=>({...t,sequence:t.sequence||i+1,active:t.active!==false,tasks:(t.tasks||[]).map((x,j)=>({...x,sequence:x.sequence||j+1}))})));
-  const [masterBusy, setMasterBusy] = useState(false);
+
 
   useEffect(()=>{ setMembers(state.teamMaster || []); },[state.teamMaster]);
   useEffect(()=>{ setDepartments(state.departmentMaster || []); },[state.departmentMaster]);
   useEffect(()=>{ setDesignations(state.designationMaster || []); },[state.designationMaster]);
-  useEffect(()=>{ setDrawingTemplates((state.templates||DEFAULT_TEMPLATES).map((t,i)=>({...t,sequence:t.sequence||i+1,active:t.active!==false,tasks:(t.tasks||[]).map((x,j)=>({...x,sequence:x.sequence||j+1}))}))); },[state.templates]);
+
 
   const activeDepartments = departments.filter(x=>x.active!==false && String(x.active).toLowerCase()!=="false");
   const activeDesignations = designations.filter(x=>x.active!==false && String(x.active).toLowerCase()!=="false");
@@ -6115,24 +6115,10 @@ function SettingsView({ state, persist }) {
     if(!window.confirm(`Delete ${m.name} from Team Master?`)) return;
     setBusy(true); try { await projectApi.deleteTeamMember(m.userId); const next=members.filter(x=>x.userId!==m.userId); setMembers(next); await syncState(next); setMessage("Team member deleted from Google Sheet."); } catch(e){setMessage(e.message||"Delete failed.");} finally{setBusy(false);}
   };
-  const saveDrawingMaster = async (next=drawingTemplates) => {
-    const clean=next.map((t,i)=>({...t,drawingType:String(t.drawingType||"").trim(),sequence:i+1,active:t.active!==false,tasks:(t.tasks||[]).filter(x=>String(x.title||"").trim()).map((x,j)=>({...x,title:String(x.title||"").trim(),sequence:j+1}))})).filter(t=>t.drawingType);
-    setMasterBusy(true); setMessage("");
-    try { const saved=await projectApi.saveDrawingTaskMaster(clean); const finalRows=Array.isArray(saved?.templates)?saved.templates:clean; setDrawingTemplates(finalRows); await persist({...state,templates:finalRows}); setMessage("Drawing type & task sequence saved. Received Upload, Classify, task creation, WIH and assignment now use this master."); }
-    catch(e){ setMessage(e.message||"Drawing master save failed."); } finally { setMasterBusy(false); }
-  };
-  const addDrawingType=()=>setDrawingTemplates(x=>[...x,{drawingType:"New Drawing Type",active:true,sequence:x.length+1,tasks:[]}]);
-  const deleteDrawingType=i=>{ if(window.confirm("Delete this drawing type from new workflow selections? Existing history will remain unchanged.")) setDrawingTemplates(x=>x.filter((_,j)=>j!==i)); };
-  const moveDrawingType=(i,d)=>setDrawingTemplates(x=>{const n=[...x],j=i+d;if(j<0||j>=n.length)return n;[n[i],n[j]]=[n[j],n[i]];return n;});
-  const patchDrawingType=(i,patch)=>setDrawingTemplates(x=>x.map((t,j)=>j===i?{...t,...patch}:t));
-  const addDrawingTask=i=>setDrawingTemplates(x=>x.map((t,j)=>j===i?{...t,tasks:[...(t.tasks||[]),{title:"New Task",assignee:"",sequence:(t.tasks||[]).length+1}]}:t));
-  const patchDrawingTask=(i,k,patch)=>setDrawingTemplates(x=>x.map((t,j)=>j===i?{...t,tasks:(t.tasks||[]).map((a,b)=>b===k?{...a,...patch}:a)}:t));
-  const deleteDrawingTask=(i,k)=>setDrawingTemplates(x=>x.map((t,j)=>j===i?{...t,tasks:(t.tasks||[]).filter((_,b)=>b!==k)}:t));
-  const moveDrawingTask=(i,k,d)=>setDrawingTemplates(x=>x.map((t,j)=>{if(j!==i)return t;const a=[...(t.tasks||[])],z=k+d;if(z<0||z>=a.length)return t;[a[k],a[z]]=[a[z],a[k]];return {...t,tasks:a};}));
   const set = (k,v)=>setForm(f=>({...f,[k]:v}));
   return <div>
     <ProjectRoleManager state={state}/>
-    <div style={{marginBottom:20}}><h2 style={{fontFamily:FONT_DISPLAY,fontSize:24,margin:"0 0 5px"}}>Team Master</h2><div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim}}>Enter each employee once. The Gmail ID is the login identity. Set <b>App Access = Admin</b> for administrators; User = project-wise Admin/User permissions assigned below + own WIH editing; Viewer = assigned projects and own WIH view only. App Access Admin is the system administrator; Project Admin is assigned separately for each project. Active team members automatically become selectable in Responsible Person / Assignee dropdowns.</div></div>
+    <div style={{marginBottom:20}}><h2 style={{fontFamily:FONT_DISPLAY,fontSize:24,margin:"0 0 5px"}}>Team Master</h2><div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim}}>Enter each employee once. The Gmail ID is the login identity. Set <b>App Access = Admin</b> for administrators; User = project-wise Admin/User permissions assigned above + own WIH editing; Viewer = assigned projects and own WIH view only. App Access Admin is the system administrator; Project Admin is assigned separately for each project. Active team members automatically become selectable in Responsible Person / Assignee dropdowns.</div></div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:20}}>
       {[["Department Master",departments,newDepartment,setNewDepartment,"department"],["Designation / Role Master",designations,newDesignation,setNewDesignation,"designation"]].map(([title,items,newValue,setNewValue,kind])=>
         <div key={kind} style={{background:"#fff",border:`1px solid ${T.line}`,padding:14}}>
@@ -6165,15 +6151,6 @@ function SettingsView({ state, persist }) {
       {message&&<div style={{fontFamily:FONT_MONO,fontSize:10.5,marginTop:10,color:T.inkDim}}>{message}</div>}
     </div>
     <div style={{overflowX:"auto",background:"#fff",border:`1px solid ${T.line}`,marginBottom:28}}><table style={{width:"100%",borderCollapse:"collapse",fontFamily:FONT_BODY,fontSize:12}}><thead><tr>{["Employee ID","Name","Role","Department","Mobile","Email","Access","Status","Action"].map(h=><th key={h} style={{textAlign:"left",padding:9,borderBottom:`1px solid ${T.ink}`,background:T.paperDim}}>{h}</th>)}</tr></thead><tbody>{members.map(m=><tr key={m.userId}><td style={{padding:9,borderBottom:`1px solid ${T.line}`}}>{m.userId}</td><td style={{padding:9,borderBottom:`1px solid ${T.line}`,fontWeight:700}}>{m.name}</td><td style={{padding:9,borderBottom:`1px solid ${T.line}`}}>{m.role||"—"}</td><td style={{padding:9,borderBottom:`1px solid ${T.line}`}}>{m.department||"—"}</td><td style={{padding:9,borderBottom:`1px solid ${T.line}`}}>{m.mobile||"—"}</td><td style={{padding:9,borderBottom:`1px solid ${T.line}`}}>{m.email||"—"}</td><td style={{padding:9,borderBottom:`1px solid ${T.line}`}}>{m.appAccess||"User"}</td><td style={{padding:9,borderBottom:`1px solid ${T.line}`}}>{m.active!==false&&String(m.active).toLowerCase()!=="false"?"Active":"Inactive"}</td><td style={{padding:9,borderBottom:`1px solid ${T.line}`,whiteSpace:"nowrap"}}><button style={smallBtn} onClick={()=>editMember(m)}>EDIT</button> <button style={{...smallBtn,color:T.redline}} onClick={()=>removeMember(m)}>DELETE</button></td></tr>)}{!members.length&&<tr><td colSpan="9" style={{padding:16,color:T.inkDim}}>No team members yet. Add the first member above.</td></tr>}</tbody></table></div>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",margin:"4px 0 12px"}}>
-      <div><h2 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:0,color:T.ink}}>Drawing Type & Task Sequence Master <span style={{fontFamily:FONT_MONO,fontSize:11,color:T.green}}>· EDITABLE</span></h2><div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,marginTop:4}}>Type directly into the Drawing Type and Task boxes below. Use + ADD DRAWING TYPE / + ADD TASK, arrows to reorder, DELETE to remove, then press SAVE MASTER. Edit once here. New Received Uploads, Classify, task creation, WIH and project-wise assignment use the same master automatically. Existing completed history is not rewritten.</div></div>
-      <div style={{display:"flex",gap:8}}><button style={smallBtn} onClick={addDrawingType}>+ ADD DRAWING TYPE</button><button disabled={masterBusy} style={{...smallBtn,background:T.navy,color:"#fff"}} onClick={()=>saveDrawingMaster()}>{masterBusy?"SAVING…":"SAVE MASTER"}</button></div>
-    </div>
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>{drawingTemplates.map((t,i)=><div key={`${t.drawingType}-${i}`} style={{background:"#fff",border:`1px solid ${T.line}`,padding:14}}>
-      <div style={{display:"grid",gridTemplateColumns:"1fr auto auto auto",gap:6,alignItems:"center",marginBottom:10}}><input style={{...inputStyle,fontWeight:700}} value={t.drawingType} onChange={e=>patchDrawingType(i,{drawingType:e.target.value})}/><button style={smallBtn} onClick={()=>moveDrawingType(i,-1)}>↑</button><button style={smallBtn} onClick={()=>moveDrawingType(i,1)}>↓</button><button style={{...smallBtn,color:T.redline}} onClick={()=>deleteDrawingType(i)}>DELETE</button></div>
-      {(t.tasks||[]).map((task,k)=><div key={k} style={{display:"grid",gridTemplateColumns:"1fr 180px auto auto auto",gap:6,alignItems:"center",marginBottom:7}}><input style={inputStyle} value={task.title||""} onChange={e=>patchDrawingTask(i,k,{title:e.target.value})}/><select style={inputStyle} value={task.assignee||""} onChange={e=>patchDrawingTask(i,k,{assignee:e.target.value})}><option value="">Select member</option>{members.filter(m=>m.active!==false&&String(m.active).toLowerCase()!=="false").map(m=><option key={m.userId||m.name} value={m.name}>{m.name}</option>)}</select><button style={smallBtn} onClick={()=>moveDrawingTask(i,k,-1)}>↑</button><button style={smallBtn} onClick={()=>moveDrawingTask(i,k,1)}>↓</button><button style={{...smallBtn,color:T.redline}} onClick={()=>deleteDrawingTask(i,k)}>×</button></div>)}
-      <button style={smallBtn} onClick={()=>addDrawingTask(i)}>+ ADD TASK</button>
-    </div>)}</div>
   </div>;
 }
 
@@ -6317,13 +6294,52 @@ function projectRole(state,id){
   if(u?.appAccess?.toLowerCase()==='viewer')return u.projectRoles?.[id]?'User':'';
   return u?.projectRoles?.[id]||'';
 }
+function memberProjectRoleMap(rows,userId){
+  const roles={};
+  rows.filter(r=>String(r.userId)===String(userId)&&(r.active===true||String(r.active).toLowerCase()==='true')&&['Admin','User'].includes(r.projectRole)).forEach(r=>{const id=String(r.projectId);roles[id]=roles[id]&&roles[id]!==r.projectRole?'User':roles[id]||r.projectRole;});
+  return roles;
+}
 function ProjectRoleManager({state}){
-  const [rows,setRows]=useState([]),[projectId,setProjectId]=useState(state.projects[0]?.id||''),[userId,setUserId]=useState(''),[role,setRole]=useState('User'),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
-  const refresh=()=>projectApi.listProjectRoles().then(setRows);
-  useEffect(()=>{refresh().catch(e=>setMessage(e.message));},[]);
-  const save=async()=>{setBusy(true);try{await projectApi.saveProjectRole({projectId,userId,projectRole:role});await refresh();setMessage('Project role saved. Member should reload or sign in again.');}catch(e){setMessage(e.message);}finally{setBusy(false);}};
-  const remove=async r=>{setBusy(true);try{await projectApi.deleteProjectRole({projectId:r.projectId,userId:r.userId});await refresh();}catch(e){setMessage(e.message);}finally{setBusy(false);}};
-  return <section style={{border:`1px solid ${T.line}`,background:'#fff',padding:18,marginBottom:24}}><h2 style={{fontFamily:FONT_DISPLAY,marginTop:0}}>Project Roles & Permissions</h2><p>Assign Admin or User separately for every project. System Admin retains access to all projects.</p><div style={{display:'flex',gap:10,flexWrap:'wrap'}}><select aria-label="Role project" value={projectId} onChange={e=>setProjectId(e.target.value)} style={inputStyle}>{state.projects.map(p=><option key={p.id} value={p.id}>{p.no} · {p.name}</option>)}</select><select aria-label="Role member" value={userId} onChange={e=>setUserId(e.target.value)} style={inputStyle}><option value="">Select member</option>{(state.teamMaster||[]).filter(m=>m.active!==false&&String(m.active).toLowerCase()!=='false').map(m=><option key={m.userId} value={m.userId}>{m.name} · {m.userId}</option>)}</select><select aria-label="Project role" value={role} onChange={e=>setRole(e.target.value)} style={inputStyle}><option>User</option><option>Admin</option></select><Btn disabled={busy||!projectId||!userId} onClick={save}>Save Project Role</Btn></div><p role="status">{message}</p><table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Project','Member','Project role','Action'].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{rows.filter(r=>r.active===true||String(r.active).toLowerCase()==='true').map(r=><tr key={r.projectId+':'+r.userId}><td style={tdStyle}>{state.projects.find(p=>String(p.id)===String(r.projectId))?.name||r.projectId}</td><td style={tdStyle}>{state.teamMaster?.find(m=>String(m.userId)===String(r.userId))?.name||r.userId}</td><td style={tdStyle}>{r.projectRole}</td><td style={tdStyle}><button disabled={busy} style={smallBtn} onClick={()=>remove(r)}>Remove access</button></td></tr>)}</tbody></table></section>;
+  const [rows,setRows]=useState([]),[userId,setUserId]=useState(''),[drafts,setDrafts]=useState({}),[search,setSearch]=useState('');
+  const [loading,setLoading]=useState(true),[loadError,setLoadError]=useState(''),[busy,setBusy]=useState(false),[feedback,setFeedback]=useState({});
+  const pendingRef=useRef(false);
+  const reload=async()=>{setLoading(true);setLoadError('');try{setRows(await projectApi.listProjectRoles());}catch(e){setLoadError(e.message||'Could not load project access.');}finally{setLoading(false);}};
+  useEffect(()=>{let live=true;projectApi.listProjectRoles().then(list=>{if(live)setRows(list);}).catch(e=>{if(live)setLoadError(e.message||'Could not load project access.');}).finally(()=>{if(live)setLoading(false);});return()=>{live=false;};},[]);
+  const members=state.teamMaster||[],member=members.find(m=>String(m.userId)===userId);
+  const active=member&&member.active!==false&&String(member.active).toLowerCase()!=='false';
+  const saved=memberProjectRoleMap(rows,userId),draft=drafts[userId]||saved;
+  const projects=[...(state.projects||[])];
+  Object.keys(saved).filter(id=>!projects.some(p=>String(p.id)===id)).forEach(id=>projects.push({id,name:'Saved project '+id,status:'Archived / unavailable'}));
+  const changes=[...new Set([...Object.keys(saved),...Object.keys(draft)])].filter(id=>(saved[id]||'')!==(draft[id]||'')).map(projectId=>({projectId,projectRole:draft[projectId]||''}));
+  const setRole=(projectId,role)=>{setDrafts(all=>({...all,[userId]:{...(all[userId]||memberProjectRoleMap(rows,userId)),[projectId]:role}}));setFeedback({});};
+  const save=async()=>{
+    if(!userId||!changes.length||pendingRef.current)return;pendingRef.current=true;setBusy(true);setFeedback({});
+    const personId=userId;
+    try{const result=await projectApi.saveMemberProjectRoles({userId:personId,changes});setRows(previous=>[...previous.filter(r=>String(r.userId)!==personId),...result.roles]);setDrafts(all=>{const next={...all};delete next[personId];return next;});setFeedback({userId:personId,text:'Project access saved. This person should reload the app to see changes.'});}
+    catch(e){setFeedback({userId:personId,error:true,text:e.message||'Could not save project access. Your selections are retained.'});}
+    finally{pendingRef.current=false;setBusy(false);}
+  };
+  const filtered=projects.filter(p=>`${p.no||''} ${p.name||''}`.toLowerCase().includes(search.toLowerCase()));
+  const assigned=Object.values(draft).filter(Boolean),adminCount=assigned.filter(r=>r==='Admin').length;
+  return <section style={{border:`1px solid ${T.line}`,background:'#fff',padding:18,marginBottom:24,fontFamily:FONT_BODY,fontSize:13}}>
+    <h2 style={{fontFamily:FONT_DISPLAY,marginTop:0}}>People & Project Access</h2>
+    <p style={{color:T.inkDim,lineHeight:1.5}}>Open a person’s record, then assign their projects and choose Admin or User for each one.</p>
+    <Field label="Person"><select aria-label="Access person" disabled={busy} value={userId} onChange={e=>{setUserId(e.target.value);setSearch('');setFeedback({});}} style={inputStyle}><option value="">Select a person…</option>{members.map(m=><option key={m.userId} value={m.userId}>{m.name} · {m.userId}{m.active===false||String(m.active).toLowerCase()==='false'?' · Inactive':''}</option>)}</select></Field>
+    {loading&&<p role="status" style={{color:T.inkDim}}>Loading project access…</p>}
+    {feedback.text&&(!feedback.userId||feedback.userId===userId)&&<p role={feedback.error?'alert':'status'} style={{color:feedback.error?T.redline:T.green,lineHeight:1.5}}>{feedback.text}</p>}
+    {loadError&&<div role="alert" style={{color:T.redline,marginBottom:14}}>{loadError} <button type="button" style={smallBtn} onClick={reload}>Retry loading access</button></div>}
+    {member&&!loading&&!loadError&&<>
+      <div style={{padding:14,background:T.paperDim,marginBottom:16,border:`1px solid ${T.line}`}}><strong style={{fontFamily:FONT_DISPLAY,fontSize:17}}>{member.name}</strong><div style={{color:T.inkDim,marginTop:5}}>{[member.email,member.role,member.department].filter(Boolean).join(' · ')}</div><div style={{marginTop:8}}>{assigned.length} projects assigned · {adminCount} Admin · {assigned.length-adminCount} User</div>
+        {String(member.appAccess).toLowerCase()==='admin'&&<p style={{margin:'10px 0 0',color:T.inkDim}}>This person is a System Admin and already has access to every project. Set App Access to User in Team Master to apply project-specific limits.</p>}
+        {!active&&<p style={{margin:'10px 0 0',color:T.redline}}>This account is inactive. You can remove assignments; activate the person before granting new access.</p>}
+        {String(member.appAccess).toLowerCase()==='viewer'&&<p style={{margin:'10px 0 0',color:T.inkDim}}>This account is a Viewer. Project assignments remain view only until App Access is changed to User.</p>}
+        {String(member.appAccess).toLowerCase()==='no access'&&<p style={{margin:'10px 0 0',color:T.inkDim}}>This account has No Access. Set App Access to User in Team Master so they can sign in to assigned projects.</p>}
+      </div>
+      <input aria-label="Search access projects" placeholder="Find a project…" value={search} onChange={e=>setSearch(e.target.value)} style={{...inputStyle,marginBottom:12}}/>
+      <div style={{overflowX:'auto',maxHeight:470,overflowY:'auto',border:`1px solid ${T.line}`}}><table style={{width:'100%',borderCollapse:'collapse',minWidth:510}}><thead><tr>{['Assign','Project','Project role'].map(h=><th key={h} style={{...thStyle,background:T.paperDim,color:T.ink,textAlign:'left',position:'sticky',top:0,zIndex:1}}>{h}</th>)}</tr></thead><tbody>{filtered.map(p=>{const id=String(p.id),role=draft[id]||'';return <tr key={id}><td style={{...tdStyle,textAlign:'left',width:70}}><input type="checkbox" aria-label={`Assign ${p.name}`} checked={!!role} disabled={busy||(!active&&!saved[id])} onChange={e=>setRole(id,e.target.checked?(saved[id]||'User'):'')}/></td><td style={{...tdStyle,textAlign:'left'}}><strong>{p.no?`${p.no} · `:''}{p.name}</strong><div style={{fontSize:11,color:T.inkDim,marginTop:3}}>{p.completed||p.status==='Completed'?'Completed':p.status||'Ongoing'}</div></td><td style={{...tdStyle,textAlign:'left',width:180}}><select aria-label={`Role for ${p.name}`} disabled={busy||!role||!active} value={role||'User'} onChange={e=>setRole(id,e.target.value)} style={{...inputStyle,fontSize:12,padding:'8px 10px'}}><option value="User">User</option><option value="Admin">Admin</option></select>{!role&&<span style={{display:'block',fontSize:11,color:T.inkDim,marginTop:4}}>Not assigned</span>}</td></tr>;})}</tbody></table>{!filtered.length&&<p style={{padding:14,color:T.inkDim}}>No matching projects.</p>}</div>
+      <div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap',marginTop:16}}><Btn disabled={busy||!changes.length} onClick={save}>{busy?'Saving project access…':'Save project access'}</Btn><button type="button" disabled={busy||!changes.length} style={smallBtn} onClick={()=>{setDrafts(all=>{const next={...all};delete next[userId];return next;});setFeedback({});}}>Discard changes</button><span style={{color:T.inkDim,fontSize:12}}>{changes.length?`${changes.length} project changes pending`:'All changes saved'}</span></div>
+    </>}
+  </section>;
 }
 function ProjectPermissionsView({state,persist}){
   const [selected,setSelected]=useState(state.projects[0]?.id||''),[tab,setTab]=useState('scope');

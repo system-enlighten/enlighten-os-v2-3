@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.11.81-project-admin-user-controls",
+  "version": "2.11.83-clean-team-settings",
   "type": "module",
   "scripts": {
     "dev": "vite",
