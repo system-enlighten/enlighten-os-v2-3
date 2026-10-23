@@ -2566,23 +2566,29 @@ const canonicalDrawingType = (v) => {
 --------------------------------------------------------------- */
 const ENLIGHTEN_API_URL = "/api";
 
-async function apiRequest(action, payload = {}, method = "POST") {
-  let response;
+async function apiRequest(action, payload = {}, method = "POST", timeoutMs=0) {
+  let response,raw;
+  const controller=timeoutMs?new AbortController():null;
+  const timeout=controller?setTimeout(()=>controller.abort(),timeoutMs):null;
+  try{
   const generation=AUTH_SESSION_GENERATION;
   const authHeaders=AUTH_ID_TOKEN?{Authorization:`Bearer ${AUTH_ID_TOKEN}`}:{ };
   if (method === "GET") {
     const qs = new URLSearchParams({ action, ...Object.fromEntries(Object.entries(payload).map(([k,v]) => [k, String(v)])) });
-    response = await fetch(`${ENLIGHTEN_API_URL}?${qs.toString()}`,{credentials:"same-origin",headers:authHeaders});
+    response = await fetch(`${ENLIGHTEN_API_URL}?${qs.toString()}`,{credentials:"same-origin",headers:authHeaders,...(controller?{signal:controller.signal}:{})});
   } else {
     response = await fetch(ENLIGHTEN_API_URL, {
       method: "POST",
       credentials:"same-origin",
+      ...(controller?{signal:controller.signal}:{}),
       headers: { "Content-Type": "text/plain;charset=utf-8", ...authHeaders },
       body: JSON.stringify({ action, payload })
     });
   }
   if(response.status===401&&generation===AUTH_SESSION_GENERATION){AUTH_ID_TOKEN="";window.dispatchEvent(new Event("enlighten-auth-expired"));}
-  const raw = await response.text();
+  raw = await response.text();
+  }catch(err){if(err.name==='AbortError')throw new Error('Saving could not be confirmed within 45 seconds. Your draft is retained; retry to confirm the save.');throw err;}
+  finally{if(timeout)clearTimeout(timeout);}
   let json;
   try { json = JSON.parse(raw); }
   catch (_) {
@@ -2609,7 +2615,7 @@ const projectApi = {
   skipWorkflowSubtask: designTaskId => apiRequest("skipWorkflowSubtask",{designTaskId}),
   acknowledgeWorkflowDrawing: designTaskId => apiRequest("acknowledgeWorkflowDrawing",{designTaskId}),
   queueWorkflowTask: payload => apiRequest("queueWorkflowTask", payload),
-  saveLineOfWork: (projectId, rows) => apiRequest("saveLineOfWork", { projectId, rows }),
+  saveLineOfWork: (projectId, rows) => apiRequest("saveLineOfWork", { projectId, rows },"POST",45000),
   getProjectWorkflowTasks: projectId => apiRequest('getProjectWorkflowTasks',{projectId},'GET'),
   updateWorkflowSchedule: payload => apiRequest('updateWorkflowSchedule',payload),
   listProjectRoles: () => apiRequest('listProjectRoles',{},'GET'),
@@ -4333,6 +4339,7 @@ function ProjectLineOfWorkView({state,persist,selectedId}) {
   const [panel,setPanel]=useState(null);
   const [moreOpen,setMoreOpen]=useState(false);
   const revision = useRef(0);
+  const savePendingRef=useRef(false);
   const rowId = r => String(r.lineWorkId || r.id);
   const setProjectRows = all => {
     const workflow = all.filter(r => ["1","2"].includes(String(r.workflowVersion))).map(r => ({...r,id:r.lineWorkId || r.id}));
@@ -4367,22 +4374,26 @@ function ProjectLineOfWorkView({state,persist,selectedId}) {
   const loadLegacy = () => {setRows(DESIGN_WORKFLOW_PDF_TEMPLATE.map(r=>({...r})));setEditing(true);setMessage("PDF template loaded. Review drawing triggers and assignments, then save to activate automation.");};
   const loadPdf=()=>{setRows(DESIGN_TASK_FLOW_TEMPLATE.map(r=>({...r})));setEditing(true);setMessage("Latest Design Task PDF loaded: pink in-person meetings, purple phone/Zoom meetings, white floor-wise design work. Save to activate.");};
   const save = async () => {
-    if (rows.some(r=>!String(r.milestone||"").trim()||!String(r.tasks||"").trim()||!String(r.subtask||"").trim()||!String(r.triggerTaskType||"").trim())) return setError("Each workflow row needs a milestone, task, subtask, and trigger task.");
-    const token=revision.current;setBusy(true);setError("");
-    try {
-      const order={};const clean=rows.map(r=>{const key=[r.milestone,r.tasks,r.triggerDrawingType,r.triggerTaskType,r.scope].join("|");order[key]=(order[key]||0)+1;return {...r,workflowVersion:r.workflowVersion||"1",subtaskOrder:order[key],completionUploadRequired:r.completionUploadRequired!==false&&String(r.completionUploadRequired)!=="false",optional:r.optional===true||String(r.optional)==="true"};});
-      let capabilities;
-      try {capabilities=await projectApi.getWorkflowCapabilities();}
-      catch (_) {throw new Error("Install and redeploy the updated Apps Script backend before saving the workflow. No changes were saved.");}
-      if(rows.some(r=>String(r.workflowVersion)==="2")&&Number(capabilities?.designFlowVersion)!==2)throw new Error("Deploy the v2.11.21 Apps Script backend before saving this PDF flow. No changes were saved.");
-      if(Number(capabilities?.areaWorkflowVersion)!==1)throw new Error("The connected backend does not support area workflows. No changes were saved.");
-      const result=await projectApi.saveLineOfWork(project.id,[...legacy,...clean]);
-      if(!Array.isArray(result)||!result.some(r=>["1","2"].includes(String(r.workflowVersion)))) throw new Error("Deploy the updated Apps Script backend; it must save the workflow fields.");
-      const templates=await projectApi.listDrawingTaskMaster();
-      await persist(latest=>({...latest,templates:Array.isArray(templates)?templates:latest.templates,projects:(latest.projects||[]).map(p=>p.id===project.id?{...p,lineOfWorkResidence:result,lineOfWork:result}:p)}));
-      if(token===revision.current){setProjectRows(result);setEditing(false);setPanel(null);setMessage("Workflow saved. New classified drawings use these project assignments.");}
-    } catch(e) {if(token===revision.current)setError(e.message||String(e));}
-    finally{setBusy(false);}
+    if(savePendingRef.current)return;
+    if(rows.some(r=>!String(r.milestone||'').trim()||!String(r.tasks||'').trim()||!String(r.subtask||'').trim()||!String(r.triggerTaskType||'').trim()))return setError('Each workflow row needs a milestone, task, subtask, and trigger task.');
+    const token=revision.current,previousPanel=panel,previousSaved=savedRows;
+    const before=state.projects.find(p=>p.id===project.id);
+    const order={},clean=rows.map(r=>{const key=[r.milestone,r.tasks,r.triggerDrawingType,r.triggerTaskType,r.scope].join('|');order[key]=(order[key]||0)+1;return {...r,workflowVersion:r.workflowVersion||'1',subtaskOrder:order[key],completionUploadRequired:r.completionUploadRequired!==false&&String(r.completionUploadRequired)!=='false',optional:r.optional===true||String(r.optional)==='true'};});
+    const optimistic=[...legacy,...clean];
+    savePendingRef.current=true;setBusy(true);setError('');setPanel(null);setEditing(false);setRows(clean);setMessage('Changes applied · Saving workflow in the background…');
+    try{
+      await persist(latest=>({...latest,projects:latest.projects.map(p=>p.id===project.id?{...p,lineOfWorkResidence:optimistic,lineOfWork:optimistic}:p)}));
+      const result=await projectApi.saveLineOfWork(project.id,optimistic);
+      if(!Array.isArray(result)||!result.some(r=>['1','2'].includes(String(r.workflowVersion))))throw new Error('Update and redeploy the included Apps Script backend; workflow saving could not be confirmed.');
+      await persist(latest=>({...latest,projects:latest.projects.map(p=>p.id===project.id?{...p,lineOfWorkResidence:result,lineOfWork:result}:p)}));
+      if(token===revision.current){setProjectRows(result);setMessage('Workflow saved to Google Sheets.');}
+    }catch(e){
+      await persist(latest=>({...latest,projects:latest.projects.map(p=>{
+        if(p.id!==project.id)return p;
+        return {...p,...(JSON.stringify(p.lineOfWorkResidence)===JSON.stringify(optimistic)?{lineOfWorkResidence:before?.lineOfWorkResidence}:{}),...(JSON.stringify(p.lineOfWork)===JSON.stringify(optimistic)?{lineOfWork:before?.lineOfWork}:{})};
+      })}));
+      if(token===revision.current){setRows(clean);setSavedRows(previousSaved);setEditing(true);setPanel(previousPanel);setMessage('');setError(`${e.message||e} Your edits are retained. Save Changes to retry.`);}
+    }finally{savePendingRef.current=false;setBusy(false);}
   };
   const queue = async g => {
     const r=g.first;if(!r.lineWorkId)return setError("Save the workflow first.");
