@@ -6317,7 +6317,13 @@ function StageActivationPanel({state,project,row,disabled,onActivated,onActivati
   const scope=JSON.stringify([project.id,row.lineWorkId]);
   const excluded=selection.scope===scope?selection.excluded:[];
   const chosen=zones.filter(z=>!excluded.includes(key(z)));
-  const toggle=(z,checked)=>setSelection({scope,excluded:checked?excluded.filter(k=>k!==key(z)):[...excluded,key(z)]});
+  const toggleAreas=(areas,checked)=>setSelection(current=>{
+    const previous=current.scope===scope?current.excluded:[],targets=new Set(areas.map(key));
+    return {scope,excluded:checked?previous.filter(k=>!targets.has(k)):[...new Set([...previous,...targets])]};
+  });
+  const floorGroups=[...zones.reduce((groups,z)=>{const floor=String(z.floor||'Unspecified floor');if(!groups.has(floor))groups.set(floor,[]);groups.get(floor).push(z);return groups;},new Map())];
+  const floorRank=f=>{const value=f.trim().toLowerCase();if(['basement','b1'].includes(value))return -1;if(['stilt','stilt floor','sf'].includes(value))return -.5;if(['gf','ground floor','ground'].includes(value))return 0;const numeric=/^(-?\d+)\s*f$/.exec(value);if(numeric)return Number(numeric[1]);return value==='terrace'?1000:2000;};
+  floorGroups.sort((a,b)=>floorRank(a[0])-floorRank(b[0]));
   const [activationError,setActivationError]=useState(false);
   const activate=async()=>{
     setBusy(true);setMessage('');setActivationError(false);onActivationState?.('Activating…');
@@ -6338,8 +6344,18 @@ function StageActivationPanel({state,project,row,disabled,onActivated,onActivati
   return <div style={{padding:12,border:`1px solid ${T.line}`,marginBottom:12,fontFamily:FONT_BODY,fontSize:13,fontWeight:400,lineHeight:1.5,color:T.ink}}>
     <Field label="Drawing package / revision reference (optional)"><input disabled={disabled||busy} style={inputStyle} value={reference} onChange={e=>setReference(e.target.value)}/></Field>
     <p style={guidance}><strong style={{fontWeight:600,color:T.ink}}>Starting milestone:</strong> {row.startingMilestone||'Confirm prerequisite'}</p>
-    <p style={guidance}>All floors / areas are selected by default. Deselect any that are not in this drawing package. Meetings are shared within this activation; design steps repeat for each selected floor / area.</p>
-    <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>{zones.map((z,i)=><label key={z.floorZoneId||i} style={{...guidance,display:'inline-flex',gap:6,alignItems:'center',margin:0}}><input type="checkbox" disabled={disabled||busy} checked={!excluded.includes(key(z))} onChange={e=>toggle(z,e.target.checked)}/> {z.floor} · {z.area}</label>)}</div>
+    <p style={guidance}>All areas are selected by default and grouped by floor. Use “Select entire floor” to include or exclude a complete floor, or choose individual areas. Meetings are shared within this activation; design steps repeat for each selected floor / area.</p>
+    <div style={{display:'grid',gap:12,margin:'12px 0'}}>{floorGroups.map(([floor,areas])=>{
+      const selected=areas.filter(z=>!excluded.includes(key(z))).length,all=selected===areas.length,mixed=selected>0&&!all;
+      return <fieldset key={floor} style={{margin:0,padding:'12px 14px',border:`1px solid ${T.line}`,minWidth:0}}>
+        <legend style={{fontFamily:FONT_BODY,fontSize:13,fontWeight:600,color:T.ink,padding:'0 6px'}}>{floor}</legend>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap',paddingBottom:10,marginBottom:10,borderBottom:`1px solid ${T.line}`}}>
+          <label style={{display:'inline-flex',alignItems:'center',gap:7,fontFamily:FONT_BODY,fontSize:13,fontWeight:500,color:T.ink}}><input type="checkbox" aria-label={`Select entire ${floor} floor`} aria-checked={mixed?'mixed':all} ref={node=>{if(node)node.indeterminate=mixed;}} disabled={disabled||busy} checked={all} onChange={e=>toggleAreas(areas,e.target.checked)}/> Select entire floor</label>
+          <span style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>{selected} of {areas.length} areas selected</span>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(min(100%,220px),1fr))',gap:'10px 16px'}}>{areas.map((z,i)=><label key={z.floorZoneId||i} style={{...guidance,display:'flex',gap:7,alignItems:'flex-start',margin:0}}><input type="checkbox" aria-label={`${floor} · ${z.area}${z.zoneCode?' · '+z.zoneCode:''}`} disabled={disabled||busy} checked={!excluded.includes(key(z))} onChange={e=>toggleAreas([z],e.target.checked)} style={{marginTop:3,flexShrink:0}}/><span>{z.area}{z.zoneCode&&<span style={{color:T.inkDim,fontSize:11,marginLeft:6}}>({z.zoneCode})</span>}</span></label>)}</div>
+      </fieldset>;
+    })}</div>
     {!zones.length&&<p style={guidance}>Add floors and zones before activating a stage.</p>}
     <label style={{...guidance,display:'flex',alignItems:'center',gap:6,margin:'12px 0'}}><input type="checkbox" disabled={disabled||busy} checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/> Starting milestone and required approvals are satisfied</label>
     <Btn disabled={disabled||busy||!confirmed||!chosen.length} onClick={activate}>{busy?'Activating…':'Activate selected floors / areas'}</Btn>

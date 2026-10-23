@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.11.79-faster-actions-upload-recovery",
+  "version": "2.11.80-floor-wise-activation",
   "type": "module",
   "scripts": {
     "dev": "vite",
