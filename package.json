@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.11.85-full-width-design-table",
+  "version": "2.11.86-clean-design-columns",
   "type": "module",
   "scripts": {
     "dev": "vite",
