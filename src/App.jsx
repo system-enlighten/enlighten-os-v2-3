@@ -3017,15 +3017,15 @@ function StatusPill({ status }) {
 
 function Btn({ children, onClick, variant = "primary", style, disabled, type = "button" }) {
   const base = {
-    fontFamily: FONT_DISPLAY, fontSize: 13, letterSpacing: "0.02em", padding: "10px 18px",
-    borderRadius: 6, cursor: disabled ? "not-allowed" : "pointer", border: "none",
+    fontFamily: FONT_MONO, fontSize: 10, fontWeight: 700, letterSpacing: "0.02em", padding: "7px 10px",
+    borderRadius: 0, cursor: disabled ? "not-allowed" : "pointer", border: `1px solid ${T.blue}`,
     display: "inline-flex", alignItems: "center", gap: 8, transition: "opacity .15s",
     opacity: disabled ? 0.5 : 1,
   };
   const variants = {
-    primary: { background: T.blue, color: "#fff" },
-    ghost: { background: "transparent", color: T.ink, border: `1px solid ${T.line}` },
-    dark: { background: T.navy, color: "#fff" },
+    primary: { background: "#fff", color: T.blue },
+    ghost: { background: "#fff", color: T.blue },
+    dark: { background: "#E6EEF4", color: T.blue },
   };
   return (
     <button type={type} disabled={disabled} onClick={onClick} style={{ ...base, ...variants[variant], ...style }}
@@ -3045,7 +3045,7 @@ function Field({ label, children }) {
   );
 }
 
-const smallBtn = { padding:"5px 9px", border:`1px solid ${T.line}`, background:"#fff", color:T.ink, cursor:"pointer", fontFamily:FONT_MONO, fontSize:10 };
+const smallBtn = { padding:"5px 9px", border:`1px solid ${T.blue}`, borderRadius:0, background:"#fff", color:T.blue, cursor:"pointer", fontFamily:FONT_MONO, fontSize:10, fontWeight:700 };
 
 const inputStyle = {
   width: "100%", padding: "10px 12px", borderRadius: 6, border: `1px solid ${T.line}`,
@@ -4532,12 +4532,12 @@ function ProjectLineOfWorkView({state,persist,selectedId}) {
   };
   return <div>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap",marginBottom:16}}>
-      <div><h2 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:0}}>Design Line of Work</h2><div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,marginTop:5}}>Task → Starting Milestone → Subtask. Each received floor / area follows its own workflow.</div></div>
+      <div><h2 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:0}}>Design Line of Work</h2><div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,marginTop:5}}>Tasks and subtasks</div></div>
       <select aria-label="Workflow project" disabled={busy||editing} style={{...fieldStyle,minWidth:280}} value={project.id} onChange={e=>setProjectId(e.target.value)}>{projects.map(p=><option key={p.id} value={p.id}>{p.no||"—"} · {p.name}</option>)}</select>
     </div>
     <div style={{display:"flex",gap:8,marginBottom:16,alignItems:"center",flexWrap:"wrap"}}>
       <Btn variant={tab==="template"?"dark":"ghost"} onClick={()=>setTab("template")}>Workflow</Btn><Btn variant={tab==="progress"?"dark":"ghost"} onClick={()=>{setTab("progress");refresh();}}>Progress</Btn><Btn variant={tab==="gantt"?"dark":"ghost"} onClick={()=>setTab("gantt")}>Gantt</Btn>
-      <select aria-label="Workflow area" style={{...fieldStyle,minWidth:240,marginLeft:"auto"}} value={areaKey} onChange={e=>setAreaKey(e.target.value)}><option value="">All areas / select an area</option>{areas.map(([key,a])=><option key={key} value={key}>{a.floor} · {a.area}</option>)}</select>
+      {tab!=="template"&&<select aria-label="Workflow area" style={{...fieldStyle,minWidth:240,marginLeft:"auto"}} value={areaKey} onChange={e=>setAreaKey(e.target.value)}><option value="">All areas / select an area</option>{areas.map(([key,a])=><option key={key} value={key}>{a.floor} · {a.area}</option>)}</select>}
     </div>
     {loading&&<div style={{color:T.inkDim,marginBottom:12}}>Loading project workflow…</div>}
     {error&&<div role="alert" style={{padding:12,background:T.redlineBg,color:T.redline,marginBottom:12}}>{error}</div>}
@@ -4546,20 +4546,21 @@ function ProjectLineOfWorkView({state,persist,selectedId}) {
       <div style={{display:'flex',gap:8,marginBottom:16,alignItems:'center',flexWrap:'wrap'}}>
         {editing?<><Btn disabled={busy} onClick={save}>{busy?'Saving…':'Save Changes'}</Btn><Btn disabled={busy} variant="ghost" onClick={cancelEdit}>Cancel</Btn></>:!!rows.length&&<Btn disabled={busy||loading} onClick={()=>setEditing(true)}>Edit workflow</Btn>}
         {!editing&&rows.some(r=>!r.lineWorkId)&&<Btn disabled={busy||loading} onClick={save}>Save default workflow</Btn>}
-        <div style={{position:'relative',marginLeft:'auto'}}><button type="button" disabled={busy||loading} aria-expanded={moreOpen} onClick={()=>setMoreOpen(v=>!v)} style={{...smallBtn,padding:"10px 14px",fontFamily:FONT_BODY}}>More ▾</button>{moreOpen&&<div aria-label="Workflow actions" style={{position:'absolute',right:0,top:'100%',zIndex:20,background:T.paper,border:`1px solid ${T.line}`,padding:10,minWidth:250,display:'grid',gap:8,boxShadow:'0 8px 24px #08192d18'}}><button style={smallBtn} onClick={()=>{setMoreOpen(false);if(!rows.length||window.confirm('Load the default workflow into this draft? The saved workflow changes only after Save Changes.'))loadPdf();}}>Load default workflow</button>{!rows.length&&<button style={smallBtn} onClick={()=>{setMoreOpen(false);loadLegacy();}}>Load legacy area template</button>}<button style={smallBtn} onClick={addTask}>+ Add task</button></div>}</div>
+        <div style={{position:'relative',marginLeft:'auto'}}><button type="button" disabled={busy||loading} aria-expanded={moreOpen} onClick={()=>setMoreOpen(v=>!v)} style={{...smallBtn,padding:"7px 10px"}}>More ▾</button>{moreOpen&&<div aria-label="Workflow actions" style={{position:'absolute',right:0,top:'100%',zIndex:20,background:T.paper,border:`1px solid ${T.line}`,padding:10,minWidth:250,display:'grid',gap:8,boxShadow:'0 8px 24px #08192d18'}}><button style={smallBtn} onClick={()=>{setMoreOpen(false);if(!rows.length||window.confirm('Load the default workflow into this draft? The saved workflow changes only after Save Changes.'))loadPdf();}}>Load default workflow</button>{!rows.length&&<button style={smallBtn} onClick={()=>{setMoreOpen(false);loadLegacy();}}>Load legacy area template</button>}<button style={smallBtn} onClick={addTask}>+ Add task</button></div>}</div>
       </div>
       {rows.some(r=>!r.lineWorkId)&&!editing&&<p style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>Default workflow is shown. Save it once for this project to enable activation in Task Details.</p>}
-      <div style={{overflowX:'auto',border:`1px solid ${T.line}`}}><table aria-label="Complete project workflow" style={{width:'100%',minWidth:1100,borderCollapse:'collapse',fontFamily:FONT_BODY,tableLayout:'fixed'}}>
-        <colgroup>{[22,22,28,14,14].map((width,i)=><col key={i} style={{width:`${width}%`}}/>)}</colgroup>
-        <thead><tr>{['Task','Starting Milestone','Subtask','Responsible','Status / Details'].map(h=><th key={h} style={{...thStyle,background:'#D2CDC1',color:'#1C1C19',fontFamily:FONT_MONO,fontSize:10,textAlign:'left',borderRight:`1px solid ${T.line}`,borderBottom:`2px solid ${T.ink}`}}>{h}</th>)}</tr></thead>
-        <tbody>{groups.flatMap(g=>{const r=g.first,key=rowId(r);return g.rows.map((sub,i)=><tr key={rowId(sub)} style={{background:i%2?'#FAF9F5':'#fff'}}>
-          {i===0&&<><td rowSpan={g.rows.length} style={{...tdStyle,verticalAlign:'top',textAlign:'left',borderRight:`1px solid ${T.line}`}}><strong>{r.tasks}</strong>{r.milestone!==r.tasks&&<div style={{fontSize:11,color:T.inkDim,marginTop:6}}>{r.milestone}</div>}<div style={{fontSize:11,color:T.inkDim,margin:'8px 0'}}>{workflowStatus(r)}</div><button type="button" disabled={busy||loading} aria-label={`Task details ${r.tasks}`} style={smallBtn} onClick={()=>setPanel({kind:'task',id:key})}>Task details</button>{editing&&<button disabled={busy} style={{...smallBtn,display:'block',marginTop:8}} onClick={()=>addSubtask(g)}>+ Add subtask</button>}</td>
-          <td rowSpan={g.rows.length} style={{...tdStyle,verticalAlign:'top',textAlign:'left',borderRight:`1px solid ${T.line}`}}>{r.startingMilestone||r.milestone||'Confirm prerequisite'}</td></>}
-          <td style={{...tdStyle,textAlign:'left',borderRight:`1px solid ${T.line}`}}>{sub.subtask}{sub.taskCategory==='Meeting'&&<span style={{display:'inline-block',fontSize:10,padding:'2px 6px',marginLeft:8,background:sub.meetingMode==='Phone / Zoom allowed'?'#B4A5D7':'#D7A5BF'}}>{sub.meetingMode==='Phone / Zoom allowed'?'Call / Zoom':'Meeting'}</span>}</td>
-          <td style={{...tdStyle,textAlign:'left',borderRight:`1px solid ${T.line}`}}>{sub.responsible||r.responsible||'Unassigned'}</td>
-          <td style={{...tdStyle,textAlign:'left'}}><div style={{fontSize:11,color:T.inkDim,marginBottom:6}}>{workflowStatus(r,sub)}</div><button type="button" disabled={busy} aria-label={`Details ${sub.subtask}`} style={smallBtn} onClick={()=>setPanel({kind:'subtask',id:rowId(sub)})}>{editing?'Edit':'Details'}</button></td>
-        </tr>);})}</tbody>
-      </table></div>
+      {groups.map(g=>{const r=g.first,key=rowId(r);return <section key={key} style={{border:`1px solid ${T.line}`,marginBottom:12,background:'#fff'}}>
+        <div style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',background:'#F3F1EA'}}>
+          <h3 style={{flex:1,margin:0,color:T.ink,fontFamily:FONT_DISPLAY,fontSize:14,fontWeight:700}}>{r.tasks}</h3>
+          <button type="button" disabled={busy||loading} aria-label={`Task details ${r.tasks}`} style={smallBtn} onClick={()=>setPanel({kind:'task',id:key})}>Task details</button>
+        </div>
+        {<div id={`workflow-subtasks-${key}`} style={{padding:'0 14px 12px'}}>
+          <div style={{overflowX:'auto'}}><table aria-label={`Subtasks for ${r.tasks}`} style={{width:'100%',minWidth:560,borderCollapse:'collapse',fontFamily:FONT_BODY}}><thead><tr>{['Subtask','Responsible','Status'].map(h=><th key={h} style={{...thStyle,background:'#fff',color:T.inkDim,textAlign:'left',fontFamily:FONT_MONO,fontSize:9,borderBottom:`1px solid ${T.line}`}}>{h}</th>)}</tr></thead>
+            <tbody>{g.rows.map((sub,i)=><tr key={rowId(sub)}><td style={{...tdStyle,textAlign:'left',padding:'9px 6px'}}><button type="button" disabled={busy} aria-label={`Details ${sub.subtask}`} title="Open subtask details" onClick={()=>setPanel({kind:'subtask',id:rowId(sub)})} style={{border:0,background:'transparent',padding:0,fontFamily:FONT_BODY,fontSize:12,color:T.ink,textAlign:'left',cursor:'pointer',lineHeight:1.5}}><span style={{color:T.inkDim,marginRight:8,fontSize:11}}>{i+1}.</span>{sub.subtask}{sub.taskCategory==='Meeting'&&<span style={{display:'inline-block',fontSize:10,padding:'1px 5px',marginLeft:8,color:T.inkDim,background:sub.meetingMode==='Phone / Zoom allowed'?'#E8E3EF':'#F3E6ED'}}>{sub.meetingMode==='Phone / Zoom allowed'?'Call / Zoom':'Meeting'}</span>}</button></td><td style={{...tdStyle,textAlign:'left',fontSize:12}}>{sub.responsible||r.responsible||'Unassigned'}</td><td style={{...tdStyle,textAlign:'left',fontSize:11,color:T.inkDim}}>{workflowStatus(r,sub)}</td></tr>)}</tbody>
+          </table></div>
+          {editing&&<button disabled={busy} style={{...smallBtn,marginTop:12}} onClick={()=>addSubtask(g)}>+ Add subtask</button>}
+        </div>}
+      </section>;})}
       {!!legacy.length&&<div style={{fontSize:11,color:T.inkDim,marginTop:12}}>{legacy.length} previous Line of Work rows retained.</div>}
     </>:<>
       <Btn disabled={busy} variant="ghost" onClick={refresh} style={{marginBottom:12}}>Refresh progress</Btn>
@@ -4573,7 +4574,7 @@ function ProjectLineOfWorkView({state,persist,selectedId}) {
       <div style={{padding:20,overflowY:'auto',flex:1}}>
         {error&&<p role="alert" style={{fontSize:13,color:T.redline}}>{error}</p>}
         {panel.kind==='task'?<>
-          {panelField('Milestone','milestone')}{panelField('Task','tasks')}{panelField('Responsible','responsible','person')}
+          {panelField('Milestone','milestone')}{panelField('Task','tasks')}{panelField('Starting milestone','startingMilestone')}{panelField('Responsible','responsible','person')}<p style={{fontSize:12,color:T.inkDim}}>Status: {workflowStatus(panelRow)}</p>
           {!editing&&<section aria-label="Task activation and floor zones" style={{marginTop:20}}><h4 style={{fontFamily:FONT_DISPLAY,margin:'0 0 12px'}}>Activation · Floors & Zones</h4>
             {!panelRow.lineWorkId?<p style={{fontSize:13,color:T.inkDim}}>Save this workflow before activating tasks.</p>:String(panelRow.workflowVersion)==='2'?<StageActivationPanel key={project.id+':'+rowId(panelRow)} state={state} project={project} row={panelRow} disabled={busy||loading} onActivationState={status=>setActivationStates(x=>({...x,[activationKey(panelRow)]:{status}}))} onActivated={async task=>{
               if(workflowProjectRef.current!==project.id)return;
@@ -4583,7 +4584,7 @@ function ProjectLineOfWorkView({state,persist,selectedId}) {
             }}/>:<Btn disabled={busy||loading} variant="ghost" onClick={()=>queue(panelGroup)}>{panelRow.scope==='Project'?'Queue project task':'Queue for selected area'}</Btn>}
           </section>}
 
-          <details style={{marginTop:16,borderTop:`1px solid ${T.line}`,paddingTop:12}}><summary style={{cursor:'pointer',fontSize:13,fontWeight:600}}>More settings</summary><div style={{marginTop:16}}>{panelField('Starting milestone','startingMilestone')}{panelField('Scope','scope','scope')}{panelField('Required drawing','triggerDrawingType','drawing')}{panelField('Task started in WIH','triggerTaskType')}{panelRow.executionNote&&<p style={{fontSize:12,color:T.inkDim}}>Execution handoff: {panelRow.executionNote}</p>}</div></details>
+          <details style={{marginTop:16,borderTop:`1px solid ${T.line}`,paddingTop:12}}><summary style={{cursor:'pointer',fontSize:13,fontWeight:600}}>More settings</summary><div style={{marginTop:16}}>{panelField('Scope','scope','scope')}{panelField('Required drawing','triggerDrawingType','drawing')}{panelField('Task started in WIH','triggerTaskType')}{panelRow.executionNote&&<p style={{fontSize:12,color:T.inkDim}}>Execution handoff: {panelRow.executionNote}</p>}</div></details>
         </>:<>
           {panelField('Subtask','subtask')}{panelField('Responsible','responsible','person')}
           <div style={{fontSize:12,color:T.inkDim,marginBottom:16}}>Status: {workflowStatus(panelGroup?.first||panelRow,panelRow)}</div>
@@ -4919,7 +4920,7 @@ function DrawingControlDashboard({state,projectId,deferLoad=false}){
     {loading&&<p style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim}}>{ready?'Loading project drawings and WIH status…':'Drawing details load as you scroll to this project.'}</p>}
     <div ref={layoutRef} style={{display:'grid',gridTemplateColumns:showHours?'minmax(0,1fr) 330px':'minmax(0,1fr)',gap:showHours?16:0,alignItems:'start',width:'100%',minWidth:0}}>
       <div style={{minWidth:0,background:'#fff'}}>
-        <table style={{width:'100%',borderCollapse:'collapse',marginBottom:8}}><tbody>{[[`Project ${project.no||project.projectNo||''}:`,project.name],['Start Date:',formatProjectDate(project.startDate)],['Time in hours:',loading?'Loading…':totalHours.toFixed(1)]].map(([label,value])=><tr key={label}><td style={{...cell,fontFamily:FONT_BODY,fontWeight:700,width:220}}>{label}</td><td style={{...cell,fontFamily:FONT_BODY}}>{label==='Time in hours:'?<div style={{display:'flex',gap:12,alignItems:'center',flexWrap:'wrap'}}><span>{value}</span><button type="button" aria-label={`Hours by person for ${project.name}`} aria-expanded={showHours} aria-controls={`project-hours-${project.id}`} style={{...smallBtn,fontFamily:FONT_BODY,fontSize:12}} onClick={()=>setShowHours(open=>!open)}>{showHours?'Hide hours by person':'Hours by person'}</button></div>:value}</td></tr>)}</tbody></table>
+        <table style={{width:'100%',borderCollapse:'collapse',marginBottom:8}}><tbody>{[[`Project ${project.no||project.projectNo||''}:`,project.name],['Start Date:',formatProjectDate(project.startDate)],['Time in hours:',loading?'Loading…':totalHours.toFixed(1)]].map(([label,value])=><tr key={label}><td style={{...cell,fontFamily:FONT_BODY,fontWeight:700,width:220}}>{label}</td><td style={{...cell,fontFamily:FONT_BODY}}>{label==='Time in hours:'?<div style={{display:'flex',gap:12,alignItems:'center',flexWrap:'wrap'}}><span>{value}</span><button type="button" aria-label={`Hours by person for ${project.name}`} aria-expanded={showHours} aria-controls={`project-hours-${project.id}`} style={{...smallBtn}} onClick={()=>setShowHours(open=>!open)}>{showHours?'Hide hours by person':'Hours by person'}</button></div>:value}</td></tr>)}</tbody></table>
 
         <div role={showHours?'region':undefined} aria-label={showHours?`Scrollable design table for ${project.name}`:undefined} tabIndex={showHours?0:undefined} style={{width:'100%',minWidth:0,overflowX:showHours?'auto':'visible',border:`1px solid ${T.line}`,boxSizing:'border-box'}}>
           <table aria-label="Project design matrix" style={{borderCollapse:'collapse',tableLayout:'fixed',width:'100%',...(showHours?{minWidth:Math.max(fullTableWidth,568+112*workColumns.length)}:{})}}>
