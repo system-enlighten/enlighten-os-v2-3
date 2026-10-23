@@ -4846,14 +4846,36 @@ function sheetDashboardCovers(record,zone,parents){
   const parent=record.parentDesignTaskId?parents.get(String(record.parentDesignTaskId)):record;
   try{return JSON.parse(parent?.workflowCoverage||'[]').some(c=>eq(c.floor,zone.floor)&&eq(c.area,zone.area||zone.room));}catch(_){return false;}
 }
-function DrawingControlDashboard({state,projectId}){
+const DESIGN_DASHBOARD_LOADS={active:0,waiting:[]};
+function queueDesignDashboardLoad(work){
+  return new Promise((resolve,reject)=>{
+    DESIGN_DASHBOARD_LOADS.waiting.push({work,resolve,reject});
+    const drain=()=>{
+      while(DESIGN_DASHBOARD_LOADS.active<2&&DESIGN_DASHBOARD_LOADS.waiting.length){
+        const job=DESIGN_DASHBOARD_LOADS.waiting.shift();DESIGN_DASHBOARD_LOADS.active++;
+        Promise.resolve().then(job.work).then(job.resolve,job.reject).finally(()=>{DESIGN_DASHBOARD_LOADS.active--;drain();});
+      }
+    };
+    drain();
+  });
+}
+function DrawingControlDashboard({state,projectId,deferLoad=false}){
   const project=(state.projects||[]).find(p=>String(p.id)===String(projectId));
   const [payload,setPayload]=useState(null),[wih,setWih]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[revision,setRevision]=useState(0),[floor,setFloor]=useState('All');
+  const sectionRef=useRef(null),[ready,setReady]=useState(!deferLoad);
+  useEffect(()=>{
+    if(ready)return;
+    if(typeof IntersectionObserver==='undefined'){setReady(true);return;}
+    const observer=new IntersectionObserver(entries=>{if(entries.some(entry=>entry.isIntersecting)){setReady(true);observer.disconnect();}},{rootMargin:'500px 0px'});
+    if(sectionRef.current)observer.observe(sectionRef.current);
+    return()=>observer.disconnect();
+  },[ready]);
   useEffect(()=>{let live=true;setPayload(null);setWih([]);setLoading(true);setError('');setFloor('All');
     if(!project?.id){setLoading(false);return()=>{live=false;};}
-    Promise.all([projectApi.getDesignDashboard(project.id),projectApi.getWIH(true,project.id)]).then(([dashboard,work])=>{if(live){setPayload(dashboard);setWih(Array.isArray(work)?work:[]);}}).catch(e=>{if(live)setError(e.message||'Could not load dashboard data.');}).finally(()=>{if(live)setLoading(false);});
+    if(!ready)return()=>{live=false;};
+    queueDesignDashboardLoad(()=>live?Promise.all([projectApi.getDesignDashboard(project.id),projectApi.getWIH(true,project.id)]):[null,[]]).then(([dashboard,work])=>{if(live){setPayload(dashboard);setWih(Array.isArray(work)?work:[]);}}).catch(e=>{if(live)setError(e.message||'Could not load dashboard data.');}).finally(()=>{if(live)setLoading(false);});
     return()=>{live=false;};
-  },[project?.id,revision]);
+  },[project?.id,revision,ready]);
   if(!project)return <p>No active project available.</p>;
   const eq=(a,b)=>String(a||'').trim().toLowerCase()===String(b||'').trim().toLowerCase();
   const allZones=(Array.isArray(payload?.floorZones)?payload.floorZones:project.floorZones||Object.entries(project.zones||{}).map(([zoneCode,z])=>({zoneCode,floor:z.floor,area:z.room}))).filter(z=>z.floor&&(z.area||z.room));
@@ -4876,10 +4898,10 @@ function DrawingControlDashboard({state,projectId}){
     if(key&&(dbRow?.[key+'TaskId']||dbRow?.[key+'DesignNo']))return {status:sheetDashboardStatus([{status:dbRow[key+'Status']}]),date:'',title:dbRow[key+'DesignNo']||''};
     return {status:'',date:'',title:''};
   };
-  return <div>
+  return <div ref={sectionRef}>
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,marginBottom:16}}><h2 style={{fontFamily:FONT_DISPLAY,fontSize:30,fontWeight:700,margin:0}}>System Design</h2><div style={{display:'flex',gap:8,alignItems:'center'}}><label style={{fontSize:12}}>Floor <select aria-label="Dashboard floor" value={floor} onChange={e=>setFloor(e.target.value)} style={{...inputStyle,width:130}}><option>All</option>{[...new Set(unique.map(z=>z.floor))].map(f=><option key={f}>{f}</option>)}</select></label><Btn disabled={loading} variant="ghost" onClick={()=>setRevision(x=>x+1)}>Refresh Dashboard</Btn></div></div>
     {error&&<p role="alert" style={{color:T.redline}}>{error}</p>}
-    {loading&&<p>Loading project drawings and WIH status…</p>}
+    {loading&&<p style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim}}>{ready?'Loading project drawings and WIH status…':'Drawing details load as you scroll to this project.'}</p>}
     <div style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) 330px',gap:16,alignItems:'start'}}>
       <div style={{minWidth:0,background:'#fff'}}>
         <table style={{width:'100%',borderCollapse:'collapse',marginBottom:8}}><tbody>{[[`Project ${project.no||project.projectNo||''}:`,project.name],['Start Date:',formatProjectDate(project.startDate)],['Time in hours:',loading?'Loading…':totalHours.toFixed(1)]].map(([label,value])=><tr key={label}><td style={{...cell,fontFamily:FONT_BODY,fontWeight:700,width:220}}>{label}</td><td style={{...cell,fontFamily:FONT_BODY}}>{value}</td></tr>)}</tbody></table>
@@ -4905,113 +4927,35 @@ function DrawingControlDashboard({state,projectId}){
 }
 
 function DesignFlowView({state,persist}){
-  const [openId,setOpenId]=useState("");
-  const [editId,setEditId]=useState("");
-  const [taskId,setTaskId]=useState("");
-  const [taskDraft,setTaskDraft]=useState({drawings:"",tasks:"",time:"",hours:"",plannedStart:"",plannedCompletion:"",responsible:"",status:"Not Started"});
-  const [projectDraft,setProjectDraft]=useState({});
-  const canEditProject=id=>state.currentUser?.appAccess?.toLowerCase()!=='viewer'&&projectRole(state,id)==='Admin';
+  const [editId,setEditId]=useState(''),[projectDraft,setProjectDraft]=useState({}),[saving,setSaving]=useState(false),[error,setError]=useState('');
   const seen=new Set();
   const projects=(state.projects||[]).filter(p=>{
-    if(p.completed||p.status==="Completed"||p.projectControl?.projectStatus==="Completed")return false;
-    const k=String(p.id||p.no||p.name||"").toLowerCase();
-    if(!k||seen.has(k))return false; seen.add(k); return true;
+    if(p.completed||p.status==='Completed'||p.projectControl?.projectStatus==='Completed')return false;
+    const id=String(p.id||p.no||p.name||'').toLowerCase();if(!id||seen.has(id))return false;seen.add(id);return true;
   });
-  const opened=projects.find(p=>String(p.id)===String(openId));
-  const editing=projects.find(p=>String(p.id)===String(editId));
-  const taskProject=projects.find(p=>String(p.id)===String(taskId));
-
-  const designRows=p=>{
-    if(!p)return [];
-    const people=[];
-    Object.values(p.contacts||{}).forEach(c=>{if(c?.name)people.push(c.name);});
-    return splitDesignExecutionRows(p,people).design||[];
-  };
-  const counts=p=>{
-    const rows=designRows(p).filter(r=>String(r.tasks||r.task||r.drawings||r.title||"").trim());
-    const completed=rows.filter(r=>["completed","complete"].includes(String(r.status||r.taskStatus||"").toLowerCase())||r.completed===true).length;
-    return {open:Math.max(0,rows.length-completed),completed,total:rows.length};
-  };
-  const peopleFor=p=>{
-    const a=[]; Object.values(p?.contacts||{}).forEach(c=>{if(c?.name&&!a.includes(c.name))a.push(c.name);});
-    (state.team||[]).forEach(x=>{const n=x?.name||x;if(n&&!a.includes(n))a.push(n);}); return a;
-  };
-
-  const openProjectEdit=p=>{
-    setProjectDraft({no:p.no||p.projectNo||"",name:p.name||"",client:p.client||p.contacts?.Owner?.name||"",architect:p.architect||p.contacts?.Architect?.name||"",address:p.address||"",projectType:p.projectType||"Residence",status:p.status||"Ongoing"});
-    setEditId(String(p.id));
-  };
+  const canEditProject=id=>state.currentUser?.appAccess?.toLowerCase()!=='viewer'&&projectRole(state,id)==='Admin';
+  const editing=projects.find(p=>String(p.id)===editId);
+  const openEdit=p=>{setProjectDraft({no:p.no||p.projectNo||'',name:p.name||'',client:p.client||p.contacts?.Owner?.name||'',architect:p.architect||p.contacts?.Architect?.name||'',address:p.address||'',type:p.type||p.projectType||'Residence'});setEditId(String(p.id));setError('');};
   const saveProject=async()=>{
-    if(!editing)return;
-    const next={...editing,...projectDraft};
-    try{await projectApi.update(frontendProjectToBackend(next,true));}catch(e){console.warn("Project backend update failed",e);}
-    await persist({...state,projects:(state.projects||[]).map(p=>p.id===editing.id?next:p)});
-    setEditId("");
-  };
-
-  const saveTask=async()=>{
-    if(!taskProject)return;
-    const existing=taskProject.lineOfWorkResidence||taskProject.lineOfWork||[];
-    const row={id:uid(),projectId:taskProject.id,sourceRow:existing.length+1,...taskDraft,milestone:"",floor:"",visits:"",visitBy:""};
-    const merged=[...existing,row];
+    if(!editing||saving)return;setSaving(true);setError('');
     try{
-      const saved=await projectApi.saveLineOfWork(taskProject.id,merged);
-      const next={...taskProject,lineOfWorkResidence:saved||merged,lineOfWork:saved||merged};
-      await persist({...state,projects:(state.projects||[]).map(p=>p.id===taskProject.id?next:p)});
-      setTaskId(""); setTaskDraft({drawings:"",tasks:"",time:"",hours:"",plannedStart:"",plannedCompletion:"",responsible:"",status:"Not Started"});
-    }catch(err){alert(`Task save failed: ${err?.message||err}`);}
+      const next={...editing,...projectDraft},saved=await projectApi.update(frontendProjectToBackend(next,true)),updated=backendProjectToFrontend(saved,next);
+      await persist(latest=>({...latest,projects:(latest.projects||[]).map(p=>p.id===editing.id?{...p,...updated}:p)}));setEditId('');
+    }catch(e){setError(e.message||'Could not save this project.');}finally{setSaving(false);}
   };
-
-  if(opened)return <div>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-      <div><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.cyan}}>SELECTED PROJECT · {opened.no||opened.projectNo}</div><h2 style={{fontFamily:FONT_DISPLAY,margin:"3px 0"}}>{opened.name}</h2></div>
-      <div style={{display:"flex",gap:8}}>
-        {canEditProject(opened.id)&&<button type="button" onClick={()=>openProjectEdit(opened)} style={{...smallBtn,background:"#fff",cursor:"pointer",padding:"9px 14px"}}>EDIT PROJECT</button>}
-        <button type="button" onClick={()=>setOpenId("")} style={{...smallBtn,background:"#fff",cursor:"pointer",padding:"9px 14px"}}>PROJECT LIST</button>
-      </div>
-    </div>
-    <div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,marginBottom:12}}>Project-wise drawing and work status · Floor & Zone defines the rows.</div>
-    <DrawingControlDashboard state={state} persist={persist} projectId={opened.id}/>
-    {taskProject&&<div style={{position:"fixed",inset:0,zIndex:10000,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-      <div style={{width:"min(900px,96vw)",background:T.paper,border:`1px solid ${T.line}`}}>
-        <div style={{background:T.navy,color:"#fff",padding:14,fontFamily:FONT_DISPLAY,fontSize:18}}>Add Task · {taskProject.no} · {taskProject.name}</div>
-        <div style={{padding:16,display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          <Field label="Line of Work / Drawing"><input value={taskDraft.drawings} onChange={e=>setTaskDraft(d=>({...d,drawings:e.target.value}))} style={inputStyle}/></Field>
-          <Field label="Responsible Person"><select value={taskDraft.responsible} onChange={e=>setTaskDraft(d=>({...d,responsible:e.target.value}))} style={inputStyle}><option value="">Select</option>{peopleFor(taskProject).map(n=><option key={n}>{n}</option>)}</select></Field>
-          <div style={{gridColumn:"1 / -1"}}><Field label="Task"><textarea value={taskDraft.tasks} onChange={e=>setTaskDraft(d=>({...d,tasks:e.target.value}))} style={{...inputStyle,minHeight:70}}/></Field></div>
-          <Field label="Planned Start"><input type="date" value={taskDraft.plannedStart} onChange={e=>setTaskDraft(d=>({...d,plannedStart:e.target.value}))} style={inputStyle}/></Field>
-          <Field label="Planned Completion"><input type="date" value={taskDraft.plannedCompletion} onChange={e=>setTaskDraft(d=>({...d,plannedCompletion:e.target.value}))} style={inputStyle}/></Field>
-          <Field label="Hours"><input type="number" value={taskDraft.hours} onChange={e=>setTaskDraft(d=>({...d,hours:e.target.value}))} style={inputStyle}/></Field>
-          <Field label="Status"><select value={taskDraft.status} onChange={e=>setTaskDraft(d=>({...d,status:e.target.value}))} style={inputStyle}><option>Not Started</option><option>In Progress</option><option>Completed</option></select></Field>
-        </div>
-        <div style={{padding:16,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}><button type="button" onClick={()=>setTaskId("")} style={{...smallBtn,background:"#fff"}}>Cancel</button><button type="button" onClick={saveTask} style={{...smallBtn,background:T.navy,color:"#fff"}}>Save Task</button></div>
-      </div>
-    </div>}
-    {editing&&<div style={{position:"fixed",inset:0,zIndex:10001,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-      <div style={{width:"min(900px,96vw)",background:T.paper,border:`1px solid ${T.line}`}}>
-        <div style={{background:T.navy,color:"#fff",padding:14,fontFamily:FONT_DISPLAY,fontSize:18}}>Edit Project · {editing.no}</div>
-        <div style={{padding:16,display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          {[["Project No.","no"],["Project Name","name"],["Client","client"],["Architect","architect"],["Address","address"]].map(([lab,key])=><Field key={key} label={lab}><input value={projectDraft[key]||""} onChange={e=>setProjectDraft(d=>({...d,[key]:e.target.value}))} style={inputStyle}/></Field>)}
-          <Field label="Project Type"><select value={projectDraft.projectType||"Residence"} onChange={e=>setProjectDraft(d=>({...d,projectType:e.target.value}))} style={inputStyle}><option>Residence</option><option>Commercial</option><option>Hospitality</option><option>Retail</option><option>Other</option></select></Field>
-        </div>
-        <div style={{padding:16,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}><button type="button" onClick={()=>setEditId("")} style={{...smallBtn,background:"#fff"}}>Cancel</button><button type="button" onClick={saveProject} style={{...smallBtn,background:T.navy,color:"#fff"}}>Save Project</button></div>
-      </div>
-    </div>}
-  </div>;
-
   return <div>
-    <div style={{marginBottom:16}}><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.cyan}}>PROJECT-WISE · DESIGN CONTROL</div><h2 style={{fontFamily:FONT_DISPLAY,margin:"4px 0"}}>Design Dashboard</h2><div style={{fontSize:12,color:T.inkDim}}>Open one project to manage its tasks and drawing dashboard.</div></div>
-    <div style={{border:`1px solid ${T.line}`,background:"#fff",overflowX:"auto"}}>
-      <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-        <thead><tr style={{background:T.paper2}}>{["S. No","Project No.","Project","Client","Architect","Scope / Floors","Open Tasks","Completed Tasks","Action"].map(h=><th key={h} style={{padding:10,textAlign:"left",borderBottom:`1px solid ${T.line}`}}>{h}</th>)}</tr></thead>
-        <tbody>{projects.map((p,i)=>{const c=counts(p);return <tr key={p.id}>
-          <td style={{padding:10,borderBottom:`1px solid ${T.line}`}}>{i+1}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`,fontFamily:FONT_MONO}}>{p.no||p.projectNo||"—"}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`,fontWeight:700}}>{p.name}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`}}>{p.client||"—"}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`}}>{p.architect||"—"}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`,minWidth:190,maxWidth:520,whiteSpace:"normal",overflowWrap:"anywhere",lineHeight:1.45}}>{designDashboardScopeFloors(p).length?designDashboardScopeFloors(p).join(", "):"No scope selected"}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`,fontWeight:700}}>{c.open}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`,fontWeight:700}}>{c.completed}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`}}><div style={{display:"flex",gap:6}}><button type="button" onClick={()=>setOpenId(String(p.id))} style={{...smallBtn,background:T.navy,color:"#fff"}}>OPEN</button>{canEditProject(p.id)&&<button type="button" onClick={()=>openProjectEdit(p)} style={{...smallBtn,background:"#fff"}}>EDIT PROJECT</button>}</div></td>
-        </tr>})}</tbody>
-      </table>
-    </div>
-    {editing&&<div style={{position:"fixed",inset:0,zIndex:10001,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-      <div style={{width:"min(900px,96vw)",background:T.paper,border:`1px solid ${T.line}`}}><div style={{background:T.navy,color:"#fff",padding:14,fontFamily:FONT_DISPLAY,fontSize:18}}>Edit Project · {editing.no}</div><div style={{padding:16,display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>{[["Project No.","no"],["Project Name","name"],["Client","client"],["Architect","architect"],["Address","address"]].map(([lab,key])=><Field key={key} label={lab}><input value={projectDraft[key]||""} onChange={e=>setProjectDraft(d=>({...d,[key]:e.target.value}))} style={inputStyle}/></Field>)}</div><div style={{padding:16,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}><button type="button" onClick={()=>setEditId("")} style={{...smallBtn,background:"#fff"}}>Cancel</button><button type="button" onClick={saveProject} style={{...smallBtn,background:T.navy,color:"#fff"}}>Save Project</button></div></div>
-    </div>}
+    <div style={{marginBottom:24}}><h2 style={{fontFamily:FONT_DISPLAY,margin:'0 0 6px'}}>Design Dashboard</h2><p style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim,margin:0}}>{projects.length} ongoing projects · Scroll down to view each project’s drawing and work status.</p></div>
+    {projects.map((p,index)=><section key={p.id} aria-label={`Design dashboard ${p.name}`} style={{paddingBottom:30,marginBottom:30,borderBottom:`2px solid ${T.line}`}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:14,flexWrap:'wrap',marginBottom:16}}><div><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.cyan}}>PROJECT · {p.no||p.projectNo||''}</div><h2 style={{fontFamily:FONT_DISPLAY,margin:'4px 0',fontSize:23}}>{p.name}</h2></div>{canEditProject(p.id)&&<button type="button" onClick={()=>openEdit(p)} style={{...smallBtn,background:'#fff',padding:'9px 14px'}}>EDIT PROJECT</button>}</div>
+      <DrawingControlDashboard state={state} projectId={p.id} deferLoad={index>0}/>
+    </section>)}
+    {!projects.length&&<p style={{fontFamily:FONT_BODY,color:T.inkDim}}>No ongoing projects available.</p>}
+    {editing&&<div style={{position:'fixed',inset:0,zIndex:10001,background:'rgba(8,25,45,.55)',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}><div role="dialog" aria-modal="true" aria-label={`Edit project ${editing.name}`} style={{width:'min(900px,96vw)',background:T.paper,border:`1px solid ${T.line}`}}>
+      <div style={{background:T.navy,color:'#fff',padding:14,fontFamily:FONT_DISPLAY,fontSize:18}}>Edit Project · {editing.no}</div>
+      <div style={{padding:16,display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>{[['Project No.','no'],['Project Name','name'],['Client','client'],['Architect','architect'],['Address','address']].map(([label,key])=><Field key={key} label={label}><input aria-label={label} disabled={saving} value={projectDraft[key]||''} onChange={e=>setProjectDraft(d=>({...d,[key]:e.target.value}))} style={inputStyle}/></Field>)}<Field label="Project Type"><select disabled={saving} value={projectDraft.type||'Residence'} onChange={e=>setProjectDraft(d=>({...d,type:e.target.value}))} style={inputStyle}>{['Residence','Commercial','Hospitality','Retail','Other'].map(type=><option key={type}>{type}</option>)}</select></Field></div>
+      {error&&<p role="alert" style={{color:T.redline,padding:'0 16px'}}>{error}</p>}
+      <div style={{padding:16,borderTop:`1px solid ${T.line}`,display:'flex',justifyContent:'flex-end',gap:8}}><button type="button" disabled={saving} style={{...smallBtn,background:'#fff'}} onClick={()=>setEditId('')}>Cancel</button><Btn disabled={saving} onClick={saveProject}>{saving?'Saving…':'Save Project'}</Btn></div>
+    </div></div>}
   </div>;
 }
 function ProjectInfoScopeMerged({state,persist,project}){

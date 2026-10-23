@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.11.83-clean-team-settings",
+  "version": "2.11.84-scrolling-design-dashboards",
   "type": "module",
   "scripts": {
     "dev": "vite",
