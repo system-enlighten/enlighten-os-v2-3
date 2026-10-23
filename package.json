@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.11.87-toggle-right-hours-panel",
+  "version": "2.11.88-scroll-with-hours-panel",
   "type": "module",
   "scripts": {
     "dev": "vite",

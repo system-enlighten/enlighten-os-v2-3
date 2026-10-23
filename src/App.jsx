@@ -4864,6 +4864,14 @@ function DrawingControlDashboard({state,projectId,deferLoad=false}){
   const [payload,setPayload]=useState(null),[wih,setWih]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[revision,setRevision]=useState(0),[floor,setFloor]=useState('All');
   const sectionRef=useRef(null),[ready,setReady]=useState(!deferLoad),[showHours,setShowHours]=useState(false);
   useEffect(()=>setShowHours(false),[project?.id]);
+  const layoutRef=useRef(null),[fullTableWidth,setFullTableWidth]=useState(0);
+  useEffect(()=>{
+    const layout=layoutRef.current;if(!layout)return;
+    const measure=()=>{const width=layout.getBoundingClientRect?.().width||layout.clientWidth||0;if(width>0)setFullTableWidth(Math.max(0,Math.floor(width)-2));};
+    measure();
+    if(typeof ResizeObserver!=='undefined'){const observer=new ResizeObserver(measure);observer.observe(layout);return()=>observer.disconnect();}
+    window.addEventListener?.('resize',measure);return()=>window.removeEventListener?.('resize',measure);
+  },[project?.id]);
   useEffect(()=>{
     if(ready)return;
     if(typeof IntersectionObserver==='undefined'){setReady(true);return;}
@@ -4889,7 +4897,7 @@ function DrawingControlDashboard({state,projectId,deferLoad=false}){
   const totalHours=logs.reduce((sum,r)=>sum+r.duration,0),personHours=Object.entries(logs.reduce((sum,r)=>{sum[r.person]=(sum[r.person]||0)+r.duration;return sum;},{})).sort((a,b)=>b[1]-a[1]);
   const receivedCols=[['Layout','layoutReceived'],['FC','fcReceived'],['Detail','detailReceived'],['3D','3dReceived']];
   const cell={padding:'5px 5px',border:'1px solid #C7C7C7',fontFamily:FONT_MONO,fontSize:10,verticalAlign:'middle',height:25,whiteSpace:'normal',overflowWrap:'anywhere'};
-  const head={...cell,background:'#BDBDBD',fontWeight:700,textAlign:'center',whiteSpace:'normal',height:62};
+  const head={...cell,background:'#BDBDBD',fontWeight:700,textAlign:'center',whiteSpace:'normal',height:62,...(showHours?{overflowWrap:'normal',wordBreak:'normal',hyphens:'none'}:{})};
   const displayStatus=(status,date,title,key)=>{const tone=sheetDashboardTone(status);return <td key={key} title={title||status||'No linked task'} style={{...cell,background:tone.bg,color:tone.fg,textAlign:'left',lineHeight:1.4}}>{status}{status==='Completed'&&date&&<div style={{fontSize:8}}>{String(date).slice(0,10)}</div>}</td>;};
   const liveWork=(def,z,dbRow)=>{
     let records=tasks.filter(t=>def.match.test(String(t.parentTask||t.taskType||''))&&sheetDashboardCovers(t,z,parents));
@@ -4903,13 +4911,13 @@ function DrawingControlDashboard({state,projectId,deferLoad=false}){
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,marginBottom:16}}><h2 style={{fontFamily:FONT_DISPLAY,fontSize:30,fontWeight:700,margin:0}}>System Design</h2><div style={{display:'flex',gap:8,alignItems:'center'}}><label style={{fontSize:12}}>Floor <select aria-label="Dashboard floor" value={floor} onChange={e=>setFloor(e.target.value)} style={{...inputStyle,width:130}}><option>All</option>{[...new Set(unique.map(z=>z.floor))].map(f=><option key={f}>{f}</option>)}</select></label><Btn disabled={loading} variant="ghost" onClick={()=>setRevision(x=>x+1)}>Refresh Dashboard</Btn></div></div>
     {error&&<p role="alert" style={{color:T.redline}}>{error}</p>}
     {loading&&<p style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim}}>{ready?'Loading project drawings and WIH status…':'Drawing details load as you scroll to this project.'}</p>}
-    <div style={{display:'grid',gridTemplateColumns:showHours?'minmax(0,1fr) 330px':'minmax(0,1fr)',gap:showHours?16:0,alignItems:'start',width:'100%',minWidth:0}}>
+    <div ref={layoutRef} style={{display:'grid',gridTemplateColumns:showHours?'minmax(0,1fr) 330px':'minmax(0,1fr)',gap:showHours?16:0,alignItems:'start',width:'100%',minWidth:0}}>
       <div style={{minWidth:0,background:'#fff'}}>
         <table style={{width:'100%',borderCollapse:'collapse',marginBottom:8}}><tbody>{[[`Project ${project.no||project.projectNo||''}:`,project.name],['Start Date:',formatProjectDate(project.startDate)],['Time in hours:',loading?'Loading…':totalHours.toFixed(1)]].map(([label,value])=><tr key={label}><td style={{...cell,fontFamily:FONT_BODY,fontWeight:700,width:220}}>{label}</td><td style={{...cell,fontFamily:FONT_BODY}}>{label==='Time in hours:'?<div style={{display:'flex',gap:12,alignItems:'center',flexWrap:'wrap'}}><span>{value}</span><button type="button" aria-label={`Hours by person for ${project.name}`} aria-expanded={showHours} aria-controls={`project-hours-${project.id}`} style={{...smallBtn,fontFamily:FONT_BODY,fontSize:12}} onClick={()=>setShowHours(open=>!open)}>{showHours?'Hide hours by person':'Hours by person'}</button></div>:value}</td></tr>)}</tbody></table>
 
-        <div style={{width:'100%',minWidth:0,border:'1px solid #777',boxSizing:'border-box'}}>
-          <table aria-label="Project design matrix" style={{borderCollapse:'collapse',tableLayout:'fixed',width:'100%'}}>
-            <colgroup><col style={{width:'4%'}}/><col style={{width:'4%'}}/><col style={{width:'20%'}}/>{Array.from({length:4},(_,i)=><col key={'r'+i} style={{width:'4%'}}/>)}{SHEET_DASHBOARD_WORK.map(d=><col key={d.label} style={{width:`${56/SHEET_DASHBOARD_WORK.length}%`}}/>)}</colgroup>
+        <div role={showHours?'region':undefined} aria-label={showHours?`Scrollable design table for ${project.name}`:undefined} tabIndex={showHours?0:undefined} style={{width:'100%',minWidth:0,overflowX:showHours?'auto':'visible',border:'1px solid #777',boxSizing:'border-box'}}>
+          <table aria-label="Project design matrix" style={{borderCollapse:'collapse',tableLayout:'fixed',width:'100%',...(showHours?{minWidth:Math.max(fullTableWidth,1800)}:{})}}>
+            <colgroup><col style={{width:showHours?56:'4%'}}/><col style={{width:showHours?48:'4%'}}/><col style={{width:showHours?240:'20%'}}/>{Array.from({length:4},(_,i)=><col key={'r'+i} style={{width:showHours?56:'4%'}}/>)}{SHEET_DASHBOARD_WORK.map(d=><col key={d.label} style={{width:showHours?112:`${56/SHEET_DASHBOARD_WORK.length}%`}}/>)}</colgroup>
             <thead><tr><th colSpan={3} style={{...cell,background:'#BDBDBD'}}/><th colSpan={4} style={{...cell,background:'#FCE5CD',textAlign:'center'}}>Drawings Received</th><th colSpan={SHEET_DASHBOARD_WORK.length} style={{...cell,background:'#E6B8AF',textAlign:'center'}}>Work Status</th></tr><tr>{['FLR','CN','AREA'].map(h=><th key={h} style={{...head,textAlign:'left'}}>{h}</th>)}{receivedCols.map(([label])=><th key={label} style={head}>{label}</th>)}{SHEET_DASHBOARD_WORK.map(d=><th key={d.label} style={head}>{d.label}</th>)}</tr></thead>
             <tbody>{zones.map((z,i)=>{const area=z.area||z.room,cn=z.zoneCode||z.cn||'',dbRow=(payload?.rows||[]).find(r=>eq(r.floor,z.floor)&&eq(r.area,area));const bg=i%2?'#F2F2F2':'#fff';const boundary=i===0||zones[i-1].floor!==z.floor;const identity={...cell,background:bg,borderTop:boundary?'2px solid #111':'1px solid #C7C7C7'};
               const room=project.designExecutionBoard?.rooms?.find(r=>eq(r.flr||r.floor,z.floor)&&eq(r.area,area));
