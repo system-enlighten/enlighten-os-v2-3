@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.11.76-expanded-main-menu",
+  "version": "2.11.78-activation-popup",
   "type": "module",
   "scripts": {
     "dev": "vite",

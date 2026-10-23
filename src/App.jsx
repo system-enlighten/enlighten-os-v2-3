@@ -4192,6 +4192,7 @@ function ProjectTeamView({ state, persist, selectedId }) {
   const latestRef=useRef(state);latestRef.current=state;
   const selectedRef=useRef(project?.id);selectedRef.current=project?.id;
   const savePendingRef=useRef(false);
+  const workflowProjectRef=useRef(project?.id);workflowProjectRef.current=project?.id;
   const contactsRevisionRef=useRef(0);
   useEffect(() => {
     let active = true;
@@ -4320,6 +4321,31 @@ function workflowGroups(rows) {
   });
   return [...groups.values()];
 }
+function workflowActivationStatus(instances,task,sub,area,activation){
+  const sameStage=t=>{
+    if(t.parentDesignTaskId||String(t.workflowVersion)!=='2')return false;
+    let snapshot=[];try{snapshot=JSON.parse(t.workflowTemplateSnapshot||'[]');}catch(_){}
+    return t.lineWorkId===task.lineWorkId||snapshot.some(r=>r.lineWorkId===task.lineWorkId)||(!snapshot.length&&t.taskType===task.triggerTaskType&&drawingTypeKey(t.dependencyDrawingType)===drawingTypeKey(task.triggerDrawingType));
+  };
+  const covers=t=>{if(!area)return true;try{return JSON.parse(t.workflowCoverage||'[]').some(x=>String(x.floor)===String(area.floor)&&String(x.area)===String(area.area));}catch(_){return false;}};
+  const stages=instances.filter(w=>sameStage(w.task||{})&&covers(w.task));
+  const matching=instances.filter(w=>{
+    const t=w.task||{};
+    if(String(t.workflowVersion)==='2'&&!t.parentDesignTaskId)return !sub&&stages.includes(w);
+    const sameTask=t.parentTask===task.tasks||t.taskType===task.triggerTaskType||t.parentTask===task.triggerTaskType;
+    const inArea=!area||(String(t.floor)===String(area.floor)&&String(t.area)===String(area.area))||(!t.floor&&stages.some(p=>p.designTaskId===t.parentDesignTaskId));
+    return sameTask&&inArea&&(!t.milestone||t.milestone===task.milestone)&&(!sub||t.lineWorkId===sub.lineWorkId||t.taskType===sub.subtask||t.subtask===sub.subtask);
+  });
+  if(!matching.length){
+    if(stages.length)return sub?'Activated · awaiting parent start':'Activated';
+    return activation?.status||'Not activated';
+  }
+  if(matching.every(w=>w.status==='Completed'))return 'Completed';
+  if(matching.some(w=>['Started','In Progress','In progress'].includes(w.status)))return 'In progress';
+  if(matching.some(w=>w.status==='Ready'))return 'Ready';
+  if(!sub&&stages.length&&matching.every(w=>!w.task?.parentDesignTaskId))return 'Activated';
+  return matching[0].status||'Waiting';
+}
 function ProjectLineOfWorkView({state,persist,selectedId}) {
   const projects = (state.projects || []).filter(p => p.completed!==true && ![p.status,p.projectStatus,p.projectControl?.projectStatus].some(v=>String(v||"").toLowerCase()==="completed"));
   const [projectId,setProjectId] = useState(selectedId || projects[0]?.id || "");
@@ -4327,6 +4353,7 @@ function ProjectLineOfWorkView({state,persist,selectedId}) {
   const [rows,setRows] = useState([]);
   const [legacy,setLegacy] = useState([]);
   const [instances,setInstances] = useState([]);
+  const [activationStates,setActivationStates]=useState({});
   const [editing,setEditing] = useState(false);
   const [busy,setBusy] = useState(false);
   const [loading,setLoading] = useState(false);
@@ -4404,14 +4431,8 @@ function ProjectLineOfWorkView({state,persist,selectedId}) {
   };
   const fieldStyle={...inputStyle,padding:"7px 8px",fontSize:12};
   const chosenInstances = instances.filter(w=>selectedArea?String(w.task?.floor)===String(selectedArea.floor)&&String(w.task?.area)===String(selectedArea.area):true);
-  const workflowStatus=(task,sub)=>{
-    const matching=chosenInstances.filter(w=>{const t=w.task||{};const sameTask=t.parentTask===task.tasks||t.taskType===task.triggerTaskType||t.parentTask===task.triggerTaskType;return sameTask&&(!t.milestone||t.milestone===task.milestone)&&(!sub||t.taskType===sub.subtask||t.subtask===sub.subtask);});
-    if(!matching.length)return 'Not activated';
-    if(matching.every(w=>w.status==='Completed'))return 'Completed';
-    if(matching.some(w=>['Started','In Progress','In progress'].includes(w.status)))return 'In progress';
-    if(matching.some(w=>w.status==='Ready'))return 'Ready';
-    return matching[0].status||'Waiting';
-  };
+  const activationKey=r=>JSON.stringify([project.id,r.lineWorkId]);
+  const workflowStatus=(task,sub)=>workflowActivationStatus(instances,task,sub,selectedArea,activationStates[activationKey(task)]);
   const cancelEdit=()=>{setRows(savedRows);setEditing(false);setPanel(null);setMessage('');setError('');};
   const addTask=()=>{const id=uid();setEditing(true);setMoreOpen(false);setRows(rs=>[...rs,{id,workflowVersion:'2',milestone:'New milestone',tasks:'New task',subtask:'New subtask',triggerDrawingType:'LAYOUT',triggerTaskType:'New task',scope:'Stage',taskCategory:'Design',meetingMode:'',startingMilestone:'Confirm prerequisite',completionUploadRequired:true}]);setExpandedGroup(id);setPanel({kind:'task',id});};
   const addSubtask=g=>{const id=uid(),last=g.rows[g.rows.length-1];setRows(rs=>{const index=rs.findIndex(x=>rowId(x)===rowId(last));return [...rs.slice(0,index+1),{...last,id,lineWorkId:'',subtask:'New subtask'},...rs.slice(index+1)];});setPanel({kind:'subtask',id});};
@@ -4446,7 +4467,12 @@ function ProjectLineOfWorkView({state,persist,selectedId}) {
         <div style={{display:'flex',alignItems:'center',gap:10,padding:'12px 14px',background:T.paperDim}}><button type="button" aria-label={`Expand ${r.milestone} ${r.tasks}`} aria-expanded={open} onClick={()=>setExpandedGroup(open?null:key)} style={{flex:1,border:0,background:'transparent',padding:0,cursor:'pointer',textAlign:'left',color:T.ink,fontFamily:FONT_BODY,display:'grid',gridTemplateColumns:'minmax(180px,1fr) minmax(100px,160px) 110px',gap:12,alignItems:'center'}}><span><strong style={{fontFamily:FONT_DISPLAY,fontSize:14}}>{open?'▾':'▸'} {r.milestone}</strong>{r.tasks!==r.milestone&&<span style={{display:'block',fontSize:12,margin:'4px 0 0 15px'}}>{r.tasks}</span>}<span style={{display:'block',fontSize:11,color:T.inkDim,margin:'4px 0 0 15px'}}>{g.rows.length} subtasks · {r.scope||'Area'}</span></span><span style={{fontSize:12}}>{r.responsible|| (assigned.length===1?assigned[0]:assigned.length>1?'Multiple people':'Unassigned')}</span><span style={{fontSize:11,color:T.inkDim}}>{workflowStatus(r)}</span></button><button type="button" disabled={busy||loading} aria-label={`Edit task ${r.tasks}`} onClick={()=>{setEditing(true);setExpandedGroup(key);setPanel({kind:'task',id:key});}} style={smallBtn}>Edit</button></div>
         {open&&<div style={{padding:14}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap',marginBottom:12,fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}><span>{r.startingMilestone?`Starts after: ${r.startingMilestone}`:r.triggerDrawingType==='MANUAL'?'Manually queued':`Drawing: ${r.triggerDrawingType||'—'}`}</span><button style={smallBtn} onClick={()=>setPanel({kind:'task',id:key})}>Task details</button></div>
-          {!editing&&String(r.workflowVersion)==='2'&&<StageActivationPanel state={state} project={project} row={r} disabled={busy||!r.lineWorkId} onActivated={async()=>setInstances(await projectApi.getWIH(true,project.id))}/>}
+          {!editing&&String(r.workflowVersion)==='2'&&<StageActivationPanel state={state} project={project} row={r} disabled={busy||!r.lineWorkId} onActivationState={status=>setActivationStates(x=>({...x,[activationKey(r)]:{status}}))} onActivated={async task=>{
+            if(workflowProjectRef.current!==project.id)return;
+            const token=revision.current;
+            if(task?.designTaskId)setInstances(list=>[...list.filter(w=>w.designTaskId!==task.designTaskId),{designTaskId:task.designTaskId,status:task.status,task}]);
+            try{const list=await projectApi.getWIH(true,project.id);if(token===revision.current)setInstances(list);}catch(e){throw Error('Activation saved, but status refresh failed. Refresh the workflow to check it.');}
+          }}/>}
           {!editing&&String(r.workflowVersion)!=='2'&&<Btn disabled={busy||loading||!r.lineWorkId} variant="ghost" onClick={()=>queue(g)} style={{marginBottom:12}}>{r.scope==='Project'?'Queue project task':'Queue for selected area'}</Btn>}
           <div style={{overflowX:'auto'}}><table style={{width:'100%',borderCollapse:'collapse',minWidth:560}}><thead><tr>{['Subtask','Responsible','Status',''].map((h,i)=><th key={i} style={{...thStyle,textAlign:'left',background:T.paperDim,color:T.ink,fontSize:10}}>{h}</th>)}</tr></thead><tbody>{g.rows.map((sub,i)=><tr key={rowId(sub)} style={{background:'#fff'}}><td style={{...tdStyle,textAlign:'left',padding:'12px 10px'}}><span style={{color:T.inkDim,marginRight:8}}>{i+1}.</span>{sub.subtask}{sub.taskCategory==='Meeting'&&<span style={{display:'inline-block',fontSize:10,padding:'2px 6px',marginLeft:8,background:sub.meetingMode==='Phone / Zoom allowed'?'#B4A5D7':'#D7A5BF'}}>{sub.meetingMode==='Phone / Zoom allowed'?'Call / Zoom':'Meeting'}</span>}</td><td style={{...tdStyle,textAlign:'left'}}>{sub.responsible||r.responsible||'Unassigned'}</td><td style={{...tdStyle,textAlign:'left',fontSize:11,color:T.inkDim}}>{workflowStatus(r,sub)}</td><td style={{...tdStyle,textAlign:'right'}}><button type="button" disabled={busy} aria-label={`Details ${sub.subtask}`} style={smallBtn} onClick={()=>setPanel({kind:'subtask',id:rowId(sub)})}>{editing?'Edit':'Details'}</button></td></tr>)}</tbody></table></div>
           {editing&&<button disabled={busy} style={{...smallBtn,marginTop:12}} onClick={()=>addSubtask(g)}>+ Add subtask</button>}
@@ -6230,7 +6256,7 @@ function ProjectPunchInsView({state}){
 }
 
 
-function StageActivationPanel({state,project,row,disabled,onActivated}){
+function StageActivationPanel({state,project,row,disabled,onActivated,onActivationState}){
   const [reference,setReference]=useState('');
   const [selection,setSelection]=useState({scope:'',excluded:[]});
   const [confirmed,setConfirmed]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
@@ -6240,7 +6266,22 @@ function StageActivationPanel({state,project,row,disabled,onActivated}){
   const excluded=selection.scope===scope?selection.excluded:[];
   const chosen=zones.filter(z=>!excluded.includes(key(z)));
   const toggle=(z,checked)=>setSelection({scope,excluded:checked?excluded.filter(k=>k!==key(z)):[...excluded,key(z)]});
-  const activate=async()=>{setBusy(true);try{await projectApi.queueWorkflowTask({projectId:project.id,lineWorkId:row.lineWorkId,coverage:chosen.map(z=>({floor:z.floor,area:z.area})),milestoneConfirmed:confirmed,activationReference:reference});await onActivated();setMessage('Stage queued in WIH. Start its parent task to open shared meetings and floor-wise design subtasks.');}catch(e){setMessage(e.message);}finally{setBusy(false);}};
+  const [activationError,setActivationError]=useState(false);
+  const activate=async()=>{
+    setBusy(true);setMessage('');setActivationError(false);onActivationState?.('Activating…');
+    let task;
+    try{task=await projectApi.queueWorkflowTask({projectId:project.id,lineWorkId:row.lineWorkId,coverage:chosen.map(z=>({floor:z.floor,area:z.area})),milestoneConfirmed:confirmed,activationReference:reference});}
+    catch(e){
+      const drawingsMissing=/classify|required drawing/i.test(e.message);
+      setActivationError(true);setMessage(`Activation was not saved. ${e.message}`);
+      onActivationState?.(drawingsMissing?'Blocked · drawings required':'Activation failed');setBusy(false);
+      if(drawingsMissing)alert('Please upload and classify the drawing for the selected areas before activating.');
+      return;
+    }
+    onActivationState?.('Activated · awaiting parent start');
+    setMessage('Stage activated. Start its parent task in WIH to open the ordered subtasks.');
+    try{await onActivated(task);}catch(e){setMessage(e.message||'Activation saved. Refresh to see the latest status.');}finally{setBusy(false);}
+  };
   const guidance={fontFamily:FONT_BODY,fontSize:13,fontWeight:400,lineHeight:1.5,color:T.inkDim,margin:'10px 0'};
   return <div style={{padding:12,border:`1px solid ${T.line}`,marginBottom:12,fontFamily:FONT_BODY,fontSize:13,fontWeight:400,lineHeight:1.5,color:T.ink}}>
     <Field label="Drawing package / revision reference (optional)"><input disabled={disabled||busy} style={inputStyle} value={reference} onChange={e=>setReference(e.target.value)}/></Field>
@@ -6250,7 +6291,7 @@ function StageActivationPanel({state,project,row,disabled,onActivated}){
     {!zones.length&&<p style={guidance}>Add floors and zones before activating a stage.</p>}
     <label style={{...guidance,display:'flex',alignItems:'center',gap:6,margin:'12px 0'}}><input type="checkbox" disabled={disabled||busy} checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/> Starting milestone and required approvals are satisfied</label>
     <Btn disabled={disabled||busy||!confirmed||!chosen.length} onClick={activate}>{busy?'Activating…':'Activate selected floors / areas'}</Btn>
-    {message&&<p role="status" style={guidance}>{message}</p>}
+    {message&&<p role={activationError?"alert":"status"} style={{...guidance,color:activationError?T.red:T.inkDim,fontWeight:activationError?500:400}}>{message}</p>}
   </div>;
 }
 function ProjectGantt({state,projectId}){
