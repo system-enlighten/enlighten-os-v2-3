@@ -2427,7 +2427,7 @@ function ProjectDirectory({state,persist}){
   const [busy,setBusy]=useState(false);
   const pendingRef=useRef(false),latestRef=useRef(state);latestRef.current=state;
   const directory=buildDirectory(state.projects,state.ratings||{});
-  const roles=[...new Set(directory.flatMap(d=>d.roles))].sort();
+  const roles=[...new Set([...ROLES,"Interior Designer",...directory.flatMap(d=>d.roles)])];
   const visible=directory.filter(d=>(role==="All"||d.roles.includes(role))&&[d.name,d.company,d.mobile,d.email,...d.roles.map(contactRoleLabel)].join(" ").toLowerCase().includes(query.toLowerCase()));
   const start=d=>{setMessage("");setEditor({keys:[d.key],name:d.name,company:d.company,email:d.email,mobile:d.mobile,rating:d.rating,assignments:directoryRoleAssignments(state.projects,[d.key])});setMergeQuery("");setProjectQuery("");};
   const save=async(keys,values,projectIds,addRole,assignments)=>{
@@ -2469,12 +2469,13 @@ function ProjectDirectory({state,persist}){
   return <section aria-label="Project contact directory" style={{fontFamily:FONT_BODY,color:T.ink}}>
     <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:12}}>
       <input aria-label="Search directory" placeholder="Search name, studio, email or phone" value={query} onChange={e=>setQuery(e.target.value)} style={{...inputStyle,maxWidth:380}}/>
-      <select aria-label="Directory role" value={role} onChange={e=>setRole(e.target.value)} style={{...inputStyle,maxWidth:260}}>{["All",...roles].map(r=><option key={r} value={r}>{contactRoleLabel(r)}</option>)}</select>
+
     </div>
+    <div role="group" aria-label="Directory role filters" style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:16}}>{['All',...roles].map(r=><button key={r} type="button" aria-pressed={role===r} onClick={()=>setRole(r)} style={{...smallBtn,padding:'8px 12px',fontFamily:FONT_BODY,fontSize:12,fontWeight:role===r?600:400,background:role===r?T.navy:'#fff',color:role===r?'#fff':T.blue,borderColor:role===r?T.navy:T.line}}>{contactRoleLabel(r)}</button>)}</div>
     {message&&<p role="status" style={{fontSize:12}}>{message}</p>}
     <div style={{overflowX:"auto"}}><table style={{borderCollapse:"collapse",width:"100%",minWidth:1140,tableLayout:"fixed",border:`1px solid ${T.line}`,fontFamily:FONT_BODY}}><colgroup>{[14,15,15,32,13,11].map((w,i)=><col key={i} style={{width:`${w}%`}}/>)}</colgroup><thead><tr>{["Name","Company / Studio","Role","Projects","Rating","Actions"].map(h=><th key={h} style={{...thStyle,background:"#D2CDC1",color:"#1C1C19",fontFamily:FONT_MONO,textAlign:"left",fontSize:10,padding:"12px",borderRight:`1px solid ${T.line}`,borderBottom:`2px solid ${T.ink}`}}>{h}</th>)}</tr></thead><tbody>{visible.map(d=><tr key={d.key}>
       <td style={cell}><strong>{d.name||"—"}</strong><div style={{fontSize:12,color:T.inkDim}}>{d.mobile}</div></td><td style={cell}>{d.company||"—"}</td><td style={cell}>{d.roles.map(r=><div key={r}>{contactRoleLabel(r)}</div>)}</td>
-      <td style={{...cell,padding:0}}><div style={{maxHeight:220,overflowY:"auto"}}>{d.projects.map((p,i)=><div key={p.id} style={{padding:"9px 12px",borderTop:i?`1px solid ${T.line}`:"none",textAlign:"left"}}>{p.no&&<span style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginRight:8}}>{p.no}</span>}{p.name||p.id}<div style={{fontSize:11,color:T.inkDim,marginTop:3}}>{Object.entries(state.projects.find(x=>x.id===p.id)?.contacts||{}).filter(([,c])=>c&&contactKey(c.name||c.company,c.mobile)===d.key).map(([r])=>contactRoleLabel(r)).join(" · ")}</div></div>)}</div></td>
+      <td style={{...cell,padding:0}}><div style={{maxHeight:220,overflowY:"auto"}}>{d.projects.filter(p=>role==="All"||Object.entries(state.projects.find(x=>x.id===p.id)?.contacts||{}).some(([r,c])=>r===role&&c&&contactKey(c.name||c.company,c.mobile)===d.key)).map((p,i)=><div key={p.id} style={{padding:"9px 12px",borderTop:i?`1px solid ${T.line}`:"none",textAlign:"left"}}>{p.no&&<span style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginRight:8}}>{p.no}</span>}{p.name||p.id}<div style={{fontSize:11,color:T.inkDim,marginTop:3}}>{Object.entries(state.projects.find(x=>x.id===p.id)?.contacts||{}).filter(([,c])=>c&&contactKey(c.name||c.company,c.mobile)===d.key).map(([r])=>contactRoleLabel(r)).join(" · ")}</div></div>)}</div></td>
       <td style={cell}><DirectoryStars name={d.name||d.company} value={d.rating} disabled={busy} onChange={rating=>save([d.key],{rating})}/></td>
       <td style={cell}><div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:12}}><button type="button" disabled={busy} onClick={()=>start(d)} style={{...smallBtn,fontFamily:FONT_BODY}}>Edit / merge</button></div></td>
     </tr>)}</tbody></table>{!visible.length&&<p>No matching contacts.</p>}</div>
@@ -4431,6 +4432,37 @@ function workflowActivationStatus(instances,task,sub,area,activation){
   if(!sub&&stages.length&&matching.every(w=>!w.task?.parentDesignTaskId))return 'Activated';
   return matching[0].status||'Waiting';
 }
+function workflowPrerequisite(row,drawings,zones,area,instances){
+  const type=drawingTypeKey(row.triggerDrawingType||'MANUAL');
+  if(type==='MANUAL'){
+    const confirmed=instances.some(w=>{const t=w.task||{};return !t.parentDesignTaskId&&String(t.workflowVersion)==='2'&&((row.lineWorkId&&t.lineWorkId===row.lineWorkId)||(t.taskType===row.triggerTaskType&&drawingTypeKey(t.dependencyDrawingType)==='MANUAL'));});
+    return {text:confirmed?'Milestone confirmed':'Milestone not confirmed',title:row.startingMilestone||'Starting milestone / approvals',ready:confirmed};
+  }
+  if(drawings===null)return {text:'Checking drawings…',title:'Loading received drawing records'};
+  if(drawings===undefined)return {text:'Unable to check drawings',title:'Could not load received drawings. Reload Line of Work to retry.'};
+  const matching=drawings.filter(d=>drawingTypeKey(d.drawingType)===type);
+  const parse=value=>{if(Array.isArray(value))return value;try{const v=JSON.parse(value||'[]');return Array.isArray(v)?v:[];}catch{return [];}};
+  const covers=(d,z)=>{
+    const coverage=parse(d.coverage);if(coverage.length)return coverage.some(c=>String(c.floor).trim().toLowerCase()===String(z.floor).trim().toLowerCase()&&(!c.area||String(c.area).trim().toLowerCase()===String(z.area).trim().toLowerCase()));
+    const floors=parse(d.floors);if(!floors.length)floors.push(...String(d.floor||'').split(',').map(f=>f.trim()).filter(Boolean));
+    return floors.some(f=>String(f).trim().toLowerCase()===String(z.floor).trim().toLowerCase())&&(!d.area||String(d.area).trim().toLowerCase()===String(z.area).trim().toLowerCase());
+  };
+  const targets=area?[area]:zones.filter(z=>z.floor&&z.area);
+  const count=targets.filter(z=>matching.some(d=>covers(d,z))).length;
+  const received=targets.length?count>0:matching.length>0;
+  const partial=received&&targets.length>0&&count<targets.length;
+  return {text:partial?'Drawing partially received':received?'Drawing received':'Drawing not received',title:`${type}${targets.length?` · ${count} of ${targets.length} areas covered`:''} · Receipt does not confirm classification or milestone approval.`,ready:received&&!partial};
+}
+
+function workflowWorkStatus(value){
+  const s=String(value||'').trim().toLowerCase();
+  if(/completed|^done$/.test(s))return {label:'Completed',bg:'#E8F2E9',fg:'#245C2B'};
+  if(/review|approval/.test(s))return {label:'Approval required',bg:'#E6EEF4',fg:'#1D4E89'};
+  if(/in.progress|^started$|paused/.test(s))return {label:'In progress',bg:'#FFF4D6',fg:'#7A5A00'};
+  if(/^ready$|^aligned$|^assigned$|^open$/.test(s))return {label:'Aligned',bg:'#F3F1EA',fg:'#625B48'};
+  return {label:'Not started',bg:'#F4E5E0',fg:'#853D32'};
+}
+
 function ProjectLineOfWorkView({state,persist,selectedId}) {
   const projects = (state.projects || []).filter(p => p.completed!==true && ![p.status,p.projectStatus,p.projectControl?.projectStatus].some(v=>String(v||"").toLowerCase()==="completed"));
   const [projectId,setProjectId] = useState(selectedId || projects[0]?.id || "");
@@ -4438,6 +4470,7 @@ function ProjectLineOfWorkView({state,persist,selectedId}) {
   const [rows,setRows] = useState(()=>DESIGN_TASK_FLOW_TEMPLATE.map(r=>({...r})));
   const [legacy,setLegacy] = useState([]);
   const [instances,setInstances] = useState([]);
+  const [drawingReceipts,setDrawingReceipts]=useState(null);
   const [activationStates,setActivationStates]=useState({});
   const [editing,setEditing] = useState(false);
   const [busy,setBusy] = useState(false);
@@ -4470,6 +4503,7 @@ function ProjectLineOfWorkView({state,persist,selectedId}) {
     }).catch(e => {if(active)setError(`Could not load workflow: ${e.message || e}`);}).finally(()=>{if(active)setLoading(false);});
     return () => {active=false;};
   },[project?.id]);
+  useEffect(()=>{let active=true;setDrawingReceipts(null);if(!project)return;projectApi.listDrawingRegister(project.id).then(data=>{if(active)setDrawingReceipts(Array.isArray(data?.drawings)?data.drawings.filter(d=>String(d.projectId)===String(project.id)):[]);}).catch(()=>{if(active)setDrawingReceipts(undefined);});return()=>{active=false;};},[project?.id]);
   const refresh = async () => {
     const token=revision.current;setBusy(true);setError("");
     try {const wih=await projectApi.getWIH(true,project.id);if(token===revision.current)setInstances(Array.isArray(wih)?wih:[]);}
@@ -4539,9 +4573,9 @@ function ProjectLineOfWorkView({state,persist,selectedId}) {
       <Btn variant={tab==="template"?"dark":"ghost"} onClick={()=>setTab("template")}>Workflow</Btn><Btn variant={tab==="progress"?"dark":"ghost"} onClick={()=>{setTab("progress");refresh();}}>Progress</Btn><Btn variant={tab==="gantt"?"dark":"ghost"} onClick={()=>setTab("gantt")}>Gantt</Btn>
       {tab!=="template"&&<select aria-label="Workflow area" style={{...fieldStyle,minWidth:240,marginLeft:"auto"}} value={areaKey} onChange={e=>setAreaKey(e.target.value)}><option value="">All areas / select an area</option>{areas.map(([key,a])=><option key={key} value={key}>{a.floor} · {a.area}</option>)}</select>}
     </div>
-    {loading&&<div style={{color:T.inkDim,marginBottom:12}}>Loading project workflow…</div>}
-    {error&&<div role="alert" style={{padding:12,background:T.redlineBg,color:T.redline,marginBottom:12}}>{error}</div>}
-    {message&&<div role="status" style={{padding:12,background:T.paperDim,fontSize:12,marginBottom:12}}>{message}</div>}
+    {loading&&<div style={{color:T.inkDim,fontFamily:FONT_BODY,fontSize:13,lineHeight:1.5,marginBottom:12}}>Loading project workflow…</div>}
+    {error&&<div role="alert" style={{padding:12,background:T.redlineBg,color:T.redline,marginBottom:12,fontFamily:FONT_BODY,fontSize:13,fontWeight:400,lineHeight:1.5}}>{error}</div>}
+    {message&&<div role="status" style={{padding:12,background:T.paperDim,fontFamily:FONT_BODY,fontSize:13,fontWeight:400,lineHeight:1.5,marginBottom:12}}>{message}</div>}
     {tab==="gantt"?<ProjectGantt state={state} projectId={project.id}/>:tab==="template"?<>
       <div style={{display:'flex',gap:8,marginBottom:16,alignItems:'center',flexWrap:'wrap'}}>
         {editing?<><Btn disabled={busy} onClick={save}>{busy?'Saving…':'Save Changes'}</Btn><Btn disabled={busy} variant="ghost" onClick={cancelEdit}>Cancel</Btn></>:!!rows.length&&<Btn disabled={busy||loading} onClick={()=>setEditing(true)}>Edit workflow</Btn>}
@@ -4555,8 +4589,8 @@ function ProjectLineOfWorkView({state,persist,selectedId}) {
           <button type="button" disabled={busy||loading} aria-label={`Task details ${r.tasks}`} style={smallBtn} onClick={()=>setPanel({kind:'task',id:key})}>Task details</button>
         </div>
         {<div id={`workflow-subtasks-${key}`} style={{padding:'0 14px 12px'}}>
-          <div style={{overflowX:'auto'}}><table aria-label={`Subtasks for ${r.tasks}`} style={{width:'100%',minWidth:560,borderCollapse:'collapse',fontFamily:FONT_BODY}}><thead><tr>{['Subtask','Responsible','Status'].map(h=><th key={h} style={{...thStyle,background:'#fff',color:T.inkDim,textAlign:'left',fontFamily:FONT_MONO,fontSize:9,borderBottom:`1px solid ${T.line}`}}>{h}</th>)}</tr></thead>
-            <tbody>{g.rows.map((sub,i)=><tr key={rowId(sub)}><td style={{...tdStyle,textAlign:'left',padding:'9px 6px'}}><button type="button" disabled={busy} aria-label={`Details ${sub.subtask}`} title="Open subtask details" onClick={()=>setPanel({kind:'subtask',id:rowId(sub)})} style={{border:0,background:'transparent',padding:0,fontFamily:FONT_BODY,fontSize:12,color:T.ink,textAlign:'left',cursor:'pointer',lineHeight:1.5}}><span style={{color:T.inkDim,marginRight:8,fontSize:11}}>{i+1}.</span>{sub.subtask}{sub.taskCategory==='Meeting'&&<span style={{display:'inline-block',fontSize:10,padding:'1px 5px',marginLeft:8,color:T.inkDim,background:sub.meetingMode==='Phone / Zoom allowed'?'#E8E3EF':'#F3E6ED'}}>{sub.meetingMode==='Phone / Zoom allowed'?'Call / Zoom':'Meeting'}</span>}</button></td><td style={{...tdStyle,textAlign:'left',fontSize:12}}>{sub.responsible||r.responsible||'Unassigned'}</td><td style={{...tdStyle,textAlign:'left',fontSize:11,color:T.inkDim}}>{workflowStatus(r,sub)}</td></tr>)}</tbody>
+          <div style={{overflowX:'auto'}}><table aria-label={`Subtasks for ${r.tasks}`} style={{width:'100%',minWidth:800,tableLayout:'fixed',borderCollapse:'collapse',fontFamily:FONT_BODY}}><colgroup><col style={{width:'46%'}}/><col style={{width:'18%'}}/><col style={{width:'20%'}}/><col style={{width:'16%'}}/></colgroup><thead><tr>{['Subtask','Responsible person','Prerequisite','Status'].map((h,i)=><th key={h} style={{...thStyle,background:'#fff',color:T.inkDim,textAlign:i===0?'left':'center',fontFamily:FONT_MONO,fontSize:9,borderBottom:`1px solid ${T.line}`}}>{h}</th>)}</tr></thead>
+            <tbody>{g.rows.map((sub,i)=><tr key={rowId(sub)}><td style={{...tdStyle,textAlign:'left',padding:'9px 6px'}}><button type="button" disabled={busy} aria-label={`Details ${sub.subtask}`} title="Open subtask details" onClick={()=>setPanel({kind:'subtask',id:rowId(sub)})} style={{border:0,background:'transparent',padding:0,fontFamily:FONT_BODY,fontSize:12,color:T.ink,textAlign:'left',cursor:'pointer',lineHeight:1.5}}><span style={{color:T.inkDim,marginRight:8,fontSize:11}}>{i+1}.</span>{sub.subtask}{sub.taskCategory==='Meeting'&&<span style={{display:'inline-block',fontSize:10,padding:'1px 5px',marginLeft:8,color:T.inkDim,background:sub.meetingMode==='Phone / Zoom allowed'?'#E8E3EF':'#F3E6ED'}}>{sub.meetingMode==='Phone / Zoom allowed'?'Call / Zoom':'Meeting'}</span>}</button></td><td style={{...tdStyle,textAlign:'center',verticalAlign:'middle',fontSize:12}}>{sub.responsible||r.responsible||'Unassigned'}</td><td title={workflowPrerequisite(r,drawingReceipts,zones,selectedArea,instances).title} style={{...tdStyle,textAlign:'center',verticalAlign:'middle',fontSize:11,color:T.inkDim}}>{workflowPrerequisite(r,drawingReceipts,zones,selectedArea,instances).text}</td><td style={{...tdStyle,textAlign:'center',verticalAlign:'middle',fontSize:11}}>{(()=>{const raw=workflowStatus(r,sub),status=workflowWorkStatus(raw);return <span title={raw} style={{display:'inline-block',padding:'4px 8px',fontFamily:FONT_BODY,fontWeight:500,background:status.bg,color:status.fg}}>{status.label}</span>;})()}</td></tr>)}</tbody>
           </table></div>
           {editing&&<button disabled={busy} style={{...smallBtn,marginTop:12}} onClick={()=>addSubtask(g)}>+ Add subtask</button>}
         </div>}
