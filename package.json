@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.15.0-dictated-ai-mom",
+  "version": "2.16.0-mom-dashboard-tasks",
   "type": "module",
   "scripts": {
     "dev": "vite",
