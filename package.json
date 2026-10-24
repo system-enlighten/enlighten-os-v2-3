@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.17.1-compact-dashboard",
+  "version": "2.18.0-meetings-in-wih",
   "type": "module",
   "scripts": {
     "dev": "vite",
