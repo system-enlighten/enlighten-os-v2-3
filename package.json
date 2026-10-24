@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.14.0-visit-scheduling-mom",
+  "version": "2.15.0-dictated-ai-mom",
   "type": "module",
   "scripts": {
     "dev": "vite",
