@@ -5010,9 +5010,9 @@ function ProjectMomTasks({state,projectId,enabled=true,revision=0}){
   </section>;
 }
 
-function DrawingControlDashboard({state,projectId,deferLoad=false}){
+function DrawingControlDashboard({state,projectId,deferLoad=false,heading,onEdit}){
   const project=(state.projects||[]).find(p=>String(p.id)===String(projectId));
-  const [payload,setPayload]=useState(null),[wih,setWih]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[revision,setRevision]=useState(0),[floor,setFloor]=useState('All');
+  const [payload,setPayload]=useState(null),[wih,setWih]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[revision,setRevision]=useState(0);
   const sectionRef=useRef(null),[ready,setReady]=useState(!deferLoad),[showHours,setShowHours]=useState(false);
   useEffect(()=>setShowHours(false),[project?.id]);
   const layoutRef=useRef(null),[fullTableWidth,setFullTableWidth]=useState(0);
@@ -5030,7 +5030,7 @@ function DrawingControlDashboard({state,projectId,deferLoad=false}){
     if(sectionRef.current)observer.observe(sectionRef.current);
     return()=>observer.disconnect();
   },[ready]);
-  useEffect(()=>{let live=true;setPayload(null);setWih([]);setLoading(true);setError('');setFloor('All');
+  useEffect(()=>{let live=true;setPayload(null);setWih([]);setLoading(true);setError('');
     if(!project?.id){setLoading(false);return()=>{live=false;};}
     if(!ready)return()=>{live=false;};
     queueDesignDashboardLoad(()=>live?Promise.all([projectApi.getDesignDashboard(project.id),projectApi.getWIH(true,project.id)]):[null,[]]).then(([dashboard,work])=>{if(live){setPayload(dashboard);setWih(Array.isArray(work)?work:[]);}}).catch(e=>{if(live)setError(e.message||'Could not load dashboard data.');}).finally(()=>{if(live)setLoading(false);});
@@ -5040,7 +5040,7 @@ function DrawingControlDashboard({state,projectId,deferLoad=false}){
   const eq=(a,b)=>String(a||'').trim().toLowerCase()===String(b||'').trim().toLowerCase();
   const allZones=(Array.isArray(payload?.floorZones)?payload.floorZones:project.floorZones||Object.entries(project.zones||{}).map(([zoneCode,z])=>({zoneCode,floor:z.floor,area:z.room}))).filter(z=>z.floor&&(z.area||z.room));
   const unique=[...new Map(allZones.map(z=>[JSON.stringify([z.floor,z.area||z.room]),z])).values()];
-  const zones=unique.filter(z=>floor==='All'||z.floor===floor);
+  const zones=unique;
   const tasksMap=new Map((payload?.tasks||[]).map(t=>[String(t.designTaskId),{...t}]));
   wih.forEach(w=>{const id=String(w.designTaskId);tasksMap.set(id,{...(tasksMap.get(id)||{}),...(w.task||{}),actualStatus:w.status});});
   const tasks=[...tasksMap.values()],parents=new Map(tasks.map(t=>[String(t.designTaskId),t]));
@@ -5061,7 +5061,7 @@ function DrawingControlDashboard({state,projectId,deferLoad=false}){
     return {status:'',date:'',title:''};
   };
   return <div ref={sectionRef}>
-    <div style={{display:'flex',justifyContent:'flex-end',alignItems:'center',gap:12,marginBottom:6}}><div style={{display:'flex',gap:8,alignItems:'center'}}><label style={{fontSize:12}}>Floor <select aria-label="Dashboard floor" value={floor} onChange={e=>setFloor(e.target.value)} style={{...inputStyle,width:130}}><option>All</option>{[...new Set(unique.map(z=>z.floor))].map(f=><option key={f}>{f}</option>)}</select></label><Btn disabled={loading} variant="ghost" onClick={()=>setRevision(x=>x+1)}>Refresh Dashboard</Btn></div></div>
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap',marginBottom:6}}>{heading?<h2 style={{fontFamily:FONT_DISPLAY,margin:0,fontSize:22,color:T.ink}}>{heading}</h2>:<span/>}<div style={{display:'flex',gap:8,alignItems:'center'}}><button type="button" disabled={loading} style={{...smallBtn,padding:'5px 8px',fontSize:10}} onClick={()=>setRevision(x=>x+1)}>Refresh Dashboard</button>{onEdit&&<button type="button" onClick={onEdit} style={{...smallBtn,background:'#fff',padding:'5px 8px',fontSize:10}}>EDIT PROJECT</button>}</div></div>
     {error&&<p role="alert" style={{color:T.redline}}>{error}</p>}
     {loading&&<p role="status" style={{fontFamily:FONT_BODY,fontSize:11,fontWeight:400,lineHeight:1.4,color:'#77776F',margin:'3px 0 8px'}}>{ready?'Loading project drawings and WIH status…':'Details load as this project comes into view…'}</p>}
     <div ref={layoutRef} style={{display:'grid',gridTemplateColumns:showHours?'minmax(0,1fr) 330px':'minmax(0,1fr)',gap:showHours?16:0,alignItems:'start',width:'100%',minWidth:0}}>
@@ -5122,11 +5122,10 @@ function DesignFlowView({state,persist}){
     }catch(e){setError(e.message||'Could not save this project.');}finally{setSaving(false);}
   };
   return <div>
-    <header style={{marginBottom:26}}><h2 style={{fontFamily:FONT_DISPLAY,fontSize:26,margin:'0 0 12px'}}>System Design</h2><section aria-label="System Design values" style={{borderLeft:`3px solid ${T.blue}`,padding:'2px 0 2px 14px',maxWidth:1100}}><div style={{fontFamily:FONT_MONO,fontSize:10,fontWeight:700,letterSpacing:'.06em',color:T.blue,marginBottom:7}}>VALUES</div><p style={{fontFamily:FONT_BODY,fontSize:13,lineHeight:1.65,color:T.ink,margin:'0 0 12px',fontStyle:'italic'}}>Construction is not a one-day thing.<br/>It’s a process. It’s a year-long relationship. Sometimes even more.<br/>First of all, you should know what you’re doing; only then will you be able to drive on the right road.</p><p style={{fontFamily:FONT_BODY,fontSize:13,lineHeight:1.65,color:T.ink,margin:'0 0 6px',fontStyle:'italic'}}>Lighting is what is going to define the mood of the space.</p><div style={{fontFamily:FONT_BODY,fontSize:13,fontWeight:600,color:T.blue}}>Energetic&nbsp; | &nbsp;Relax&nbsp; | &nbsp;Focus</div></section></header>
+    <header style={{marginBottom:14}}><h2 style={{fontFamily:FONT_DISPLAY,fontSize:26,margin:'0 0 12px'}}>System Design</h2><section aria-label="System Design values" style={{borderLeft:`3px solid ${T.blue}`,padding:'2px 0 2px 14px',maxWidth:1100}}><div style={{fontFamily:FONT_MONO,fontSize:10,fontWeight:700,letterSpacing:'.06em',color:T.blue,marginBottom:7}}>VALUES</div><p style={{fontFamily:FONT_BODY,fontSize:13,lineHeight:1.65,color:T.ink,margin:'0 0 12px',fontStyle:'italic'}}>Construction is not a one-day thing.<br/>It’s a process. It’s a year-long relationship. Sometimes even more.<br/>First of all, you should know what you’re doing; only then will you be able to drive on the right road.</p><p style={{fontFamily:FONT_BODY,fontSize:13,lineHeight:1.65,color:T.ink,margin:'0 0 6px',fontStyle:'italic'}}>Lighting is what is going to define the mood of the space.</p><div style={{fontFamily:FONT_BODY,fontSize:13,fontWeight:600,color:T.blue}}>Energetic&nbsp; | &nbsp;Relax&nbsp; | &nbsp;Focus</div></section></header>
 
-    {projects.map((p,index)=><section key={p.id} aria-label={`Design dashboard ${p.name}`} style={{paddingBottom:30,marginBottom:30,borderBottom:`2px solid ${T.line}`}}>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:14,flexWrap:'wrap',marginBottom:16}}><h2 style={{fontFamily:FONT_DISPLAY,margin:0,fontSize:22,color:T.ink}}>{p.name}</h2>{canEditProject(p.id)&&<button type="button" onClick={()=>openEdit(p)} style={{...smallBtn,background:'#fff',padding:'9px 14px'}}>EDIT PROJECT</button>}</div>
-      <DrawingControlDashboard state={state} projectId={p.id} deferLoad={index>0}/>
+    {projects.map((p,index)=><section key={p.id} aria-label={`Design dashboard ${p.name}`} style={{paddingBottom:18,marginBottom:18,borderBottom:`2px solid ${T.line}`}}>
+      <DrawingControlDashboard state={state} projectId={p.id} deferLoad={index>0} heading={p.name} onEdit={canEditProject(p.id)?()=>openEdit(p):undefined}/>
     </section>)}
     {projects.length>0&&<footer aria-label="Design dashboard status legend">
         <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:12,fontFamily:FONT_MONO,fontSize:10}}>{['Pending','Open','Aligned','In-progress','Up for review','Completed'].map(status=><span key={status} style={{padding:'5px 8px',background:sheetDashboardTone(status).bg,color:sheetDashboardTone(status).fg}}>{status}</span>)}</div>
@@ -6561,7 +6560,7 @@ function StageActivationPanel({state,project,row,disabled,onActivated,onActivati
   </div>;
 }
 function ProjectGantt({state,projectId}){
-  const [rows,setRows]=useState([]),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[editor,setEditor]=useState(null),[rangeStart,setRangeStart]=useState(new Date().toISOString().slice(0,10)),[days,setDays]=useState(90),[floor,setFloor]=useState('All');
+  const [rows,setRows]=useState([]),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[editor,setEditor]=useState(null),[rangeStart,setRangeStart]=useState(new Date().toISOString().slice(0,10)),[days,setDays]=useState(90);
   const admin=projectRole(state,projectId)==='Admin';
   useEffect(()=>{let active=true;setRows([]);setEditor(null);setMessage('');projectApi.getProjectWorkflowTasks(projectId).then(r=>{if(active){setRows(r);const starts=r.map(t=>t.plannedStartDate).filter(Boolean).sort();if(starts.length)setRangeStart(starts[0]);}}).catch(e=>{if(active)setMessage(e.message);});return()=>{active=false;};},[projectId]);
   const refresh=async()=>{setBusy(true);try{setRows(await projectApi.getProjectWorkflowTasks(projectId));}catch(e){setMessage(e.message);}finally{setBusy(false);}};
