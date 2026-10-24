@@ -4484,8 +4484,8 @@ function orderWorkflowGroups(groups,mode,drawings,instances){
   const rank=g=>{const statuses=g.rows.map(r=>workflowWorkStatus(workflowActivationStatus(instances,g.first,r)).label);if(statuses.every(s=>s==='Completed'))return 0;if(statuses.some(s=>['In progress','Approval required'].includes(s)))return 1;return receiptDate(g)?2:3;};
   return groups.map((g,i)=>({g,i})).sort((a,b)=>rank(a.g)-rank(b.g)||(receiptDate(a.g)&&receiptDate(b.g)?receiptDate(a.g).localeCompare(receiptDate(b.g)):0)||a.i-b.i).map(x=>x.g);
 }
-function workflowStageBand(g){return /concept/i.test(g.first.tasks||'')?0:/documentation/i.test(g.first.tasks||'')?2:1;}
-function pinWorkflowGroups(groups){return groups.map((g,i)=>({g,i})).sort((a,b)=>workflowStageBand(a.g)-workflowStageBand(b.g)||a.i-b.i).map(x=>x.g);}
+function workflowStageBand(g){const name=String(g.first.tasks||'');return /concept/i.test(name)?0:/control.*finali[sz]|finali[sz].*control/i.test(name)?1:/wall electrical|wall elec/i.test(name)?2:/documentation/i.test(name)?4:3;}
+function pinWorkflowGroups(groups,mode='drawing'){const band=g=>{const value=workflowStageBand(g);return mode==='manual'&&value!==0&&value!==4?3:value;};return groups.map((g,i)=>({g,i})).sort((a,b)=>band(a.g)-band(b.g)||a.i-b.i).map(x=>x.g);}
 function alignWorkflowVisits(groups,visits){
   const used=new Set(),lastDoc=groups.map((g,i)=>/documentation/i.test(g.first.tasks||'')?i:-1).filter(i=>i>=0).at(-1);
   const pairs=groups.map((group,index)=>{const text=[group.first.tasks,group.first.triggerTaskType].join(' ').toLowerCase();
@@ -4561,20 +4561,21 @@ function ProjectLineOfWorkView({state,persist,selectedId,showProjectPicker=true}
   if (!project) return <div style={{color:T.inkDim}}>No active project available.</div>;
   const members = (state.teamMaster || []).filter(m => m.active !== false && String(m.active)!=="false");
   const people = [...new Set([...members.map(m=>String(m.name||"")),...(state.people||[]).map(String),...rows.map(r=>String(r.responsible||""))].filter(Boolean))];
-  const groups = pinWorkflowGroups(orderWorkflowGroups(workflowGroups(rows),orderMode,drawingReceipts,instances));
+  const groups = pinWorkflowGroups(orderWorkflowGroups(workflowGroups(rows),orderMode,drawingReceipts,instances),orderMode);
   const aligned=alignWorkflowVisits(groups,visits);
   const zones = project.floorZones || Object.entries(project.zones || {}).map(([zoneCode,z])=>({zoneCode,floor:z.floor,area:z.room}));
   const areas = [...new Map([...zones,...instances.filter(w=>w.task?.area).map(w=>({floor:w.task.floor,area:w.task.area}))].filter(a=>a.floor&&a.area).map(a=>[JSON.stringify([String(a.floor),String(a.area)]),a])).entries()];
   const selectedArea = areas.find(([key])=>key===areaKey)?.[1];
   const mutate = (ids,patch) => setRows(rs=>rs.map(r=>ids.includes(rowId(r))?{...r,...patch}:r));
-  const canMoveStage=(index,delta)=>!!groups[index+delta]&&workflowStageBand(groups[index])===workflowStageBand(groups[index+delta]);
-  const moveStage=(key,delta)=>{const list=[...groups],index=list.findIndex(g=>g.key===key),target=index+delta;if(!canMoveStage(index,delta))return;[list[index],list[target]]=[list[target],list[index]];setRows(list.flatMap(g=>g.rows));setOrderMode('manual');setEditing(true);};
-  const save = async () => {
+  const canMoveStage=(index,delta)=>{const target=groups[index+delta];if(!target)return false;const band=g=>{const value=workflowStageBand(g);return value===0||value===4?value:3;};return band(groups[index])===band(target);};
+  const moveStage=(key,delta)=>{if(savePendingRef.current||loading)return;const list=[...groups],index=list.findIndex(g=>g.key===key),target=index+delta;if(!canMoveStage(index,delta))return;[list[index],list[target]]=[list[target],list[index]];setOrderMode('manual');return save({rows:list.flatMap(g=>g.rows),orderMode:'manual'});};
+  const save = async options => {
+    const draftRows=Array.isArray(options?.rows)?options.rows:rows,nextOrderMode=options?.orderMode||orderMode;
     if(savePendingRef.current)return;
-    if(rows.some(r=>!String(r.milestone||'').trim()||!String(r.tasks||'').trim()||!String(r.subtask||'').trim()||!String(r.triggerTaskType||'').trim()))return setError('Each workflow row needs a milestone, task, subtask, and trigger task.');
+    if(draftRows.some(r=>!String(r.milestone||'').trim()||!String(r.tasks||'').trim()||!String(r.subtask||'').trim()||!String(r.triggerTaskType||'').trim()))return setError('Each workflow row needs a milestone, task, subtask, and trigger task.');
     const token=revision.current,previousPanel=panel,previousSaved=savedRows;
     const before=state.projects.find(p=>p.id===project.id);
-    const order={},clean=rows.map(r=>{const key=[r.milestone,r.tasks,r.triggerDrawingType,r.triggerTaskType,r.scope].join('|');order[key]=(order[key]||0)+1;return {...r,workflowOrderMode:orderMode,workflowVersion:r.workflowVersion||'1',subtaskOrder:order[key],completionUploadRequired:r.completionUploadRequired!==false&&String(r.completionUploadRequired)!=='false',optional:r.optional===true||String(r.optional)==='true'};});
+    const order={},clean=draftRows.map(r=>{const key=[r.milestone,r.tasks,r.triggerDrawingType,r.triggerTaskType,r.scope].join('|');order[key]=(order[key]||0)+1;return {...r,workflowOrderMode:nextOrderMode,workflowVersion:r.workflowVersion||'1',subtaskOrder:order[key],completionUploadRequired:r.completionUploadRequired!==false&&String(r.completionUploadRequired)!=='false',optional:r.optional===true||String(r.optional)==='true'};});
     const optimistic=[...legacy,...clean];
     savePendingRef.current=true;setBusy(true);setError('');setPanel(null);setEditing(false);setRows(clean);setMessage('Changes applied · Saving workflow in the background…');
     try{
@@ -4624,7 +4625,7 @@ function ProjectLineOfWorkView({state,persist,selectedId,showProjectPicker=true}
       <div className="workflow-overview-layout"><aside aria-label="Project progress timeline" className="workflow-progress-rail">{(()=>{const stages=groups.map(g=>{const statuses=g.rows.map(r=>workflowWorkStatus(workflowStatus(g.first,r)).label);return {g,done:statuses.every(s=>s==='Completed'),active:statuses.some(s=>['In progress','Approval required'].includes(s))};});let current=stages.findIndex(s=>s.active);if(current<0)current=stages.findIndex(s=>!s.done);if(current<0)current=stages.length-1;return stages.map((stage,i)=><a key={stage.g.key} href={`#workflow-stage-${i}`} aria-label={`${stage.g.first.tasks}: ${stage.done?'completed':stage.active?'in progress':'not started'}`} aria-current={i===current?'step':undefined} title={stage.g.first.tasks} className="workflow-road-segment" style={{background:stage.done?'linear-gradient(180deg,#65A47C,#3F825B)':stage.active?'linear-gradient(180deg,#E4B64C,#C78C20)':['linear-gradient(180deg,#4D98C1,#2C6F9D)','linear-gradient(180deg,#72CEDA,#3CA2BC)','linear-gradient(180deg,#5B91C3,#306493)'][i%3]}}>{i===current&&<span aria-hidden="true" className="workflow-road-marker"/>}</a>);})()}</aside><div className="workflow-stage-comparison">
       {aligned.pairs.map(({group:g,visits:stageVisits},index)=>{const r=g.first,key=rowId(r),concept=workflowStageBand(g)===0;return <React.Fragment key={g.key}>{index===aligned.pairs.findIndex(p=>workflowStageBand(p.group)!==0)&&<div className="workflow-comparison-headings"><h3>Design work</h3><h3>Execution & Visits</h3></div>}<div className={concept?"workflow-aligned-stage workflow-concept-stage":"workflow-aligned-stage"}><section id={`workflow-stage-${index}`} key={key} style={{border:`1px solid ${T.line}`,marginBottom:12,background:'#fff'}}>
         <div style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',background:'#F3F1EA'}}>
-          {editing&&<div style={{display:'flex',gap:4}}><button type="button" aria-label={`Move ${r.tasks} earlier`} disabled={busy||!canMoveStage(index,-1)} style={smallBtn} onClick={()=>moveStage(g.key,-1)}>↑</button><button type="button" aria-label={`Move ${r.tasks} later`} disabled={busy||!canMoveStage(index,1)} style={smallBtn} onClick={()=>moveStage(g.key,1)}>↓</button></div>}<h3 style={{flex:1,margin:0,color:T.ink,fontFamily:FONT_DISPLAY,fontSize:14,fontWeight:700}}>{r.tasks}</h3>
+          {<div style={{display:'flex',gap:4}}><button type="button" title="Move stage up" aria-label={`Move ${r.tasks} earlier`} disabled={busy||loading||!canMoveStage(index,-1)} style={smallBtn} onClick={()=>moveStage(g.key,-1)}>↑</button><button type="button" title="Move stage down" aria-label={`Move ${r.tasks} later`} disabled={busy||loading||!canMoveStage(index,1)} style={smallBtn} onClick={()=>moveStage(g.key,1)}>↓</button></div>}<h3 style={{flex:1,margin:0,color:T.ink,fontFamily:FONT_DISPLAY,fontSize:14,fontWeight:700}}>{r.tasks}</h3>
           <button type="button" disabled={busy||loading} aria-label={`Task details ${r.tasks}`} style={smallBtn} onClick={()=>setPanel({kind:'task',id:key})}>Task details</button>
         </div>
         {<div id={`workflow-subtasks-${key}`} style={{padding:'0 14px 12px'}}>

@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.13.11-clean-workflow-header",
+  "version": "2.13.13-project-stage-order",
   "type": "module",
   "scripts": {
     "dev": "vite",
