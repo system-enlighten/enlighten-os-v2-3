@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.13.7-design-left-execution-right",
+  "version": "2.13.11-clean-workflow-header",
   "type": "module",
   "scripts": {
     "dev": "vite",
