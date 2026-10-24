@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.13.2-visual-workflow-road",
+  "version": "2.13.4-aligned-design-execution",
   "type": "module",
   "scripts": {
     "dev": "vite",
