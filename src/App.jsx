@@ -4516,7 +4516,7 @@ function ExecutionVisitPlanner({project,rows,onChange,loadError,loading,children
   </section>;
 }
 
-function ProjectLineOfWorkView({state,persist,selectedId}) {
+function ProjectLineOfWorkView({state,persist,selectedId,showProjectPicker=true}) {
   const projects = (state.projects || []).filter(p => p.completed!==true && ![p.status,p.projectStatus,p.projectControl?.projectStatus].some(v=>String(v||"").toLowerCase()==="completed"));
   const [projectId,setProjectId] = useState(selectedId || projects[0]?.id || "");
   const project = projects.find(p => String(p.id) === String(projectId)) || projects[0];
@@ -4626,7 +4626,7 @@ function ProjectLineOfWorkView({state,persist,selectedId}) {
   return <div>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap",marginBottom:16}}>
       <div><h2 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:0}}>Design Line of Work</h2><div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,marginTop:5}}>Tasks and subtasks</div></div>
-      <select aria-label="Workflow project" disabled={busy||editing} style={{...fieldStyle,minWidth:280}} value={project.id} onChange={e=>setProjectId(e.target.value)}>{projects.map(p=><option key={p.id} value={p.id}>{p.no||"—"} · {p.name}</option>)}</select>
+      {showProjectPicker&&<select aria-label="Workflow project" disabled={busy||editing} style={{...fieldStyle,minWidth:280}} value={project.id} onChange={e=>setProjectId(e.target.value)}>{projects.map(p=><option key={p.id} value={p.id}>{p.no||"—"} · {p.name}</option>)}</select>}
     </div>
     <div style={{display:"flex",gap:8,marginBottom:16,alignItems:"center",flexWrap:"wrap"}}>
       <Btn variant={tab==="template"?"dark":"ghost"} onClick={()=>setTab("template")}>Workflow</Btn><Btn variant={tab==="progress"?"dark":"ghost"} onClick={()=>{setTab("progress");refresh();}}>Progress</Btn><Btn variant={tab==="gantt"?"dark":"ghost"} onClick={()=>setTab("gantt")}>Gantt</Btn>
@@ -4644,8 +4644,8 @@ function ProjectLineOfWorkView({state,persist,selectedId}) {
       {rows.some(r=>!r.lineWorkId)&&!editing&&<p style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>Default workflow is shown. Save it once for this project to enable activation in Task Details.</p>}
       <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:12,fontFamily:FONT_BODY,fontSize:12}}><label>Stage order <select aria-label="Stage order" style={{...inputStyle,width:170,fontSize:12,marginLeft:8}} value={orderMode} onChange={e=>{setOrderMode(e.target.value);setEditing(true);}}><option value="drawing">Drawing arrival</option><option value="manual">Manual sequence</option></select></label></div>
       <ExecutionVisitPlanner key={project.id} project={project} rows={visits} onChange={next=>{if(workflowProjectRef.current===project.id)setVisits(next);}} loading={visitsLoading} loadError={visitsError}>{renderVisitTable=><>
-      <div className="workflow-overview-layout"><aside aria-label="Project progress timeline" className="workflow-progress-rail">{(()=>{const stages=groups.map(g=>{const statuses=g.rows.map(r=>workflowWorkStatus(workflowStatus(g.first,r)).label);return {g,done:statuses.every(s=>s==='Completed'),active:statuses.some(s=>['In progress','Approval required'].includes(s))};});let current=stages.findIndex(s=>s.active);if(current<0)current=stages.findIndex(s=>!s.done);if(current<0)current=stages.length-1;return stages.map((stage,i)=><a key={stage.g.key} href={`#workflow-stage-${i}`} aria-label={`${stage.g.first.tasks}: ${stage.done?'completed':stage.active?'in progress':'not started'}`} aria-current={i===current?'step':undefined} title={stage.g.first.tasks} className="workflow-road-segment" style={{background:stage.done?'#628D69':stage.active?'#D5A226':'#DDD7C8'}}>{i===current&&<span aria-hidden="true" className="workflow-road-marker"/>}</a>);})()}</aside><div className="workflow-stage-comparison"><div className="workflow-comparison-headings"><h3>Execution & Visits</h3><h3>Design work</h3></div>
-      {aligned.pairs.map(({group:g,visits:stageVisits},index)=>{const r=g.first,key=rowId(r);return <div key={g.key} className="workflow-aligned-stage"><div className="workflow-execution-column" style={{minWidth:0}}>{renderVisitTable(stageVisits)}</div><section id={`workflow-stage-${index}`} key={key} style={{border:`1px solid ${T.line}`,marginBottom:12,background:'#fff'}}>
+      <div className="workflow-overview-layout"><aside aria-label="Project progress timeline" className="workflow-progress-rail">{(()=>{const stages=groups.map(g=>{const statuses=g.rows.map(r=>workflowWorkStatus(workflowStatus(g.first,r)).label);return {g,done:statuses.every(s=>s==='Completed'),active:statuses.some(s=>['In progress','Approval required'].includes(s))};});let current=stages.findIndex(s=>s.active);if(current<0)current=stages.findIndex(s=>!s.done);if(current<0)current=stages.length-1;return stages.map((stage,i)=><a key={stage.g.key} href={`#workflow-stage-${i}`} aria-label={`${stage.g.first.tasks}: ${stage.done?'completed':stage.active?'in progress':'not started'}`} aria-current={i===current?'step':undefined} title={stage.g.first.tasks} className="workflow-road-segment" style={{background:stage.done?'linear-gradient(180deg,#65A47C,#3F825B)':stage.active?'linear-gradient(180deg,#E4B64C,#C78C20)':['linear-gradient(180deg,#4D98C1,#2C6F9D)','linear-gradient(180deg,#72CEDA,#3CA2BC)','linear-gradient(180deg,#5B91C3,#306493)'][i%3]}}>{i===current&&<span aria-hidden="true" className="workflow-road-marker"/>}</a>);})()}</aside><div className="workflow-stage-comparison"><div className="workflow-comparison-headings"><h3>Design work</h3><h3>Execution & Visits</h3></div>
+      {aligned.pairs.map(({group:g,visits:stageVisits},index)=>{const r=g.first,key=rowId(r);return <div key={g.key} className="workflow-aligned-stage"><section id={`workflow-stage-${index}`} key={key} style={{border:`1px solid ${T.line}`,marginBottom:12,background:'#fff'}}>
         <div style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',background:'#F3F1EA'}}>
           {editing&&<div style={{display:'flex',gap:4}}><button type="button" aria-label={`Move ${r.tasks} earlier`} disabled={busy||!canMoveStage(index,-1)} style={smallBtn} onClick={()=>moveStage(g.key,-1)}>↑</button><button type="button" aria-label={`Move ${r.tasks} later`} disabled={busy||!canMoveStage(index,1)} style={smallBtn} onClick={()=>moveStage(g.key,1)}>↓</button></div>}<h3 style={{flex:1,margin:0,color:T.ink,fontFamily:FONT_DISPLAY,fontSize:14,fontWeight:700}}>{r.tasks}</h3>
           <button type="button" disabled={busy||loading} aria-label={`Task details ${r.tasks}`} style={smallBtn} onClick={()=>setPanel({kind:'task',id:key})}>Task details</button>
@@ -4656,8 +4656,8 @@ function ProjectLineOfWorkView({state,persist,selectedId}) {
           </table></div>
           {editing&&<button disabled={busy} style={{...smallBtn,marginTop:12}} onClick={()=>addSubtask(g)}>+ Add subtask</button>}
         </div>}
-      </section></div>;})}
-      {!!aligned.remaining.length&&<div className="workflow-aligned-stage"><section className="workflow-execution-column" aria-label="Further execution work" style={{minWidth:0}}><h3 style={{fontFamily:FONT_DISPLAY,fontSize:15}}>Execution work</h3>{renderVisitTable(aligned.remaining)}</section><div/></div>}
+      </section><div className="workflow-execution-column" style={{minWidth:0}}>{renderVisitTable(stageVisits)}</div></div>;})}
+      {!!aligned.remaining.length&&<div className="workflow-aligned-stage"><div/><section className="workflow-execution-column" aria-label="Further execution work" style={{minWidth:0}}><h3 style={{fontFamily:FONT_DISPLAY,fontSize:15}}>Execution work</h3>{renderVisitTable(aligned.remaining)}</section></div>}
       </div></div></>}</ExecutionVisitPlanner>
       {!!legacy.length&&<div style={{fontSize:11,color:T.inkDim,marginTop:12}}>{legacy.length} previous Line of Work rows retained.</div>}
     </>:<>
@@ -5039,6 +5039,20 @@ function DrawingControlDashboard({state,projectId,deferLoad=false}){
 
     </div>
   </div>;
+}
+
+function DesignWorkflowAccess({state,persist}){
+  const [selected,setSelected]=useState(state.projects?.[0]?.id||'');
+  const project=state.projects.find(p=>String(p.id)===String(selected))||state.projects[0];
+  if(state.currentUser?.appAccess?.toLowerCase()==='admin')return <ProjectLineOfWorkView state={state} persist={persist}/>;
+  if(!project)return <p>No assigned project available.</p>;
+  const scoped={...state,projects:[project]},canEdit=projectRole(state,project.id)==='Admin'&&state.currentUser?.appAccess?.toLowerCase()!=='viewer';
+  const saveScoped=update=>persist(latest=>{const scope={...latest,projects:latest.projects.filter(p=>p.id===project.id)},next=typeof update==='function'?update(scope):update;return {...latest,projects:latest.projects.map(p=>p.id===project.id?(next.projects.find(n=>n.id===p.id)||p):p)};});
+  return <div><label style={{display:'block',fontFamily:FONT_BODY,fontSize:12,marginBottom:16}}>Project<select aria-label="Line of Work assigned project" style={{...inputStyle,marginTop:6}} value={project.id} onChange={e=>setSelected(e.target.value)}>{state.projects.map(p=><option key={p.id} value={p.id}>{p.no} · {p.name}</option>)}</select></label>{canEdit?<ProjectLineOfWorkView key={project.id} state={scoped} persist={saveScoped} selectedId={project.id} showProjectPicker={false}/>:<ReadOnlyProjectWork key={project.id} state={scoped} project={project}/>}</div>;
+}
+function DesignWorkspaceView({state,persist}){
+  const [tab,setTab]=useState('line');
+  return <div><div role="tablist" aria-label="Design Dashboard sections" style={{display:'flex',borderBottom:`1px solid ${T.line}`,marginBottom:18,overflowX:'auto',background:'#fff'}}>{[['line','Line of Work'],['dashboard','Dashboard']].map(([id,label])=><button type="button" role="tab" key={id} id={`design-tab-${id}`} aria-selected={tab===id} aria-controls={`design-panel-${id}`} onClick={()=>setTab(id)} style={{padding:'11px 16px',border:0,borderBottom:`3px solid ${tab===id?T.cyan:'transparent'}`,background:tab===id?T.navy:'transparent',color:tab===id?'#fff':T.inkDim,cursor:'pointer',fontFamily:FONT_BODY,fontSize:12,fontWeight:tab===id?700:500,whiteSpace:'nowrap'}}>{label}</button>)}</div><div role="tabpanel" id={`design-panel-${tab}`} aria-labelledby={`design-tab-${tab}`}>{tab==='dashboard'?<DesignFlowView state={state} persist={persist}/>:<DesignWorkflowAccess state={state} persist={persist}/>}</div></div>;
 }
 
 function DesignFlowView({state,persist}){
@@ -5639,7 +5653,7 @@ function ProjectView({ state, persist }) {
     </div>}
 
     <div style={{display:"flex",alignItems:"center",gap:0,borderBottom:`1px solid ${T.line}`,marginBottom:18,overflowX:"auto",background:"#fff"}}>
-      {[["list","Projects & Scope"],["team","Directory"],["line","Line of Work"]].map(([id,label])=>
+      {[["list","Projects & Scope"],["team","Directory"]].map(([id,label])=>
         <button type="button" key={id} onClick={(e)=>{e.preventDefault();e.stopPropagation();setTab(id);}} style={{
           padding:"11px 16px",border:"none",borderBottom:`3px solid ${tab===id?T.cyan:"transparent"}`,
           background:tab===id?T.navy:"transparent",color:tab===id?"#fff":T.inkDim,cursor:"pointer",
@@ -5862,7 +5876,6 @@ function ProjectView({ state, persist }) {
     </div>}
 
     {tab==="team"&&<ProjectDirectory state={state} persist={persist}/>}
-    {tab==="line"&&<ProjectLineOfWorkView state={state} persist={persist} selectedId={selectedId || null} />}
   </div>;
 }
 
@@ -6301,7 +6314,7 @@ function StudioApp() {
 
       {/* Main canvas */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <TitleBlock view={viewLabel} sub={view === "timesheet" ? `${state.tasks.length} tasks` : view === "classify" ? `${pendingCount} pending` : view === "project" ? "Onboarding · Scope · Team · Line of Work" : view === "meetings" ? `${(state.meetings || []).length} meetings` : view === "executionMain" ? "Milestones · MOM" : view === "site" ? `${(state.siteVisits || []).length} site visits` : undefined} />
+        <TitleBlock view={viewLabel} sub={view === "timesheet" ? `${state.tasks.length} tasks` : view === "classify" ? `${pendingCount} pending` : view === "project" ? "Onboarding · Scope · Team" : view === "design" ? "Dashboard · Line of Work" : view === "meetings" ? `${(state.meetings || []).length} meetings` : view === "executionMain" ? "Milestones · MOM" : view === "site" ? `${(state.siteVisits || []).length} site visits` : undefined} />
         {view!=='upload'&&(state.pendingReceivedUploads||[]).length>0&&<div role="status" style={{padding:'8px 24px',fontFamily:FONT_BODY,fontSize:12,background:T.amberBg,color:T.ink}}>{state.pendingReceivedUploads.length} drawing upload(s) pending. <button type="button" style={smallBtn} onClick={()=>setView('upload')}>View uploads</button></div>}
         {saveErr && (
           <div style={{ background: T.redlineBg, color: T.redline, fontFamily: FONT_MONO, fontSize: 12, padding: "8px 24px", display: "flex", alignItems: "center", gap: 6 }}>
@@ -6316,7 +6329,7 @@ function StudioApp() {
         <div style={{ padding: "28px 32px", overflowY: "auto" }}>
           {view === "project" && (isAdmin?<ProjectView state={state} persist={persist} />:<ProjectPermissionsView state={state} persist={persist}/>)}
           {isAdmin && view === "designLineOfWork" && <DesignLineOfWorkView state={state} persist={persist} />}
-          {allowedNav.some(n=>n.id==="design") && view === "design" && <DesignFlowView state={state} persist={persist} />}
+          {allowedNav.some(n=>n.id==="design") && view === "design" && <DesignWorkspaceView state={state} persist={persist} />}
           
           {allowedNav.some(n=>n.id==="dashboard") && view === "dashboard" && <DashboardView state={state} persist={persist} />}
           {allowedNav.some(n=>n.id==="drawingRegister") && view === "drawingRegister" && <ReceivedSentView state={state}/>}
@@ -6342,10 +6355,9 @@ function MemberProjectsView({state}) {
   const workflow=p.lineOfWorkResidence||p.lineOfWork||[];
   return <div>
     <div style={{display:'flex',justifyContent:'space-between',gap:12,flexWrap:'wrap',marginBottom:18}}><div><h2 style={{fontFamily:FONT_DISPLAY,margin:0}}>Projects</h2><div style={{fontSize:12,color:T.inkDim,marginTop:6}}>View only · Project information, contacts and planned work</div></div><select aria-label="View project" style={{...inputStyle,minWidth:260}} value={p.id} onChange={e=>setSelected(e.target.value)}>{projects.map(x=><option key={x.id} value={x.id}>{x.no} · {x.name}</option>)}</select></div>
-    <div style={{display:'flex',gap:8,marginBottom:16}}>{[['scope','Projects & Scope'],['team','Teams & Ratings'],['line','Line of Work']].map(([id,label])=><Btn key={id} variant={tab===id?'dark':'ghost'} onClick={()=>setTab(id)}>{label}</Btn>)}</div>
+    <div style={{display:'flex',gap:8,marginBottom:16}}>{[['scope','Projects & Scope'],['team','Teams & Ratings']].map(([id,label])=><Btn key={id} variant={tab===id?'dark':'ghost'} onClick={()=>setTab(id)}>{label}</Btn>)}</div>
     {tab==='scope'&&<><table style={{borderCollapse:'collapse',width:'100%'}}><tbody>{[['Project',p.name],['Number',p.no],['Client',p.client||p.contacts?.Owner?.name],['Architect',p.architect||p.contacts?.Architect?.name],['Address',p.address],['Type',p.type],['Status',p.status],['Start',formatProjectDate(p.startDate)],['End',p.endDate]].map(([label,value])=><tr key={label}><td style={{...tdStyle,textAlign:'left',width:170,color:T.inkDim}}>{label}</td><td style={{...tdStyle,textAlign:'left'}}>{String(value??'—')}</td></tr>)}</tbody></table><div style={{marginTop:18,fontFamily:FONT_BODY,fontSize:13}}><strong>Project scope</strong><div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:10}}>{Object.entries(p.scope||{}).filter(([,v])=>v===true).map(([k])=><span key={k} style={{background:T.paperDim,padding:'7px 10px'}}>{k.replace(/_/g,' ')}</span>)}</div></div></>}
     {tab==='team'&&<>{ROLE_CATEGORIES.map(({category,roles})=>{const entries=roles.filter(r=>p.contacts?.[r]);return entries.length?<div key={category} style={{marginBottom:20}}><div style={{fontFamily:FONT_MONO,color:categoryColor(category),marginBottom:8}}>{contactRoleLabel(category)}</div><table style={{width:'100%',borderCollapse:'collapse'}}><tbody>{entries.map(r=><tr key={r}>{[contactRoleLabel(r),p.contacts[r].name,p.contacts[r].company,p.contacts[r].email,p.contacts[r].mobile].map((v,i)=><td key={i} style={{...tdStyle,textAlign:'left'}}>{String(v??'—')||'—'}</td>)}</tr>)}</tbody></table></div>:null;})}</>}
-    {tab==='line'&&<>{workflowGroups(workflow.filter(r=>String(r.workflowVersion)==='1')).map(g=><details key={g.first.lineWorkId||g.first.id} open style={{border:`1px solid ${T.line}`,marginBottom:12}}><summary style={{padding:12,background:T.paperDim}}><strong>{g.first.milestone}</strong> · {g.first.tasks}</summary><table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Step','Subtask','Responsible','Estimated hours'].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{g.rows.map((r,i)=><tr key={r.lineWorkId||r.id}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{r.subtask}</td><td style={tdStyle}>{r.responsible||'Unassigned'}</td><td style={tdStyle}>{r.hours||'—'}</td></tr>)}</tbody></table></details>)}{!workflow.some(r=>String(r.workflowVersion)==='1')&&<div style={{color:T.inkDim}}>The admin has not saved the detailed workflow for this project.</div>}</>}
   </div>;
 }
 
@@ -6413,9 +6425,8 @@ function ProjectPermissionsView({state,persist}){
     const next=typeof update==='function'?update(scope):update;
     return {...latest,projects:latest.projects.map(x=>x.id===p.id?(next.projects.find(n=>n.id===p.id)||x):x)};
   });
-  return <div><h2>Projects</h2><select aria-label="Assigned project" style={inputStyle} value={p.id} onChange={e=>{setSelected(e.target.value);setTab('scope');}}>{state.projects.map(x=><option key={x.id} value={x.id}>{x.no} · {x.name}</option>)}</select><p>Project role: <b>{contactRoleLabel(role)}</b> · {admin?'Manage this project':'View only'}</p><div style={{display:'flex',gap:8,marginBottom:18}}>{[['scope','Projects & Scope'],['line','Line of Work'],['floor','Floor & Zone'],['site','Site Punch-in']].map(([id,label])=><Btn key={id} onClick={()=>setTab(id)} variant={tab===id?'dark':'ghost'}>{label}</Btn>)}</div>
+  return <div><h2>Projects</h2><select aria-label="Assigned project" style={inputStyle} value={p.id} onChange={e=>{setSelected(e.target.value);setTab('scope');}}>{state.projects.map(x=><option key={x.id} value={x.id}>{x.no} · {x.name}</option>)}</select><p>Project role: <b>{contactRoleLabel(role)}</b> · {admin?'Manage this project':'View only'}</p><div style={{display:'flex',gap:8,marginBottom:18}}>{[['scope','Projects & Scope'],['floor','Floor & Zone'],['site','Site Punch-in']].map(([id,label])=><Btn key={id} onClick={()=>setTab(id)} variant={tab===id?'dark':'ghost'}>{label}</Btn>)}</div>
   {tab==='scope'&&(admin?<ProjectScopeAdmin key={p.id} project={p} onSaved={async row=>saveScoped({...scoped,projects:[backendProjectToFrontend(row,p)]})}/>:<MemberProjectsView key={p.id} state={scoped}/>)}
-  {tab==='line'&&(admin?<ProjectLineOfWorkView key={p.id} state={scoped} persist={saveScoped} selectedId={p.id}/>:<ReadOnlyProjectWork state={state} project={p}/>)}
   {tab==='floor'&&((state.currentUser.appAccess.toLowerCase()!=='viewer')?<DashboardView key={p.id} state={scoped} persist={saveScoped}/>:<table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Zone','Floor','Area'].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{(p.floorZones||[]).map((r,i)=><tr key={r.floorZoneId||i}>{[r.zoneCode,r.floor,r.area].map((v,j)=><td key={j} style={tdStyle}>{v}</td>)}</tr>)}</tbody></table>)}
   {tab==='site'&&<ProjectPunchInsView key={p.id} state={scoped}/>}
   </div>;

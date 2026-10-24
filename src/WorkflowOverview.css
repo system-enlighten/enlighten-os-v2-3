@@ -1,12 +1,12 @@
 
 .workflow-overview-layout{display:grid;grid-template-columns:14px minmax(0,1fr);gap:14px;align-items:start}
-.workflow-progress-rail{position:sticky;top:16px;height:min(70vh,620px);width:6px;justify-self:center;display:flex;flex-direction:column;gap:3px;padding:0;margin:0;background:transparent;border:0}
-.workflow-road-segment{position:relative;display:block;flex:1;min-height:8px;border-radius:3px;text-decoration:none}
+.workflow-progress-rail{position:sticky;top:16px;height:min(70vh,620px);width:8px;justify-self:center;display:flex;flex-direction:column;gap:3px;padding:0;margin:0;background:transparent;border:0}
+.workflow-road-segment{position:relative;display:block;flex:1;min-height:8px;border-radius:4px;text-decoration:none;box-shadow:0 1px 3px #1D4E8920}
 .workflow-road-marker{position:absolute;top:0;left:50%;transform:translate(-50%,-25%);width:12px;height:12px;border-radius:50%;background:#1D4E89;border:2px solid #fff;box-shadow:0 0 0 1px #1D4E89}
 .workflow-road-segment:focus-visible{outline:2px solid #1D4E89;outline-offset:4px}
 .workflow-stage-comparison{min-width:0}
-.workflow-aligned-stage,.workflow-comparison-headings{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:18px;align-items:start}
+.workflow-aligned-stage,.workflow-comparison-headings{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px;align-items:start}
 .workflow-aligned-stage{margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid #DDD7C8}
 .workflow-comparison-headings h3{font-family:'Space Grotesk',sans-serif;font-size:15px;margin:0 0 14px}
 .workflow-overview-layout section[id]{scroll-margin-top:20px}
-@media(max-width:850px){.workflow-aligned-stage{grid-template-columns:1fr}.workflow-aligned-stage>section{grid-row:1}.workflow-comparison-headings{grid-template-columns:1fr}.workflow-comparison-headings h3:first-child{display:none}.workflow-aligned-stage{gap:12px}}
+@media(max-width:850px){.workflow-aligned-stage{grid-template-columns:1fr}.workflow-aligned-stage>section{grid-row:1}.workflow-comparison-headings{grid-template-columns:1fr}.workflow-comparison-headings h3:last-child{display:none}.workflow-aligned-stage{gap:12px}}
