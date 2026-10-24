@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.16.0-mom-dashboard-tasks",
+  "version": "2.17.0-flexible-site-reviews",
   "type": "module",
   "scripts": {
     "dev": "vite",
