@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.12.4-workflow-status",
+  "version": "2.13.0-unified-project-timeline",
   "type": "module",
   "scripts": {
     "dev": "vite",

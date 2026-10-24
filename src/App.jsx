@@ -1,3 +1,4 @@
+import './WorkflowOverview.css';
 /*
 enLIGHTen OS v2.7.3 — Google Sheets Line of Work
 Changes discussed:
@@ -2605,6 +2606,9 @@ async function apiRequest(action, payload = {}, method = "POST", timeoutMs=0) {
 
 const projectApi = {
   saveMemberProjectRoles:payload=>apiRequest("saveMemberProjectRoles",payload,"POST",60000),
+  listExecutionVisits:projectId=>apiRequest("listExecutionVisits",{projectId},"GET"),
+  saveExecutionVisits:(projectId,rows,initializeOnly=false)=>apiRequest("saveExecutionVisits",{projectId,rows,initializeOnly}),
+  recordExecutionVisit:p=>apiRequest("recordExecutionVisit",p),
   getProjectWorkspace:()=>apiRequest("getProjectWorkspace",{},"GET"),
   saveProjectMeeting:payload=>apiRequest("saveProjectMeeting",payload),
   deleteProjectMeeting:payload=>apiRequest("deleteProjectMeeting",payload),
@@ -4463,10 +4467,42 @@ function workflowWorkStatus(value){
   return {label:'Not started',bg:'#F4E5E0',fg:'#853D32'};
 }
 
+function visitHistory(row){try{const list=JSON.parse(row.history||'[]');return Array.isArray(list)?list:[];}catch{return [];}}
+function executionVisitDefaults(project){
+  const known=[...new Set((project.floorZones||Object.values(project.zones||{})).map(z=>z.floor).filter(Boolean))].filter(f=>!/facade/i.test(f));
+  const floors=known.length?known:['1F','2F','3F','4F','Terrace','Stilt'];
+  const rows=[];const add=(stage,milestone,floor,visitType,essential=false,weekly=false)=>rows.push({visitPlanId:`EV-${project.id}-${rows.length+1}`,projectId:project.id,seq:rows.length+1,stage,milestone,floor,visitType,essential,weekly,plannedVisits:1,closed:false,history:'[]'});
+  [['False Ceiling','False Ceiling',true],['Electrical','Wiring',true],['Bathroom Stone','Bathroom Stone',false],['Ceiling Pack','Ceiling Pack | Moulding Sampling & Review',true],['Furniture','Furniture',false]].forEach(([stage,milestone,essential])=>{floors.forEach((f,i)=>add(stage,milestone,f,stage==='Furniture'||i<(stage==='Ceiling Pack'?1:2)?'Briefing & Review':'Review',essential));if(stage==='Bathroom Stone')add('Facade','Facade Elevation','Facade','Briefing & Review');});
+  for(let i=0;i<floors.length;i+=2)add('Transition to Execution','Finalise Architectural Lighting',floors.slice(i,i+2).join(' + '),'Visit',true);
+  ['Marking | Cutting','Light Installation','Snag List'].forEach(milestone=>floors.forEach(f=>add('Execution Phase',milestone,f,'Weekly visit',false,true)));
+  add('Staging','Staging and Scene Setting','Project','Visit');add('Staging','Staging and Scene Setting','Project','Visit');
+  return rows;
+}
+function orderWorkflowGroups(groups,mode,drawings,instances){
+  if(mode==='manual')return groups;
+  const receiptDate=g=>(drawings||[]).filter(d=>drawingTypeKey(d.drawingType)===drawingTypeKey(g.first.triggerDrawingType)).map(d=>String(d.receivedSentDate||d.createdAt||'')).filter(Boolean).sort()[0]||'';
+  const rank=g=>{const statuses=g.rows.map(r=>workflowWorkStatus(workflowActivationStatus(instances,g.first,r)).label);if(statuses.every(s=>s==='Completed'))return 0;if(statuses.some(s=>['In progress','Approval required'].includes(s)))return 1;return receiptDate(g)?2:3;};
+  return groups.map((g,i)=>({g,i})).sort((a,b)=>rank(a.g)-rank(b.g)||(receiptDate(a.g)&&receiptDate(b.g)?receiptDate(a.g).localeCompare(receiptDate(b.g)):0)||a.i-b.i).map(x=>x.g);
+}
+function ExecutionVisitPlanner({project,rows,onChange,loadError,loading}){
+  const [draft,setDraft]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
+  const savePlan=async(list,initializeOnly=false)=>{const previous=rows,previousDraft=draft;if(rows.some(r=>r._draft)){const all=new Map(rows.map(r=>[r.visitPlanId,r]));list.forEach(r=>all.set(r.visitPlanId,r));list=[...all.values()];}setBusy(true);setError('');setNotice('Changes applied · Saving…');const merged=new Map(rows.map(r=>[r.visitPlanId,r]));list.forEach(r=>merged.set(r.visitPlanId,{...merged.get(r.visitPlanId),...r}));onChange([...merged.values()].sort((a,b)=>Number(a.seq)-Number(b.seq)));setDraft(null);try{onChange(await projectApi.saveExecutionVisits(project.id,list,initializeOnly));setNotice('Saved to Google Sheets.');}catch(e){onChange(previous);setDraft(previousDraft);setNotice('');setError(`Could not save: ${e.message} Previous values restored. Retry your changes.`);}finally{setBusy(false);}};
+  const record=async()=>{const previous=rows,entry=draft;setBusy(true);setError('');setNotice('Visit added · Saving…');onChange(rows.map(r=>r.visitPlanId===entry.row.visitPlanId?{...r,history:JSON.stringify([...visitHistory(r),{visitId:entry.visitId,date:entry.date,visitBy:entry.visitBy,notes:entry.notes}])}:r));setDraft(null);try{onChange(await projectApi.recordExecutionVisit({projectId:project.id,visitPlanId:entry.row.visitPlanId,visitId:entry.visitId,date:entry.date,visitBy:entry.visitBy,notes:entry.notes}));setNotice('Visit saved to Google Sheets.');}catch(e){onChange(previous);setDraft(entry);setNotice('');setError(`Visit could not be saved: ${e.message} Retry to save it.`);}finally{setBusy(false);}};
+  return <section id="execution-visit-plan" style={{marginTop:28,fontFamily:FONT_BODY}}><div style={{display:'flex',gap:12,alignItems:'center',justifyContent:'space-between',flexWrap:'wrap'}}><h3 style={{fontFamily:FONT_DISPLAY}}>Execution & Visits</h3>{!loading&&!loadError&&<div style={{display:'flex',gap:8}}>{(!rows.length||rows.some(r=>r._draft))?<Btn disabled={busy} onClick={()=>savePlan(rows.length?rows:executionVisitDefaults(project),true)}>Save visit plan</Btn>:<Btn disabled={busy} onClick={()=>setDraft({kind:'plan',row:{visitPlanId:uid(),seq:rows.length+1,stage:'Execution Phase',milestone:'',floor:'',visitType:'Visit',plannedVisits:1,weekly:false,essential:false,closed:false}})}>+ Add milestone</Btn>}</div>}</div>
+    {rows.some(r=>r._draft)&&<p style={{fontSize:12,color:T.inkDim}}>Default visit plan from your schedule. Review the floors and visit counts, then save once for this project to start logging visits.</p>}{notice&&<p role="status" style={{fontSize:12,color:T.inkDim}}>{notice}</p>}{loading&&<p>Loading visit plan…</p>}{(error||loadError)&&<p role="alert" style={{color:T.redline,fontSize:13}}>{error||loadError}</p>}
+    {!rows.length&&!loading&&!loadError&&<p style={{fontSize:13,color:T.inkDim}}>Create an editable project visit plan from the supplied schedule. Floor-wise reviews are separate; architectural-lighting visits cover paired floors. Weekly visits stay open until the milestone is closed.</p>}
+    {!!rows.length&&<div style={{overflowX:'auto'}}><table aria-label="Execution visit plan" style={{width:'100%',minWidth:740,borderCollapse:'collapse'}}><thead><tr>{['Milestone','Floor','Visits','Done / Planned','Last visit',''].map(h=><th key={h} style={{...thStyle,background:'#D2CDC1',color:T.ink,textAlign:'left'}}>{h}</th>)}</tr></thead><tbody>{rows.map(row=>{const history=visitHistory(row),done=sheetDashboardFlag(row.closed)||(!sheetDashboardFlag(row.weekly)&&history.length>=Number(row.plannedVisits||1));return <tr key={row.visitPlanId}><td style={{...tdStyle,textAlign:'left'}}><strong>{row.milestone}</strong><div style={{fontSize:11,color:T.inkDim}}>{row.stage}{sheetDashboardFlag(row.essential)?' · Essential':''}</div></td><td style={tdStyle}>{row.floor||'Project'}</td><td style={tdStyle}>{row.visitType}{sheetDashboardFlag(row.weekly)&&<div style={{fontSize:10}}>Weekly</div>}</td><td style={{...tdStyle,color:done?T.green:T.inkDim}}>{done?'✓ Done':`${history.length} / ${sheetDashboardFlag(row.weekly)?'Weekly':row.plannedVisits||1}`}</td><td style={tdStyle}>{history.length?formatProjectDate(history.map(v=>v.date).sort().at(-1)):'—'}</td><td style={tdStyle}><div style={{display:'flex',gap:6,justifyContent:'flex-end'}}><button disabled={busy||row._draft} title={row._draft?'Save the visit plan first':undefined} style={smallBtn} onClick={()=>setDraft({kind:'record',row,visitId:uid(),date:todayISO(),visitBy:'',notes:''})}>Log visit</button><button disabled={busy} style={smallBtn} onClick={()=>setDraft({kind:'plan',row:{...row}})}>Edit</button></div></td></tr>;})}</tbody></table></div>}
+    {draft&&<div role="dialog" aria-modal="true" aria-label={draft.kind==='record'?'Log execution visit':'Edit visit plan'} style={{position:'fixed',inset:0,zIndex:15000,background:'rgba(8,25,45,.45)',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}><div style={{background:T.paper,padding:22,width:500,maxWidth:'100%',maxHeight:'90vh',overflowY:'auto'}}><h3>{draft.kind==='record'?'Log completed visit': 'Edit milestone visit plan'}</h3>{error&&<p role="alert" style={{color:T.redline}}>{error}</p>}{draft.kind==='record'?<><p>{draft.row.milestone} · {draft.row.floor}</p>{[['Visit date','date','date'],['Visited by','visitBy','text'],['Notes','notes','text']].map(([label,key,type])=><Field key={key} label={label}><input aria-label={label} disabled={busy} type={type} value={draft[key]} onChange={e=>setDraft(d=>({...d,[key]:e.target.value}))} style={inputStyle}/></Field>)}</>:<>{[['Stage','stage'],['Milestone','milestone'],['Floor / floors','floor'],['Visit type','visitType'],['Planned visits','plannedVisits']].map(([label,key])=><Field key={key} label={label}><input aria-label={label} disabled={busy} type={key==='plannedVisits'?'number':'text'} min={1} max={100} value={draft.row[key]||''} onChange={e=>setDraft(d=>({...d,row:{...d.row,[key]:e.target.value}}))} style={inputStyle}/></Field>)}{[['Weekly recurring visits','weekly'],['Essential','essential'],['Milestone closed','closed']].map(([label,key])=><label key={key} style={{display:'block',marginBottom:12}}><input disabled={busy} type="checkbox" checked={sheetDashboardFlag(draft.row[key])} onChange={e=>setDraft(d=>({...d,row:{...d.row,[key]:e.target.checked}}))}/> {label}</label>)}</>}
+      <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:18}}><Btn variant="ghost" disabled={busy} onClick={()=>setDraft(null)}>Cancel</Btn><Btn disabled={busy||(draft.kind==='record'?(!draft.date||!draft.visitBy.trim()):!draft.row.milestone.trim())} onClick={draft.kind==='record'?record:()=>savePlan([draft.row])}>{busy?'Saving…':'Save'}</Btn></div></div></div>}
+  </section>;
+}
+
 function ProjectLineOfWorkView({state,persist,selectedId}) {
   const projects = (state.projects || []).filter(p => p.completed!==true && ![p.status,p.projectStatus,p.projectControl?.projectStatus].some(v=>String(v||"").toLowerCase()==="completed"));
   const [projectId,setProjectId] = useState(selectedId || projects[0]?.id || "");
   const project = projects.find(p => String(p.id) === String(projectId)) || projects[0];
+  const [orderMode,setOrderMode]=useState('drawing');
+  const [visits,setVisits]=useState([]),[visitsLoading,setVisitsLoading]=useState(false),[visitsError,setVisitsError]=useState('');
   const [rows,setRows] = useState(()=>DESIGN_TASK_FLOW_TEMPLATE.map(r=>({...r})));
   const [legacy,setLegacy] = useState([]);
   const [instances,setInstances] = useState([]);
@@ -4489,7 +4525,7 @@ function ProjectLineOfWorkView({state,persist,selectedId}) {
   const setProjectRows = all => {
     const workflow = all.filter(r => ["1","2"].includes(String(r.workflowVersion))).map(r => ({...r,id:r.lineWorkId || r.id}));
     const displayed=workflow.length?workflow:DESIGN_TASK_FLOW_TEMPLATE.map(r=>({...r}));
-    setRows(displayed); setSavedRows(displayed); setLegacy(all.filter(r => !["1","2"].includes(String(r.workflowVersion))));
+    setRows(displayed); setSavedRows(displayed);setOrderMode(displayed[0]?.workflowOrderMode==='manual'?'manual':'drawing'); setLegacy(all.filter(r => !["1","2"].includes(String(r.workflowVersion))));
   };
   useEffect(() => {
     let active = true; revision.current += 1;
@@ -4504,6 +4540,7 @@ function ProjectLineOfWorkView({state,persist,selectedId}) {
     return () => {active=false;};
   },[project?.id]);
   useEffect(()=>{let active=true;setDrawingReceipts(null);if(!project)return;projectApi.listDrawingRegister(project.id).then(data=>{if(active)setDrawingReceipts(Array.isArray(data?.drawings)?data.drawings.filter(d=>String(d.projectId)===String(project.id)):[]);}).catch(()=>{if(active)setDrawingReceipts(undefined);});return()=>{active=false;};},[project?.id]);
+  useEffect(()=>{let live=true;setVisits([]);setVisitsError('');setVisitsLoading(true);if(!project)return;projectApi.listExecutionVisits(project.id).then(rows=>{if(live)setVisits(rows.length?rows:executionVisitDefaults(project).map(r=>({...r,_draft:true})));}).catch(e=>{if(live)setVisitsError(e.message);}).finally(()=>{if(live)setVisitsLoading(false);});return()=>{live=false;};},[project?.id]);
   const refresh = async () => {
     const token=revision.current;setBusy(true);setError("");
     try {const wih=await projectApi.getWIH(true,project.id);if(token===revision.current)setInstances(Array.isArray(wih)?wih:[]);}
@@ -4513,11 +4550,12 @@ function ProjectLineOfWorkView({state,persist,selectedId}) {
   if (!project) return <div style={{color:T.inkDim}}>No active project available.</div>;
   const members = (state.teamMaster || []).filter(m => m.active !== false && String(m.active)!=="false");
   const people = [...new Set([...members.map(m=>String(m.name||"")),...(state.people||[]).map(String),...rows.map(r=>String(r.responsible||""))].filter(Boolean))];
-  const groups = workflowGroups(rows);
+  const groups = orderWorkflowGroups(workflowGroups(rows),orderMode,drawingReceipts,instances);
   const zones = project.floorZones || Object.entries(project.zones || {}).map(([zoneCode,z])=>({zoneCode,floor:z.floor,area:z.room}));
   const areas = [...new Map([...zones,...instances.filter(w=>w.task?.area).map(w=>({floor:w.task.floor,area:w.task.area}))].filter(a=>a.floor&&a.area).map(a=>[JSON.stringify([String(a.floor),String(a.area)]),a])).entries()];
   const selectedArea = areas.find(([key])=>key===areaKey)?.[1];
   const mutate = (ids,patch) => setRows(rs=>rs.map(r=>ids.includes(rowId(r))?{...r,...patch}:r));
+  const moveStage=(key,delta)=>{const list=[...groups],index=list.findIndex(g=>g.key===key),target=index+delta;if(target<0||target>=list.length)return;[list[index],list[target]]=[list[target],list[index]];setRows(list.flatMap(g=>g.rows));setOrderMode('manual');setEditing(true);};
   const loadLegacy = () => {setRows(DESIGN_WORKFLOW_PDF_TEMPLATE.map(r=>({...r})));setEditing(true);setMessage("PDF template loaded. Review drawing triggers and assignments, then save to activate automation.");};
   const loadPdf=()=>{setRows(DESIGN_TASK_FLOW_TEMPLATE.map(r=>({...r})));setEditing(true);setMessage("Latest Design Task PDF loaded: pink in-person meetings, purple phone/Zoom meetings, white floor-wise design work. Save to activate.");};
   const save = async () => {
@@ -4525,7 +4563,7 @@ function ProjectLineOfWorkView({state,persist,selectedId}) {
     if(rows.some(r=>!String(r.milestone||'').trim()||!String(r.tasks||'').trim()||!String(r.subtask||'').trim()||!String(r.triggerTaskType||'').trim()))return setError('Each workflow row needs a milestone, task, subtask, and trigger task.');
     const token=revision.current,previousPanel=panel,previousSaved=savedRows;
     const before=state.projects.find(p=>p.id===project.id);
-    const order={},clean=rows.map(r=>{const key=[r.milestone,r.tasks,r.triggerDrawingType,r.triggerTaskType,r.scope].join('|');order[key]=(order[key]||0)+1;return {...r,workflowVersion:r.workflowVersion||'1',subtaskOrder:order[key],completionUploadRequired:r.completionUploadRequired!==false&&String(r.completionUploadRequired)!=='false',optional:r.optional===true||String(r.optional)==='true'};});
+    const order={},clean=rows.map(r=>{const key=[r.milestone,r.tasks,r.triggerDrawingType,r.triggerTaskType,r.scope].join('|');order[key]=(order[key]||0)+1;return {...r,workflowOrderMode:orderMode,workflowVersion:r.workflowVersion||'1',subtaskOrder:order[key],completionUploadRequired:r.completionUploadRequired!==false&&String(r.completionUploadRequired)!=='false',optional:r.optional===true||String(r.optional)==='true'};});
     const optimistic=[...legacy,...clean];
     savePendingRef.current=true;setBusy(true);setError('');setPanel(null);setEditing(false);setRows(clean);setMessage('Changes applied · Saving workflow in the background…');
     try{
@@ -4553,7 +4591,7 @@ function ProjectLineOfWorkView({state,persist,selectedId}) {
   const chosenInstances = instances.filter(w=>selectedArea?String(w.task?.floor)===String(selectedArea.floor)&&String(w.task?.area)===String(selectedArea.area):true);
   const activationKey=r=>JSON.stringify([project.id,r.lineWorkId]);
   const workflowStatus=(task,sub)=>workflowActivationStatus(instances,task,sub,selectedArea,activationStates[activationKey(task)]);
-  const cancelEdit=()=>{setRows(savedRows);setEditing(false);setPanel(null);setMessage('');setError('');};
+  const cancelEdit=()=>{setRows(savedRows);setOrderMode(savedRows[0]?.workflowOrderMode==='manual'?'manual':'drawing');setEditing(false);setPanel(null);setMessage('');setError('');};
   const addTask=()=>{const id=uid();setEditing(true);setMoreOpen(false);setRows(rs=>[...rs,{id,workflowVersion:'2',milestone:'New milestone',tasks:'New task',subtask:'New subtask',triggerDrawingType:'LAYOUT',triggerTaskType:'New task',scope:'Stage',taskCategory:'Design',meetingMode:'',startingMilestone:'Confirm prerequisite',completionUploadRequired:true}]);setPanel({kind:'task',id});};
   const addSubtask=g=>{const id=uid(),last=g.rows[g.rows.length-1];setRows(rs=>{const index=rs.findIndex(x=>rowId(x)===rowId(last));return [...rs.slice(0,index+1),{...last,id,lineWorkId:'',subtask:'New subtask'},...rs.slice(index+1)];});setPanel({kind:'subtask',id});};
   const panelGroup=panel?groups.find(g=>g.rows.some(r=>rowId(r)===panel.id)):null;
@@ -4583,9 +4621,11 @@ function ProjectLineOfWorkView({state,persist,selectedId}) {
         <div style={{position:'relative',marginLeft:'auto'}}><button type="button" disabled={busy||loading} aria-expanded={moreOpen} onClick={()=>setMoreOpen(v=>!v)} style={{...smallBtn,padding:"7px 10px"}}>More ▾</button>{moreOpen&&<div aria-label="Workflow actions" style={{position:'absolute',right:0,top:'100%',zIndex:20,background:T.paper,border:`1px solid ${T.line}`,padding:10,minWidth:250,display:'grid',gap:8,boxShadow:'0 8px 24px #08192d18'}}><button style={smallBtn} onClick={()=>{setMoreOpen(false);if(!rows.length||window.confirm('Load the default workflow into this draft? The saved workflow changes only after Save Changes.'))loadPdf();}}>Load default workflow</button>{!rows.length&&<button style={smallBtn} onClick={()=>{setMoreOpen(false);loadLegacy();}}>Load legacy area template</button>}<button style={smallBtn} onClick={addTask}>+ Add task</button></div>}</div>
       </div>
       {rows.some(r=>!r.lineWorkId)&&!editing&&<p style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>Default workflow is shown. Save it once for this project to enable activation in Task Details.</p>}
-      {groups.map(g=>{const r=g.first,key=rowId(r);return <section key={key} style={{border:`1px solid ${T.line}`,marginBottom:12,background:'#fff'}}>
+      <div className="workflow-overview-layout"><aside aria-label="Project progress timeline" className="workflow-progress-rail"><h3 style={{fontFamily:FONT_DISPLAY,fontSize:15,marginTop:0}}>Project timeline</h3><ol style={{listStyle:'none',padding:0,margin:0}}>{groups.map((g,i)=>{const statuses=g.rows.map(r=>workflowWorkStatus(workflowStatus(g.first,r)).label),done=statuses.every(s=>s==='Completed'),active=statuses.some(s=>['In progress','Approval required'].includes(s)),label=done?'Completed':active?'In progress':'Not started';return <li key={g.key} style={{borderLeft:`2px solid ${done?'#8CAD8E':T.line}`,padding:'0 0 18px 14px',position:'relative'}}><span aria-hidden="true" style={{position:'absolute',left:-6,top:4,width:10,height:10,borderRadius:'50%',background:done?'#4F8259':active?'#D5A226':'#D2CDC1'}}/><a href={`#workflow-stage-${i}`} style={{fontFamily:FONT_BODY,fontSize:12,color:T.ink,textDecoration:'none',fontWeight:active?700:500}}>{g.first.tasks}</a><div style={{fontSize:10,color:T.inkDim,marginTop:3}}>{label}</div></li>;})}</ol><a href="#execution-visit-plan" style={{fontFamily:FONT_BODY,fontSize:12,color:T.blue}}>Execution & visits ↓</a><h4 style={{fontFamily:FONT_DISPLAY,fontSize:13,marginBottom:10}}>Completed visits</h4>{visits.flatMap(row=>visitHistory(row).map(v=>({...v,milestone:row.milestone,floor:row.floor}))).sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(v=><div key={v.visitId} style={{fontSize:11,lineHeight:1.5,padding:'8px 0',borderBottom:`1px solid ${T.line}`}}><strong>{formatProjectDate(v.date)}</strong><div>{v.milestone} · {v.floor}</div><div style={{color:T.inkDim}}>{v.visitBy}</div>{v.notes&&<div>{v.notes}</div>}</div>)}{!visits.some(row=>visitHistory(row).length)&&<p style={{fontSize:11,color:T.inkDim}}>No completed visits logged.</p>}</aside><div style={{minWidth:0}}>
+      <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:12,fontFamily:FONT_BODY,fontSize:12}}><label>Stage order <select aria-label="Stage order" style={{...inputStyle,width:170,fontSize:12,marginLeft:8}} value={orderMode} onChange={e=>{setOrderMode(e.target.value);setEditing(true);}}><option value="drawing">Drawing arrival</option><option value="manual">Manual sequence</option></select></label></div>
+      {groups.map((g,index)=>{const r=g.first,key=rowId(r);return <section id={`workflow-stage-${index}`} key={key} style={{border:`1px solid ${T.line}`,marginBottom:12,background:'#fff'}}>
         <div style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',background:'#F3F1EA'}}>
-          <h3 style={{flex:1,margin:0,color:T.ink,fontFamily:FONT_DISPLAY,fontSize:14,fontWeight:700}}>{r.tasks}</h3>
+          {editing&&<div style={{display:'flex',gap:4}}><button type="button" aria-label={`Move ${r.tasks} earlier`} disabled={busy||index===0} style={smallBtn} onClick={()=>moveStage(g.key,-1)}>↑</button><button type="button" aria-label={`Move ${r.tasks} later`} disabled={busy||index===groups.length-1} style={smallBtn} onClick={()=>moveStage(g.key,1)}>↓</button></div>}<h3 style={{flex:1,margin:0,color:T.ink,fontFamily:FONT_DISPLAY,fontSize:14,fontWeight:700}}>{r.tasks}</h3>
           <button type="button" disabled={busy||loading} aria-label={`Task details ${r.tasks}`} style={smallBtn} onClick={()=>setPanel({kind:'task',id:key})}>Task details</button>
         </div>
         {<div id={`workflow-subtasks-${key}`} style={{padding:'0 14px 12px'}}>
@@ -4595,6 +4635,8 @@ function ProjectLineOfWorkView({state,persist,selectedId}) {
           {editing&&<button disabled={busy} style={{...smallBtn,marginTop:12}} onClick={()=>addSubtask(g)}>+ Add subtask</button>}
         </div>}
       </section>;})}
+      <ExecutionVisitPlanner key={project.id} project={project} rows={visits} onChange={next=>{if(workflowProjectRef.current===project.id)setVisits(next);}} loading={visitsLoading} loadError={visitsError}/>
+      </div></div>
       {!!legacy.length&&<div style={{fontSize:11,color:T.inkDim,marginTop:12}}>{legacy.length} previous Line of Work rows retained.</div>}
     </>:<>
       <Btn disabled={busy} variant="ghost" onClick={refresh} style={{marginBottom:12}}>Refresh progress</Btn>
