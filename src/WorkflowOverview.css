@@ -1,1 +1,9 @@
-.workflow-overview-layout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:22px;align-items:start}.workflow-progress-rail{position:sticky;top:16px;max-height:calc(100vh - 90px);overflow-y:auto;padding:16px;background:#FAF9F5;border:1px solid #DDD7C8;font-family:Inter,sans-serif}.workflow-overview-layout section[id]{scroll-margin-top:20px}@media(max-width:1000px){.workflow-overview-layout{grid-template-columns:170px minmax(0,1fr);gap:12px}}@media(max-width:720px){.workflow-overview-layout{grid-template-columns:1fr}.workflow-progress-rail{position:static;max-height:240px}}
+
+.workflow-overview-layout{display:grid;grid-template-columns:14px minmax(0,1.25fr) minmax(0,1fr);gap:16px;align-items:start}
+.workflow-progress-rail{position:sticky;top:16px;height:min(70vh,620px);width:6px;justify-self:center;display:flex;flex-direction:column;gap:3px;padding:0;margin:0;background:transparent;border:0}
+.workflow-road-segment{position:relative;display:block;flex:1;min-height:8px;border-radius:3px;text-decoration:none}
+.workflow-road-marker{position:absolute;top:0;left:50%;transform:translate(-50%,-25%);width:12px;height:12px;border-radius:50%;background:#1D4E89;border:2px solid #fff;box-shadow:0 0 0 1px #1D4E89}
+.workflow-road-segment:focus-visible{outline:2px solid #1D4E89;outline-offset:4px}
+.workflow-overview-layout section[id]{scroll-margin-top:20px}
+@media(max-width:1100px){.workflow-overview-layout{grid-template-columns:12px minmax(0,1.1fr) minmax(0,1fr);gap:10px}}
+@media(max-width:850px){.workflow-overview-layout{grid-template-columns:12px minmax(0,1fr);grid-template-areas:'rail design' 'rail execution'}.workflow-progress-rail{grid-area:rail}.workflow-design-column{grid-area:design}.workflow-execution-column{grid-area:execution}}
