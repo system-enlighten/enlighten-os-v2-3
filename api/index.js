@@ -147,16 +147,18 @@ export default async function handler(req,res) {
       try{return send(200,{ok:true,data:await transferUploadChunk(ticket,payload,secret)});}catch(e){return send(502,{ok:false,error:{message:e.message}});}
     }
     let backendPayload=payload;
-    if(action==='finishReceivedUpload'){
+    if(['finishReceivedUpload','finishBaseDrawingUpload','finishWorkDrawingUpload'].includes(action)){
       const ticket=verifyUploadTicket(payload.completionTicket,secret,identity,requestHost(req));
+      if(ticket&&(action==='finishBaseDrawingUpload'?ticket.metadata.uploadKind!=='Base':action==='finishWorkDrawingUpload'?ticket.metadata.uploadKind!=='Output':ticket.metadata.uploadKind&&ticket.metadata.uploadKind!=='Received'))return send(403,{ok:false,error:{message:'Upload destination mismatch.'}});
       if(!ticket?.driveFileId)return send(403,{ok:false,error:{message:'Upload completion has not been verified.'}});
       backendPayload={...ticket.metadata,driveFileId:ticket.driveFileId};
     }
     const signed=signRequest(action,backendPayload,identity,secret);
     const response=await fetchAppsScript(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(signed)});
     const raw=await response.text();let result;try{result=JSON.parse(raw);}catch(_){return send(502,{ok:false,error:{message:'Apps Script did not return JSON. Check its deployment access and URL.'}});}
-    if(action==='beginReceivedUpload'&&result.ok&&!result.data?.drawing){
-      const metadata=Object.fromEntries(['projectId','drawingId','floor','floors','area','drawingType','fileName','mimeType','fileSize','notes','receivedSentDate'].map(k=>[k,payload[k]]));
+    if(['beginReceivedUpload','beginBaseDrawingUpload','beginWorkDrawingUpload'].includes(action)&&result.ok&&!result.data?.drawing&&!result.data?.file){
+      const metadata=Object.fromEntries(['designTaskId','uploadId','projectId','drawingId','floor','floors','area','drawingType','fileName','mimeType','fileSize','notes','receivedSentDate'].map(k=>[k,payload[k]]));
+      metadata.uploadKind=action==='beginBaseDrawingUpload'?'Base':action==='beginWorkDrawingUpload'?'Output':'Received';
       const ticket=createUploadTicket({sub:identity.sub,host:requestHost(req),metadata,sessionUrl:result.data?.sessionUrl},secret);
       if(!verifyUploadTicket(ticket,secret,identity,requestHost(req)))return send(502,{ok:false,error:{message:'Google Drive returned an invalid upload session.'}});
       result.data={uploadTicket:ticket,chunkBytes:UPLOAD_CHUNK_BYTES};

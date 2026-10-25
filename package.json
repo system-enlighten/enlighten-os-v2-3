@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.25.1-simple-drive-theme",
+  "version": "2.26.0-automatic-project-folders",
   "type": "module",
   "scripts": {
     "dev": "vite",
