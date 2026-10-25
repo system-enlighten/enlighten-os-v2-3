@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.26.1-received-duplicates",
+  "version": "2.27.1-drive-file-list",
   "type": "module",
   "scripts": {
     "dev": "vite",
