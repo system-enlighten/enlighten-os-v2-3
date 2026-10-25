@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.27.4-edit-panel-animation",
+  "version": "2.27.5-latest-project-first",
   "type": "module",
   "scripts": {
     "dev": "vite",

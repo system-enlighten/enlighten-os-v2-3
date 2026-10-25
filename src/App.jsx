@@ -3223,7 +3223,8 @@ function projectSequenceNumber(project){
 }
 function compareProjectSequence(a,b){
   const left=projectSequenceNumber(a),right=projectSequenceNumber(b);
-  if(left!==right)return left<right?-1:1;
+  if(!Number.isFinite(left)||!Number.isFinite(right)){if(left!==right)return Number.isFinite(left)?-1:1;}
+  else if(left!==right)return right-left;
   return String(a.no||a.projectNo||'').localeCompare(String(b.no||b.projectNo||''),undefined,{numeric:true})||String(a.name||'').localeCompare(String(b.name||''));
 }
 function orderedProjects(projects){return [...(projects||[])].sort(compareProjectSequence);}
