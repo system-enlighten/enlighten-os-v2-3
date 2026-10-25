@@ -3216,6 +3216,18 @@ function BaseDrawingUpload({projectId,onSaved}){
   return <div style={{padding:'0 16px 14px',fontFamily:FONT_BODY}}><div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}><button type="button" disabled={busy} style={smallBtn} onClick={()=>input.current?.click()}>Choose edited base</button><input ref={input} aria-label="Edited base drawing" type="file" disabled={busy} style={{display:'none'}} onChange={e=>{if(e.target.files?.[0]){setFile(e.target.files[0]);setError('');}}}/><span style={{fontSize:11,color:T.inkDim,overflowWrap:'anywhere'}}>{file?.name||'Edited reference/layout files are saved in Base.'}</span>{file&&<button type="button" style={smallBtn} disabled={busy} onClick={upload}>{busy?`Uploading ${progress}%`:'Upload to Base'}</button>}</div>{error&&<p role="alert" style={{color:T.redline,fontSize:12,marginBottom:0}}>{error} Click Upload to Base to retry.</p>}</div>;
 }
 
+function projectSequenceNumber(project){
+  const value=String(project.no||project.projectNo||'').trim();
+  const token=value.includes('-')?value.split('-')[1].trim():value;
+  return /^\d+$/.test(token)?Number(token):Number.POSITIVE_INFINITY;
+}
+function compareProjectSequence(a,b){
+  const left=projectSequenceNumber(a),right=projectSequenceNumber(b);
+  if(left!==right)return left<right?-1:1;
+  return String(a.no||a.projectNo||'').localeCompare(String(b.no||b.projectNo||''),undefined,{numeric:true})||String(a.name||'').localeCompare(String(b.name||''));
+}
+function orderedProjects(projects){return [...(projects||[])].sort(compareProjectSequence);}
+
 function ProjectDriveView({state,persist}){
   const [trashBusy,setTrashBusy]=useState(false),[trashMessage,setTrashMessage]=useState('');
   const [folderNotice,setFolderNotice]=useState('');
@@ -3226,7 +3238,7 @@ function ProjectDriveView({state,persist}){
   const admin=state.currentUser?.appAccess?.toLowerCase()==='admin';
   const project=(state.projects||[]).find(p=>String(p.id)===projectId),categories=['Base','Output','Received','Sent'];
   const completed=p=>p.completed===true||String(p.completed).toLowerCase()==='true'||!!p.completedAt||[p.status,p.projectStatus,p.projectControl?.projectStatus].some(value=>String(value||'').toLowerCase()==='completed');
-  const projects=(state.projects||[]).filter(p=>completed(p)===(projectStatus==='Completed')).filter(p=>`${p.no} ${p.name}`.toLowerCase().includes(projectSearch.toLowerCase()));
+  const projects=orderedProjects(state.projects).filter(p=>completed(p)===(projectStatus==='Completed')).filter(p=>`${p.no} ${p.name}`.toLowerCase().includes(projectSearch.toLowerCase()));
   const folderId=path.at(-1)?.id||'';
   useEffect(()=>{let live=true;if(admin)projectApi.getDriveLibraryConfig().then(r=>{if(live)setConfig(r);}).catch(e=>{if(live)setLinkMessage(e.message);});return()=>{live=false;};},[admin]);
   useEffect(()=>{let live=true;setData(null);setSelectedFile(null);setError('');if(!projectId){setBusy(false);return;}setBusy(true);projectApi.listProjectDrive({projectId,category,folderId,offset,query}).then(r=>{if(live){setData(r);if(admin&&!config?.rootId)projectApi.getDriveLibraryConfig().then(next=>{if(live)setConfig(next);}).catch(()=>{});}}).catch(e=>{if(live)setError(e.message);}).finally(()=>{if(live)setBusy(false);});return()=>{live=false;};},[projectId,category,folderId,offset,query,revision]);
@@ -3940,7 +3952,7 @@ function DashboardView({ state, persist }) {
     return drainDeletes(id,entry);
   };
   const completed=p=>[p.status,p.projectStatus,p.projectControl?.projectStatus].some(v=>String(v||"").toLowerCase()==="completed")||p.completed===true||String(p.completed).toLowerCase()==="true"||Boolean(p.completedAt)||Boolean(p.completedDate);
-  const allProjects=state.projects||[];
+  const allProjects=orderedProjects(state.projects);
   const ongoingProjects=allProjects.filter(p=>!completed(p)),completedProjects=allProjects.filter(completed);
   const projects=projectGroup==="completed"?completedProjects:ongoingProjects;
   const switchGroup=group=>{if(areaSaving||bulkSaving)return;setProjectGroup(group);setProjectId("");setEditor(null);setBulkEditor(null);};
@@ -4318,7 +4330,7 @@ function ProjectOnboarding({ state, persist, selectedId, setSelectedId, initialM
       ) : (
         <div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 10 }}>
-            {state.projects.map((p) => {
+            {orderedProjects(state.projects).map((p) => {
               const stage = p.projectStage || "Onboarding";
               const status = p.projectStatus || p.status || "Ongoing";
               const isSelected = p.id === selectedId;
@@ -4911,7 +4923,7 @@ function ProjectSelector({ state, selectedId, setSelectedId }) {
     <div>
       <div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,letterSpacing:".1em",textTransform:"uppercase",marginBottom:5}}>Selected Project</div>
       <select value={project?.id || ""} onChange={e=>setSelectedId(e.target.value)} style={{...inputStyle,borderRadius:0,minWidth:320,fontFamily:FONT_DISPLAY,fontSize:16,fontWeight:700}}>
-        {state.projects.map(p=><option key={p.id} value={p.id}>{p.no || "—"} · {p.name}</option>)}
+        {orderedProjects(state.projects).map(p=><option key={p.id} value={p.id}>{p.no || "—"} · {p.name}</option>)}
       </select>
     </div>
     {project && <div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim}}>Stage: {project.projectControl?.currentStage || project.stage || "Onboarding"} · Status: {project.projectControl?.projectStatus || project.status || "Ongoing"}</div>}
@@ -5287,7 +5299,7 @@ function DesignWorkflowAccess({state,persist}){
   if(!project)return <p>No assigned project available.</p>;
   const scoped={...state,projects:[project]},canEdit=projectRole(state,project.id)==='Admin'&&state.currentUser?.appAccess?.toLowerCase()!=='viewer';
   const saveScoped=update=>persist(latest=>{const scope={...latest,projects:latest.projects.filter(p=>p.id===project.id)},next=typeof update==='function'?update(scope):update;return {...latest,projects:latest.projects.map(p=>p.id===project.id?(next.projects.find(n=>n.id===p.id)||p):p)};});
-  return <div><label style={{display:'block',fontFamily:FONT_BODY,fontSize:12,marginBottom:16}}>Project<select aria-label="Line of Work assigned project" style={{...inputStyle,marginTop:6}} value={project.id} onChange={e=>setSelected(e.target.value)}>{state.projects.map(p=><option key={p.id} value={p.id}>{p.no} · {p.name}</option>)}</select></label>{canEdit?<ProjectLineOfWorkView key={project.id} state={scoped} persist={saveScoped} selectedId={project.id} showProjectPicker={false}/>:<ReadOnlyProjectWork key={project.id} state={scoped} project={project}/>}</div>;
+  return <div><label style={{display:'block',fontFamily:FONT_BODY,fontSize:12,marginBottom:16}}>Project<select aria-label="Line of Work assigned project" style={{...inputStyle,marginTop:6}} value={project.id} onChange={e=>setSelected(e.target.value)}>{orderedProjects(state.projects).map(p=><option key={p.id} value={p.id}>{p.no} · {p.name}</option>)}</select></label>{canEdit?<ProjectLineOfWorkView key={project.id} state={scoped} persist={saveScoped} selectedId={project.id} showProjectPicker={false}/>:<ReadOnlyProjectWork key={project.id} state={scoped} project={project}/>}</div>;
 }
 function DesignWorkspaceView({state,persist}){
   const [tab,setTab]=useState('line');
@@ -5297,7 +5309,7 @@ function DesignWorkspaceView({state,persist}){
 function DesignFlowView({state,persist}){
   const [editId,setEditId]=useState(''),[projectDraft,setProjectDraft]=useState({}),[saving,setSaving]=useState(false),[error,setError]=useState('');
   const seen=new Set();
-  const projects=(state.projects||[]).filter(p=>{
+  const projects=orderedProjects(state.projects).filter(p=>{
     if(p.completed||p.status==='Completed'||p.projectControl?.projectStatus==='Completed')return false;
     const id=String(p.id||p.no||p.name||'').toLowerCase();if(!id||seen.has(id))return false;seen.add(id);return true;
   });
@@ -5545,6 +5557,16 @@ function ProjectView({ state, persist }) {
   const [editProjectId, setEditProjectId] = useState(null);
   const [editDraft, setEditDraft] = useState(null);
   const [isProjectEditorOpen, setIsProjectEditorOpen] = useState(false);
+  const projectEditorRef=useRef(null);
+  const [editorReveal,setEditorReveal]=useState(0);
+  useEffect(()=>{
+    if(!editorReveal||!isProjectEditorOpen)return;
+    const panel=projectEditorRef.current;if(!panel)return;
+    const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    panel.scrollIntoView({behavior:reduced?'instant':'smooth',block:'start'});
+    panel.focus({preventScroll:true});
+    if(!reduced)panel.animate?.([{boxShadow:'0 0 0 0 rgba(72,159,197,0)',transform:'translateY(7px)'},{boxShadow:'0 0 0 5px rgba(72,159,197,.22)',transform:'translateY(0)'},{boxShadow:'0 0 0 0 rgba(72,159,197,0)',transform:'translateY(0)'}],{duration:750,easing:'ease-out'});
+  },[editorReveal,isProjectEditorOpen]);
   const [showProjectTeam,setShowProjectTeam] = useState(false);
   const [teamRatingBusy,setTeamRatingBusy] = useState(false);
   const project = state.projects.find(p => p.id === selectedId) || state.projects[0];
@@ -5565,8 +5587,8 @@ function ProjectView({ state, persist }) {
   const ongoingGridWidth = 65 + 300 + 180 + 180 + scopeFields.length * 78 + 105;
 
   const isCompletedProject = p => (p.status==="Completed" || p.projectControl?.projectStatus==="Completed" || Boolean(p.completedAt));
-  const ongoingProjects = state.projects.filter(p=>!isCompletedProject(p));
-  const completedProjects = state.projects.filter(isCompletedProject);
+  const ongoingProjects = orderedProjects(state.projects).filter(p=>!isCompletedProject(p));
+  const completedProjects = orderedProjects(state.projects).filter(isCompletedProject);
   const completeProject = async (p,e,outcome="survived") => {
     if(e)e.stopPropagation();
     if(completionPendingRef.current[p.id])return;
@@ -5739,7 +5761,9 @@ function ProjectView({ state, persist }) {
     await persist({...state,projects:state.projects.map(p=>p.id===project.id?syncedProject:p)});
   };
 
-  const openProjectEditor = (p) => {
+  const openProjectEditor = (p,button) => {
+    if(!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)button?.animate?.([{transform:'scale(1)'},{transform:'scale(.92)',background:'#E6EEF4'},{transform:'scale(1)'}],{duration:220,easing:'ease-out'});
+    setEditorReveal(n=>n+1);
     const sc = scopeFor(p);
     setSelectedId(p.id);
     setEditProjectId(p.id);
@@ -5906,7 +5930,7 @@ function ProjectView({ state, persist }) {
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,gap:10}}>
         <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.inkDim}}>Ongoing Projects</div>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
-          {project && !isCompletedProject(project) && <button type="button" onClick={()=>openProjectEditor(project)} style={{...smallBtn,border:`1px solid ${T.blue}`,color:T.blue,background:"#fff"}}>Edit Selected Project</button>}
+          {project && !isCompletedProject(project) && <button type="button" onClick={e=>openProjectEditor(project,e.currentTarget)} style={{...smallBtn,border:`1px solid ${T.blue}`,color:T.blue,background:"#fff"}}>Edit Selected Project</button>}
           <div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim}}>{ongoingProjects.length} ongoing projects</div>
         </div>
       </div>
@@ -5940,7 +5964,7 @@ function ProjectView({ state, persist }) {
                 <span style={{display:"flex",gap:5,flexShrink:0}}>
                   <button
                     type="button"
-                    onClick={(e)=>{e.stopPropagation();openProjectEditor(p);}}
+                    onClick={(e)=>{e.stopPropagation();openProjectEditor(p,e.currentTarget);}}
                     style={{border:`1px solid ${T.blue}`,background:"#fff",color:T.blue,padding:"4px 7px",fontFamily:FONT_MONO,fontSize:8,fontWeight:700,cursor:"pointer"}}
                   >EDIT</button>
 
@@ -6002,7 +6026,7 @@ function ProjectView({ state, persist }) {
         </div>}
       </section>}
 
-      {project && editDraft && isProjectEditorOpen && <div style={{marginTop:16,border:`2px solid ${T.navy}`,background:"#fff",padding:16}}>
+      {project && editDraft && isProjectEditorOpen && <div ref={projectEditorRef} tabIndex={-1} role="region" aria-label="Edit selected project" style={{scrollMarginTop:24,outline:"none",marginTop:16,border:`2px solid ${T.navy}`,background:"#fff",padding:16}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:14}}>
           <div>
             <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.cyan}}>Project Details · Editable (Client & Architect read-only) / Contacts · Editable</div>
@@ -6347,7 +6371,7 @@ function SitePunchInView({ state, persist }) {
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:18,alignItems:"start"}}>
       <div style={{background:"#fff",border:`1px solid ${T.line}`,borderRadius:8,padding:18}}>
         <div style={{fontFamily:FONT_MONO,fontSize:11,letterSpacing:".08em",textTransform:"uppercase",color:T.inkDim,marginBottom:12}}>Current Site Visit</div>
-        {!active ? <><Field label="Project"><select style={inputStyle} value={projectId} onChange={e=>setProjectId(e.target.value)}>{state.projects.map(p=><option key={p.id} value={p.id}>{p.no} — {p.name}</option>)}</select></Field>
+        {!active ? <><Field label="Project"><select style={inputStyle} value={projectId} onChange={e=>setProjectId(e.target.value)}>{orderedProjects(state.projects).map(p=><option key={p.id} value={p.id}>{p.no} — {p.name}</option>)}</select></Field>
           <Field label="Visit purpose"><input style={inputStyle} value={purpose} onChange={e=>setPurpose(e.target.value)} placeholder="e.g. Site coordination / inspection"/></Field>
           <div style={{background:T.paperDim,border:`1px solid ${T.line}`,borderRadius:6,padding:11,marginBottom:14,fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}><MapPin size={14} style={{verticalAlign:"middle",marginRight:6}}/>Location permission is required. Latitude, longitude and accuracy are captured only when you press Check In.</div>
           <Btn onClick={checkIn} disabled={locationBusy}><LogIn size={14}/>{locationBusy?"Capturing location…":"Check In & Punch Entry"}</Btn></>
@@ -6696,7 +6720,7 @@ function ProjectPunchInsView({state}){
   const save=async()=>{setBusy(true);try{const payload={...draft,projectId,checkInAt:draft.checkInAt?new Date(draft.checkInAt).toISOString():'',checkOutAt:draft.checkOutAt?new Date(draft.checkOutAt).toISOString():''};await projectApi.saveSitePunchIn(payload);setRows(await projectApi.listSitePunchIns(projectId));setDraft(null);setMessage('Punch-in saved to Google Sheets.');}catch(e){setMessage(e.message);}finally{setBusy(false);}};
   const edit=r=>{const localDate=iso=>{if(!iso)return '';const d=new Date(iso);if(isNaN(d))return '';return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);};setDraft({punchId:r.punchId,userId:r.userId,purpose:r.purpose||'',checkInAt:localDate(r.checkInAt),checkOutAt:localDate(r.checkOutAt)});};
   const remove=async r=>{if(!window.confirm('Delete this punch-in record?'))return;setBusy(true);try{await projectApi.deleteSitePunchIn({projectId,punchId:r.punchId});setRows(await projectApi.listSitePunchIns(projectId));}catch(e){setMessage(e.message);}finally{setBusy(false);}};
-  return <section><h2>Site Punch-in Records</h2><select aria-label="Punch-in project" value={projectId} style={inputStyle} onChange={e=>setProjectId(e.target.value)}>{state.projects.map(p=><option key={p.id} value={p.id}>{p.no} · {p.name}</option>)}</select><p>{admin?'Project Admin · manage records and dates':canPunch?'Add or update your own records · only Admin can delete':'View only'}</p>{canPunch&&<Btn disabled={!projectId||busy} onClick={()=>setDraft({userId:state.currentUser.userId,purpose:'',checkInAt:'',checkOutAt:''})}>Add Punch-in Record</Btn>}
+  return <section><h2>Site Punch-in Records</h2><select aria-label="Punch-in project" value={projectId} style={inputStyle} onChange={e=>setProjectId(e.target.value)}>{orderedProjects(state.projects).map(p=><option key={p.id} value={p.id}>{p.no} · {p.name}</option>)}</select><p>{admin?'Project Admin · manage records and dates':canPunch?'Add or update your own records · only Admin can delete':'View only'}</p>{canPunch&&<Btn disabled={!projectId||busy} onClick={()=>setDraft({userId:state.currentUser.userId,purpose:'',checkInAt:'',checkOutAt:''})}>Add Punch-in Record</Btn>}
   {canPunch&&draft&&<div style={{border:`1px solid ${T.line}`,padding:16,marginTop:14}}><Field label="Team member"><select style={inputStyle} value={draft.userId} onChange={e=>setDraft(d=>({...d,userId:e.target.value}))}>{(state.teamMaster||[]).filter(m=>admin||m.userId===state.currentUser.userId).map(m=><option key={m.userId} value={m.userId}>{m.name}</option>)}</select></Field>{[['checkInAt','Entry date & time'],['checkOutAt','Exit date & time (optional)']].map(([k,label])=><Field key={k} label={label}><input type="datetime-local" style={inputStyle} value={draft[k]} onChange={e=>setDraft(d=>({...d,[k]:e.target.value}))}/></Field>)}<Field label="Purpose"><input style={inputStyle} value={draft.purpose} onChange={e=>setDraft(d=>({...d,purpose:e.target.value}))}/></Field><Btn disabled={busy||!draft.checkInAt||!draft.userId} onClick={save}>Save Punch-in</Btn><button style={smallBtn} onClick={()=>setDraft(null)}>Cancel</button></div>}
   <p role="status">{message}</p><table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Member','Entry','Exit','Purpose',...(canPunch?['Actions']:[])].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{rows.map(r=><tr key={r.punchId}><td style={tdStyle}>{r.person}</td><td style={tdStyle}>{r.checkInAt?new Date(r.checkInAt).toLocaleString('en-IN'):'—'}</td><td style={tdStyle}>{r.checkOutAt?new Date(r.checkOutAt).toLocaleString('en-IN'):'—'}</td><td style={tdStyle}>{r.purpose}</td>{canPunch&&<td style={tdStyle}>{(admin||r.userId===state.currentUser.userId)&&<button disabled={busy} style={smallBtn} onClick={()=>edit(r)}>Edit Dates</button>}{admin&&<button disabled={busy} style={smallBtn} onClick={()=>remove(r)}>Delete</button>}</td>}</tr>)}</tbody></table>{!rows.length&&<p>No punch-in records.</p>}</section>;
 }

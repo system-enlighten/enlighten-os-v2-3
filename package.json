@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.27.2-unique-drive-entries",
+  "version": "2.27.4-edit-panel-animation",
   "type": "module",
   "scripts": {
     "dev": "vite",
