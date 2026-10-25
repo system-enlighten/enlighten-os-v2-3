@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.27.7-faster-drive-browsing",
+  "version": "2.29.0-wih-calendar-and-tat",
   "type": "module",
   "scripts": {
     "dev": "vite",
