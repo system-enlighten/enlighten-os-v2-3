@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.19.1-clear-status-dots",
+  "version": "2.19.2-upload-side-panel",
   "type": "module",
   "scripts": {
     "dev": "vite",
