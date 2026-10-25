@@ -13,3 +13,12 @@
 
 .workflow-concept-stage{grid-template-columns:minmax(0,1fr)}
 .workflow-concept-stage>.workflow-execution-column{display:none}
+
+.received-drawing-drop{display:flex;align-items:center;gap:16;padding:12px 18px;margin:14px 0;border:1px dashed #9bb8c8;background:#f3f8fa;transition:background .18s,border-color .18s;}
+.received-drawing-folder{width:112px;height:auto;display:block;mix-blend-mode:multiply;transition:transform .18s;}
+.received-drawing-drop.is-dragging{background:#e3f3fa;border-color:#38a0cf;}
+.received-drawing-drop.is-dragging .received-drawing-folder{transform:translateY(-5px) rotate(-4deg) scale(1.06);}
+.received-drawing-drop.is-open .received-drawing-folder{animation:received-folder-pop .45s ease-out;}
+@keyframes received-folder-pop{0%{transform:scale(1)}45%{transform:scale(1.13) rotate(-5deg)}100%{transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){.received-drawing-folder,.received-drawing-drop{transition:none}.received-drawing-drop.is-open .received-drawing-folder{animation:none}.received-drawing-drop.is-dragging .received-drawing-folder{transform:none}}
+@media(max-width:600px){.received-drawing-drop{gap:10px;padding:10px}.received-drawing-folder{width:88px}}
