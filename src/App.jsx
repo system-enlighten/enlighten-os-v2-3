@@ -4491,8 +4491,18 @@ function workflowStageDot(statuses){
   for(const key of ['Up for review','In-progress','Completed','Open','Aligned'])if(statuses.some(s=>s.status===key))return key==='Completed'?{status:'In-progress',label:'In progress'}:statuses.find(s=>s.status===key);
   return statuses.find(s=>s.label.startsWith('Drawing'))||statuses[0]||{status:'Pending',label:'Not started'};
 }
+function workflowDotColor(status){
+  const tone=sheetDashboardTone(status);
+  if(!/^#[0-9a-f]{6}$/i.test(tone.bg))return tone.fg;
+  const rgb=hex=>[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16));
+  const base=rgb(tone.bg),ink=rgb(tone.fg);
+  return '#'+base.map((v,i)=>Math.round(v*.84+ink[i]*.16).toString(16).padStart(2,'0')).join('');
+}
+function WorkflowStatusLegend(){
+  return <footer aria-label="Workflow status dot legend" style={{display:'flex',gap:16,flexWrap:'wrap',alignItems:'center',borderTop:`1px solid ${T.line}`,paddingTop:12,marginTop:18,fontFamily:FONT_BODY,fontSize:11,color:T.inkDim}}>{[['Pending','Pending / Not started'],['Open','Ready to start'],['Aligned','Aligned'],['In-progress','In progress'],['Up for review','Up for review'],['Completed','Completed']].map(([status,label])=><span key={status} style={{display:'inline-flex',gap:6,alignItems:'center'}}><WorkflowStatusDot status={status} label={label}/>{label}</span>)}</footer>;
+}
 function WorkflowStatusDot({status,label}){
-  return <span role="img" aria-label={label} title={label} data-workflow-status={status} style={{display:'inline-block',width:10,height:10,minWidth:10,borderRadius:'50%',background:sheetDashboardTone(status).fg,verticalAlign:'middle',flexShrink:0}}/>;
+  return <span role="img" aria-label={label} title={label} data-workflow-status={status} style={{display:'inline-block',width:10,height:10,minWidth:10,borderRadius:'50%',background:workflowDotColor(status),verticalAlign:'middle',flexShrink:0}}/>;
 }
 
 function visitCoverageList(raw,fallback){let list=raw;if(typeof raw==='string'){try{list=JSON.parse(raw);}catch{list=null;}}if(!Array.isArray(list))list=String(fallback||'').split(/\s+\+\s+|,/);return [...new Set(list.map(String).map(v=>v.trim()).filter(Boolean))];}
@@ -4706,6 +4716,7 @@ function ProjectLineOfWorkView({state,persist,selectedId,showProjectPicker=true}
       </section><div className="workflow-execution-column" style={{minWidth:0}}>{renderVisitTable(stageVisits)}</div></div></React.Fragment>;})}
       {!!aligned.remaining.length&&<section className="workflow-final-execution" aria-label="Further execution work" style={{minWidth:0,marginTop:8}}><h3 style={{fontFamily:FONT_DISPLAY,fontSize:17}}>Execution work</h3>{renderVisitTable(aligned.remaining.filter(row=>!/staging|scene setting/i.test(row.milestone)))}{aligned.remaining.some(row=>/staging|scene setting/i.test(row.milestone))&&<section aria-label="Final staging and scene setting" style={{marginTop:22,border:`2px solid ${T.blue}`,background:'#E8F1F8'}}><h3 style={{margin:0,padding:'12px 14px',background:T.navy,color:'#fff',fontFamily:FONT_DISPLAY,fontSize:16}}>Staging & Scene Setting <span style={{fontFamily:FONT_MONO,fontSize:10,color:T.cyan,marginLeft:12}}>FINAL MILESTONE</span></h3>{renderVisitTable(aligned.remaining.filter(row=>/staging|scene setting/i.test(row.milestone)))}</section>}</section>}
       </div></div></>}</ExecutionVisitPlanner>
+      <WorkflowStatusLegend/>
       {!!legacy.length&&<div style={{fontSize:11,color:T.inkDim,marginTop:12}}>{legacy.length} previous Line of Work rows retained.</div>}
     </>
     {panel&&panelRow&&<div role="dialog" aria-modal="true" aria-labelledby="workflow-editor-title" onKeyDown={e=>{if(e.key==='Escape'&&!busy){if(editing)cancelEdit();else setPanel(null);};if(e.key==='Tab'){const list=[...e.currentTarget.querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled),summary')];const first=list[0],last=list[list.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}}} style={{position:'fixed',inset:0,zIndex:14500,background:'rgba(8,25,45,.4)',display:'flex',justifyContent:'flex-end'}}><div style={{width:520,maxWidth:'100%',height:'100%',background:T.paper,display:'flex',flexDirection:'column',boxShadow:'-8px 0 30px #08192d20',fontFamily:FONT_BODY}}>
@@ -6511,7 +6522,7 @@ function ReadOnlyProjectWork({project,state}){
   useEffect(()=>{let live=true;setWork([]);setDrawings(null);projectApi.getWIH(true,project.id).then(rows=>{if(live)setWork(rows||[]);}).catch(()=>{});projectApi.listDrawingRegister(project.id).then(data=>{if(live)setDrawings((data?.drawings||[]).filter(d=>String(d.projectId)===String(project.id)));}).catch(()=>{if(live)setDrawings(undefined);});return()=>{live=false;};},[project.id]);
   const saved=project.lineOfWorkResidence||project.lineOfWork||[];
   const rows=saved.some(r=>['1','2'].includes(String(r.workflowVersion)))?saved:DESIGN_TASK_FLOW_TEMPLATE;
-  return <><table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Task','Starting Milestone','Subtask','Responsible','Hours'].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={r.lineWorkId||r.id||i}>{[r.tasks||r.title,r.startingMilestone||r.milestone,r.subtask,r.responsible||r.assignee,r.hours].map((v,j)=><td key={j} style={tdStyle}>{j===0?<span style={{display:'inline-flex',alignItems:'center',gap:8}}><WorkflowStatusDot {...workflowStageDot(rows.filter(sub=>sub.tasks===r.tasks).map(sub=>workflowDotStatus(workflowActivationStatus(work,r,sub),workflowPrerequisite(r,drawings,project.floorZones||[],null,work))))}/>{v||'—'}</span>:j===3?<span style={{display:'inline-flex',alignItems:'center',gap:8}}><WorkflowStatusDot {...workflowDotStatus(workflowActivationStatus(work,r,r),workflowPrerequisite(r,drawings,project.floorZones||[],null,work))}/>{v||'Unassigned'}</span>:v||'—'}</td>)}</tr>)}</tbody></table><ProjectGantt state={state} projectId={project.id}/></>;
+  return <><table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Task','Starting Milestone','Subtask','Responsible','Hours'].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={r.lineWorkId||r.id||i}>{[r.tasks||r.title,r.startingMilestone||r.milestone,r.subtask,r.responsible||r.assignee,r.hours].map((v,j)=><td key={j} style={tdStyle}>{j===0?<span style={{display:'inline-flex',alignItems:'center',gap:8}}><WorkflowStatusDot {...workflowStageDot(rows.filter(sub=>sub.tasks===r.tasks).map(sub=>workflowDotStatus(workflowActivationStatus(work,r,sub),workflowPrerequisite(r,drawings,project.floorZones||[],null,work))))}/>{v||'—'}</span>:j===3?<span style={{display:'inline-flex',alignItems:'center',gap:8}}><WorkflowStatusDot {...workflowDotStatus(workflowActivationStatus(work,r,r),workflowPrerequisite(r,drawings,project.floorZones||[],null,work))}/>{v||'Unassigned'}</span>:v||'—'}</td>)}</tr>)}</tbody></table><ProjectGantt state={state} projectId={project.id}/><WorkflowStatusLegend/></>;
 }
 function ProjectScopeAdmin({project,onSaved}){
   const [draft,setDraft]=useState(project),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
