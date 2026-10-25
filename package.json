@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.29.0-wih-calendar-and-tat",
+  "version": "2.29.2-contextual-historical-upload",
   "type": "module",
   "scripts": {
     "dev": "vite",
