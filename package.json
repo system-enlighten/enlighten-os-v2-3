@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.19.6-sunset-progress-rail",
+  "version": "2.20.0-recent-drawings",
   "type": "module",
   "scripts": {
     "dev": "vite",
