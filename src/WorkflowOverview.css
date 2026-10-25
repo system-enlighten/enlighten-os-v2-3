@@ -31,3 +31,6 @@
 .project-drive-projects{display:flex;flex-direction:column;min-height:0;overflow:hidden;}
 .project-drive-folders{background:#fff;border-right:1px solid #D2CDC1;min-height:0;overflow-y:auto;}
 .project-drive-files{min-height:0;overflow-y:auto;}
+
+.project-drive-layout.has-file-details{grid-template-columns:44px 260px 180px minmax(360px,1fr) 300px;min-width:1144px;}
+.project-drive-file-details{min-height:0;}

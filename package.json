@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.23.1-dropdown-dividers",
+  "version": "2.24.0-drive-file-information",
   "type": "module",
   "scripts": {
     "dev": "vite",
