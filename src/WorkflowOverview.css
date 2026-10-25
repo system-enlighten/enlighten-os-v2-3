@@ -34,3 +34,20 @@
 
 .project-drive-layout.has-file-details{grid-template-columns:44px 260px 180px minmax(360px,1fr) 300px;min-width:1144px;}
 .project-drive-file-details{min-height:0;}
+
+/* Quiet, theme-aligned Drive browser. */
+.studio-drive-settings{margin:0 0 14px;}
+.studio-drive-settings summary{list-style:none;cursor:pointer;}
+.studio-drive-settings summary::-webkit-details-marker{display:none;}
+.studio-drive-settings-body{padding:16px;border:1px solid #DDD8CB;background:#fff;}
+.studio-drive .project-drive-scroll{border-color:#DDD8CB;}
+.studio-drive .project-drive-layout{grid-template-columns:40px 245px 165px minmax(300px,1fr);min-width:750px;height:min(65vh,680px);min-height:440px;}
+.studio-drive .project-drive-layout.has-file-details{grid-template-columns:40px 245px 165px minmax(300px,1fr) 280px;min-width:1030px;}
+.studio-drive .project-drive-status{background:#F7F5ED;border-color:#DDD8CB;}
+.studio-drive .project-drive-status button{min-height:130px;font-weight:500!important;border-bottom:0!important;}
+.studio-drive .project-drive-projects{border:0!important;border-right:1px solid #DDD8CB!important;}
+.studio-drive .project-drive-folders{border-color:#DDD8CB;}
+.studio-drive .project-drive-projects button:hover,.studio-drive .project-drive-folders button:hover{background:#EDF2F5!important;}
+.studio-drive .project-drive-projects input{font-size:12px!important;padding:8px 10px!important;border-radius:0!important;}
+.studio-drive .project-drive-files th{font-size:10px;}
+.studio-drive-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12;height:100%;min-height:320px;padding:28px;font-size:12px;line-height:1.6;text-align:center;color:#77776F;box-sizing:border-box;}

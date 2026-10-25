@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.25.0-contractor-drawing-portal",
+  "version": "2.25.1-simple-drive-theme",
   "type": "module",
   "scripts": {
     "dev": "vite",
