@@ -4219,7 +4219,7 @@ function PendingProjectCreations({state,persist}){
   })}</div>;
 }
 
-function ProjectOnboarding({ state, persist, selectedId, setSelectedId, initialMode = "browse" }) {
+function ProjectOnboarding({ state, persist, selectedId, setSelectedId, initialMode = "browse", projectEditor=null }) {
   const [mode, setMode] = useState(initialMode);
   const [draft, setDraft] = useState(emptyDraft());
   const [saved, setSaved] = useState(false);
@@ -4347,7 +4347,8 @@ function ProjectOnboarding({ state, persist, selectedId, setSelectedId, initialM
         </div>
       )}
 
-      {mode === "browse" && selected && (() => {
+      {mode === "browse" && projectEditor}
+      {mode === "browse" && !projectEditor && selected && (() => {
         const stage = selected.projectStage || "Onboarding";
         const status = selected.projectStatus || selected.status || "Ongoing";
         const planned = selected.plannedCompletionDate || selected.endDate || "";
@@ -5892,6 +5893,55 @@ function ProjectView({ state, persist }) {
   };
   const active=(board?.rooms||[]).flatMap(r=>executionFor(r).filter(x=>x.status==="Ready"||x.status==="In Progress"));
 
+  const projectEditor = project && editDraft && isProjectEditorOpen && <div ref={projectEditorRef} tabIndex={-1} role="region" aria-label="Edit selected project" style={{scrollMarginTop:24,outline:"none",marginTop:16,border:`2px solid ${T.navy}`,background:"#fff",padding:16}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:14}}>
+          <div>
+            <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.cyan}}>Project Details · Editable (Client & Architect read-only) / Contacts · Editable</div>
+            <div style={{fontFamily:FONT_DISPLAY,fontSize:18,fontWeight:700,marginTop:3}}>{editDraft.name || "Selected Project"}</div>
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            
+            <button onClick={()=>setIsProjectEditorOpen(false)} style={{...smallBtn}}>Collapse</button>
+          </div>
+        </div>
+        <section aria-label="Editable project details" style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:12}}>
+          {[
+            ["Project No.","no"],["Project Name","name"],["Client","client"],["Architect","architect"],
+            ["Address","address"],["Project Type","type"],["Start Date","startDate"],
+            ["Planned Completion","plannedCompletionDate"],["Project Status","projectStatus"]
+          ].map(([label,key])=>{
+            const locked=key==="client"||key==="architect";
+            const value=editDraft[key]||"";
+            return <div key={key}>
+              <label style={{display:"block",fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginBottom:5}}>{label}</label>
+              {locked ? <div style={{fontFamily:FONT_BODY,fontSize:13,overflowWrap:"anywhere",padding:"9px 0"}}>{value||"—"}</div>
+              : key==="type" ? <select aria-label={label} value={value} onChange={e=>setEditDraft(d=>({...d,[key]:e.target.value}))} style={{...inputStyle,width:"100%"}}>{["Residence","Commercial","Hospitality","Retail","Other"].map(v=><option key={v} value={v}>{v}</option>)}</select>
+              : key==="projectStatus" ? <select aria-label={label} value={value} onChange={e=>setEditDraft(d=>({...d,[key]:e.target.value}))} style={{...inputStyle,width:"100%"}}>{["Ongoing","On Hold","Completed","Cancelled"].concat(value&&! ["Ongoing","On Hold","Completed","Cancelled"].includes(value)?[value]:[]).map(v=><option key={v} value={v}>{v}</option>)}</select>
+              : <input aria-label={label} type={key==="startDate"||key==="plannedCompletionDate"?"date":"text"} value={value} onChange={e=>setEditDraft(d=>({...d,[key]:e.target.value}))} style={{...inputStyle,width:"100%",boxSizing:"border-box"}}/>}
+            </div>;
+          })}
+        </section>
+        <div style={{marginTop:18,paddingTop:14,borderTop:`1px solid ${T.line}`}}>
+          <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.cyan,marginBottom:10}}>Project Contacts · Editable</div>
+          <ContactFields
+            contacts={editDraft.contacts || {}}
+            teamMaster={state.teamMaster || []}
+            onChange={(role,field,value)=>setEditDraft(d=>({
+              ...d,
+              contacts:{...(d.contacts||{}),[role]:{...(d.contacts?.[role]||{}),[field]:value}},
+              ...(role==="Owner" && field==="name" ? {client:value} : {}),
+              ...(role==="Architect" && field==="name" ? {architect:value} : {})
+            }))}
+          />
+        </div>
+        <div style={{display:"flex",gap:8,marginTop:16}}>
+          <Btn onClick={saveProjectEditor}><ClipboardCheck size={14}/> Save Project</Btn>
+          <button type="button" style={{...smallBtn,border:"1px solid #9B3B35",color:"#9B3B35",background:"#fff"}} onClick={()=>deleteProject(project)}>Delete Project</button>
+          
+        </div>
+        <div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim,marginTop:10}}>Edit Client and Architect in the contact list above. Save Project closes this editor and updates the summary immediately.</div>
+      </div>;
+
   return <div>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:14,flexWrap:"wrap"}}>
       <div>
@@ -5900,7 +5950,7 @@ function ProjectView({ state, persist }) {
           One master sheet: project information and project scope are edited together.
         </div>
       </div>
-      <div style={{display:"flex",gap:8}}><button onClick={()=>{setShowExistingProjects(true);setShowNewProject(false);}} style={smallBtn}>Existing Projects</button>
+      <div style={{display:"flex",gap:8}}><button onClick={()=>{setShowExistingProjects(true);setShowNewProject(false);if(project)openProjectEditor(project);}} style={smallBtn}>Existing Projects</button>
       <button onClick={()=>{setShowNewProject(true);setShowExistingProjects(false);}} style={{...smallBtn,background:T.navy,color:"#fff",border:`1px solid ${T.navy}`,padding:"9px 13px",fontFamily:FONT_BODY,fontWeight:700,cursor:"pointer"}}>
         + New Project
       </button></div>
@@ -5913,7 +5963,7 @@ function ProjectView({ state, persist }) {
         <div style={{fontFamily:FONT_DISPLAY,fontSize:16,fontWeight:700}}>{showNewProject ? "New Project" : "Existing Projects"}</div>
         <button onClick={()=>{setShowNewProject(false);setShowExistingProjects(false);}} style={{...smallBtn}}>Close</button>
       </div>
-      <ProjectOnboarding key={showNewProject ? "new" : "browse"} initialMode={showNewProject ? "new" : "browse"} state={state} persist={persist} selectedId={selectedId} setSelectedId={(id)=>{setSelectedId(id);setShowNewProject(false);setTab("list");}}/>
+      <ProjectOnboarding key={showNewProject ? "new" : "browse"} initialMode={showNewProject ? "new" : "browse"} state={state} persist={persist} selectedId={selectedId} projectEditor={showExistingProjects?(projectEditor||<p style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>Select a project to open its complete details.</p>):null} setSelectedId={(id)=>{setSelectedId(id);setShowNewProject(false);setTab("list");if(showExistingProjects){const chosen=state.projects.find(p=>p.id===id);if(chosen)openProjectEditor(chosen);}}}/>
     </div>}
 
     <div style={{display:"flex",alignItems:"center",gap:0,borderBottom:`1px solid ${T.line}`,marginBottom:18,overflowX:"auto",background:"#fff"}}>
@@ -6027,54 +6077,7 @@ function ProjectView({ state, persist }) {
         </div>}
       </section>}
 
-      {project && editDraft && isProjectEditorOpen && <div ref={projectEditorRef} tabIndex={-1} role="region" aria-label="Edit selected project" style={{scrollMarginTop:24,outline:"none",marginTop:16,border:`2px solid ${T.navy}`,background:"#fff",padding:16}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:14}}>
-          <div>
-            <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.cyan}}>Project Details · Editable (Client & Architect read-only) / Contacts · Editable</div>
-            <div style={{fontFamily:FONT_DISPLAY,fontSize:18,fontWeight:700,marginTop:3}}>{editDraft.name || "Selected Project"}</div>
-          </div>
-          <div style={{display:"flex",gap:8}}>
-            
-            <button onClick={()=>setIsProjectEditorOpen(false)} style={{...smallBtn}}>Collapse</button>
-          </div>
-        </div>
-        <section aria-label="Editable project details" style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:12}}>
-          {[
-            ["Project No.","no"],["Project Name","name"],["Client","client"],["Architect","architect"],
-            ["Address","address"],["Project Type","type"],["Start Date","startDate"],
-            ["Planned Completion","plannedCompletionDate"],["Project Status","projectStatus"]
-          ].map(([label,key])=>{
-            const locked=key==="client"||key==="architect";
-            const value=editDraft[key]||"";
-            return <div key={key}>
-              <label style={{display:"block",fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginBottom:5}}>{label}</label>
-              {locked ? <div style={{fontFamily:FONT_BODY,fontSize:13,overflowWrap:"anywhere",padding:"9px 0"}}>{value||"—"}</div>
-              : key==="type" ? <select aria-label={label} value={value} onChange={e=>setEditDraft(d=>({...d,[key]:e.target.value}))} style={{...inputStyle,width:"100%"}}>{["Residence","Commercial","Hospitality","Retail","Other"].map(v=><option key={v} value={v}>{v}</option>)}</select>
-              : key==="projectStatus" ? <select aria-label={label} value={value} onChange={e=>setEditDraft(d=>({...d,[key]:e.target.value}))} style={{...inputStyle,width:"100%"}}>{["Ongoing","On Hold","Completed","Cancelled"].concat(value&&! ["Ongoing","On Hold","Completed","Cancelled"].includes(value)?[value]:[]).map(v=><option key={v} value={v}>{v}</option>)}</select>
-              : <input aria-label={label} type={key==="startDate"||key==="plannedCompletionDate"?"date":"text"} value={value} onChange={e=>setEditDraft(d=>({...d,[key]:e.target.value}))} style={{...inputStyle,width:"100%",boxSizing:"border-box"}}/>}
-            </div>;
-          })}
-        </section>
-        <div style={{marginTop:18,paddingTop:14,borderTop:`1px solid ${T.line}`}}>
-          <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.cyan,marginBottom:10}}>Project Contacts · Editable</div>
-          <ContactFields
-            contacts={editDraft.contacts || {}}
-            teamMaster={state.teamMaster || []}
-            onChange={(role,field,value)=>setEditDraft(d=>({
-              ...d,
-              contacts:{...(d.contacts||{}),[role]:{...(d.contacts?.[role]||{}),[field]:value}},
-              ...(role==="Owner" && field==="name" ? {client:value} : {}),
-              ...(role==="Architect" && field==="name" ? {architect:value} : {})
-            }))}
-          />
-        </div>
-        <div style={{display:"flex",gap:8,marginTop:16}}>
-          <Btn onClick={saveProjectEditor}><ClipboardCheck size={14}/> Save Project</Btn>
-          <button type="button" style={{...smallBtn,border:"1px solid #9B3B35",color:"#9B3B35",background:"#fff"}} onClick={()=>deleteProject(project)}>Delete Project</button>
-          
-        </div>
-        <div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim,marginTop:10}}>Edit Client and Architect in the contact list above. Save Project closes this editor and updates the summary immediately.</div>
-      </div>}
+      {!showExistingProjects && projectEditor}
 
       <div style={{marginTop:22}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>

@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.27.5-latest-project-first",
+  "version": "2.27.6-existing-project-editor",
   "type": "module",
   "scripts": {
     "dev": "vite",
