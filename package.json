@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.26.0-automatic-project-folders",
+  "version": "2.26.1-received-duplicates",
   "type": "module",
   "scripts": {
     "dev": "vite",
