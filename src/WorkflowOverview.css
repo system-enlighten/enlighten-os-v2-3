@@ -22,3 +22,6 @@
 @keyframes received-folder-pop{0%{transform:scale(1)}45%{transform:scale(1.13) rotate(-5deg)}100%{transform:scale(1)}}
 @media(prefers-reduced-motion:reduce){.received-drawing-folder,.received-drawing-drop{transition:none}.received-drawing-drop.is-open .received-drawing-folder{animation:none}.received-drawing-drop.is-dragging .received-drawing-folder{transform:none}}
 @media(max-width:600px){.received-drawing-drop{gap:10px;padding:10px}.received-drawing-folder{width:88px}}
+
+.project-drive-layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:18;align-items:start}
+@media(max-width:760px){.project-drive-layout{grid-template-columns:minmax(0,1fr)}}

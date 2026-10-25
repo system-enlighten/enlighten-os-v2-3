@@ -632,7 +632,7 @@ raw strings "true" or "false" for these fields.
 import './LandingPage.css';
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Upload, ClipboardCheck, LayoutGrid, Users, Clock, Plus, X, CheckCircle2, Circle, Timer, FileUp, ChevronRight, Settings2, AlertTriangle, Loader2, Building2, CalendarDays, MapPin, LogIn, LogOut, Navigation, FileText, HardHat, ChevronDown
+  Upload, ClipboardCheck, LayoutGrid, Users, Clock, Plus, X, CheckCircle2, Circle, Timer, FileUp, ChevronRight, Settings2, AlertTriangle, Loader2, Building2, CalendarDays, MapPin, LogIn, LogOut, Navigation, FileText, HardHat, ChevronDown, FolderOpen
 } from "lucide-react";
 
 /* ---------------------------------------------------------------
@@ -2644,6 +2644,10 @@ const projectApi = {
   listFloorZones: projectId => apiRequest("listFloorZones", projectId ? { projectId } : {}, "GET"),
   deleteFloorZones: (projectId,targets) => apiRequest("deleteFloorZones",{projectId,targets}),
   saveFloorZones: (projectId, rows) => apiRequest("saveFloorZones", { projectId, rows }),
+  getDriveLibraryConfig:()=>apiRequest('getDriveLibraryConfig',{},'GET'),
+  setDriveLibraryRoot:p=>apiRequest('setDriveLibraryRoot',p),
+  linkProjectDrive:p=>apiRequest('linkProjectDrive',p),
+  listProjectDrive:p=>apiRequest('listProjectDrive',p,'GET'),
   listRecentDrawingRegister: () => apiRequest("listRecentDrawingRegister", {}, "GET"),
   listDrawingRegister: projectId => apiRequest("listDrawingRegister", {projectId}, "GET"),
   receiveDrawing: payload => apiRequest("receiveDrawing", payload),
@@ -3141,6 +3145,25 @@ function DrawingCoverage({row,project}){
   const floors=drawingRegisterCoverage(row,project);
   if(!floors.length)return <span style={{color:T.inkDim}}>Not tagged</span>;
   return <div style={{display:'grid',gap:8}}>{floors.map(f=><details key={f.floor} style={{display:'block'}}><summary style={{cursor:'pointer',fontWeight:500,lineHeight:1.5}}>{f.summary}</summary><div style={{marginTop:8,maxHeight:220,overflowY:'auto'}}>{f.details.map((c,i)=><div key={i} style={{padding:'6px 0',borderTop:`1px solid ${T.line}`,fontSize:12}}>{c.zoneCode&&<strong>{c.zoneCode} · </strong>}{c.floor} | {c.area}</div>)}</div></details>)}</div>;
+}
+
+function ProjectDriveView({state}){
+  const [projectId,setProjectId]=useState(''),[category,setCategory]=useState(''),[path,setPath]=useState([]),[data,setData]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[revision,setRevision]=useState(0),[search,setSearch]=useState(''),[query,setQuery]=useState(''),[offset,setOffset]=useState(0),[projectSearch,setProjectSearch]=useState('');
+  const [config,setConfig]=useState(null),[rootLink,setRootLink]=useState(''),[projectLink,setProjectLink]=useState(''),[linking,setLinking]=useState(false),[linkMessage,setLinkMessage]=useState('');
+  const admin=state.currentUser?.appAccess?.toLowerCase()==='admin';
+  const project=(state.projects||[]).find(p=>String(p.id)===projectId),categories=['Base','Output','Received','Sent'];
+  const projects=(state.projects||[]).filter(p=>`${p.no} ${p.name}`.toLowerCase().includes(projectSearch.toLowerCase()));
+  const folderId=path.at(-1)?.id||'';
+  useEffect(()=>{let live=true;if(admin)projectApi.getDriveLibraryConfig().then(r=>{if(live)setConfig(r);}).catch(e=>{if(live)setLinkMessage(e.message);});return()=>{live=false;};},[admin]);
+  useEffect(()=>{let live=true;setData(null);setError('');if(!projectId){setBusy(false);return;}setBusy(true);projectApi.listProjectDrive({projectId,category,folderId,offset,query}).then(r=>{if(live)setData(r);}).catch(e=>{if(live)setError(e.message);}).finally(()=>{if(live)setBusy(false);});return()=>{live=false;};},[projectId,category,folderId,offset,query,revision]);
+  const chooseProject=id=>{setProjectId(String(id));setCategory('');setPath([]);setQuery('');setSearch('');setOffset(0);setProjectLink('');setLinkMessage('');};
+  const openCategory=value=>{setCategory(value);setPath([]);setOffset(0);setSearch('');setQuery('');};
+  const saveLink=async kind=>{setLinking(true);setLinkMessage('');try{if(kind==='root'){const r=await projectApi.setDriveLibraryRoot({folder:rootLink});setConfig(r);setRootLink('');setLinkMessage('Projects folder linked. Select a project to link its folder.');}else{await projectApi.linkProjectDrive({projectId,folder:projectLink});setProjectLink('');setRevision(n=>n+1);setLinkMessage('Project folder linked. Base, Output, Received and Sent are ready.');}}catch(e){setLinkMessage(e.message);}finally{setLinking(false);}};
+  const safeUrl=url=>{try{const u=new URL(url);return u.protocol==='https:'&&['drive.google.com','docs.google.com'].includes(u.hostname)?u.href:'';}catch{return '';}};
+  return <section style={{fontFamily:FONT_BODY}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12}}><h2 style={{fontFamily:FONT_DISPLAY,margin:'4px 0 8px'}}>Drive</h2><button type="button" style={smallBtn} disabled={!projectId||busy} onClick={()=>setRevision(n=>n+1)}>Refresh files</button></div><p style={{fontSize:12,color:T.inkDim,margin:'0 0 18px'}}>Project drawings · Base, Output, Received and Sent</p>
+  {admin&&<details style={{border:`1px solid ${T.line}`,padding:12,marginBottom:16,background:'#fff'}}><summary style={{fontSize:12,fontWeight:600,cursor:'pointer'}}>Link Google Drive folders</summary><div style={{display:'grid',gap:10,marginTop:12}}><div style={{fontSize:12,color:T.inkDim}}>Projects root: {config?.rootName||'Not linked'}</div><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><input aria-label="Projects root folder link" placeholder="Paste your Google Drive projects folder link" value={rootLink} onChange={e=>setRootLink(e.target.value)} style={{...inputStyle,flex:'1 1 300px'}}/><button type="button" style={smallBtn} disabled={linking||!rootLink.trim()} onClick={()=>saveLink('root')}>Link projects root</button></div>{project&&<><label style={{fontSize:12}}>Link folder for {project.name}</label>{config?.folders?.length>0&&<select aria-label="Existing project Drive folders" value={projectLink} onChange={e=>setProjectLink(e.target.value)} style={inputStyle}><option value="">Choose an existing project folder…</option>{config.folders.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select>}<div style={{display:'flex',gap:8,flexWrap:'wrap'}}><input aria-label="Project Drive folder link" value={projectLink} onChange={e=>setProjectLink(e.target.value)} placeholder="Or paste this project's Drive folder link" style={{...inputStyle,flex:'1 1 300px'}}/><button type="button" style={smallBtn} disabled={linking||!projectLink.trim()} onClick={()=>saveLink('project')}>Link project folder</button></div><p style={{fontSize:11,color:T.inkDim,margin:0}}>Existing Base, Output, Received and Sent folders are reused. Missing folders are created when linked.</p></>}{linkMessage&&<p role="status" style={{fontSize:12,margin:0}}>{linkMessage}</p>}</div></details>}
+  <div className="project-drive-layout"><aside style={{background:'#fff',border:`1px solid ${T.line}`,minWidth:0}}><div style={{padding:12,background:'#D2CDC1',fontFamily:FONT_MONO,fontSize:11}}>PROJECTS</div><input aria-label="Search Drive projects" placeholder="Search projects" value={projectSearch} onChange={e=>setProjectSearch(e.target.value)} style={{...inputStyle,width:'calc(100% - 20px)',margin:10}}/><div style={{maxHeight:'65vh',overflowY:'auto'}}>{projects.map(p=><button key={p.id} type="button" aria-pressed={projectId===String(p.id)} onClick={()=>chooseProject(p.id)} style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:0,borderBottom:`1px solid ${T.line}`,background:projectId===String(p.id)?T.navy:'#fff',color:projectId===String(p.id)?'#fff':T.ink,padding:'12px 14px',textAlign:'left',cursor:'pointer',fontFamily:FONT_BODY,fontSize:12}}><FolderOpen size={18}/><span><strong>{p.no||p.projectNo}</strong><div style={{marginTop:3}}>{p.name}</div></span></button>)}{!projects.length&&<p style={{padding:12,fontSize:12,color:T.inkDim}}>No projects found.</p>}</div></aside>
+  <main style={{minWidth:0,border:`1px solid ${T.line}`,background:'#fff'}}>{!project?<div style={{padding:32,color:T.inkDim,fontSize:13}}>Select a project to browse its drawings.</div>:<><h3 style={{fontFamily:FONT_DISPLAY,fontSize:18,padding:'16px 16px 0',margin:0}}>{project.name}</h3><div style={{display:'grid',gridTemplateColumns:'repeat(4,minmax(0,1fr))',gap:8,padding:16}}>{categories.map(key=><button key={key} type="button" aria-pressed={category===key} onClick={()=>openCategory(key)} style={{...smallBtn,padding:'14px 6px',background:category===key?T.navy:'#F3F1EA',color:category===key?'#fff':T.ink,display:'grid',justifyItems:'center',gap:7,fontFamily:FONT_BODY}}><FolderOpen size={28} color={category===key?'#B9DCEB':'#489FC5'}/>{key}</button>)}</div>{busy&&<p role="status" style={{padding:'0 16px',fontSize:12,color:T.inkDim}}>Loading files…</p>}{error&&<p role="alert" style={{padding:16,fontSize:12,color:T.redline}}>{error}</p>}{data?.linked===false&&<p style={{padding:16,fontSize:12,color:T.inkDim}}>This project needs a linked Drive folder. {admin?'Use Link Google Drive folders above.':'Ask your administrator to link it.'}</p>}{data?.linked&&!category&&<p style={{padding:'0 16px 16px',fontSize:12,color:T.inkDim}}>Choose a folder above to view its files.</p>}{category&&data?.linked&&<><div style={{padding:'0 16px 12px',display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',fontSize:12}}><button type="button" style={smallBtn} onClick={()=>{setPath([]);setOffset(0);setQuery('');setSearch('');}}>{category}</button>{path.map((f,i)=><button type="button" key={f.id} style={smallBtn} onClick={()=>{setPath(p=>p.slice(0,i+1));setOffset(0);setQuery('');setSearch('');}}>› {f.name}</button>)}</div><form onSubmit={e=>{e.preventDefault();setQuery(search);setOffset(0);}} style={{display:'flex',gap:8,padding:'0 16px 12px'}}><input aria-label="Search current Drive folder" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search this folder" style={{...inputStyle,minWidth:0,flex:1}}/><button type="submit" style={smallBtn}>Search</button></form><div style={{overflowX:'auto'}}><table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Name','Modified','Size'].map(h=><th key={h} style={{...thStyle,textAlign:'left',background:'#D2CDC1'}}>{h}</th>)}</tr></thead><tbody>{(data.entries||[]).map(item=><tr key={item.id}><td style={{...tdStyle,textAlign:'left',fontSize:12}}>{item.kind==='folder'?<button type="button" onClick={()=>{setPath(p=>[...p,{id:item.id,name:item.name}]);setOffset(0);setSearch('');setQuery('');}} style={{border:0,background:'transparent',fontFamily:FONT_BODY,fontSize:12,color:T.ink,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:8,textAlign:'left'}}><FolderOpen size={18} color="#489FC5"/>{item.name}</button>:<a href={safeUrl(item.url)} target="_blank" rel="noreferrer" style={{color:T.blue,display:'inline-flex',gap:8,alignItems:'center',overflowWrap:'anywhere'}}><FileText size={16}/>{item.name}</a>}</td><td style={{...tdStyle,fontSize:11}}>{formatProjectDate(item.modified)}</td><td style={{...tdStyle,fontSize:11}}>{item.kind==='folder'?'—':item.size>=1048576?(item.size/1048576).toFixed(1)+' MB':Math.max(1,Math.round(item.size/1024))+' KB'}</td></tr>)}{!data.entries?.length&&<tr><td colSpan={3} style={{...tdStyle,padding:24,color:T.inkDim,fontSize:12}}>{query?'No matching files in this folder.':'This folder is empty.'}</td></tr>}</tbody></table></div><div style={{display:'flex',gap:8,padding:16}}>{offset>0&&<button type="button" style={smallBtn} onClick={()=>setOffset(n=>Math.max(0,n-100))}>Previous</button>}{data.nextOffset!==null&&data.nextOffset!==undefined&&<button type="button" style={smallBtn} onClick={()=>setOffset(data.nextOffset)}>Next</button>}</div></>}</>}</main></div></section>;
 }
 
 function inferDrawingProject(fileName,projects){
@@ -6348,6 +6371,7 @@ const NAV = [
   { id: "dashboard", label: "Floor / Zone", icon: LayoutGrid, group: "RECEIVED / SENT" },
   { id: "drawingRegister", label: "Received / Sent", icon: FileText, group: "RECEIVED / SENT" },
   { id: "classify", label: "Classify", icon: ClipboardCheck, group: "RECEIVED / SENT" },
+  { id: "drive", label: "Drive", icon: FolderOpen, group: "RECEIVED / SENT" },
   { id: "timesheet", label: "WIH Sheet", icon: Clock, group: "WIH SHEET" },
   { id: "executionMain", label: "Execution Dashboard", icon: HardHat, group: "WIH SHEET" },
   { id: "site", label: "Site Punch-in", icon: MapPin, group: "SITE PUNCH-IN" },
@@ -6364,7 +6388,7 @@ function SidebarNavigation({items,view,onChange,pendingCount}){
 
 function projectNavigationItems(user){
   if(user?.appAccess?.toLowerCase()==='admin')return NAV;
-  const ids=user?.appAccess?.toLowerCase()==='viewer'?['project','design','drawingRegister','timesheet','site']:['project','design','dashboard','classify','drawingRegister','timesheet','site'];
+  const ids=user?.appAccess?.toLowerCase()==='viewer'?['project','design','drawingRegister','drive','timesheet','site']:['project','design','dashboard','classify','drawingRegister','drive','timesheet','site'];
   return NAV.filter(n=>ids.includes(n.id));
 }
 
@@ -6443,6 +6467,7 @@ function StudioApp() {
           {allowedNav.some(n=>n.id==="dashboard") && view === "dashboard" && <DashboardView state={state} persist={persist} />}
           {allowedNav.some(n=>n.id==="drawingRegister") && view === "drawingRegister" && <ReceivedSentView state={state} persist={persist}/>}
           {allowedNav.some(n=>n.id==="classify") && view === "classify" && <ClassifyView state={state} persist={persist} />}
+          {allowedNav.some(n=>n.id==="drive") && view === "drive" && <ProjectDriveView state={state}/>}
           {view === "timesheet" && <><TimesheetView state={state} persist={persist} /><section style={{marginTop:20}}><MeetingsView state={state} persist={persist}/></section></>}
           {isAdmin && view === "executionMain" && <ExecutionMainView state={state} persist={persist} />}
           {allowedNav.some(n=>n.id==="site") && view === "site" && <ProjectPunchInsView state={state}/>}
