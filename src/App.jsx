@@ -4436,8 +4436,9 @@ function workflowActivationStatus(instances,task,sub,area,activation){
     if(stages.length)return sub?'Activated · awaiting parent start':'Activated';
     return activation?.status||'Not activated';
   }
-  if(matching.every(w=>w.status==='Completed'))return 'Completed';
-  if(matching.some(w=>['Started','In Progress','In progress'].includes(w.status)))return 'In progress';
+  if(matching.every(w=>/completed|^done$/i.test(String(w.task?.actualStatus||w.actualStatus||w.status))))return 'Completed';
+  if(matching.some(w=>/review|approval/i.test(String(w.task?.actualStatus||w.actualStatus||w.status))))return 'Up for review';
+  if(matching.some(w=>/started|in.progress|paused|completed|^done$/i.test(String(w.task?.actualStatus||w.actualStatus||w.status))))return 'In progress';
   if(matching.some(w=>w.status==='Ready'))return 'Ready';
   if(!sub&&stages.length&&matching.every(w=>!w.task?.parentDesignTaskId))return 'Activated';
   return matching[0].status||'Waiting';
@@ -4471,6 +4472,27 @@ function workflowWorkStatus(value){
   if(/in.progress|^started$|paused/.test(s))return {label:'In progress',bg:'#FFF4D6',fg:'#7A5A00'};
   if(/^ready$|^aligned$|^assigned$|^open$/.test(s))return {label:'Aligned',bg:'#F3F1EA',fg:'#625B48'};
   return {label:'Not started',bg:'#F4E5E0',fg:'#853D32'};
+}
+
+function workflowDotStatus(value,prerequisite){
+  const raw=String(value||'').trim().toLowerCase();
+  if(/completed|^done$/.test(raw))return {status:'Completed',label:'Completed'};
+  if(/review|approval/.test(raw))return {status:'Up for review',label:'Up for review'};
+  if(/in.progress|^started$|paused/.test(raw))return {status:'In-progress',label:'In progress'};
+  if(/^aligned$/.test(raw))return {status:'Aligned',label:'Aligned'};
+  if(/^ready$|^assigned$|^open$/.test(raw))return {status:'Open',label:'Ready to start'};
+  if(prerequisite?.text==='Drawing not received')return {status:'Pending',label:'Drawing pending · Not started'};
+  if(prerequisite?.text==='Drawing partially received')return {status:'Pending',label:'Drawing partially received · Not started'};
+  if(raw.includes('awaiting parent'))return {status:'Pending',label:'Not started · Waiting for parent task'};
+  return {status:'Pending',label:'Not started'};
+}
+function workflowStageDot(statuses){
+  if(statuses.length&&statuses.every(s=>s.status==='Completed'))return {status:'Completed',label:'Completed'};
+  for(const key of ['Up for review','In-progress','Completed','Open','Aligned'])if(statuses.some(s=>s.status===key))return key==='Completed'?{status:'In-progress',label:'In progress'}:statuses.find(s=>s.status===key);
+  return statuses.find(s=>s.label.startsWith('Drawing'))||statuses[0]||{status:'Pending',label:'Not started'};
+}
+function WorkflowStatusDot({status,label}){
+  return <span role="img" aria-label={label} title={label} data-workflow-status={status} style={{display:'inline-block',width:10,height:10,minWidth:10,borderRadius:'50%',background:sheetDashboardTone(status).fg,verticalAlign:'middle',flexShrink:0}}/>;
 }
 
 function visitCoverageList(raw,fallback){let list=raw;if(typeof raw==='string'){try{list=JSON.parse(raw);}catch{list=null;}}if(!Array.isArray(list))list=String(fallback||'').split(/\s+\+\s+|,/);return [...new Set(list.map(String).map(v=>v.trim()).filter(Boolean))];}
@@ -4672,12 +4694,12 @@ function ProjectLineOfWorkView({state,persist,selectedId,showProjectPicker=true}
       <div className="workflow-overview-layout"><aside aria-label="Project progress timeline" className="workflow-progress-rail">{(()=>{const stages=groups.map(g=>{const statuses=g.rows.map(r=>workflowWorkStatus(workflowStatus(g.first,r)).label);return {g,done:statuses.every(s=>s==='Completed'),active:statuses.some(s=>['In progress','Approval required'].includes(s))};});let current=stages.findIndex(s=>s.active);if(current<0)current=stages.findIndex(s=>!s.done);if(current<0)current=stages.length-1;return stages.map((stage,i)=><a key={stage.g.key} href={`#workflow-stage-${i}`} aria-label={`${stage.g.first.tasks}: ${stage.done?'completed':stage.active?'in progress':'not started'}`} aria-current={i===current?'step':undefined} title={stage.g.first.tasks} className="workflow-road-segment" style={{background:stage.done?'linear-gradient(180deg,#65A47C,#3F825B)':stage.active?'linear-gradient(180deg,#E4B64C,#C78C20)':['linear-gradient(180deg,#4D98C1,#2C6F9D)','linear-gradient(180deg,#72CEDA,#3CA2BC)','linear-gradient(180deg,#5B91C3,#306493)'][i%3]}}>{i===current&&<span aria-hidden="true" className="workflow-road-marker"/>}</a>);})()}</aside><div className="workflow-stage-comparison">
       {aligned.pairs.map(({group:g,visits:stageVisits},index)=>{const r=g.first,key=rowId(r),concept=workflowStageBand(g)===0;return <React.Fragment key={g.key}>{index===aligned.pairs.findIndex(p=>workflowStageBand(p.group)!==0)&&<div className="workflow-comparison-headings"><h3>Design work</h3><h3>Execution & Visits</h3></div>}<div className={concept?"workflow-aligned-stage workflow-concept-stage":"workflow-aligned-stage"}><section id={`workflow-stage-${index}`} key={key} style={{border:`1px solid ${T.line}`,marginBottom:12,background:'#fff'}}>
         <div style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',background:'#F3F1EA'}}>
-          {<div style={{display:'flex',gap:4}}><button type="button" title="Move stage up" aria-label={`Move ${r.tasks} earlier`} disabled={busy||loading||!canMoveStage(index,-1)} style={smallBtn} onClick={()=>moveStage(g.key,-1)}>↑</button><button type="button" title="Move stage down" aria-label={`Move ${r.tasks} later`} disabled={busy||loading||!canMoveStage(index,1)} style={smallBtn} onClick={()=>moveStage(g.key,1)}>↓</button></div>}<h3 style={{flex:1,margin:0,color:T.ink,fontFamily:FONT_DISPLAY,fontSize:14,fontWeight:700}}>{r.tasks}</h3>
+          {<div style={{display:'flex',gap:4}}><button type="button" title="Move stage up" aria-label={`Move ${r.tasks} earlier`} disabled={busy||loading||!canMoveStage(index,-1)} style={smallBtn} onClick={()=>moveStage(g.key,-1)}>↑</button><button type="button" title="Move stage down" aria-label={`Move ${r.tasks} later`} disabled={busy||loading||!canMoveStage(index,1)} style={smallBtn} onClick={()=>moveStage(g.key,1)}>↓</button></div>}<h3 style={{flex:1,margin:0,color:T.ink,fontFamily:FONT_DISPLAY,fontSize:14,fontWeight:700,display:'flex',alignItems:'center',gap:8}}><WorkflowStatusDot {...workflowStageDot(g.rows.map(sub=>workflowDotStatus(workflowStatus(r,sub),workflowPrerequisite(r,drawingReceipts,zones,selectedArea,instances))))}/>{r.tasks}</h3>
           <button type="button" disabled={busy||loading} aria-label={`Task details ${r.tasks}`} style={smallBtn} onClick={()=>setPanel({kind:'task',id:key})}>Task details</button>
         </div>
         {<div id={`workflow-subtasks-${key}`} style={{padding:'0 14px 12px'}}>
           <div style={{overflowX:'auto'}}><table aria-label={`Subtasks for ${r.tasks}`} style={{width:'100%',minWidth:400,tableLayout:'fixed',borderCollapse:'collapse',fontFamily:FONT_BODY}}><colgroup><col style={{width:'76%'}}/><col style={{width:'24%'}}/></colgroup><thead><tr>{['Subtask','Responsible person'].map((h,i)=><th key={h} style={{...thStyle,background:'#fff',color:T.inkDim,textAlign:i===0?'left':'center',fontFamily:FONT_MONO,fontSize:9,borderBottom:`1px solid ${T.line}`}}>{h}</th>)}</tr></thead>
-            <tbody>{g.rows.map((sub,i)=><tr key={rowId(sub)}><td style={{...tdStyle,textAlign:'left',padding:'9px 6px'}}><button type="button" disabled={busy} aria-label={`Details ${sub.subtask}`} title="Open subtask details" onClick={()=>setPanel({kind:'subtask',id:rowId(sub)})} style={{border:0,background:'transparent',padding:0,fontFamily:FONT_BODY,fontSize:12,color:T.ink,textAlign:'left',cursor:'pointer',lineHeight:1.5}}><span style={{color:T.inkDim,marginRight:8,fontSize:11}}>{i+1}.</span>{sub.subtask}{sub.taskCategory==='Meeting'&&<span style={{display:'inline-block',fontSize:10,padding:'1px 5px',marginLeft:8,color:T.inkDim,background:sub.meetingMode==='Phone / Zoom allowed'?'#E8E3EF':'#F3E6ED'}}>{sub.meetingMode==='Phone / Zoom allowed'?'Call / Zoom':'Meeting'}</span>}</button></td><td style={{...tdStyle,textAlign:'center',verticalAlign:'middle',fontSize:12}}>{sub.responsible||r.responsible||'Unassigned'}</td></tr>)}</tbody>
+            <tbody>{g.rows.map((sub,i)=><tr key={rowId(sub)}><td style={{...tdStyle,textAlign:'left',padding:'9px 6px'}}><button type="button" disabled={busy} aria-label={`Details ${sub.subtask}`} title="Open subtask details" onClick={()=>setPanel({kind:'subtask',id:rowId(sub)})} style={{border:0,background:'transparent',padding:0,fontFamily:FONT_BODY,fontSize:12,color:T.ink,textAlign:'left',cursor:'pointer',lineHeight:1.5}}><span style={{color:T.inkDim,marginRight:8,fontSize:11}}>{i+1}.</span>{sub.subtask}{sub.taskCategory==='Meeting'&&<span style={{display:'inline-block',fontSize:10,padding:'1px 5px',marginLeft:8,color:T.inkDim,background:sub.meetingMode==='Phone / Zoom allowed'?'#E8E3EF':'#F3E6ED'}}>{sub.meetingMode==='Phone / Zoom allowed'?'Call / Zoom':'Meeting'}</span>}</button></td><td style={{...tdStyle,textAlign:'center',verticalAlign:'middle',fontSize:12}}><span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8}}><WorkflowStatusDot {...workflowDotStatus(workflowStatus(r,sub),workflowPrerequisite(r,drawingReceipts,zones,selectedArea,instances))}/><span>{sub.responsible||r.responsible||'Unassigned'}</span></span></td></tr>)}</tbody>
           </table></div>
           {editing&&<button disabled={busy} style={{...smallBtn,marginTop:12}} onClick={()=>addSubtask(g)}>+ Add subtask</button>}
         </div>}
@@ -6485,9 +6507,11 @@ function ProjectPermissionsView({state,persist}){
   </div>;
 }
 function ReadOnlyProjectWork({project,state}){
+  const [work,setWork]=useState([]),[drawings,setDrawings]=useState(null);
+  useEffect(()=>{let live=true;setWork([]);setDrawings(null);projectApi.getWIH(true,project.id).then(rows=>{if(live)setWork(rows||[]);}).catch(()=>{});projectApi.listDrawingRegister(project.id).then(data=>{if(live)setDrawings((data?.drawings||[]).filter(d=>String(d.projectId)===String(project.id)));}).catch(()=>{if(live)setDrawings(undefined);});return()=>{live=false;};},[project.id]);
   const saved=project.lineOfWorkResidence||project.lineOfWork||[];
   const rows=saved.some(r=>['1','2'].includes(String(r.workflowVersion)))?saved:DESIGN_TASK_FLOW_TEMPLATE;
-  return <><table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Task','Starting Milestone','Subtask','Responsible','Hours'].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={r.lineWorkId||r.id||i}>{[r.tasks||r.title,r.startingMilestone||r.milestone,r.subtask,r.responsible||r.assignee,r.hours].map((v,j)=><td key={j} style={tdStyle}>{v||'—'}</td>)}</tr>)}</tbody></table><ProjectGantt state={state} projectId={project.id}/></>;
+  return <><table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Task','Starting Milestone','Subtask','Responsible','Hours'].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={r.lineWorkId||r.id||i}>{[r.tasks||r.title,r.startingMilestone||r.milestone,r.subtask,r.responsible||r.assignee,r.hours].map((v,j)=><td key={j} style={tdStyle}>{j===0?<span style={{display:'inline-flex',alignItems:'center',gap:8}}><WorkflowStatusDot {...workflowStageDot(rows.filter(sub=>sub.tasks===r.tasks).map(sub=>workflowDotStatus(workflowActivationStatus(work,r,sub),workflowPrerequisite(r,drawings,project.floorZones||[],null,work))))}/>{v||'—'}</span>:j===3?<span style={{display:'inline-flex',alignItems:'center',gap:8}}><WorkflowStatusDot {...workflowDotStatus(workflowActivationStatus(work,r,r),workflowPrerequisite(r,drawings,project.floorZones||[],null,work))}/>{v||'Unassigned'}</span>:v||'—'}</td>)}</tr>)}</tbody></table><ProjectGantt state={state} projectId={project.id}/></>;
 }
 function ProjectScopeAdmin({project,onSaved}){
   const [draft,setDraft]=useState(project),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
