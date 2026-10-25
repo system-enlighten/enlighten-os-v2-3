@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.27.6-existing-project-editor",
+  "version": "2.27.7-faster-drive-browsing",
   "type": "module",
   "scripts": {
     "dev": "vite",
