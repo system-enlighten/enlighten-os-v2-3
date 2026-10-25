@@ -1,7 +1,8 @@
+import {runCadAction} from '../server/cad.js';
 import {createHmac,timingSafeEqual} from 'node:crypto';
 import {OAuth2Client} from 'google-auth-library';
 const google = new OAuth2Client();
-const READ_ACTIONS = new Set(['getIssueDrawingContext','getDrawingPortal','getPortalDrawingChunk','getDirectoryDrawingAccess','listRecentDrawingRegister','getDriveLibraryConfig','listProjectDrive','listMomTasks','listExecutionVisits','authSession','getProjectWorkspace','listDrawingRegister','getProjectWorkflowTasks','listProjectRoles','listProjectPeople','listSitePunchIns','health','getCurrentUser','bootstrap','listProjects','listProjectContacts','listLineOfWork','getWorkflowCapabilities','listFloorZones','listTeamMembers','listDepartments','listDesignations','listDrawingTaskMaster','getDesignDashboard','getWIH']);
+const READ_ACTIONS = new Set(['cadStatus','cadViewerToken','getIssueDrawingContext','getDrawingPortal','getPortalDrawingChunk','getDirectoryDrawingAccess','listRecentDrawingRegister','getDriveLibraryConfig','listProjectDrive','listMomTasks','listExecutionVisits','authSession','getProjectWorkspace','listDrawingRegister','getProjectWorkflowTasks','listProjectRoles','listProjectPeople','listSitePunchIns','health','getCurrentUser','bootstrap','listProjects','listProjectContacts','listLineOfWork','getWorkflowCapabilities','listFloorZones','listTeamMembers','listDepartments','listDesignations','listDrawingTaskMaster','getDesignDashboard','getWIH']);
 export async function verifyGoogleIdentity(token, audience) {
   const ticket=await google.verifyIdToken({idToken:token,audience});
   const claims=ticket.getPayload();
@@ -132,6 +133,12 @@ export default async function handler(req,res) {
     if(!identity)return send(401,{ok:false,error:{message:'Your session has ended. Sign in again.'}});
     const payload=method==='GET'?Object.fromEntries(Object.entries(query).filter(([k])=>k!=='action')):body.payload||{};
     if(!payload||Array.isArray(payload)||typeof payload!=='object')return send(400,{ok:false,error:{message:'Invalid payload'}});
+    if(['cadPrepare','cadStatus','cadViewerToken'].includes(action)){
+      if(action==='cadPrepare'&&method!=='POST')return send(405,{ok:false,error:{message:'Preparing CAD requires POST.'}});
+      if(!payload.projectId||!payload.driveFileId)return send(400,{ok:false,error:{message:'Choose a saved project drawing.'}});
+      const backend=async(name,data)=>{const response=await fetchAppsScript(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(signRequest(name,data,identity,secret)),signal:AbortSignal.timeout(90000)});const result=await response.json();if(!result.ok)throw Error(result.error?.message||'Drawing access denied.');return result.data;};
+      try{return send(200,{ok:true,data:await runCadAction(action,payload,backend)});}catch(e){return send(502,{ok:false,error:{message:e.name==='TimeoutError'?'CAD preparation took too long. Retry; completed previews are reused.':e.message}});}
+    }
     if(['transcribeVisitMom','draftVisitMom'].includes(action)){
       if(method!=='POST')return send(405,{ok:false,error:{message:'MOM assistance requires POST.'}});
       if(!process.env.OPENAI_API_KEY)return send(503,{ok:false,error:{message:'Add OPENAI_API_KEY in Vercel environment variables and redeploy to enable MOM assistance.'}});
