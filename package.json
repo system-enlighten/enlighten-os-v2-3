@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.19.2-upload-side-panel",
+  "version": "2.19.6-sunset-progress-rail",
   "type": "module",
   "scripts": {
     "dev": "vite",

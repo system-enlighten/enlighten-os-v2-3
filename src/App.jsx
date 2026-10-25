@@ -3152,7 +3152,7 @@ function ReceivedSentView({state,persist}){
   const [projectId,setProjectId]=useState(state.projects?.[0]?.id||'');
   const [dropFile,setDropFile]=useState(null),[dragging,setDragging]=useState(false),[dropError,setDropError]=useState(''),[uploadHint,setUploadHint]=useState('');
   const dropInput=useRef(null),dropButton=useRef(null),dragDepth=useRef(0);
-  const canReceive=!!persist&&projectNavigationItems(state.currentUser).some(n=>n.id==='upload');
+  const canReceive=!!persist&&state.currentUser?.appAccess?.toLowerCase()!=='viewer'&&!!state.currentUser;
   const openDrawing=files=>{setDragging(false);dragDepth.current=0;setDropError('');if(!canReceive)return;if(files?.length!==1){setDropError('Drop one drawing at a time. You can tag multiple floors in the form.');return;}if(!files[0].size){setDropError('Choose a non-empty drawing file.');return;}setDropFile(files[0]);};
   const closeUpload=()=>{setDropFile(null);dropButton.current?.focus();};
   const [result,setResult]=useState(null),[error,setError]=useState(''),[loading,setLoading]=useState(false),[query,setQuery]=useState(''),[revision,setRevision]=useState(0);
@@ -3250,6 +3250,8 @@ function UploadView({ state, persist, initialFile=null, initialProjectId, compac
   const [drawingType, setDrawingType] = useState(canonicalDrawingType((state.templates||DEFAULT_TEMPLATES)[0]?.drawingType || "Layout"));
   const [file, setFile] = useState(initialFile);
   const [note, setNote] = useState("");
+  const [receivedDate,setReceivedDate]=useState(todayISO);
+  const validReceivedDate=/^\d{4}-\d{2}-\d{2}$/.test(receivedDate)&&!isNaN(Date.parse(receivedDate))&&new Date(receivedDate).toISOString().slice(0,10)===receivedDate&&receivedDate<=todayISO();
   const [saving,setSaving]=useState(false);
   const [justAdded, setJustAdded] = useState(false);
   const fileRef=useRef(null);
@@ -3289,17 +3291,17 @@ function UploadView({ state, persist, initialFile=null, initialProjectId, compac
 
   const submitLock=useRef(false);
   const submit = () => {
-    if(!projectId||!floors.length||!drawingType||!file||submitLock.current)return;
+    if(!projectId||!floors.length||!drawingType||!file||!validReceivedDate||submitLock.current)return;
     if(!file.size){alert('Choose a non-empty drawing file.');return;}
     submitLock.current=true;
-    const metadata={projectId,floor:floors.join(', '),floors:[...floors],area:'',drawingType,fileName:file.name,mimeType:file.type||'application/octet-stream',fileSize:file.size,notes:note,receivedSentDate:todayISO()};
+    const metadata={projectId,floor:floors.join(', '),floors:[...floors],area:'',drawingType,fileName:file.name,mimeType:file.type||'application/octet-stream',fileSize:file.size,notes:note,receivedSentDate:receivedDate};
     const duplicate=(state.pendingReceivedUploads||[]).some(j=>j.metadata.projectId===projectId&&j.metadata.fileName===file.name&&j.metadata.fileSize===file.size&&JSON.stringify(j.metadata.floors)===JSON.stringify(floors));
     if(duplicate){submitLock.current=false;alert('This drawing is already in the upload queue. Use its Retry button if needed.');return;}
     const job={id:'DRW-UPL-'+crypto.randomUUID(),metadata,ownerEmail:state.currentUser?.email||'',status:'queued',phase:'Waiting to upload…',progress:0};
     const selectedFile=file;
     const savedLocally=persist(latest=>({...latest,pendingReceivedUploads:[...(latest.pendingReceivedUploads||[]),job]}));
     setSaving(true);
-    Promise.resolve(savedLocally).then(()=>{setFile(null);setNote('');if(fileRef.current)fileRef.current.value='';setJustAdded(true);if(!compact)setTimeout(()=>setJustAdded(false),2200);submitLock.current=false;setSaving(false);runReceivedUploadJob(persist,job,selectedFile);onQueued?.(projectId);}).catch(e=>{submitLock.current=false;setSaving(false);alert(e.message);});
+    Promise.resolve(savedLocally).then(()=>{setFile(null);setNote('');setReceivedDate(todayISO());if(fileRef.current)fileRef.current.value='';setJustAdded(true);if(!compact)setTimeout(()=>setJustAdded(false),2200);submitLock.current=false;setSaving(false);runReceivedUploadJob(persist,job,selectedFile);onQueued?.(projectId);}).catch(e=>{submitLock.current=false;setSaving(false);alert(e.message);});
   };
 
   const pending = (state.intakes||[]).filter((i) => !i.classified);
@@ -3313,6 +3315,8 @@ function UploadView({ state, persist, initialFile=null, initialProjectId, compac
             {activeProjects.map((p) => <option key={p.id} value={p.id}>{p.no} — {p.name}</option>)}
           </select>
         </Field>
+
+        <Field label="Received Date"><input aria-label="Drawing received date" type="date" required max={todayISO()} disabled={saving} value={receivedDate} onChange={e=>setReceivedDate(e.target.value)} style={inputStyle}/><div style={{fontSize:11,color:T.inkDim,marginTop:5}}>Date the drawing arrived by email, WhatsApp or another source.</div>{!validReceivedDate&&<div role="alert" style={{fontSize:11,color:T.redline,marginTop:4}}>Choose a valid received date on or before today.</div>}</Field>
 
         <Field label="Floors in this drawing — select all that apply">
           <div style={{display:'flex',flexWrap:'wrap',gap:12,padding:12,border:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:12,color:T.ink}}>{availableFloors.map(f=><label key={f} style={{display:'inline-flex',alignItems:'center',gap:4}}><input type="checkbox" aria-label={`Upload floor ${f}`} checked={floors.includes(f)} disabled={saving} onChange={e=>setFloors(current=>e.target.checked?[...new Set([...current,f])]:current.filter(x=>x!==f))}/> {f}</label>)}</div>
@@ -3339,7 +3343,7 @@ function UploadView({ state, persist, initialFile=null, initialProjectId, compac
         <Field label="Note (optional)">
           <textarea style={{ ...inputStyle, minHeight: 70, resize: "vertical" }} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Received via email from architect" />
         </Field>
-        <Btn onClick={submit} disabled={!file||!floors.length||saving}>
+        <Btn onClick={submit} disabled={!file||!floors.length||!validReceivedDate||saving}>
           <Upload size={14} /> {saving?"Uploading to Google Drive…":"Log received drawing"}
         </Btn>
         {justAdded && <div style={{ marginTop: 12, fontFamily: FONT_MONO, fontSize: 12, color: T.green }}>Added to the upload queue. It will appear for classification after Google Drive and Sheets confirm the save.</div>}
@@ -4503,6 +4507,16 @@ function workflowStageDot(statuses){
   for(const key of ['Up for review','In-progress','Completed','Open','Aligned'])if(statuses.some(s=>s.status===key))return key==='Completed'?{status:'In-progress',label:'In progress'}:statuses.find(s=>s.status===key);
   return statuses.find(s=>s.label.startsWith('Drawing'))||statuses[0]||{status:'Pending',label:'Not started'};
 }
+function workflowSunsetColor(position){
+  const shades=['#E8C991','#FFCB84','#FFA46C','#F27C60','#D75059','#91445B','#21364E'];
+  const point=Math.max(0,Math.min(1,position))*(shades.length-1),index=Math.min(shades.length-2,Math.floor(point)),mix=point-index;
+  const rgb=hex=>[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)),a=rgb(shades[index]),b=rgb(shades[index+1]);
+  return '#'+a.map((v,i)=>Math.round(v+(b[i]-v)*mix).toString(16).padStart(2,'0')).join('');
+}
+function workflowSunsetSegment(index,count){
+  const start=index/Math.max(1,count),end=(index+1)/Math.max(1,count);
+  return `linear-gradient(180deg,${[0,.25,.5,.75,1].map(t=>`${workflowSunsetColor(start+(end-start)*t)} ${t*100}%`).join(',')})`;
+}
 function workflowDotColor(status){
   return ({Pending:'#FF3B30',Open:'#34C759',Aligned:'#A79B85','In-progress':'#FFCC00','Up for review':'#3399FF',Completed:'#AF52DE'})[status]||'#A79B85';
 }
@@ -4709,7 +4723,7 @@ function ProjectLineOfWorkView({state,persist,selectedId,showProjectPicker=true}
     {message&&<div role="status" style={{padding:12,background:T.paperDim,fontFamily:FONT_BODY,fontSize:13,fontWeight:400,lineHeight:1.5,marginBottom:12}}>{message}</div>}
     <>
       <ExecutionVisitPlanner key={project.id} project={project} state={state} persist={persist} rows={visits} onChange={next=>{if(workflowProjectRef.current===project.id)setVisits(activeVisits(next));}} loading={visitsLoading} loadError={visitsError}>{renderVisitTable=><>
-      <div className="workflow-overview-layout"><aside aria-label="Project progress timeline" className="workflow-progress-rail">{(()=>{const stages=groups.map(g=>{const statuses=g.rows.map(r=>workflowWorkStatus(workflowStatus(g.first,r)).label);return {g,done:statuses.every(s=>s==='Completed'),active:statuses.some(s=>['In progress','Approval required'].includes(s))};});let current=stages.findIndex(s=>s.active);if(current<0)current=stages.findIndex(s=>!s.done);if(current<0)current=stages.length-1;return stages.map((stage,i)=><a key={stage.g.key} href={`#workflow-stage-${i}`} aria-label={`${stage.g.first.tasks}: ${stage.done?'completed':stage.active?'in progress':'not started'}`} aria-current={i===current?'step':undefined} title={stage.g.first.tasks} className="workflow-road-segment" style={{background:stage.done?'linear-gradient(180deg,#65A47C,#3F825B)':stage.active?'linear-gradient(180deg,#E4B64C,#C78C20)':['linear-gradient(180deg,#4D98C1,#2C6F9D)','linear-gradient(180deg,#72CEDA,#3CA2BC)','linear-gradient(180deg,#5B91C3,#306493)'][i%3]}}>{i===current&&<span aria-hidden="true" className="workflow-road-marker"/>}</a>);})()}</aside><div className="workflow-stage-comparison">
+      <div className="workflow-overview-layout"><aside aria-label="Project progress timeline" className="workflow-progress-rail">{(()=>{const stages=groups.map(g=>{const statuses=g.rows.map(r=>workflowWorkStatus(workflowStatus(g.first,r)).label);return {g,done:statuses.every(s=>s==='Completed'),active:statuses.some(s=>['In progress','Approval required'].includes(s))};});let current=stages.findIndex(s=>s.active);if(current<0)current=stages.findIndex(s=>!s.done);if(current<0)current=stages.length-1;return stages.map((stage,i)=><a key={stage.g.key} href={`#workflow-stage-${i}`} aria-label={`${stage.g.first.tasks}: ${stage.done?'completed':stage.active?'in progress':'not started'}`} aria-current={i===current?'step':undefined} title={stage.g.first.tasks} className="workflow-road-segment" style={{background:workflowSunsetSegment(i,stages.length)}}>{i===current&&<span aria-hidden="true" className="workflow-road-marker"/>}</a>);})()}</aside><div className="workflow-stage-comparison">
       {aligned.pairs.map(({group:g,visits:stageVisits},index)=>{const r=g.first,key=rowId(r),concept=workflowStageBand(g)===0;return <React.Fragment key={g.key}>{index===aligned.pairs.findIndex(p=>workflowStageBand(p.group)!==0)&&<div className="workflow-comparison-headings"><h3>Design work</h3><h3>Execution & Visits</h3></div>}<div className={concept?"workflow-aligned-stage workflow-concept-stage":"workflow-aligned-stage"}><section id={`workflow-stage-${index}`} key={key} style={{border:`1px solid ${T.line}`,marginBottom:12,background:'#fff'}}>
         <div style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',background:'#F3F1EA'}}>
           {<div style={{display:'flex',gap:4}}><button type="button" title="Move stage up" aria-label={`Move ${r.tasks} earlier`} disabled={busy||loading||!canMoveStage(index,-1)} style={smallBtn} onClick={()=>moveStage(g.key,-1)}>↑</button><button type="button" title="Move stage down" aria-label={`Move ${r.tasks} later`} disabled={busy||loading||!canMoveStage(index,1)} style={smallBtn} onClick={()=>moveStage(g.key,1)}>↓</button></div>}<h3 style={{flex:1,margin:0,color:T.ink,fontFamily:FONT_DISPLAY,fontSize:14,fontWeight:700,display:'flex',alignItems:'center',gap:8}}>{r.tasks}</h3>
@@ -6331,9 +6345,8 @@ const NAV = [
   { id: "project", label: "Project", icon: Building2, group: "PROJECT" },
   { id: "design", label: "Design Dashboard", icon: FileText, group: "PROJECT" },
   { id: "dashboard", label: "Floor / Zone", icon: LayoutGrid, group: "RECEIVED / SENT" },
-  { id: "upload", label: "Received · Upload", icon: Upload, group: "RECEIVED / SENT" },
-  { id: "classify", label: "Classify", icon: ClipboardCheck, group: "RECEIVED / SENT" },
   { id: "drawingRegister", label: "Received / Sent", icon: FileText, group: "RECEIVED / SENT" },
+  { id: "classify", label: "Classify", icon: ClipboardCheck, group: "RECEIVED / SENT" },
   { id: "timesheet", label: "WIH Sheet", icon: Clock, group: "WIH SHEET" },
   { id: "executionMain", label: "Execution Dashboard", icon: HardHat, group: "WIH SHEET" },
   { id: "site", label: "Site Punch-in", icon: MapPin, group: "SITE PUNCH-IN" },
@@ -6350,7 +6363,7 @@ function SidebarNavigation({items,view,onChange,pendingCount}){
 
 function projectNavigationItems(user){
   if(user?.appAccess?.toLowerCase()==='admin')return NAV;
-  const ids=user?.appAccess?.toLowerCase()==='viewer'?['project','design','drawingRegister','timesheet','site']:['project','design','dashboard','upload','classify','drawingRegister','timesheet','site'];
+  const ids=user?.appAccess?.toLowerCase()==='viewer'?['project','design','drawingRegister','timesheet','site']:['project','design','dashboard','classify','drawingRegister','timesheet','site'];
   return NAV.filter(n=>ids.includes(n.id));
 }
 
@@ -6410,7 +6423,7 @@ function StudioApp() {
       {/* Main canvas */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         <TitleBlock view={viewLabel} sub={view === "timesheet" ? `${state.tasks.length} tasks` : view === "classify" ? `${pendingCount} pending` : view === "project" ? "Onboarding · Scope · Team" : view === "design" ? "Dashboard · Line of Work" : view === "meetings" ? `${(state.meetings || []).length} meetings` : view === "executionMain" ? "Milestones · MOM" : view === "site" ? `${(state.siteVisits || []).length} site visits` : undefined} />
-        {view!=='upload'&&(state.pendingReceivedUploads||[]).length>0&&<div role="status" style={{padding:'8px 24px',fontFamily:FONT_BODY,fontSize:12,background:T.amberBg,color:T.ink}}>{state.pendingReceivedUploads.length} drawing upload(s) pending. <button type="button" style={smallBtn} onClick={()=>setView('upload')}>View uploads</button></div>}
+        {view!=='upload'&&(state.pendingReceivedUploads||[]).length>0&&<div role="status" style={{padding:'8px 24px',fontFamily:FONT_BODY,fontSize:12,background:T.amberBg,color:T.ink}}>{state.pendingReceivedUploads.length} drawing upload(s) pending. <button type="button" style={smallBtn} onClick={()=>setView('drawingRegister')}>View uploads</button></div>}
         {saveErr && (
           <div style={{ background: T.redlineBg, color: T.redline, fontFamily: FONT_MONO, fontSize: 12, padding: "8px 24px", display: "flex", alignItems: "center", gap: 6 }}>
             <AlertTriangle size={13} /> Couldn't save — changes may not persist.
@@ -6428,7 +6441,6 @@ function StudioApp() {
           
           {allowedNav.some(n=>n.id==="dashboard") && view === "dashboard" && <DashboardView state={state} persist={persist} />}
           {allowedNav.some(n=>n.id==="drawingRegister") && view === "drawingRegister" && <ReceivedSentView state={state} persist={persist}/>}
-          {allowedNav.some(n=>n.id==="upload") && view === "upload" && <UploadView state={state} persist={persist} />}
           {allowedNav.some(n=>n.id==="classify") && view === "classify" && <ClassifyView state={state} persist={persist} />}
           {view === "timesheet" && <><TimesheetView state={state} persist={persist} /><section style={{marginTop:20}}><MeetingsView state={state} persist={persist}/></section></>}
           {isAdmin && view === "executionMain" && <ExecutionMainView state={state} persist={persist} />}
