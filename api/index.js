@@ -2,7 +2,7 @@ import {runCadAction} from '../server/cad.js';
 import {createHmac,timingSafeEqual} from 'node:crypto';
 import {OAuth2Client} from 'google-auth-library';
 const google = new OAuth2Client();
-const READ_ACTIONS = new Set(['cadStatus','cadViewerToken','getIssueDrawingContext','getDrawingPortal','getPortalDrawingChunk','getDirectoryDrawingAccess','listRecentDrawingRegister','getDriveLibraryConfig','listProjectDrive','listMomTasks','listExecutionVisits','authSession','getProjectWorkspace','listDrawingRegister','getProjectWorkflowTasks','listProjectRoles','listProjectPeople','listSitePunchIns','health','getCurrentUser','bootstrap','listProjects','listProjectContacts','listLineOfWork','getWorkflowCapabilities','listFloorZones','listTeamMembers','listDepartments','listDesignations','listDrawingTaskMaster','getDesignDashboard','getWIH']);
+const READ_ACTIONS = new Set(['listTechnicalTables','getTechnicalTable','listTechnicalFittings','cadStatus','cadViewerToken','getIssueDrawingContext','getDrawingPortal','getPortalDrawingChunk','getDirectoryDrawingAccess','listRecentDrawingRegister','getDriveLibraryConfig','listProjectDrive','listMomTasks','listExecutionVisits','authSession','getProjectWorkspace','listDrawingRegister','getProjectWorkflowTasks','listProjectRoles','listProjectPeople','listSitePunchIns','health','getCurrentUser','bootstrap','listProjects','listProjectContacts','listLineOfWork','getWorkflowCapabilities','listFloorZones','listTeamMembers','listDepartments','listDesignations','listDrawingTaskMaster','getDesignDashboard','getWIH']);
 export async function verifyGoogleIdentity(token, audience) {
   const ticket=await google.verifyIdToken({idToken:token,audience});
   const claims=ticket.getPayload();

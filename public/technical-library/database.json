@@ -1,0 +1,5366 @@
+{
+  "sourceUrl": "https://docs.google.com/spreadsheets/d/1QrqBCwyqPAOC9_Z-6J1p1m9RsuSAYv9c7i2KJd9zSZk/edit",
+  "fittings": [
+    {
+      "id": "source-2",
+      "sourceRow": 2,
+      "fittingType": "D1CR.3S",
+      "iconUrl": "https://i.imgur.com/1XKwQm3.png",
+      "thumbnailUrl": "https://i.imgur.com/Rw1xxDr.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-3",
+      "sourceRow": 3,
+      "fittingType": "D2CR.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/Rw1xxDr.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-4",
+      "sourceRow": 4,
+      "fittingType": "D3CR.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/Rw1xxDr.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-5",
+      "sourceRow": 5,
+      "fittingType": "D4CR.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/Rw1xxDr.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-6",
+      "sourceRow": 6,
+      "fittingType": "D+1CR.3S",
+      "iconUrl": "https://i.imgur.com/pHzuMvi.png",
+      "thumbnailUrl": "https://i.imgur.com/FJzapGP.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-7",
+      "sourceRow": 7,
+      "fittingType": "D+2CR.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/FJzapGP.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-8",
+      "sourceRow": 8,
+      "fittingType": "D+3CR.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/FJzapGP.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-9",
+      "sourceRow": 9,
+      "fittingType": "D+4CR.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/FJzapGP.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-10",
+      "sourceRow": 10,
+      "fittingType": "D1CS.3S",
+      "iconUrl": "https://i.imgur.com/AUys99B.png",
+      "thumbnailUrl": "https://i.imgur.com/RIYabWZ.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-11",
+      "sourceRow": 11,
+      "fittingType": "D2CS.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/RIYabWZ.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-12",
+      "sourceRow": 12,
+      "fittingType": "D3CS.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/RIYabWZ.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-13",
+      "sourceRow": 13,
+      "fittingType": "D4CS.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/RIYabWZ.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-14",
+      "sourceRow": 14,
+      "fittingType": "D1CT.3S",
+      "iconUrl": "https://i.imgur.com/eVYSYnb.png",
+      "thumbnailUrl": "https://i.imgur.com/xUQA0Eg.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-15",
+      "sourceRow": 15,
+      "fittingType": "D2CT.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/xUQA0Eg.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-16",
+      "sourceRow": 16,
+      "fittingType": "D3CT.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/xUQA0Eg.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-17",
+      "sourceRow": 17,
+      "fittingType": "D4CT.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/xUQA0Eg.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-18",
+      "sourceRow": 18,
+      "fittingType": "D1RS.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/MYn75J2.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-19",
+      "sourceRow": 19,
+      "fittingType": "D2RS.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/MYn75J2.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-20",
+      "sourceRow": 20,
+      "fittingType": "D3RS.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/MYn75J2.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-21",
+      "sourceRow": 21,
+      "fittingType": "D4RS.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/MYn75J2.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-22",
+      "sourceRow": 22,
+      "fittingType": "D1CH.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/Hv23DYr.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-23",
+      "sourceRow": 23,
+      "fittingType": "D2CH.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/Hv23DYr.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-24",
+      "sourceRow": 24,
+      "fittingType": "D3CH.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/Hv23DYr.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-25",
+      "sourceRow": 25,
+      "fittingType": "D4CH.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/Hv23DYr.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-26",
+      "sourceRow": 26,
+      "fittingType": "D1CR.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/2EowTUL.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-27",
+      "sourceRow": 27,
+      "fittingType": "D2CR.6S",
+      "iconUrl": "https://i.imgur.com/DjTwIjG.png",
+      "thumbnailUrl": "https://i.imgur.com/SKrMNaL.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-28",
+      "sourceRow": 28,
+      "fittingType": "D3CR.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/SKrMNaL.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-29",
+      "sourceRow": 29,
+      "fittingType": "D4CR.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/SKrMNaL.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-30",
+      "sourceRow": 30,
+      "fittingType": "D+1CR.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/Y1YyHir.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-31",
+      "sourceRow": 31,
+      "fittingType": "D+2CR.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/Y1YyHir.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-32",
+      "sourceRow": 32,
+      "fittingType": "D+3CR.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/Y1YyHir.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-33",
+      "sourceRow": 33,
+      "fittingType": "D+4CR.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/Y1YyHir.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-34",
+      "sourceRow": 34,
+      "fittingType": "D1CS.6S",
+      "iconUrl": "https://i.imgur.com/Y4t9rdm.png",
+      "thumbnailUrl": "https://i.imgur.com/cVU09Wk.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-35",
+      "sourceRow": 35,
+      "fittingType": "D2CS.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/cVU09Wk.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-36",
+      "sourceRow": 36,
+      "fittingType": "D3CS.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/cVU09Wk.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-37",
+      "sourceRow": 37,
+      "fittingType": "D4CS.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/cVU09Wk.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-38",
+      "sourceRow": 38,
+      "fittingType": "D1CT.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/RJg6bi0.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-39",
+      "sourceRow": 39,
+      "fittingType": "D2CT.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/RJg6bi0.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-40",
+      "sourceRow": 40,
+      "fittingType": "D3CT.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/RJg6bi0.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-41",
+      "sourceRow": 41,
+      "fittingType": "D4CT.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/RJg6bi0.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-42",
+      "sourceRow": 42,
+      "fittingType": "D1RS.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/OqdQ3q6.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-43",
+      "sourceRow": 43,
+      "fittingType": "D2RS.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/OqdQ3q6.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-44",
+      "sourceRow": 44,
+      "fittingType": "D3RS.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/OqdQ3q6.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-45",
+      "sourceRow": 45,
+      "fittingType": "D4RS.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/OqdQ3q6.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-46",
+      "sourceRow": 46,
+      "fittingType": "D1CR.9S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/AYoauEB.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-47",
+      "sourceRow": 47,
+      "fittingType": "D2CR.9S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/AYoauEB.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-48",
+      "sourceRow": 48,
+      "fittingType": "D3CR.9S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/AYoauEB.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-49",
+      "sourceRow": 49,
+      "fittingType": "D4CR.9S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/AYoauEB.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-50",
+      "sourceRow": 50,
+      "fittingType": "W1CR.3S",
+      "iconUrl": "https://i.imgur.com/WLhv5sn.png",
+      "thumbnailUrl": "https://i.imgur.com/0HVnzKL.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-51",
+      "sourceRow": 51,
+      "fittingType": "W2CR.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/0HVnzKL.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-52",
+      "sourceRow": 52,
+      "fittingType": "W3CR.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/0HVnzKL.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-53",
+      "sourceRow": 53,
+      "fittingType": "W4CR.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/0HVnzKL.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-54",
+      "sourceRow": 54,
+      "fittingType": "W1CS.3S",
+      "iconUrl": "https://i.imgur.com/XYGTEpV.png",
+      "thumbnailUrl": "https://i.imgur.com/Q7RaMug.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-55",
+      "sourceRow": 55,
+      "fittingType": "W2CS.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/Q7RaMug.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-56",
+      "sourceRow": 56,
+      "fittingType": "W3CS.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/Q7RaMug.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-57",
+      "sourceRow": 57,
+      "fittingType": "W4CS.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/Q7RaMug.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-58",
+      "sourceRow": 58,
+      "fittingType": "W1CT.3S",
+      "iconUrl": "https://i.imgur.com/qw0DDXy.png",
+      "thumbnailUrl": "https://i.imgur.com/UKTWUKW.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-59",
+      "sourceRow": 59,
+      "fittingType": "W2CT.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/UKTWUKW.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-60",
+      "sourceRow": 60,
+      "fittingType": "W3CT.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/OInV6IV.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-61",
+      "sourceRow": 61,
+      "fittingType": "W4CT.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/OInV6IV.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-62",
+      "sourceRow": 62,
+      "fittingType": "W1CP.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/R4JC8zb.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-63",
+      "sourceRow": 63,
+      "fittingType": "W2CP.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/R4JC8zb.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-64",
+      "sourceRow": 64,
+      "fittingType": "W3CP.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/IFqaGER.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-65",
+      "sourceRow": 65,
+      "fittingType": "W4CP.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/IFqaGER.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-66",
+      "sourceRow": 66,
+      "fittingType": "W1CR.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/E2voFyh.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-67",
+      "sourceRow": 67,
+      "fittingType": "W2CR.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/E2voFyh.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-68",
+      "sourceRow": 68,
+      "fittingType": "W3CR.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/lChbYxw.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-69",
+      "sourceRow": 69,
+      "fittingType": "W4CR.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/lChbYxw.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-70",
+      "sourceRow": 70,
+      "fittingType": "W1WS.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/bdDhaBl.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-71",
+      "sourceRow": 71,
+      "fittingType": "W1CS.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/bdDhaBl.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-72",
+      "sourceRow": 72,
+      "fittingType": "W2CS.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/bdDhaBl.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-73",
+      "sourceRow": 73,
+      "fittingType": "W3CS.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/bdDhaBl.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-74",
+      "sourceRow": 74,
+      "fittingType": "W4CS.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/bdDhaBl.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-75",
+      "sourceRow": 75,
+      "fittingType": "W1CT.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/z0K0ZgC.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-76",
+      "sourceRow": 76,
+      "fittingType": "W2CT.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/z0K0ZgC.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-77",
+      "sourceRow": 77,
+      "fittingType": "W3CT.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/kImstCL.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-78",
+      "sourceRow": 78,
+      "fittingType": "W4CT.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/kImstCL.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-79",
+      "sourceRow": 79,
+      "fittingType": "W1CP.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/DGpRhP8.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-80",
+      "sourceRow": 80,
+      "fittingType": "W2CP.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/DGpRhP8.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-81",
+      "sourceRow": 81,
+      "fittingType": "W3CP.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/DGpRhP8.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-82",
+      "sourceRow": 82,
+      "fittingType": "W4CP.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/DGpRhP8.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-83",
+      "sourceRow": 83,
+      "fittingType": "W1CR.3A",
+      "iconUrl": "https://i.imgur.com/COyY6u3.png",
+      "thumbnailUrl": "https://i.imgur.com/uA7mrkZ.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-84",
+      "sourceRow": 84,
+      "fittingType": "W2CR.3A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/uA7mrkZ.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-85",
+      "sourceRow": 85,
+      "fittingType": "W3CR.3A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/uA7mrkZ.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-86",
+      "sourceRow": 86,
+      "fittingType": "W4CR.3A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/uA7mrkZ.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-87",
+      "sourceRow": 87,
+      "fittingType": "W1CS.3A",
+      "iconUrl": "https://i.imgur.com/8eimKt4.png",
+      "thumbnailUrl": "https://i.imgur.com/HCbkrIM.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-88",
+      "sourceRow": 88,
+      "fittingType": "W2CS.3A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/HCbkrIM.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-89",
+      "sourceRow": 89,
+      "fittingType": "W3CS.3A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/HCbkrIM.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-90",
+      "sourceRow": 90,
+      "fittingType": "W4CS.3A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/HCbkrIM.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-91",
+      "sourceRow": 91,
+      "fittingType": "W1CT.3A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/d5ZFqvg.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-92",
+      "sourceRow": 92,
+      "fittingType": "W2CT.3A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/d5ZFqvg.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-93",
+      "sourceRow": 93,
+      "fittingType": "W3CT.3A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/kMLSMkE.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-94",
+      "sourceRow": 94,
+      "fittingType": "W4CT.3A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/kMLSMkE.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-95",
+      "sourceRow": 95,
+      "fittingType": "W1WS.3A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/gg579zB.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-96",
+      "sourceRow": 96,
+      "fittingType": "W2WS.3A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/gg579zB.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-97",
+      "sourceRow": 97,
+      "fittingType": "W3WS.3A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/gg579zB.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-98",
+      "sourceRow": 98,
+      "fittingType": "A1NR|064",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/xkdb4pu.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-99",
+      "sourceRow": 99,
+      "fittingType": "W1CR.6A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/wvVVLU5.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-100",
+      "sourceRow": 100,
+      "fittingType": "W2CR.6A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/wvVVLU5.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-101",
+      "sourceRow": 101,
+      "fittingType": "W3CR.6A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/wvVVLU5.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-102",
+      "sourceRow": 102,
+      "fittingType": "W4CR.6A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/wvVVLU5.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-103",
+      "sourceRow": 103,
+      "fittingType": "W1CS.6A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/mbwOTBj.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-104",
+      "sourceRow": 104,
+      "fittingType": "W2CS.6A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/mbwOTBj.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-105",
+      "sourceRow": 105,
+      "fittingType": "W3CS.6A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/mbwOTBj.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-106",
+      "sourceRow": 106,
+      "fittingType": "W4CS.6A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/mbwOTBj.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-107",
+      "sourceRow": 107,
+      "fittingType": "W1CT.6A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/HO2dybR.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-108",
+      "sourceRow": 108,
+      "fittingType": "W2CT.6A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/HO2dybR.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-109",
+      "sourceRow": 109,
+      "fittingType": "W3CT.6A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/x0RGZ9D.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-110",
+      "sourceRow": 110,
+      "fittingType": "W4CT.6A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/x0RGZ9D.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-111",
+      "sourceRow": 111,
+      "fittingType": "W1WS.6A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/uu51mos.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-112",
+      "sourceRow": 112,
+      "fittingType": "W2WS.6A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/uu51mos.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-113",
+      "sourceRow": 113,
+      "fittingType": "W3WS.6A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/uu51mos.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-114",
+      "sourceRow": 114,
+      "fittingType": "L1WS.3S|020A",
+      "iconUrl": "https://i.imgur.com/MfmxygY.png",
+      "thumbnailUrl": "https://i.imgur.com/g3peroe.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-115",
+      "sourceRow": 115,
+      "fittingType": "L1FS.3S|020A",
+      "iconUrl": "https://i.imgur.com/MfmxygY.png",
+      "thumbnailUrl": "https://i.imgur.com/g3peroe.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-116",
+      "sourceRow": 116,
+      "fittingType": "L1CS.3S|020A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/g3peroe.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-117",
+      "sourceRow": 117,
+      "fittingType": "L2CS.3S|020A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/g3peroe.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-118",
+      "sourceRow": 118,
+      "fittingType": "L3CS.3S|020A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/g3peroe.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-119",
+      "sourceRow": 119,
+      "fittingType": "L+1CS.3S|020B",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/Yfm3igh.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-120",
+      "sourceRow": 120,
+      "fittingType": "L+2CS.3S|020B",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/Yfm3igh.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-121",
+      "sourceRow": 121,
+      "fittingType": "L4CS.3S|020B",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/Yfm3igh.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-122",
+      "sourceRow": 122,
+      "fittingType": "L+1WS.3S|020C",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/JNqGLPM.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-123",
+      "sourceRow": 123,
+      "fittingType": "L+2WS.3S|020C",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/JNqGLPM.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-124",
+      "sourceRow": 124,
+      "fittingType": "L+4WS.3S|020C",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/JNqGLPM.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-125",
+      "sourceRow": 125,
+      "fittingType": "L1FR.3S|020D",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/Kqwm05X.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-126",
+      "sourceRow": 126,
+      "fittingType": "L2FR|020D",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/Kqwm05X.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-127",
+      "sourceRow": 127,
+      "fittingType": "L4FR.3S|020D",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/Kqwm05X.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-128",
+      "sourceRow": 128,
+      "fittingType": "L1CS.6S|020A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/9HRYjT4.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-129",
+      "sourceRow": 129,
+      "fittingType": "L2CS.6S|020A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/9HRYjT4.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-130",
+      "sourceRow": 130,
+      "fittingType": "L4CS.6S|020A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/9HRYjT4.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-131",
+      "sourceRow": 131,
+      "fittingType": "L+1CS.6S|020B",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/9KQKref.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-132",
+      "sourceRow": 132,
+      "fittingType": "L+2CS.6S|020B",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/9KQKref.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-133",
+      "sourceRow": 133,
+      "fittingType": "L+4CS.6S|020B",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/Kqwm05X.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-134",
+      "sourceRow": 134,
+      "fittingType": "L1FR.6S|020D",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/Kqwm05X.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-135",
+      "sourceRow": 135,
+      "fittingType": "L1FR.9S|020D",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/Kqwm05X.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-136",
+      "sourceRow": 136,
+      "fittingType": "L2FR.6S|020D",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/Kqwm05X.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-137",
+      "sourceRow": 137,
+      "fittingType": "L4FR.6S|020D",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/Kqwm05X.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-138",
+      "sourceRow": 138,
+      "fittingType": "L1CS.9S|020A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/9HRYjT4.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-139",
+      "sourceRow": 139,
+      "fittingType": "L2CS.9S|020A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/9HRYjT4.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-140",
+      "sourceRow": 140,
+      "fittingType": "L4CS.9S|020A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/9HRYjT4.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-141",
+      "sourceRow": 141,
+      "fittingType": "L+1CS.9S|020B",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/jxPC1h1.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-142",
+      "sourceRow": 142,
+      "fittingType": "L+2CS.9S|020B",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/jxPC1h1.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-143",
+      "sourceRow": 143,
+      "fittingType": "L+4CS.9S|020B",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/jxPC1h1.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-144",
+      "sourceRow": 144,
+      "fittingType": "U1FR.3S",
+      "iconUrl": "https://i.imgur.com/coSxptL.png",
+      "thumbnailUrl": "https://i.imgur.com/lWWou7m.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-145",
+      "sourceRow": 145,
+      "fittingType": "U2FR.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/lWWou7m.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-146",
+      "sourceRow": 146,
+      "fittingType": "U4FR.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/lWWou7m.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-147",
+      "sourceRow": 147,
+      "fittingType": "U1FR.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/Wl0wVel.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-148",
+      "sourceRow": 148,
+      "fittingType": "U1FS.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/uLaSe3B.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-149",
+      "sourceRow": 149,
+      "fittingType": "U2FS.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/uLaSe3B.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-150",
+      "sourceRow": 150,
+      "fittingType": "U1FS.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/uLaSe3B.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-151",
+      "sourceRow": 151,
+      "fittingType": "U1FS.6S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/uLaSe3B.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-152",
+      "sourceRow": 152,
+      "fittingType": "U+1FR.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/HKNTHsd.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-153",
+      "sourceRow": 153,
+      "fittingType": "U+2FR.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/HKNTHsd.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-154",
+      "sourceRow": 154,
+      "fittingType": "U+4FR.3S",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/HKNTHsd.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-155",
+      "sourceRow": 155,
+      "fittingType": "X1CR",
+      "iconUrl": "https://i.imgur.com/kOGMVVg.png",
+      "thumbnailUrl": "https://i.imgur.com/ko8150N.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-156",
+      "sourceRow": 156,
+      "fittingType": "X2CR",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/ko8150N.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-157",
+      "sourceRow": 157,
+      "fittingType": "X3CR",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/ko8150N.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-158",
+      "sourceRow": 158,
+      "fittingType": "X4CR",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-159",
+      "sourceRow": 159,
+      "fittingType": "X1WR",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-160",
+      "sourceRow": 160,
+      "fittingType": "X2WR",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-161",
+      "sourceRow": 161,
+      "fittingType": "X3WR",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-162",
+      "sourceRow": 162,
+      "fittingType": "Corvi Linkable Tube",
+      "iconUrl": "",
+      "thumbnailUrl": "/technical-library/image2.jpg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-163",
+      "sourceRow": 163,
+      "fittingType": "L1CS|075",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/mgrYsJV.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-164",
+      "sourceRow": 164,
+      "fittingType": "L1CR|075",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/mgrYsJV.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-165",
+      "sourceRow": 165,
+      "fittingType": "L2CR|075",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/mgrYsJV.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-166",
+      "sourceRow": 166,
+      "fittingType": "L1NS|023",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/wJxEDCu.png",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-167",
+      "sourceRow": 167,
+      "fittingType": "L1CS|023",
+      "iconUrl": "https://i.imgur.com/fCnpqoq.png",
+      "thumbnailUrl": "https://i.imgur.com/wJxEDCu.png",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-168",
+      "sourceRow": 168,
+      "fittingType": "L2CS|023",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/wJxEDCu.png",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-169",
+      "sourceRow": 169,
+      "fittingType": "L3CS|023",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/wJxEDCu.png",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-170",
+      "sourceRow": 170,
+      "fittingType": "L4CS|023",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/wJxEDCu.png",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-171",
+      "sourceRow": 171,
+      "fittingType": "L2CS|022",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/9CZSTSX.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-172",
+      "sourceRow": 172,
+      "fittingType": "L1CR|021",
+      "iconUrl": "https://i.imgur.com/lazeL73.png",
+      "thumbnailUrl": "https://i.imgur.com/LDOieLa.jpeg",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3600.0"
+    },
+    {
+      "id": "source-173",
+      "sourceRow": 173,
+      "fittingType": "L2CR|021",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/zL4dm1X.png",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3600.0"
+    },
+    {
+      "id": "source-174",
+      "sourceRow": 174,
+      "fittingType": "L1WS|021",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/zL4dm1X.png",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3600.0"
+    },
+    {
+      "id": "source-175",
+      "sourceRow": 175,
+      "fittingType": "L1CS|024",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/IVGaNdh.png",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-176",
+      "sourceRow": 176,
+      "fittingType": "L2CS|024",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/ATgb8zm.png",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-177",
+      "sourceRow": 177,
+      "fittingType": "L3CS|024",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/ATgb8zm.png",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-178",
+      "sourceRow": 178,
+      "fittingType": "L4CS|024",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-179",
+      "sourceRow": 179,
+      "fittingType": "L1CR|026",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-180",
+      "sourceRow": 180,
+      "fittingType": "L1CR|027",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-181",
+      "sourceRow": 181,
+      "fittingType": "L1CR|028",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3600.0"
+    },
+    {
+      "id": "source-182",
+      "sourceRow": 182,
+      "fittingType": "L1CR|029",
+      "iconUrl": "https://i.imgur.com/NKywcNk.png",
+      "thumbnailUrl": "https://i.imgur.com/qOw3Riu.jpeg",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3600.0"
+    },
+    {
+      "id": "source-183",
+      "sourceRow": 183,
+      "fittingType": "L1WS|030",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/MPPEdOJ.jpeg",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-184",
+      "sourceRow": 184,
+      "fittingType": "L2WS|030",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/MPPEdOJ.jpeg",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-185",
+      "sourceRow": 185,
+      "fittingType": "L1CR|031",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-186",
+      "sourceRow": 186,
+      "fittingType": "L1CR|032",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-187",
+      "sourceRow": 187,
+      "fittingType": "L1CR|033",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-188",
+      "sourceRow": 188,
+      "fittingType": "L+1CS|025",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-189",
+      "sourceRow": 189,
+      "fittingType": "L+2CS|025",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-190",
+      "sourceRow": 190,
+      "fittingType": "L+3CS|025",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-191",
+      "sourceRow": 191,
+      "fittingType": "L+4CS|025",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-192",
+      "sourceRow": 192,
+      "fittingType": "L1CS.3S|034",
+      "iconUrl": "https://i.imgur.com/8vr6suu.png",
+      "thumbnailUrl": "https://i.imgur.com/SGKZFMp.jpeg",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-193",
+      "sourceRow": 193,
+      "fittingType": "L2CS.3S|034",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-194",
+      "sourceRow": 194,
+      "fittingType": "L1CS.6S|034",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-195",
+      "sourceRow": 195,
+      "fittingType": "L2CS.6S|034",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-196",
+      "sourceRow": 196,
+      "fittingType": "L3CR|035",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-197",
+      "sourceRow": 197,
+      "fittingType": "L4CR|035",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-198",
+      "sourceRow": 198,
+      "fittingType": "L+1FS|077",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-199",
+      "sourceRow": 199,
+      "fittingType": "L+2FS|078",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-200",
+      "sourceRow": 200,
+      "fittingType": "L+3FS|079",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-201",
+      "sourceRow": 201,
+      "fittingType": "L+3FS|080",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-202",
+      "sourceRow": 202,
+      "fittingType": "L1FR|025A",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-203",
+      "sourceRow": 203,
+      "fittingType": "L1NR|025A",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-204",
+      "sourceRow": 204,
+      "fittingType": "L1NS|025B",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/6FmR7Uh.png",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-205",
+      "sourceRow": 205,
+      "fittingType": "L1FR|025B",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/6FmR7Uh.png",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-206",
+      "sourceRow": 206,
+      "fittingType": "L1NS|025B",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/6FmR7Uh.png",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-207",
+      "sourceRow": 207,
+      "fittingType": "L1WS|025B",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/6FmR7Uh.png",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-208",
+      "sourceRow": 208,
+      "fittingType": "L1WR|025B",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/6FmR7Uh.png",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-209",
+      "sourceRow": 209,
+      "fittingType": "L1WR|025N",
+      "iconUrl": "",
+      "thumbnailUrl": "/technical-library/image6.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-210",
+      "sourceRow": 210,
+      "fittingType": "L1CR|041B",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-211",
+      "sourceRow": 211,
+      "fittingType": "L1WS|041B",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-212",
+      "sourceRow": 212,
+      "fittingType": "L1NS|041B",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-213",
+      "sourceRow": 213,
+      "fittingType": "L1NR|041B",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-214",
+      "sourceRow": 214,
+      "fittingType": "L1WS|025I",
+      "iconUrl": "https://i.imgur.com/NKywcNk.png",
+      "thumbnailUrl": "https://i.imgur.com/s0Sj1N5.png",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "5000.0"
+    },
+    {
+      "id": "source-215",
+      "sourceRow": 215,
+      "fittingType": "L1NS|025I",
+      "iconUrl": "https://i.imgur.com/NKywcNk.png",
+      "thumbnailUrl": "https://i.imgur.com/s0Sj1N5.png",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "5000.0"
+    },
+    {
+      "id": "source-216",
+      "sourceRow": 216,
+      "fittingType": "L1CS|025I",
+      "iconUrl": "https://i.imgur.com/NKywcNk.png",
+      "thumbnailUrl": "https://i.imgur.com/s0Sj1N5.png",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "5000.0"
+    },
+    {
+      "id": "source-217",
+      "sourceRow": 217,
+      "fittingType": "L1FR|041A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/1xeJkyJ.png",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-218",
+      "sourceRow": 218,
+      "fittingType": "L1CT|038",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-219",
+      "sourceRow": 219,
+      "fittingType": "L2CT|038",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-220",
+      "sourceRow": 220,
+      "fittingType": "L3CT|038",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-221",
+      "sourceRow": 221,
+      "fittingType": "L4CT|038",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-222",
+      "sourceRow": 222,
+      "fittingType": "L1NR|035A",
+      "iconUrl": "https://i.imgur.com/NKywcNk.png",
+      "thumbnailUrl": "https://i.imgur.com/WTmymgb.jpeg",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-223",
+      "sourceRow": 223,
+      "fittingType": "L1CR|035A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/WTmymgb.jpeg",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-224",
+      "sourceRow": 224,
+      "fittingType": "L2CR|035A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/WTmymgb.jpeg",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-225",
+      "sourceRow": 225,
+      "fittingType": "L3CR|035A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/WTmymgb.jpeg",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-226",
+      "sourceRow": 226,
+      "fittingType": "L4CR|035A",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/WTmymgb.jpeg",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-227",
+      "sourceRow": 227,
+      "fittingType": "L1CR|035B",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-228",
+      "sourceRow": 228,
+      "fittingType": "L2CR|035B",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-229",
+      "sourceRow": 229,
+      "fittingType": "L3CR|035B",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-230",
+      "sourceRow": 230,
+      "fittingType": "L4CR|035B",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-231",
+      "sourceRow": 231,
+      "fittingType": "L1NS|035C",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-232",
+      "sourceRow": 232,
+      "fittingType": "L1CR|035C",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-233",
+      "sourceRow": 233,
+      "fittingType": "L2CR|035C",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-234",
+      "sourceRow": 234,
+      "fittingType": "L3CR|035C",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-235",
+      "sourceRow": 235,
+      "fittingType": "L4CR|035C",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-236",
+      "sourceRow": 236,
+      "fittingType": "L1CR|035D",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-237",
+      "sourceRow": 237,
+      "fittingType": "L2CR|035D",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-238",
+      "sourceRow": 238,
+      "fittingType": "L3CR|035D",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-239",
+      "sourceRow": 239,
+      "fittingType": "L4CR|035D",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-240",
+      "sourceRow": 240,
+      "fittingType": "L1NR|035E",
+      "iconUrl": "https://i.imgur.com/zcORpGO.png",
+      "thumbnailUrl": "https://i.imgur.com/AjnLFn6.png",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-241",
+      "sourceRow": 241,
+      "fittingType": "L1CR|035E",
+      "iconUrl": "https://i.imgur.com/zcORpGO.png",
+      "thumbnailUrl": "https://i.imgur.com/AjnLFn6.png",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-242",
+      "sourceRow": 242,
+      "fittingType": "L2CR|035E",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-243",
+      "sourceRow": 243,
+      "fittingType": "L3CR|035E",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-244",
+      "sourceRow": 244,
+      "fittingType": "L4CR|035E",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-245",
+      "sourceRow": 245,
+      "fittingType": "L1CR|035F",
+      "iconUrl": "https://i.imgur.com/NKywcNk.png",
+      "thumbnailUrl": "https://i.imgur.com/0GkPiUT.jpeg",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-246",
+      "sourceRow": 246,
+      "fittingType": "L1NR|035F",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/0GkPiUT.jpeg",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-247",
+      "sourceRow": 247,
+      "fittingType": "L2CR|035F",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/0GkPiUT.jpeg",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-248",
+      "sourceRow": 248,
+      "fittingType": "L3CR|035F",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/0GkPiUT.jpeg",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-249",
+      "sourceRow": 249,
+      "fittingType": "L4CR|035F",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/0GkPiUT.jpeg",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-250",
+      "sourceRow": 250,
+      "fittingType": "L1CR|035G",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-251",
+      "sourceRow": 251,
+      "fittingType": "L2CR|035G",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-252",
+      "sourceRow": 252,
+      "fittingType": "L3CR|035G",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-253",
+      "sourceRow": 253,
+      "fittingType": "L4CR|035G",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-254",
+      "sourceRow": 254,
+      "fittingType": "L1CR|035H",
+      "iconUrl": "https://i.imgur.com/NKywcNk.png",
+      "thumbnailUrl": "https://i.imgur.com/uS8Q4Xr.jpeg",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3600.0"
+    },
+    {
+      "id": "source-255",
+      "sourceRow": 255,
+      "fittingType": "L2CR|035H",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/uS8Q4Xr.jpeg",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3600.0"
+    },
+    {
+      "id": "source-256",
+      "sourceRow": 256,
+      "fittingType": "L3CR|035H",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/uS8Q4Xr.jpeg",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3600.0"
+    },
+    {
+      "id": "source-257",
+      "sourceRow": 257,
+      "fittingType": "L4CR|035H",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/uS8Q4Xr.jpeg",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3600.0"
+    },
+    {
+      "id": "source-258",
+      "sourceRow": 258,
+      "fittingType": "L1CR|035I",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-259",
+      "sourceRow": 259,
+      "fittingType": "L2CR|035I",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-260",
+      "sourceRow": 260,
+      "fittingType": "L3CR|035I",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-261",
+      "sourceRow": 261,
+      "fittingType": "L4CR|035I",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-262",
+      "sourceRow": 262,
+      "fittingType": "L1CR|035J",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-263",
+      "sourceRow": 263,
+      "fittingType": "L2CR|035J",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-264",
+      "sourceRow": 264,
+      "fittingType": "L3CR|035J",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-265",
+      "sourceRow": 265,
+      "fittingType": "L4CR|035J",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-266",
+      "sourceRow": 266,
+      "fittingType": "L1CR|035K",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-267",
+      "sourceRow": 267,
+      "fittingType": "L2CR|035K",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-268",
+      "sourceRow": 268,
+      "fittingType": "L3CR|035K",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-269",
+      "sourceRow": 269,
+      "fittingType": "L4CR|035K",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-270",
+      "sourceRow": 270,
+      "fittingType": "L1CR|035L",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-271",
+      "sourceRow": 271,
+      "fittingType": "L2CR|035L",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-272",
+      "sourceRow": 272,
+      "fittingType": "L3CR|035L",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-273",
+      "sourceRow": 273,
+      "fittingType": "L4CR|035L",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-274",
+      "sourceRow": 274,
+      "fittingType": "L1CR|035M",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-275",
+      "sourceRow": 275,
+      "fittingType": "L2CR|035M",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-276",
+      "sourceRow": 276,
+      "fittingType": "L3CR|035M",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-277",
+      "sourceRow": 277,
+      "fittingType": "L4CR|035M",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-278",
+      "sourceRow": 278,
+      "fittingType": "L1CR|035N",
+      "iconUrl": "https://i.imgur.com/NKywcNk.png",
+      "thumbnailUrl": "https://i.imgur.com/0wQWRtK.jpeg",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3600.0"
+    },
+    {
+      "id": "source-279",
+      "sourceRow": 279,
+      "fittingType": "L2CR|035N",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/0wQWRtK.jpeg",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3600.0"
+    },
+    {
+      "id": "source-280",
+      "sourceRow": 280,
+      "fittingType": "L3CR|035N",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-281",
+      "sourceRow": 281,
+      "fittingType": "L4CR|035N",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-282",
+      "sourceRow": 282,
+      "fittingType": "L1CR|035O",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-283",
+      "sourceRow": 283,
+      "fittingType": "L2CR|035O",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-284",
+      "sourceRow": 284,
+      "fittingType": "L3CR|035O",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-285",
+      "sourceRow": 285,
+      "fittingType": "L4CR|035O",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-286",
+      "sourceRow": 286,
+      "fittingType": "L1CR|035P",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-287",
+      "sourceRow": 287,
+      "fittingType": "L2CR|035P",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-288",
+      "sourceRow": 288,
+      "fittingType": "L3CR|035P",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-289",
+      "sourceRow": 289,
+      "fittingType": "L4CR|035P",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-290",
+      "sourceRow": 290,
+      "fittingType": "L1CR|035Q",
+      "iconUrl": "",
+      "thumbnailUrl": "/technical-library/image7.jpg",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-291",
+      "sourceRow": 291,
+      "fittingType": "L2CR|035Q",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-292",
+      "sourceRow": 292,
+      "fittingType": "L3CR|035Q",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-293",
+      "sourceRow": 293,
+      "fittingType": "L4CR|035Q",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-294",
+      "sourceRow": 294,
+      "fittingType": "L1CR|035R",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-295",
+      "sourceRow": 295,
+      "fittingType": "L1CR|035S",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-296",
+      "sourceRow": 296,
+      "fittingType": "L1CR|035T",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-297",
+      "sourceRow": 297,
+      "fittingType": "L1WS|038A",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-298",
+      "sourceRow": 298,
+      "fittingType": "L1NS|038A",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-299",
+      "sourceRow": 299,
+      "fittingType": "L1CS|038A",
+      "iconUrl": "https://i.imgur.com/ZY2sNUw.png",
+      "thumbnailUrl": "https://i.imgur.com/LVZ0m5U.png",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-300",
+      "sourceRow": 300,
+      "fittingType": "L2CS|038A",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-301",
+      "sourceRow": 301,
+      "fittingType": "L3CS|038A",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-302",
+      "sourceRow": 302,
+      "fittingType": "L4CS|038A",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-303",
+      "sourceRow": 303,
+      "fittingType": "L1FS|038B",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-304",
+      "sourceRow": 304,
+      "fittingType": "L1CS|038B",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-305",
+      "sourceRow": 305,
+      "fittingType": "L2CS|038B",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-306",
+      "sourceRow": 306,
+      "fittingType": "L3CS|038B",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-307",
+      "sourceRow": 307,
+      "fittingType": "L4CS|038B",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-308",
+      "sourceRow": 308,
+      "fittingType": "L1CS|038C",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-309",
+      "sourceRow": 309,
+      "fittingType": "L2CS|038C",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-310",
+      "sourceRow": 310,
+      "fittingType": "L3CS|038C",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-311",
+      "sourceRow": 311,
+      "fittingType": "L4CS|038C",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-312",
+      "sourceRow": 312,
+      "fittingType": "L1CS|038D",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-313",
+      "sourceRow": 313,
+      "fittingType": "L2CS|038D",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-314",
+      "sourceRow": 314,
+      "fittingType": "L3CS|038D",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-315",
+      "sourceRow": 315,
+      "fittingType": "L4CS|038D",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-316",
+      "sourceRow": 316,
+      "fittingType": "L1WS|038E",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-317",
+      "sourceRow": 317,
+      "fittingType": "L1CS|038E",
+      "iconUrl": "https://i.imgur.com/NKywcNk.png",
+      "thumbnailUrl": "https://i.imgur.com/nGa2ChB.jpeg",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-318",
+      "sourceRow": 318,
+      "fittingType": "L2CS|038E",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/nGa2ChB.jpeg",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-319",
+      "sourceRow": 319,
+      "fittingType": "L3CS|038E",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/nGa2ChB.jpeg",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-320",
+      "sourceRow": 320,
+      "fittingType": "L4CS|038E",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/nGa2ChB.jpeg",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-321",
+      "sourceRow": 321,
+      "fittingType": "L1WS|038F",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-322",
+      "sourceRow": 322,
+      "fittingType": "L1FR|038F",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-323",
+      "sourceRow": 323,
+      "fittingType": "L2WS|038F",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/j10aWLf.jpeg",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-324",
+      "sourceRow": 324,
+      "fittingType": "L1CS|038F",
+      "iconUrl": "https://i.imgur.com/NKywcNk.png",
+      "thumbnailUrl": "https://i.imgur.com/j10aWLf.jpeg",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-325",
+      "sourceRow": 325,
+      "fittingType": "L2CS|038F",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/j10aWLf.jpeg",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-326",
+      "sourceRow": 326,
+      "fittingType": "L3CS|038F",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/j10aWLf.jpeg",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-327",
+      "sourceRow": 327,
+      "fittingType": "L4CS|038F",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/j10aWLf.jpeg",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-328",
+      "sourceRow": 328,
+      "fittingType": "L1CS|038G",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-329",
+      "sourceRow": 329,
+      "fittingType": "L2CS|038G",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-330",
+      "sourceRow": 330,
+      "fittingType": "L3CS|038G",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-331",
+      "sourceRow": 331,
+      "fittingType": "L4CS|038G",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-332",
+      "sourceRow": 332,
+      "fittingType": "L1CS|038H",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-333",
+      "sourceRow": 333,
+      "fittingType": "L2CS|038H",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-334",
+      "sourceRow": 334,
+      "fittingType": "L3CS|038H",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-335",
+      "sourceRow": 335,
+      "fittingType": "L4CS|038H",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-336",
+      "sourceRow": 336,
+      "fittingType": "L1CS|038I",
+      "iconUrl": "https://i.imgur.com/ZPi7IMB.png",
+      "thumbnailUrl": "https://i.imgur.com/TUZ2wIT.png",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3600.0"
+    },
+    {
+      "id": "source-337",
+      "sourceRow": 337,
+      "fittingType": "L2CS|038I",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3600.0"
+    },
+    {
+      "id": "source-338",
+      "sourceRow": 338,
+      "fittingType": "L3CS|038I",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3600.0"
+    },
+    {
+      "id": "source-339",
+      "sourceRow": 339,
+      "fittingType": "L4CS|038I",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3600.0"
+    },
+    {
+      "id": "source-340",
+      "sourceRow": 340,
+      "fittingType": "L1CS|038J",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-341",
+      "sourceRow": 341,
+      "fittingType": "L2CS|038J",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-342",
+      "sourceRow": 342,
+      "fittingType": "L3CS|038J",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-343",
+      "sourceRow": 343,
+      "fittingType": "L4CS|038J",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-344",
+      "sourceRow": 344,
+      "fittingType": "L1CS.038K",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-345",
+      "sourceRow": 345,
+      "fittingType": "L2CS|038K",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-346",
+      "sourceRow": 346,
+      "fittingType": "L3CS|038K",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-347",
+      "sourceRow": 347,
+      "fittingType": "L4CS|038K",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-348",
+      "sourceRow": 348,
+      "fittingType": "L1CS|038L",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-349",
+      "sourceRow": 349,
+      "fittingType": "L2CS|038L",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-350",
+      "sourceRow": 350,
+      "fittingType": "L3CS|038L",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-351",
+      "sourceRow": 351,
+      "fittingType": "L4CS|038L",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-352",
+      "sourceRow": 352,
+      "fittingType": "L1CS|038M",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-353",
+      "sourceRow": 353,
+      "fittingType": "L2CS|038M",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-354",
+      "sourceRow": 354,
+      "fittingType": "L3CS|038M",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-355",
+      "sourceRow": 355,
+      "fittingType": "L4CS|038M",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-356",
+      "sourceRow": 356,
+      "fittingType": "L1CS|038N",
+      "iconUrl": "https://i.imgur.com/NKywcNk.png",
+      "thumbnailUrl": "https://i.imgur.com/Akg9e3S.jpeg",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-357",
+      "sourceRow": 357,
+      "fittingType": "L2CS|038N",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/Akg9e3S.jpeg",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-358",
+      "sourceRow": 358,
+      "fittingType": "L3CS|038N",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/Akg9e3S.jpeg",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-359",
+      "sourceRow": 359,
+      "fittingType": "L4CS|038N",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/Akg9e3S.jpeg",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-360",
+      "sourceRow": 360,
+      "fittingType": "L1CS|038O",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-361",
+      "sourceRow": 361,
+      "fittingType": "L2CS|038O",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-362",
+      "sourceRow": 362,
+      "fittingType": "L3CS|038O",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-366",
+      "sourceRow": 366,
+      "fittingType": "L4CS|038O",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-367",
+      "sourceRow": 367,
+      "fittingType": "L1CS|038P",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-368",
+      "sourceRow": 368,
+      "fittingType": "L2CS|038P",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-369",
+      "sourceRow": 369,
+      "fittingType": "L3CS|038P",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-370",
+      "sourceRow": 370,
+      "fittingType": "L4CS|038P",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-371",
+      "sourceRow": 371,
+      "fittingType": "L1CS|038R",
+      "iconUrl": "",
+      "thumbnailUrl": "/technical-library/image3.jpg",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-372",
+      "sourceRow": 372,
+      "fittingType": "L2CS|038R",
+      "iconUrl": "",
+      "thumbnailUrl": "/technical-library/image3.jpg",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-373",
+      "sourceRow": 373,
+      "fittingType": "L3CS|038R",
+      "iconUrl": "",
+      "thumbnailUrl": "/technical-library/image3.jpg",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-374",
+      "sourceRow": 374,
+      "fittingType": "L4CS|038R",
+      "iconUrl": "",
+      "thumbnailUrl": "/technical-library/image3.jpg",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": "3000.0"
+    },
+    {
+      "id": "source-375",
+      "sourceRow": 375,
+      "fittingType": "L1CS|038Q",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-376",
+      "sourceRow": 376,
+      "fittingType": "L2CS|038Q",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-377",
+      "sourceRow": 377,
+      "fittingType": "L3CS|038Q",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-378",
+      "sourceRow": 378,
+      "fittingType": "L4CS|038Q",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-379",
+      "sourceRow": 379,
+      "fittingType": "L1CS|038M",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-380",
+      "sourceRow": 380,
+      "fittingType": "L1CS|038S",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-381",
+      "sourceRow": 381,
+      "fittingType": "L1CS|038T",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-382",
+      "sourceRow": 382,
+      "fittingType": "L1CS|038U",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-383",
+      "sourceRow": 383,
+      "fittingType": "L1CS|038V",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-384",
+      "sourceRow": 384,
+      "fittingType": "L1CS|038W",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-385",
+      "sourceRow": 385,
+      "fittingType": "L1CS|038X",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-386",
+      "sourceRow": 386,
+      "fittingType": "L1CS|038Y",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-387",
+      "sourceRow": 387,
+      "fittingType": "L1CR.3S|036",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-388",
+      "sourceRow": 388,
+      "fittingType": "L2CR.3S|036",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-389",
+      "sourceRow": 389,
+      "fittingType": "L3CR.3S|036",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-390",
+      "sourceRow": 390,
+      "fittingType": "L4CR.3S|036",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-391",
+      "sourceRow": 391,
+      "fittingType": "L1CR.3A|037",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-392",
+      "sourceRow": 392,
+      "fittingType": "L2CR.3A|037",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-393",
+      "sourceRow": 393,
+      "fittingType": "L3CR.3A|037",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-394",
+      "sourceRow": 394,
+      "fittingType": "L4CR.3A|037",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-395",
+      "sourceRow": 395,
+      "fittingType": "L1CS.3S|039",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-396",
+      "sourceRow": 396,
+      "fittingType": "L2CS.3S|039",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-397",
+      "sourceRow": 397,
+      "fittingType": "L3CS.3S|039",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-398",
+      "sourceRow": 398,
+      "fittingType": "L4CS.3S|039",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-399",
+      "sourceRow": 399,
+      "fittingType": "L1CS.3A|040",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-400",
+      "sourceRow": 400,
+      "fittingType": "L2CS.3A|040",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-401",
+      "sourceRow": 401,
+      "fittingType": "L3CS.3A|040",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-402",
+      "sourceRow": 402,
+      "fittingType": "L4CS.3A|040",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-403",
+      "sourceRow": 403,
+      "fittingType": "L1CH.DB|042",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-404",
+      "sourceRow": 404,
+      "fittingType": "L2CH.DB|042",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-405",
+      "sourceRow": 405,
+      "fittingType": "L3CH.DB|042",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-406",
+      "sourceRow": 406,
+      "fittingType": "L4CH.DB|042",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-407",
+      "sourceRow": 407,
+      "fittingType": "L1CH.3S|043",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-408",
+      "sourceRow": 408,
+      "fittingType": "L2CH.3S|043",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-409",
+      "sourceRow": 409,
+      "fittingType": "L3CH.3S|043",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-410",
+      "sourceRow": 410,
+      "fittingType": "L4CH.3S|043",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-411",
+      "sourceRow": 411,
+      "fittingType": "L1CH|044",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-412",
+      "sourceRow": 412,
+      "fittingType": "L2CH.IB|044",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-413",
+      "sourceRow": 413,
+      "fittingType": "L3CH|044",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-414",
+      "sourceRow": 414,
+      "fittingType": "L4CH|044",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-415",
+      "sourceRow": 415,
+      "fittingType": "L1CH|045",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-416",
+      "sourceRow": 416,
+      "fittingType": "L2CH.3S+IB|045",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-417",
+      "sourceRow": 417,
+      "fittingType": "L3CH.3S+IB|045",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-418",
+      "sourceRow": 418,
+      "fittingType": "L4CH.3S+IB|045",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-419",
+      "sourceRow": 419,
+      "fittingType": "L1CR|046",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-420",
+      "sourceRow": 420,
+      "fittingType": "L1CR|047",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-421",
+      "sourceRow": 421,
+      "fittingType": "L1CR|048",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-422",
+      "sourceRow": 422,
+      "fittingType": "L1WR|049",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-423",
+      "sourceRow": 423,
+      "fittingType": "L1WR|050",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-424",
+      "sourceRow": 424,
+      "fittingType": "L1WS|051",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-425",
+      "sourceRow": 425,
+      "fittingType": "L1WS|052",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-426",
+      "sourceRow": 426,
+      "fittingType": "L1NS|001",
+      "iconUrl": "https://i.imgur.com/gyIsexd.png",
+      "thumbnailUrl": "https://i.imgur.com/xO6gO07.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-427",
+      "sourceRow": 427,
+      "fittingType": "L2NS|001",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/xO6gO07.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-428",
+      "sourceRow": 428,
+      "fittingType": "L1FR|004",
+      "iconUrl": "https://i.imgur.com/4MVdI4A.png",
+      "thumbnailUrl": "https://i.imgur.com/6ikKWXJ.png",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-429",
+      "sourceRow": 429,
+      "fittingType": "L1FS|004",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/JBPzopr.png",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-430",
+      "sourceRow": 430,
+      "fittingType": "L1WR|004",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/JBPzopr.png",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-431",
+      "sourceRow": 431,
+      "fittingType": "L1NR|004",
+      "iconUrl": "https://i.imgur.com/uVkcOZH.png",
+      "thumbnailUrl": "https://i.imgur.com/JBPzopr.png",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-432",
+      "sourceRow": 432,
+      "fittingType": "L1NS|007",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-433",
+      "sourceRow": 433,
+      "fittingType": "L1NS|005",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-434",
+      "sourceRow": 434,
+      "fittingType": "L1NS|003",
+      "iconUrl": "https://i.imgur.com/weWg8JE.png",
+      "thumbnailUrl": "https://i.imgur.com/bBr1Qvu.png",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-435",
+      "sourceRow": 435,
+      "fittingType": "L1NS|018",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-436",
+      "sourceRow": 436,
+      "fittingType": "L1NS|019",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-437",
+      "sourceRow": 437,
+      "fittingType": "L1WS|061",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-438",
+      "sourceRow": 438,
+      "fittingType": "L1NS|011",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-439",
+      "sourceRow": 439,
+      "fittingType": "L1NS|012",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-440",
+      "sourceRow": 440,
+      "fittingType": "L1NS|015",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-441",
+      "sourceRow": 441,
+      "fittingType": "L1NS|014",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-442",
+      "sourceRow": 442,
+      "fittingType": "L1NS|016",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-443",
+      "sourceRow": 443,
+      "fittingType": "L1NS|013",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-444",
+      "sourceRow": 444,
+      "fittingType": "L1NS|010",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-445",
+      "sourceRow": 445,
+      "fittingType": "L1NS|017",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "2.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-446",
+      "sourceRow": 446,
+      "fittingType": "D1NR|002",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-447",
+      "sourceRow": 447,
+      "fittingType": "LINR|058",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-448",
+      "sourceRow": 448,
+      "fittingType": "L1NS|059",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-449",
+      "sourceRow": 449,
+      "fittingType": "L1NS|025",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-450",
+      "sourceRow": 450,
+      "fittingType": "L1NS|041",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-451",
+      "sourceRow": 451,
+      "fittingType": "L1NS|062",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "5.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-452",
+      "sourceRow": 452,
+      "fittingType": "L1WS|051",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-453",
+      "sourceRow": 453,
+      "fittingType": "L1FS|053",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-454",
+      "sourceRow": 454,
+      "fittingType": "X1FR|055",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-455",
+      "sourceRow": 455,
+      "fittingType": "L1FR|056",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-456",
+      "sourceRow": 456,
+      "fittingType": "L1FR|057",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-457",
+      "sourceRow": 457,
+      "fittingType": "L1FS|054",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-458",
+      "sourceRow": 458,
+      "fittingType": "L1FS|054",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "1.0",
+      "pcbWidth": "8.0",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-459",
+      "sourceRow": 459,
+      "fittingType": "U1FR|060",
+      "iconUrl": "",
+      "thumbnailUrl": "",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-460",
+      "sourceRow": 460,
+      "fittingType": "68.W1WR.3M",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/adLjyfg.png",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-462",
+      "sourceRow": 462,
+      "fittingType": "L.CR.S1",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/7Artu9W.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-463",
+      "sourceRow": 463,
+      "fittingType": "L.CS.S1",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/38QfCRR.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    },
+    {
+      "id": "source-464",
+      "sourceRow": 464,
+      "fittingType": "L.CH.S1",
+      "iconUrl": "",
+      "thumbnailUrl": "https://i.imgur.com/WqrITD9.jpeg",
+      "brand": "",
+      "x": "",
+      "pcbWidth": "",
+      "standardLengths": ""
+    }
+  ],
+  "lookups": {
+    "colourTemperatures": [
+      [
+        "Very Warm",
+        "2700K"
+      ],
+      [
+        "Warm",
+        "3000K"
+      ],
+      [
+        "Cool",
+        "4000K"
+      ],
+      [
+        "Cool/Blue",
+        ""
+      ],
+      [
+        "Tunable White",
+        "2700K-6500K"
+      ],
+      [
+        "Dim to Warm",
+        "3000K-1800K"
+      ],
+      [
+        "Colour Changing",
+        "RGBW"
+      ],
+      [
+        "Warm/Red",
+        "2200K"
+      ],
+      [
+        "Warm + Colour Gel",
+        ""
+      ],
+      [
+        "Amber",
+        ""
+      ],
+      [
+        "Red",
+        ""
+      ]
+    ],
+    "controlCodes": [
+      [
+        "ON/OFF",
+        "A"
+      ],
+      [
+        "Dimmable | TRIAC",
+        "B"
+      ],
+      [
+        "Dimmable | 0-10V",
+        "C"
+      ],
+      [
+        "Switched | Dimmable",
+        "D"
+      ],
+      [
+        "Switched | Non-Dimmable",
+        "E"
+      ],
+      [
+        "Sensor | PIR",
+        "E"
+      ],
+      [
+        "Sensor | Handshake",
+        "F"
+      ],
+      [
+        "Sensor | Door-Close",
+        "G"
+      ],
+      [
+        "Sensor | Mirror Touch",
+        "H"
+      ],
+      [
+        "Dimmable | Dali",
+        "I"
+      ],
+      [
+        "DMX",
+        "J"
+      ]
+    ],
+    "pcbOptions": [
+      [
+        "5.0",
+        "5.0",
+        "60.0"
+      ],
+      [
+        "5.0",
+        "5.0",
+        "120.0"
+      ],
+      [
+        "5.0",
+        "10.0",
+        "120.0"
+      ],
+      [
+        "8.0",
+        "5.0",
+        "60.0"
+      ],
+      [
+        "8.0",
+        "5.0",
+        "120.0"
+      ],
+      [
+        "8.0",
+        "10.0",
+        "120.0"
+      ],
+      [
+        "8.0",
+        "15.0",
+        "180.0"
+      ],
+      [
+        "10.0",
+        "10.0",
+        "120.0"
+      ],
+      [
+        "10.0",
+        "15.0",
+        "180.0"
+      ],
+      [
+        "10.0",
+        "20.0",
+        ""
+      ],
+      [
+        "10.0",
+        "24.0",
+        ""
+      ],
+      [
+        "12.0",
+        "15.0",
+        ""
+      ],
+      [
+        "12.0",
+        "20.0",
+        ""
+      ],
+      [
+        "12.0",
+        "24.0",
+        ""
+      ],
+      [
+        "12.0",
+        "30.0",
+        ""
+      ],
+      [
+        "12.0",
+        "36.0",
+        ""
+      ]
+    ],
+    "lumensWatts": [
+      [
+        "650 Lumens",
+        "9.0"
+      ],
+      [
+        "1000 Lumens",
+        "12.0"
+      ],
+      [
+        "2000 Lumens",
+        "20.0"
+      ],
+      [
+        "3000 Lumens",
+        "30.0"
+      ],
+      [
+        "800 Lumens",
+        "10.0"
+      ]
+    ],
+    "applications": [
+      [
+        "Floor Highlighter [Fixed]",
+        "Interior"
+      ],
+      [
+        "Floor Highlighter [Adjustable]",
+        "Interior"
+      ],
+      [
+        "Wall Highlighter",
+        "Interior"
+      ],
+      [
+        "Wall Washer",
+        "Interior"
+      ],
+      [
+        "Uplight",
+        "Interior"
+      ],
+      [
+        "Texture Grazer [Linear]",
+        "Interior"
+      ],
+      [
+        "Linear Light Cove",
+        "Interior"
+      ],
+      [
+        "Curtain Grazer | H : 3M",
+        "Interior"
+      ],
+      [
+        "MAGNETIC TRACK",
+        "Interior"
+      ],
+      [
+        "Fill Light [Linear]",
+        "Interior"
+      ],
+      [
+        "Curtain Washer",
+        "Interior"
+      ],
+      [
+        "Linear Light [Furniture]",
+        "Furniture"
+      ],
+      [
+        "Wall Light",
+        "Lamp"
+      ],
+      [
+        "Table Lamp",
+        "Lamp"
+      ],
+      [
+        "Floor Lamp",
+        "Lamp"
+      ],
+      [
+        "Pendant Light",
+        "Lamp"
+      ],
+      [
+        "Wall Point [Furniture]",
+        "Furniture"
+      ],
+      [
+        "Wall Point [Wardrobe]",
+        "Furniture"
+      ],
+      [
+        "Wall Point [Mirror Light]",
+        "Furniture"
+      ],
+      [
+        "Chandelier",
+        "Lamp"
+      ],
+      [
+        "Strech Cloth",
+        "Interior"
+      ],
+      [
+        "Wall Point [Application Specific]",
+        "Interior"
+      ],
+      [
+        "Wall Point [Extra]",
+        "Interior"
+      ],
+      [
+        "Floor Highlighter [High Power]",
+        "Interior"
+      ],
+      [
+        "Curtain Washer | H : 3M",
+        "Interior"
+      ],
+      [
+        "Wall Directional Exterior",
+        "Exterior"
+      ],
+      [
+        "Edgelit Panel [2X2]",
+        "Interior"
+      ],
+      [
+        "Curtain Wash",
+        "Interior"
+      ]
+    ]
+  }
+}

@@ -1,7 +1,7 @@
 {
   "name": "enlighten-os",
   "private": true,
-  "version": "2.30.0-autodesk-cad-preview",
+  "version": "2.31.0-technical-table",
   "type": "module",
   "scripts": {
     "dev": "vite",
