@@ -2,7 +2,7 @@ import {runCadAction} from '../server/cad.js';
 import {createHmac,timingSafeEqual} from 'node:crypto';
 import {OAuth2Client} from 'google-auth-library';
 const google = new OAuth2Client();
-const READ_ACTIONS = new Set(['getWorkflowWorkspace','getWorkflowDelegation','listEmailDrawingIntakes','getProjectOnboarding','getTechnicalWorkbook','listTechnicalTables','getTechnicalTable','listTechnicalFittings','cadStatus','cadViewerToken','getIssueDrawingContext','getDrawingPortal','getPortalDrawingChunk','getDirectoryDrawingAccess','listRecentDrawingRegister','getDriveLibraryConfig','listProjectDrive','listMomTasks','listExecutionVisits','authSession','getProjectWorkspace','listDrawingRegister','getProjectWorkflowTasks','listProjectRoles','listProjectPeople','listSitePunchIns','health','getCurrentUser','bootstrap','listProjects','listProjectContacts','listLineOfWork','getWorkflowCapabilities','listFloorZones','listTeamMembers','listDepartments','listDesignations','listDrawingTaskMaster','getDesignDashboard','getWIH']);
+const READ_ACTIONS = new Set(['getProjectCloseout','getWorkflowWorkspace','getWorkflowDelegation','listEmailDrawingIntakes','getProjectOnboarding','getTechnicalWorkbook','listTechnicalTables','getTechnicalTable','listTechnicalFittings','cadStatus','cadViewerToken','getIssueDrawingContext','getDrawingPortal','getPortalDrawingChunk','getDirectoryDrawingAccess','listRecentDrawingRegister','getDriveLibraryConfig','listProjectDrive','listMomTasks','listExecutionVisits','authSession','getProjectWorkspace','listDrawingRegister','getProjectWorkflowTasks','listProjectRoles','listProjectPeople','listSitePunchIns','health','getCurrentUser','bootstrap','listProjects','listProjectContacts','listLineOfWork','getWorkflowCapabilities','listFloorZones','listTeamMembers','listDepartments','listDesignations','listDrawingTaskMaster','getDesignDashboard','getWIH']);
 export async function verifyGoogleIdentity(token, audience) {
   const ticket=await google.verifyIdToken({idToken:token,audience});
   const claims=ticket.getPayload();
@@ -154,18 +154,18 @@ export default async function handler(req,res) {
       try{return send(200,{ok:true,data:await transferUploadChunk(ticket,payload,secret)});}catch(e){return send(502,{ok:false,error:{message:e.message}});}
     }
     let backendPayload=payload;
-    if(['finishPastWorkUpload','finishReceivedUpload','finishBaseDrawingUpload','finishWorkDrawingUpload'].includes(action)){
+    if(['finishCloseoutUpload','finishPastWorkUpload','finishReceivedUpload','finishBaseDrawingUpload','finishWorkDrawingUpload'].includes(action)){
       const ticket=verifyUploadTicket(payload.completionTicket,secret,identity,requestHost(req));
-      if(ticket&&(action==='finishPastWorkUpload'?ticket.metadata.uploadKind!=='Past':action==='finishBaseDrawingUpload'?ticket.metadata.uploadKind!=='Base':action==='finishWorkDrawingUpload'?ticket.metadata.uploadKind!=='Output':ticket.metadata.uploadKind&&ticket.metadata.uploadKind!=='Received'))return send(403,{ok:false,error:{message:'Upload destination mismatch.'}});
+      const expectedKind={finishCloseoutUpload:'Closeout',finishPastWorkUpload:'Past',finishBaseDrawingUpload:'Base',finishWorkDrawingUpload:'Output',finishReceivedUpload:'Received'}[action];if(ticket&&(ticket.metadata.uploadKind||'Received')!==expectedKind)return send(403,{ok:false,error:{message:'Upload destination mismatch.'}});
       if(!ticket?.driveFileId)return send(403,{ok:false,error:{message:'Upload completion has not been verified.'}});
       backendPayload={...ticket.metadata,driveFileId:ticket.driveFileId};
     }
     const signed=signRequest(action,backendPayload,identity,secret);
     const response=await fetchAppsScript(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(signed),signal:AbortSignal.timeout(100000)});
     const raw=await response.text();let result;try{result=JSON.parse(raw);}catch(_){return send(502,{ok:false,error:{message:'Apps Script did not return JSON. Check its deployment access and URL.'}});}
-    if(['beginPastWorkUpload','beginReceivedUpload','beginBaseDrawingUpload','beginWorkDrawingUpload'].includes(action)&&result.ok&&!result.data?.drawing&&!result.data?.file){
-      const metadata=Object.fromEntries(['destination','originalDate','revisionNo','drawingCode','designTaskId','uploadId','projectId','drawingId','floor','floors','area','drawingType','fileName','mimeType','fileSize','notes','receivedSentDate'].map(k=>[k,payload[k]]));
-      metadata.uploadKind=action==='beginPastWorkUpload'?'Past':action==='beginBaseDrawingUpload'?'Base':action==='beginWorkDrawingUpload'?'Output':'Received';
+    if(['beginCloseoutUpload','beginPastWorkUpload','beginReceivedUpload','beginBaseDrawingUpload','beginWorkDrawingUpload'].includes(action)&&result.ok&&!result.data?.drawing&&!result.data?.file){
+      const metadata=Object.fromEntries(['closeoutKind','destination','originalDate','revisionNo','drawingCode','designTaskId','uploadId','projectId','drawingId','floor','floors','area','drawingType','fileName','mimeType','fileSize','notes','receivedSentDate'].map(k=>[k,payload[k]]));
+      metadata.uploadKind=action==='beginCloseoutUpload'?'Closeout':action==='beginPastWorkUpload'?'Past':action==='beginBaseDrawingUpload'?'Base':action==='beginWorkDrawingUpload'?'Output':'Received';
       const ticket=createUploadTicket({sub:identity.sub,host:requestHost(req),metadata,sessionUrl:result.data?.sessionUrl},secret);
       if(!verifyUploadTicket(ticket,secret,identity,requestHost(req)))return send(502,{ok:false,error:{message:'Google Drive returned an invalid upload session.'}});
       result.data={uploadTicket:ticket,sessionUrl:result.data.sessionUrl,chunkBytes:UPLOAD_CHUNK_BYTES};
