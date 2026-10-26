@@ -3879,18 +3879,22 @@ function TechnicalTableView({state}){
  return <section style={{fontFamily:FONT_BODY}}><div role="group" aria-label="Technical Table sections" style={{display:'flex',gap:0,borderBottom:`1px solid ${T.line}`,marginBottom:18,overflowX:'auto',background:'#fff'}}>{[['table','Technical Table'],['output','Output'],['database','Database']].map(([id,label])=><button key={id} type="button" aria-pressed={tab===id} onClick={()=>setTab(id)} style={{padding:'11px 16px',border:'none',borderBottom:`3px solid ${tab===id?T.cyan:'transparent'}`,background:tab===id?T.navy:'transparent',color:tab===id?'#fff':T.inkDim,cursor:'pointer',fontFamily:FONT_BODY,fontSize:12,fontWeight:tab===id?700:500,whiteSpace:'nowrap'}}>{label}</button>)}</div>{tab!=='database'&&<><h2 style={{fontFamily:FONT_DISPLAY,fontSize:22}}>{tab==='output'?'Output':'Technical Table'}</h2><ProjectStatusSelect projects={orderedProjects(state.projects)} aria-label="Technical table project" disabled={busy} value={projectId} onChange={e=>setProjectId(e.target.value)} style={{...inputStyle,width:'100%',marginBottom:14}}><option value="">Select a project</option>{orderedProjects(state.projects).map(p=><option key={p.id} value={p.id}>{p.no} · {p.name}</option>)}</ProjectStatusSelect></>}{tab!=='database'&&projectId&&!viewer&&<div aria-label="Project workbook setup" style={{marginBottom:16,padding:14,border:`1px solid ${T.line}`,background:T.paper}}><label htmlFor="technical-workbook-url" style={{display:'block',fontSize:12,fontWeight:600}}>Google Sheets workbook link</label><p style={{fontSize:12,color:T.inkDim}}>Link the project's workbook or create a copy of the template. Each workbook keeps its Output, Technical Table, Database and CAL sheets.</p><div style={{display:'flex',gap:10,flexWrap:'wrap',marginTop:10}}><input id="technical-workbook-url" disabled={busy} aria-label="Project Google Sheets URL" placeholder="Paste project Google Sheets URL" value={url} onChange={e=>setUrl(e.target.value)} style={{...inputStyle,flex:'1 1 320px'}}/><button type="button" disabled={busy||!url} onClick={()=>connect(false)} style={smallBtn}>Link workbook</button>{!config?.workbookId&&<button type="button" disabled={busy} onClick={()=>connect(true)} style={smallBtn}>Create project workbook</button>}</div></div>}{busy&&<p role="status">Loading…</p>}{message&&<p role="status" style={{fontSize:12}}>{message}</p>}{tab==='database'?<LocalTechnicalDatabase state={state}/>:sheetUrl?<><div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap',marginBottom:12}}><a href={sheetUrl} target="_blank" rel="noopener noreferrer" style={{...smallBtn,textDecoration:'none'}}>Open {tab==='output'?'Output':tab==='database'?'Database':'Technical Table'} in Google Sheets</a><button type="button" style={smallBtn} onClick={()=>setRefresh(x=>x+1)}>Refresh preview</button></div><p style={{fontSize:12,color:T.inkDim}}>{tab==='output'?'Paste CAD data into Output in Google Sheets. The workbook formulas generate the Technical Table.':tab==='database'?'Shared Database workbook. Select its Database tab in Google Sheets.':'This preview displays the project workbook calculated by Google Sheets.'} Google sharing permissions apply. If the preview asks you to sign in or stays blank, use Open in Google Sheets.</p><iframe key={sheetUrl+refresh} title="Google Sheets technical workbook" src={embedUrl} style={{width:'100%',height:'72vh',minHeight:450,border:`1px solid ${T.line}`,background:'#fff'}}/></>:<p style={{fontSize:13,color:T.inkDim}}>{projectId?'Link or create a project workbook to begin.':'Select a project to open its technical workbook.'}</p>}</section>;
 }
 
+function wihSystemAccount(user){return String(user?.email||'').trim().toLowerCase()==='system.enlighten@gmail.com';}
+function wihProjectRole(user,id){if(wihSystemAccount(user)&&String(user?.appAccess).toLowerCase()==='admin')return 'Admin';const role=user?.projectRoles?.[String(id)]||'';return String(user?.appAccess).toLowerCase()==='viewer'?(role?'User':''):role;}
+function wihCanSeeTask(user,row){const role=wihProjectRole(user,row.projectId||row.task?.projectId);return !!role&&(role==='Admin'||!!user?.userId&&String(row.assigneeUserId)===String(user.userId));}
 function TimesheetView({ state, persist }) {
   const [planningTask,setPlanningTask]=useState(null);
   const [workTab,setWorkTab]=useState('todo'),[clock,setClock]=useState(Date.now());
   useEffect(()=>{const id=setInterval(()=>setClock(Date.now()),15000);return()=>clearInterval(id);},[]);
   const workUploadJob=useRef({});
   const [workUploadProgress,setWorkUploadProgress]=useState(null);
-  const assignProject=id=>state.currentUser?.appAccess?.toLowerCase()!=="viewer"&&projectRole(state,id)==="Admin";
+  const showWihFilters=wihSystemAccount(state.currentUser);
+  const assignProject=id=>state.currentUser?.appAccess?.toLowerCase()!=="viewer"&&wihProjectRole(state.currentUser,id)==="Admin";
   const canAssign=(state.projects||[]).some(p=>assignProject(p.id));
   const canWork=canAssign||state.currentUser?.permissions?.wih==="own-edit";
   const [person, setPerson] = useState("All");
   const [taskSection, setTaskSection] = useState("Pending");
-  const WIH_CACHE_KEY = "enlighten_wih_receipt_repair_v2291:"+String(state.currentUser?.userId||state.currentUser?.googleSubject||"anonymous");
+  const WIH_CACHE_KEY = "enlighten_wih_stage_coverage_v2393:"+String(state.currentUser?.userId||state.currentUser?.googleSubject||"anonymous");
   const WIH_CACHE_MS = 30000;
   const readWihCache = () => {
     try {
@@ -3903,6 +3907,7 @@ function TimesheetView({ state, persist }) {
   const [loadingRemote, setLoadingRemote] = useState(() => !initialWihCache);
   const [syncingRemote, setSyncingRemote] = useState(false);
   const [wihError,setWihError]=useState("");
+  const [wihDiagnostics,setWihDiagnostics]=useState(()=>initialWihCache?.diagnostics||null);
   const [completeEditor, setCompleteEditor] = useState(null);
   const [busyId, setBusyId] = useState("");
   const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
@@ -3916,7 +3921,7 @@ function TimesheetView({ state, persist }) {
     const cached = readWihCache();
     const freshCache = cached && (Date.now() - Number(cached.savedAt || 0) < WIH_CACHE_MS);
     if (!force && freshCache) {
-      setRemoteTasks(cached.rows);
+      setRemoteTasks(cached.rows);setWihDiagnostics(cached.diagnostics||null);
       setLoadingRemote(false);
       return;
     }
@@ -3927,13 +3932,14 @@ function TimesheetView({ state, persist }) {
       // WIH must show EVERY real Design Task / Design No. across every active project.
       // getWIH can contain only tasks that already have a WIH/timesheet row, so merge it
       // with each project's authoritative Design Dashboard task IDs from Google Sheets.
-      const wihRows=await projectApi.getWIH(true);
-      const base=Array.isArray(wihRows)?wihRows:[];
+      const wihRows=await apiRequest('getWIH',{includeCompleted:true,includeDiagnostics:true},'GET');
+      if(!Array.isArray(wihRows)&&!Array.isArray(wihRows?.rows))throw Error('The backend returned an unexpected work list. Redeploy the included Code.gs and refresh.');
+      const base=Array.isArray(wihRows)?wihRows:wihRows.rows;const diagnostics=wihRows?.diagnostics||null;setWihDiagnostics(diagnostics);
       if(base.some(r=>!Object.prototype.hasOwnProperty.call(r,"receipt")))throw Error("Update and redeploy the included Apps Script backend, then refresh WIH. The running backend is missing received-drawing links.");
       const byId=new Map(base.filter(r=>r?.designTaskId&&r.receipt?.drawingId).map(r=>[String(r.designTaskId),r]));
       const nextRows=[...byId.values()];
       setRemoteTasks(nextRows);
-      try { localStorage.setItem(WIH_CACHE_KEY, JSON.stringify({savedAt:Date.now(), rows:nextRows})); } catch (_) {}
+      try { localStorage.setItem(WIH_CACHE_KEY, JSON.stringify({savedAt:Date.now(), rows:nextRows,diagnostics})); } catch (_) {}
     }
     catch(e){
       console.warn("WIH backend load failed",e);setWihError(e.message||"Could not load Work in Hand.");
@@ -3944,7 +3950,7 @@ function TimesheetView({ state, persist }) {
   useEffect(()=>{refresh(false);},[]);
 
   const currentProjectIds=new Set((state.projects||[]).map(p=>String(p.id)));
-  const visibleRemoteTasks=remoteTasks.filter(r=>r.receipt?.drawingId&&currentProjectIds.has(String(r.projectId||r.task?.projectId))&&(state.currentUser?.appAccess?.toLowerCase()==='admin'||projectRole(state,r.projectId)&&(assignProject(r.projectId)||String(r.assigneeUserId)===String(state.currentUser?.userId))));
+  const visibleRemoteTasks=remoteTasks.filter(r=>r.receipt?.drawingId&&currentProjectIds.has(String(r.projectId||r.task?.projectId))&&wihCanSeeTask(state.currentUser,r));
   const displayTasks=visibleRemoteTasks.length?visibleRemoteTasks.map(r=>({
     ...r,
     id:r.designTaskId,
@@ -4035,7 +4041,7 @@ function TimesheetView({ state, persist }) {
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18,flexWrap:"wrap",gap:10}}>
       <div><h2 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:0,color:T.ink}}>WIH Sheet</h2><div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,marginTop:4}}>Work linked to received drawings appears here. Classify a received drawing to create its tasks. Enter TAT within 24 hours, then align work in the calendar. The original delivery commitment stays fixed. <span style={{fontFamily:FONT_MONO,fontSize:10,color:syncingRemote?T.orange:T.green}}>{syncingRemote?"• Updating…":wihError?"• Update failed":loadingRemote?"• Loading…":"• Synced"}</span></div></div>
     </div>
-    <div style={{background:"#fff",border:`1px solid ${T.line}`,borderRadius:8,padding:"12px 14px",marginBottom:14}}>
+    {showWihFilters&&<div style={{background:"#fff",border:`1px solid ${T.line}`,borderRadius:8,padding:"12px 14px",marginBottom:14}}>
       <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>
         <span style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginRight:4}}>TASK SECTION</span>
         {["Pending","Completed","Unallotted","All"].map(x=><Chip key={x} active={taskSection===x} onClick={()=>setTaskSection(x)}>{x} ({sectionCounts[x]})</Chip>)}
@@ -4046,12 +4052,13 @@ function TimesheetView({ state, persist }) {
         {canAssign&&<><Chip active={person==="All"} onClick={()=>setPerson("All")}>All Employees</Chip>{people.map(p=><Chip key={p} active={person===p} onClick={()=>setPerson(p)}>{p}</Chip>)}</>}
         {!canAssign&&<span>{state.currentUser?.name} · Own tasks only</span>}
       </div>
-    </div>
+    </div>}
+    {!showWihFilters&&canAssign&&<button style={{...smallBtn,marginBottom:12}} disabled={!bulkProjects.length} onClick={openBulkAssign}>Project-wise assignment</button>}
     {workTab==='calendar'&&endedSessions.length>0&&<div role="alert" style={{padding:12,border:`1px solid ${T.orange}`,fontSize:12,marginBottom:12}}>Session ended — resolve now. {endedSessions.map(t=><div key={t.designTaskId} style={{marginTop:6}}>{t.projectName} · {t.title} <button style={smallBtn} onClick={()=>setPlanningTask({...t})}>Extend / postpone</button><button style={smallBtn} disabled={busyId===t.designTaskId||isBlocked(t.status)} onClick={()=>setCompleteEditor({task:t,file:null,...workDrawingDetails(t),actualHours:t.hours||'',notes:''})}>Complete</button></div>)}<div style={{marginTop:6}}>The original TAT remains unchanged.</div></div>}
     {(workTab==='calendar'||planningTask)&&<WihPlanner onAction={action} busyId={busyId} onComplete={t=>setCompleteEditor({task:t,file:null,...workDrawingDetails(t),actualHours:t.hours||'',notes:''})} state={state} tasks={tasks} requestedTask={planningTask} onSaved={(id,plan)=>{setRemoteTasks(rows=>rows.map(r=>String(r.designTaskId)===String(id)?{...r,plan}:r));try{localStorage.removeItem(WIH_CACHE_KEY);}catch{}setPlanningTask(null);refresh(true);}}/>}
     <div style={{display:'flex',gap:10,alignItems:'center',marginBottom:10}}><button type="button" style={smallBtn} disabled={syncingRemote} onClick={()=>refresh(true)}>Refresh work</button>{wihError&&<span role="alert" style={{fontSize:12,color:T.redline}}>{wihError}</span>}</div>
     {loadingRemote&&remoteTasks.length===0&&<div style={{fontFamily:FONT_BODY,color:T.inkDim,padding:"10px 0"}}>Loading WIH tasks for the first time…</div>}
-    {!loadingRemote&&tasks.length===0&&<div style={{color:T.inkDim,fontFamily:FONT_BODY,fontSize:13,padding:"20px 0"}}>No WIH tasks to display. If a drawing is awaiting Classify, confirm its drawing type and floor / area there to create its work, then click Refresh work.</div>}
+    {!loadingRemote&&tasks.length===0&&<div style={{color:T.inkDim,fontFamily:FONT_BODY,fontSize:13,padding:"20px 0"}}>{displayTasks.length>0?'No tasks match this selection.':wihError?'The work list could not be refreshed. Please retry Refresh work.':<><strong>No received-drawing tasks are available yet.</strong><div style={{marginTop:8}}>{wihDiagnostics?.pendingClassification??(state.intakes||[]).filter(i=>!i.classified).length} drawing(s) awaiting classification. Open Classify, confirm the project, drawing type and floor / area, then refresh work.</div>{!!wihDiagnostics?.missingReceivedLink&&<div style={{marginTop:8}}>{wihDiagnostics.missingReceivedLink} existing task(s) have no valid received-drawing link. Check that their received files are linked to the same project and have not been trashed.</div>}</>}</div>}
     {workTab==='todo'&&<div style={{display:"flex",flexDirection:"column",gap:8}}>{tasks.map(t=><div key={t.id} style={{background:"#fff",border:`1px solid ${T.line}`,borderRadius:8,padding:"12px 14px",display:"grid",gridTemplateColumns:"1.5fr 1fr 150px 90px 230px",gap:10,alignItems:"center"}}>
       <div><div style={{fontFamily:FONT_BODY,fontSize:13,fontWeight:700}}>{t.title}</div>{t.milestone&&<div style={{fontFamily:FONT_BODY,fontSize:11,color:T.blue,marginTop:3}}>{t.milestone} → {t.parentTask}</div>}{t.drawingReviewRequired&&<div style={{fontSize:11,color:T.orange,marginTop:3}}>Additional / revised drawing received — review scope</div>}{isBlocked(t.status)&&<div style={{fontSize:11,color:T.inkDim,marginTop:3}}>Waiting for preceding subtask</div>}<div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginTop:3}}>{t.projectName} · {t.floor||"—"} · {t.area||"—"} · {t.drawingType||"—"}</div>{t.designNo&&<div style={{fontFamily:FONT_MONO,fontSize:11,color:T.blue,fontWeight:800,marginTop:3}}>{t.designNo}</div>}</div>
       {assignProject(t.projectId)?<div><select aria-label={`Assign team member for ${t.designNo||t.id}`} disabled={!t.designTaskId||busyId===t.designTaskId||isDone(t.status)} value={people.includes(t.assignee)?t.assignee:""} onChange={e=>assign(t,e.target.value)} style={{...inputStyle,padding:"7px 8px",fontSize:12}}><option value="">{t.assignee&&!people.includes(t.assignee)?'Reassign — member no longer active':'Assign team member'}</option>{people.map(n=><option key={n} value={n}>{n}</option>)}</select>{t.assignee&&!people.includes(t.assignee)&&<div style={{fontFamily:FONT_BODY,fontSize:10,color:T.inkDim,marginTop:4}}>Previously assigned: {t.assignee}</div>}</div>:<span style={{fontSize:12}}>{t.assignee}</span>}
