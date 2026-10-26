@@ -2,7 +2,7 @@ import {runCadAction} from '../server/cad.js';
 import {createHmac,timingSafeEqual} from 'node:crypto';
 import {OAuth2Client} from 'google-auth-library';
 const google = new OAuth2Client();
-const READ_ACTIONS = new Set(['getProjectOnboarding','getTechnicalWorkbook','listTechnicalTables','getTechnicalTable','listTechnicalFittings','cadStatus','cadViewerToken','getIssueDrawingContext','getDrawingPortal','getPortalDrawingChunk','getDirectoryDrawingAccess','listRecentDrawingRegister','getDriveLibraryConfig','listProjectDrive','listMomTasks','listExecutionVisits','authSession','getProjectWorkspace','listDrawingRegister','getProjectWorkflowTasks','listProjectRoles','listProjectPeople','listSitePunchIns','health','getCurrentUser','bootstrap','listProjects','listProjectContacts','listLineOfWork','getWorkflowCapabilities','listFloorZones','listTeamMembers','listDepartments','listDesignations','listDrawingTaskMaster','getDesignDashboard','getWIH']);
+const READ_ACTIONS = new Set(['listEmailDrawingIntakes','getProjectOnboarding','getTechnicalWorkbook','listTechnicalTables','getTechnicalTable','listTechnicalFittings','cadStatus','cadViewerToken','getIssueDrawingContext','getDrawingPortal','getPortalDrawingChunk','getDirectoryDrawingAccess','listRecentDrawingRegister','getDriveLibraryConfig','listProjectDrive','listMomTasks','listExecutionVisits','authSession','getProjectWorkspace','listDrawingRegister','getProjectWorkflowTasks','listProjectRoles','listProjectPeople','listSitePunchIns','health','getCurrentUser','bootstrap','listProjects','listProjectContacts','listLineOfWork','getWorkflowCapabilities','listFloorZones','listTeamMembers','listDepartments','listDesignations','listDrawingTaskMaster','getDesignDashboard','getWIH']);
 export async function verifyGoogleIdentity(token, audience) {
   const ticket=await google.verifyIdToken({idToken:token,audience});
   const claims=ticket.getPayload();
@@ -26,7 +26,7 @@ export async function fetchAppsScript(url,options,maxRedirects=8) {
   throw new Error('Too many Apps Script redirects.');
 }
 export const maxDuration=300;
-const UPLOAD_CHUNK_BYTES=2*1024*1024;
+const UPLOAD_CHUNK_BYTES=512*1024;
 export function createUploadTicket(data,secret){
   const payload=Buffer.from(JSON.stringify({...data,expires:Date.now()+24*60*60*1000})).toString('base64url');
   return payload+'.'+createHmac('sha256',secret).update('received-upload:'+payload).digest('hex');
@@ -51,7 +51,7 @@ export async function transferUploadChunk(ticket,payload,secret){
     body=Buffer.from(payload.chunk,'base64');
     if(!Number.isSafeInteger(offset)||offset<0||offset%262144||!body.length||body.length>UPLOAD_CHUNK_BYTES||offset+body.length>total||(offset+body.length<total&&body.length%262144))throw Error('Invalid drawing chunk range.');
   }
-  const response=await fetch(ticket.sessionUrl,{method:'PUT',redirect:'manual',headers:{'Content-Type':ticket.metadata.mimeType||'application/octet-stream','Content-Range':probe?'bytes */'+total:'bytes '+offset+'-'+(offset+body.length-1)+'/'+total},body});
+  const response=await fetch(ticket.sessionUrl,{method:'PUT',redirect:'manual',signal:AbortSignal.timeout(45000),headers:{'Content-Type':ticket.metadata.mimeType||'application/octet-stream','Content-Range':probe?'bytes */'+total:'bytes '+offset+'-'+(offset+body.length-1)+'/'+total},body});
   if(response.status===308){
     const range=response.headers.get('range'),match=/^bytes=0-(\d+)$/.exec(range||'');
     const nextOffset=match?Number(match[1])+1:0;
@@ -161,7 +161,7 @@ export default async function handler(req,res) {
       backendPayload={...ticket.metadata,driveFileId:ticket.driveFileId};
     }
     const signed=signRequest(action,backendPayload,identity,secret);
-    const response=await fetchAppsScript(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(signed)});
+    const response=await fetchAppsScript(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(signed),signal:AbortSignal.timeout(100000)});
     const raw=await response.text();let result;try{result=JSON.parse(raw);}catch(_){return send(502,{ok:false,error:{message:'Apps Script did not return JSON. Check its deployment access and URL.'}});}
     if(['beginPastWorkUpload','beginReceivedUpload','beginBaseDrawingUpload','beginWorkDrawingUpload'].includes(action)&&result.ok&&!result.data?.drawing&&!result.data?.file){
       const metadata=Object.fromEntries(['destination','originalDate','revisionNo','drawingCode','designTaskId','uploadId','projectId','drawingId','floor','floors','area','drawingType','fileName','mimeType','fileSize','notes','receivedSentDate'].map(k=>[k,payload[k]]));
