@@ -3611,6 +3611,7 @@ function ClassifyView({ state, persist }) {
   const [zones, setZones] = useState([]);
   const [drawingType, setDrawingType] = useState(state.templates[0]?.drawingType || "");
   const [done, setDone] = useState(false);
+  const [parts,setParts]=useState([]),[saving,setSaving]=useState(false);
 
   useEffect(() => {
     if (!selectedId && pending.length) setSelectedId(pending[0].id);
@@ -3622,13 +3623,13 @@ function ClassifyView({ state, persist }) {
   useEffect(() => {
     const selected = state.intakes.find((i) => i.id === selectedId);
     if (selected?.drawingType) setDrawingType(canonicalDrawingType(selected.drawingType));
-    setZones([]);
+    setZones([]);setParts([]);
   }, [selectedId]);
 
   const toggleZone = (z) => setZones((zs) => zs.includes(z) ? zs.filter((x) => x !== z) : [...zs, z]);
 
   const intake = state.intakes.find((i) => i.id === selectedId);
-  const lockedDrawingType = canonicalDrawingType(intake?.drawingType || drawingType);
+  const lockedDrawingType = canonicalDrawingType(drawingType || intake?.drawingType);
   const baseProject = intake && state.projects.find((p) => p.id === intake.projectId);
   const project = baseProject ? {...baseProject,zones:{...(baseProject.zones||{}),...Object.fromEntries((baseProject.floorZones||[]).filter(z=>z.zoneCode).map(z=>[z.zoneCode,{floor:z.floor,room:z.area||z.room}]))}} : null;
   const letters = project ? sortedZoneLetters(project) : [];
@@ -3636,7 +3637,8 @@ function ClassifyView({ state, persist }) {
   const toggleFloor=(floor,checked)=>{const ids=letters.filter(z=>project.zones[z]?.floor===floor);setZones(current=>checked?[...new Set([...current,...ids])]:current.filter(z=>!ids.includes(z)));};
 
   const submit = async () => {
-    if (!selectedId || zones.length === 0 || !lockedDrawingType) return;
+    if (!selectedId || saving || (!parts.length&&zones.length===0) || !lockedDrawingType) return;
+    const entries=[...parts,...(zones.length?[{drawingType:lockedDrawingType,zones:[...zones]}]:[])];setSaving(true);
     const template = state.templates.find((t) => drawingTypeKey(t.drawingType) === drawingTypeKey(lockedDrawingType));
 
     const newTasks = (template?.tasks || []).map((t) => ({
@@ -3654,27 +3656,24 @@ function ClassifyView({ state, persist }) {
     }));
 
     try {
-      const areaNames = zones.map(z => project.zones?.[z]?.room || z);
-      if(new Set(zones.map(z=>project.zones?.[z]?.floor||intake.floor)).size>1){
-        let capabilities;try{capabilities=await projectApi.getWorkflowCapabilities();}catch(_){throw new Error("Install the updated Apps Script backend before classifying a package across multiple floors.");}
-        if(!capabilities?.multiFloorCoverage)throw new Error("The connected backend does not support multi-floor drawing packages.");
+      const savedTasks=[];const savedDrawings=[];
+      for(const entry of entries){const coverage=entry.zones.map(z=>({floor:project.zones?.[z]?.floor||intake.floor,area:project.zones?.[z]?.room||z}));
+        const result=await projectApi.classifyDrawing({drawingId:selectedId,projectId:project.id,drawingType:entry.drawingType,coverage});
+        savedTasks.push(...(result?.tasks||[]));savedDrawings.push(...(result?.drawings||[]));
       }
-      const saved = await projectApi.classifyDrawing({
-        drawingId: selectedId, projectId: project.id, floor: intake.floor,
-        areas: areaNames, coverage:zones.map(z=>({floor:project.zones?.[z]?.floor||intake.floor,area:project.zones?.[z]?.room||z})), drawingType:lockedDrawingType
-      });
+      const saved={tasks:savedTasks};const allZones=[...new Set(entries.flatMap(e=>e.zones))],areaNames=allZones.map(z=>project.zones?.[z]?.room||z);
       const backendTasks = Array.isArray(saved?.tasks) ? saved.tasks.map(t => ({
         id:t.designTaskId||uid(), designTaskId:t.designTaskId, designNo:t.designNo,
-        projectId:project.id, projectName:project.name, zones:[t.area||""], drawingType:lockedDrawingType,
+        projectId:project.id, projectName:project.name, zones:[t.area||""], drawingType:t.dependencyDrawingType||lockedDrawingType,
         title:t.taskType||t.title||"Design Task", assignee:t.assigneeName||"", status:t.status||STATUS.TODO,
         date:todayISO(), hours:Number(t.actualHours||0), sourceFile:intake.fileName
       })) : newTasks;
-      const nextIntakes = state.intakes.map((i) => i.id === selectedId ? { ...i, classified: true, zones, floors:[...new Set(zones.map(z=>project.zones[z].floor))], coverage:zones.map(z=>({floor:project.zones[z].floor,area:project.zones[z].room||z})), areas:areaNames, drawingType:lockedDrawingType } : i);
-      await persist({ ...state, intakes: nextIntakes, tasks: [...backendTasks, ...state.tasks] });
+      const nextIntakes = state.intakes.map((i) => i.id === selectedId ? { ...i, classified: true, zones:allZones, classifications:entries, floors:[...new Set(allZones.map(z=>project.zones[z].floor))], coverage:allZones.map(z=>({floor:project.zones[z].floor,area:project.zones[z].room||z})), areas:areaNames, drawingType:lockedDrawingType } : i);
+      await persist({ ...state, intakes: nextIntakes, tasks: [...new Map([...state.tasks,...backendTasks].map(t=>[t.designTaskId||t.id,t])).values()] });
     } catch(err) {
-      alert(`Classification failed: ${err?.message||err}`); return;
+      alert(`Classification could not finish: ${err?.message||err}. Your selections are retained; retry to finish the remaining entries.`);setSaving(false); return;
     }
-    setZones([]); setDone(true);
+    setZones([]);setParts([]);setSaving(false); setDone(true);
     setTimeout(() => setDone(false), 2400);
   };
 
@@ -3692,7 +3691,7 @@ function ClassifyView({ state, persist }) {
   }
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: 28 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "260px minmax(0,1fr)", gap: 28 }}>
       <div>
         <div style={{ fontFamily: FONT_MONO, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: T.inkDim, marginBottom: 10 }}>Pending drawings</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -3700,11 +3699,11 @@ function ClassifyView({ state, persist }) {
             const p = state.projects.find((pr) => pr.id === i.projectId);
             const active = i.id === selectedId;
             return (
-              <button key={i.id} onClick={() => { setSelectedId(i.id); setZones([]); }} style={{
-                textAlign: "left", padding: "10px 12px", borderRadius: 6, cursor: "pointer",
+              <button key={i.id} disabled={saving} onClick={() => { setSelectedId(i.id); setZones([]); }} style={{
+                minWidth:0,width:"100%",boxSizing:"border-box",overflowWrap:"anywhere",whiteSpace:"normal",textAlign: "left", padding: "10px 12px", borderRadius: 6, cursor: "pointer",
                 border: `1px solid ${active ? T.blue : T.line}`, background: active ? "#EAF1FB" : "#fff",
               }}>
-                <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: T.ink }}>{i.fileName}</div>
+                <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: T.ink,overflowWrap:"anywhere",wordBreak:"break-word",whiteSpace:"normal" }}>{i.fileName}</div>
                 <div style={{ fontFamily: FONT_BODY, fontSize: 11, color: T.inkDim }}>{p?.no || "—"} · {p?.name || "Unknown project"}</div>
                 <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.inkDim, marginTop: 3 }}>{i.drawingType || "—"} · {fmtDateTime(i.uploadedAt || i.createdAt || i.date)}</div>
               </button>
@@ -3716,7 +3715,7 @@ function ClassifyView({ state, persist }) {
       <div>
         <h2 style={{ fontFamily: FONT_DISPLAY, fontSize: 20, margin: "4px 0 4px", color: T.ink }}>Classify drawing</h2>
         <div style={{ fontFamily: FONT_BODY, fontSize: 13, color: T.inkDim, marginBottom: 6 }}><strong>{project?.no || "—"} — {project?.name || "Unknown project"}</strong></div>
-        <div style={{ fontFamily: FONT_BODY, fontSize: 13, color: T.inkDim, marginBottom: 20 }}>{intake?.fileName} · Uploaded {fmtDateTime(intake?.uploadedAt || intake?.createdAt || intake?.date)}</div>
+        <div style={{ fontFamily: FONT_BODY, fontSize: 13, color: T.inkDim, marginBottom: 20,overflowWrap:"anywhere" }}>{intake?.fileName} · Uploaded {fmtDateTime(intake?.uploadedAt || intake?.createdAt || intake?.date)}</div>
 
         {intake&&<ClassifyDrawingPreview key={intake.id} drawing={intake}/>}
 
@@ -3739,10 +3738,12 @@ function ClassifyView({ state, persist }) {
           </div>
         )}
 
-        <Field label="Drawing type — picked from Received · Upload">
-          <div style={{...inputStyle, background:T.paperDim, fontWeight:700}}>{lockedDrawingType || "—"}</div>
-          <div style={{fontFamily:FONT_MONO,fontSize:10,color:T.green,marginTop:5}}>LOCKED FROM UPLOAD — select Zone / Area below/above to classify.</div>
+        <Field label="Drawing type for this part of the file">
+          <select aria-label="Classification drawing type" style={inputStyle} disabled={saving} value={lockedDrawingType} onChange={e=>setDrawingType(e.target.value)}>{[...new Set([lockedDrawingType,...state.templates.map(t=>canonicalDrawingType(t.drawingType))])].filter(Boolean).map(type=><option key={type} value={type}>{type}</option>)}</select>
         </Field>
+        {parts.length>0&&<div style={{marginBottom:14,fontFamily:FONT_BODY,fontSize:12}}>{parts.map((entry,index)=><div key={index} style={{padding:10,border:`1px solid ${T.line}`,marginBottom:6,overflowWrap:'anywhere'}}><strong>{entry.drawingType}</strong> · {entry.zones.map(z=>`${project.zones[z]?.floor} · ${project.zones[z]?.room||z}`).join('; ')} <button style={smallBtn} disabled={saving} onClick={()=>setParts(rows=>rows.filter((_,i)=>i!==index))}>Remove part</button></div>)}</div>}
+        <button type="button" style={{...smallBtn,marginBottom:14}} disabled={saving||!zones.length} onClick={()=>{setParts(rows=>[...rows,{drawingType:lockedDrawingType,zones:[...zones]}]);setZones([]);}}>Add another drawing type / part</button>
+        <p style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>Each part has its own type and floor/area selection. All parts use the same uploaded file; their work is tracked separately.</p>
 
         {previewTasks.length > 0 && (
           <div style={{ background: T.paperDim, border: `1px solid ${T.line}`, borderRadius: 8, padding: "12px 14px", marginBottom: 20 }}>
@@ -3756,8 +3757,8 @@ function ClassifyView({ state, persist }) {
           </div>
         )}
 
-        <Btn onClick={submit} disabled={zones.length === 0}>
-          <ClipboardCheck size={14} /> Open tasks in timesheet
+        <Btn onClick={submit} disabled={saving||(!zones.length&&!parts.length)}>
+          <ClipboardCheck size={14} /> {saving?"Saving classifications…":"Save all parts & open tasks"}
         </Btn>
         {done && <div style={{ marginTop: 12, fontFamily: FONT_MONO, fontSize: 12, color: T.green }}>Tasks created and assigned.</div>}
       </div>
