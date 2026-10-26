@@ -164,7 +164,7 @@ export default async function handler(req,res) {
     const response=await fetchAppsScript(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(signed),signal:AbortSignal.timeout(100000)});
     const raw=await response.text();let result;try{result=JSON.parse(raw);}catch(_){return send(502,{ok:false,error:{message:'Apps Script did not return JSON. Check its deployment access and URL.'}});}
     if(['beginCloseoutUpload','beginPastWorkUpload','beginReceivedUpload','beginBaseDrawingUpload','beginWorkDrawingUpload'].includes(action)&&result.ok&&!result.data?.drawing&&!result.data?.file){
-      const metadata=Object.fromEntries(['closeoutKind','destination','originalDate','revisionNo','drawingCode','designTaskId','uploadId','projectId','drawingId','floor','floors','area','drawingType','fileName','mimeType','fileSize','notes','receivedSentDate'].map(k=>[k,payload[k]]));
+      const metadata=Object.fromEntries(['closeoutKind','destination','originalDate','revisionNo','drawingCode','designTaskId','uploadId','projectId','drawingId','floor','floors','drawingParts','area','drawingType','fileName','mimeType','fileSize','notes','receivedSentDate'].map(k=>[k,payload[k]]));
       metadata.uploadKind=action==='beginCloseoutUpload'?'Closeout':action==='beginPastWorkUpload'?'Past':action==='beginBaseDrawingUpload'?'Base':action==='beginWorkDrawingUpload'?'Output':'Received';
       const ticket=createUploadTicket({sub:identity.sub,host:requestHost(req),metadata,sessionUrl:result.data?.sessionUrl},secret);
       if(!verifyUploadTicket(ticket,secret,identity,requestHost(req)))return send(502,{ok:false,error:{message:'Google Drive returned an invalid upload session.'}});

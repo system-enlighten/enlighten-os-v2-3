@@ -3297,7 +3297,7 @@ function inferDrawingProject(fileName,projects){
   const scores=(projects||[]).filter(p=>!p.completed&&!p.completedAt&&p.status!=='Completed'&&p.projectControl?.projectStatus!=='Completed').map(p=>{const no=normalize(p.no||p.projectNo),name=normalize(p.name);let score=0;if(no.length>=3&&file.includes(' '+no+' '))score=100+no.length;if(name.length>=5&&file.includes(' '+name+' '))score=Math.max(score,50+name.length);for(const token of [...no.split(' '),...name.split(' ')].filter(t=>t.length>=3&&/[0-9]/.test(t)))if(file.includes(' '+token+' '))score=Math.max(score,20+token.length);return {id:p.id,score};}).filter(p=>p.score).sort((a,b)=>b.score-a.score);
   return scores.length&&(!scores[1]||scores[0].score>scores[1].score)?scores[0].id:'';
 }
-function projectIsCompleted(project){return [project?.projectControl?.projectStatus,project?.status,project?.projectStatus].some(status=>/^(completed|complete|done)$/i.test(String(status||'').trim()))||!!project?.completedAt||project?.completed===true||project?.completed==='true';}
+function projectIsCompleted(project){return [project?.projectControl?.status,project?.projectControl?.projectStatus,project?.status,project?.projectStatus].some(status=>/^(completed|complete|done)$/i.test(String(status||'').trim()))||!!project?.completedAt||project?.completed===true||project?.completed==='true';}
 function ProjectStatusButtons({group,onChange,disabled}){return <div role="group" aria-label="Project status filter" style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:7}}>{['Ongoing','Completed'].map(name=><button key={name} type="button" disabled={disabled} aria-pressed={group===name} onClick={()=>onChange(name)} style={{...smallBtn,padding:'6px 11px',fontFamily:FONT_BODY,background:group===name?T.navy:T.paper,color:group===name?'#fff':T.ink,borderColor:group===name?T.navy:T.line}}>{name} projects</button>)}</div>;}
 function ProjectStatusSelect({projects=[],children,...props}){
  const current=projects.find(p=>String(p.id)===String(props.value));const [group,setGroup]=useState(()=>current&&projectIsCompleted(current)?'Completed':'Ongoing');
@@ -3348,9 +3348,9 @@ function UnifiedDrawingUpload({state,persist,file,initialProjectId,onQueued,onIm
  const projects=orderedProjects(state.projects);
  const [projectId,setProjectId]=useState(initialProjectId||projects[0]?.id||''),[past,setPast]=useState(false),[busy,setBusy]=useState(false);
  const project=projects.find(p=>String(p.id)===String(projectId));
- const completed=project&&(sheetDashboardFlag(project.completed)||!!project.completedAt||!!project.completedDate||[project.status,project.projectStatus,project.projectControl?.projectStatus].some(v=>String(v||'').toLowerCase()==='completed'));
+ const completed=!!project&&projectIsCompleted(project);
  const historical=completed||past,canImport=state.currentUser?.appAccess?.toLowerCase()==='admin'||projectRole(state,projectId)==='Admin';
- return <div><label style={{display:'grid',gap:6,fontFamily:FONT_BODY,fontSize:12}}>Project<ProjectStatusSelect projects={projects} aria-label="Upload project" disabled={busy} value={projectId} style={inputStyle} onChange={e=>{setProjectId(e.target.value);setPast(false);}}><option value="">Select a project</option>{projects.map(p=><option key={p.id} value={p.id}>{p.no} · {p.name}</option>)}</ProjectStatusSelect></label>{project&&!completed&&canImport&&<label style={{display:'flex',alignItems:'center',gap:8,fontFamily:FONT_BODY,fontSize:12,margin:'14px 0'}}><input type="checkbox" aria-label="Import as past work" disabled={busy} checked={past} onChange={e=>setPast(e.target.checked)}/> Import as past work</label>}{completed&&<p style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>Completed project — historical upload. Original dates and revisions can be entered below. No new Work in Hand tasks will be created.</p>}{project&&(historical?(canImport?<PastWorkImport key={projectId} state={state} initialProjectId={projectId} initialFiles={[file]} embedded onBusy={value=>{setBusy(value);onBusy?.(value);}} onSaved={onImported} onClose={()=>{}}/>:<p role="alert" style={{fontSize:12,color:T.redline}}>A project admin can import historical drawings for this completed project.</p>):<UploadView key={projectId} state={state} persist={persist} initialFile={file} initialProjectId={projectId} hideProjectPicker compact onQueued={onQueued}/>)}</div>;
+ return <div><label style={{display:'grid',gap:6,fontFamily:FONT_BODY,fontSize:12}}>Project<ProjectStatusSelect projects={projects} aria-label="Upload project" disabled={busy} value={projectId} style={inputStyle} onChange={e=>{setProjectId(e.target.value);setPast(false);}}><option value="">Select a project</option>{projects.map(p=><option key={p.id} value={p.id}>{p.no} · {p.name}</option>)}</ProjectStatusSelect></label>{project&&canImport&&<label style={{display:'flex',alignItems:'center',gap:8,fontFamily:FONT_BODY,fontSize:12,margin:'14px 0'}}><input type="checkbox" aria-label="Import as past work" disabled={busy||completed} checked={historical} onChange={e=>setPast(e.target.checked)}/> Import as past work</label>}{completed&&<p style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>Completed project — historical upload. Original dates and revisions can be entered below. No new Work in Hand tasks will be created.</p>}{project&&(historical?(canImport?<PastWorkImport key={projectId} state={state} initialProjectId={projectId} initialFiles={[file]} embedded onBusy={value=>{setBusy(value);onBusy?.(value);}} onSaved={onImported} onClose={()=>{}}/>:<p role="alert" style={{fontSize:12,color:T.redline}}>A project admin can import historical drawings for this completed project.</p>):<UploadView key={projectId} state={state} persist={persist} initialFile={file} initialProjectId={projectId} hideProjectPicker compact onQueued={onQueued}/>)}</div>;
 }
 
 function AppErrorNotice({message,onRetry}){return <div role="alert" className="app-error-notice" style={{'--app-font-body':FONT_BODY}}><div style={{flex:1,minWidth:0}}><strong style={{display:'block',fontSize:12,fontWeight:600,marginBottom:3}}>Unable to confirm the request</strong><span>{message}</span></div>{onRetry&&<button type="button" onClick={onRetry} style={{...smallBtn,alignSelf:'center',flexShrink:0}}>Retry</button>}</div>;}
@@ -3411,8 +3411,9 @@ function runReceivedUploadJob(persist,job,file){
           saved=await uploadApiRequest('finishReceivedUpload',{completionTicket:result.completionTicket},120000);
         }
       if(generation!==AUTH_SESSION_GENERATION)return;
-      const newIntake={id:saved.drawingId,projectId:metadata.projectId,floor:metadata.floors.join(', '),floors:metadata.floors,zone:'',areas:[],drawingType:canonicalDrawingType(metadata.drawingType),fileName:metadata.fileName,driveUrl:saved.driveUrl||'',driveFileId:saved.driveFileId||'',mimeType:metadata.mimeType,note:metadata.notes,date:saved.receivedSentDate||metadata.receivedSentDate,uploadedAt:saved.createdAt||new Date().toISOString(),classified:saved.classified===true||String(saved.classified)==='true',source:'Received Upload'};
-      await persist(latest=>({...latest,intakes:[newIntake,...(latest.intakes||[]).filter(i=>i.id!==newIntake.id)],pendingReceivedUploads:(latest.pendingReceivedUploads||[]).filter(j=>j.id!==job.id)}));
+      const records=Array.isArray(saved.parts)?saved.parts:[saved];
+      const newIntakes=records.map(row=>{let tagged=metadata.floors;try{tagged=JSON.parse(row.floorTags||'[]');}catch{}return {id:row.drawingId,projectId:metadata.projectId,floor:row.floor||tagged.join(', '),floors:tagged,zone:'',areas:[],drawingType:canonicalDrawingType(row.drawingType||metadata.drawingType),fileName:metadata.fileName,driveUrl:row.driveUrl||'',driveFileId:row.driveFileId||'',mimeType:metadata.mimeType,note:metadata.notes,date:row.receivedSentDate||metadata.receivedSentDate,uploadedAt:row.createdAt||new Date().toISOString(),classified:row.classified===true||String(row.classified)==='true',source:'Received Upload'};});
+      await persist(latest=>({...latest,intakes:[...newIntakes,...(latest.intakes||[]).filter(i=>!newIntakes.some(n=>n.id===i.id))],pendingReceivedUploads:(latest.pendingReceivedUploads||[]).filter(j=>j.id!==job.id)}));
       RECEIVED_UPLOAD_JOBS.delete(job.id);
     }catch(e){
       if(/session.*expired|invalid or expired/i.test(e.message)){entry.session=null;entry.completion=null;entry.transferStarted=false;entry.directFailed=false;}
@@ -3439,6 +3440,7 @@ function UploadView({ state, persist, initialFile=null, initialProjectId, compac
   const activeProjects=(state.projects||[]).filter(p=>!uploadProjectIsCompleted(p));
   const [projectId, setProjectId] = useState(initialProjectId||activeProjects[0]?.id || "");
   const [floors, setFloors] = useState([]);
+  const [drawingParts,setDrawingParts]=useState([]);
   const [drawingType, setDrawingType] = useState(canonicalDrawingType((state.templates||DEFAULT_TEMPLATES)[0]?.drawingType || "Layout"));
   const [file, setFile] = useState(initialFile);
   const [note, setNote] = useState("");
@@ -3472,7 +3474,7 @@ function UploadView({ state, persist, initialFile=null, initialProjectId, compac
 
   useEffect(()=>{
     let live=true;
-    setFloors([]);
+    setFloors([]);setDrawingParts([]);
     if(!projectId)return;
     return()=>{live=false;};
   },[projectId]);
@@ -3483,17 +3485,18 @@ function UploadView({ state, persist, initialFile=null, initialProjectId, compac
 
   const submitLock=useRef(false);
   const submit = () => {
-    if(!projectId||!floors.length||!drawingType||!file||!validReceivedDate||submitLock.current)return;
+    if(!projectId||(!floors.length&&!drawingParts.length)||!drawingType||!file||!validReceivedDate||submitLock.current)return;
     if(!file.size){alert('Choose a non-empty drawing file.');return;}
     submitLock.current=true;
-    const metadata={projectId,floor:floors.join(', '),floors:[...floors],area:'',drawingType,fileName:file.name,mimeType:file.type||'application/octet-stream',fileSize:file.size,fileLastModified:file.lastModified,notes:note,receivedSentDate:receivedDate};
+    const entries=[...drawingParts,...(floors.length?[{drawingType,floors:[...floors]}]:[])];
+    const first=entries[0];const metadata={projectId,drawingParts:entries,floor:first.floors.join(', '),floors:first.floors,area:'',drawingType:first.drawingType,fileName:file.name,mimeType:file.type||'application/octet-stream',fileSize:file.size,fileLastModified:file.lastModified,notes:note,receivedSentDate:receivedDate};
     const duplicate=(state.pendingReceivedUploads||[]).some(j=>j.metadata.projectId===projectId&&String(j.metadata.fileName||'').trim().toLowerCase()===file.name.trim().toLowerCase()&&j.metadata.fileSize===file.size&&[...(j.metadata.floors||[])].sort().join('|')===[...floors].sort().join('|')&&j.metadata.drawingType===drawingType&&j.metadata.receivedSentDate===receivedDate&&(!j.metadata.fileLastModified||j.metadata.fileLastModified===file.lastModified)&&RECEIVED_UPLOAD_JOBS.get(j.id)?.file===file);
     if(duplicate){submitLock.current=false;alert('This drawing is already in the upload queue. Use its Retry button if needed.');return;}
     const job={id:'DRW-UPL-'+crypto.randomUUID(),metadata,ownerEmail:state.currentUser?.email||'',status:'queued',phase:'Waiting to upload…',progress:0};
     const selectedFile=file;
     const savedLocally=persist(latest=>({...latest,pendingReceivedUploads:[...(latest.pendingReceivedUploads||[]),job]}));
     setSaving(true);
-    Promise.resolve(savedLocally).then(()=>{setFile(null);setNote('');setReceivedDate(todayISO());if(fileRef.current)fileRef.current.value='';setJustAdded(true);if(!compact)setTimeout(()=>setJustAdded(false),2200);submitLock.current=false;setSaving(false);runReceivedUploadJob(persist,job,selectedFile);onQueued?.(projectId);}).catch(e=>{submitLock.current=false;setSaving(false);alert(e.message);});
+    Promise.resolve(savedLocally).then(()=>{setFile(null);setDrawingParts([]);setFloors([]);setNote('');setReceivedDate(todayISO());if(fileRef.current)fileRef.current.value='';setJustAdded(true);if(!compact)setTimeout(()=>setJustAdded(false),2200);submitLock.current=false;setSaving(false);runReceivedUploadJob(persist,job,selectedFile);onQueued?.(projectId);}).catch(e=>{submitLock.current=false;setSaving(false);alert(e.message);});
   };
 
   const pending = (state.intakes||[]).filter((i) => !i.classified);
@@ -3517,7 +3520,7 @@ function UploadView({ state, persist, initialFile=null, initialProjectId, compac
         </Field>
 
         <Field label="Drawing file">
-          <div style={{...inputStyle,padding:8,display:'flex',alignItems:'center',gap:10,minWidth:0}}><button type="button" disabled={saving} style={{...smallBtn,flexShrink:0}} onClick={()=>fileRef.current?.click()}>Choose File</button><span aria-live="polite" aria-label="Selected drawing filename" title={file?.name||'No file chosen'} style={{fontFamily:FONT_BODY,fontSize:12,overflowWrap:'anywhere'}}>{file?.name||'No file chosen'}</span><input ref={fileRef} type="file" aria-label="Choose drawing file" tabIndex={-1} style={{display:'none'}} disabled={saving} onChange={e=>{const selected=e.target.files?.[0];if(selected)setFile(selected);}}/></div>
+          <div style={{...inputStyle,padding:8,display:'flex',alignItems:'center',gap:10,minWidth:0}}><button type="button" disabled={saving} style={{...smallBtn,flexShrink:0}} onClick={()=>fileRef.current?.click()}>Choose File</button><span aria-live="polite" aria-label="Selected drawing filename" title={file?.name||'No file chosen'} style={{fontFamily:FONT_BODY,fontSize:12,minWidth:0,whiteSpace:'normal',overflowWrap:'anywhere'}}>{file?.name||'No file chosen'}</span><input ref={fileRef} type="file" aria-label="Choose drawing file" tabIndex={-1} style={{display:'none'}} disabled={saving} onChange={e=>{const selected=e.target.files?.[0];if(selected)setFile(selected);}}/></div>
           {file&&<div style={{fontFamily:FONT_MONO,fontSize:11,marginTop:6,color:T.inkDim}}>Format: {drawingFileType({fileName:file.name})}</div>}
         </Field>
 
@@ -3530,12 +3533,15 @@ function UploadView({ state, persist, initialFile=null, initialProjectId, compac
           </select>
         </Field>
 
+        {drawingParts.map((part,index)=><div key={index} style={{fontFamily:FONT_BODY,fontSize:12,padding:10,border:`1px solid ${T.line}`,marginBottom:8,overflowWrap:'anywhere'}}><strong>{part.drawingType}</strong> · {part.floors.join(', ')} <button type="button" disabled={saving} style={smallBtn} onClick={()=>setDrawingParts(rows=>rows.filter((_,i)=>i!==index))}>Remove part</button></div>)}
+        <button type="button" style={{...smallBtn,marginBottom:12}} disabled={saving||!floors.length||drawingParts.length>=19} onClick={()=>{setDrawingParts(rows=>[...rows,{drawingType,floors:[...floors]}]);setFloors([]);}}>Add another drawing type / part</button>
+        <p style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>Choose the next type and floors above. All parts share this file; areas are confirmed separately in Classify.</p>
         <div style={{fontFamily:FONT_MONO,fontSize:11,color:T.blue,margin:"4px 0 16px"}}>ZONE / AREA WILL BE SELECTED BY THE TECHNICAL PERSON IN CLASSIFY.</div>
 
         <Field label="Note (optional)">
           <textarea style={{ ...inputStyle, minHeight: 70, resize: "vertical" }} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Received via email from architect" />
         </Field>
-        <Btn onClick={submit} disabled={!file||!floors.length||!validReceivedDate||saving}>
+        <Btn onClick={submit} disabled={!file||(!floors.length&&!drawingParts.length)||!validReceivedDate||saving}>
           <Upload size={14} /> {saving?"Uploading to Google Drive…":"Log received drawing"}
         </Btn>
         {justAdded && <div style={{ marginTop: 12, fontFamily: FONT_MONO, fontSize: 12, color: T.green }}>Added to the upload queue. It will appear for classification after Google Drive and Sheets confirm the save.</div>}
