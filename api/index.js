@@ -2,7 +2,7 @@ import {runCadAction} from '../server/cad.js';
 import {createHmac,timingSafeEqual} from 'node:crypto';
 import {OAuth2Client} from 'google-auth-library';
 const google = new OAuth2Client();
-const READ_ACTIONS = new Set(['getTechnicalWorkbook','listTechnicalTables','getTechnicalTable','listTechnicalFittings','cadStatus','cadViewerToken','getIssueDrawingContext','getDrawingPortal','getPortalDrawingChunk','getDirectoryDrawingAccess','listRecentDrawingRegister','getDriveLibraryConfig','listProjectDrive','listMomTasks','listExecutionVisits','authSession','getProjectWorkspace','listDrawingRegister','getProjectWorkflowTasks','listProjectRoles','listProjectPeople','listSitePunchIns','health','getCurrentUser','bootstrap','listProjects','listProjectContacts','listLineOfWork','getWorkflowCapabilities','listFloorZones','listTeamMembers','listDepartments','listDesignations','listDrawingTaskMaster','getDesignDashboard','getWIH']);
+const READ_ACTIONS = new Set(['getProjectOnboarding','getTechnicalWorkbook','listTechnicalTables','getTechnicalTable','listTechnicalFittings','cadStatus','cadViewerToken','getIssueDrawingContext','getDrawingPortal','getPortalDrawingChunk','getDirectoryDrawingAccess','listRecentDrawingRegister','getDriveLibraryConfig','listProjectDrive','listMomTasks','listExecutionVisits','authSession','getProjectWorkspace','listDrawingRegister','getProjectWorkflowTasks','listProjectRoles','listProjectPeople','listSitePunchIns','health','getCurrentUser','bootstrap','listProjects','listProjectContacts','listLineOfWork','getWorkflowCapabilities','listFloorZones','listTeamMembers','listDepartments','listDesignations','listDrawingTaskMaster','getDesignDashboard','getWIH']);
 export async function verifyGoogleIdentity(token, audience) {
   const ticket=await google.verifyIdToken({idToken:token,audience});
   const claims=ticket.getPayload();
@@ -168,7 +168,7 @@ export default async function handler(req,res) {
       metadata.uploadKind=action==='beginPastWorkUpload'?'Past':action==='beginBaseDrawingUpload'?'Base':action==='beginWorkDrawingUpload'?'Output':'Received';
       const ticket=createUploadTicket({sub:identity.sub,host:requestHost(req),metadata,sessionUrl:result.data?.sessionUrl},secret);
       if(!verifyUploadTicket(ticket,secret,identity,requestHost(req)))return send(502,{ok:false,error:{message:'Google Drive returned an invalid upload session.'}});
-      result.data={uploadTicket:ticket,chunkBytes:UPLOAD_CHUNK_BYTES};
+      result.data={uploadTicket:ticket,sessionUrl:result.data.sessionUrl,chunkBytes:UPLOAD_CHUNK_BYTES};
     }
     return send(response.ok?200:502,result);
   }catch(_){return send(502,{ok:false,error:{message:'The backend request failed. Check the deployment configuration.'}});}
