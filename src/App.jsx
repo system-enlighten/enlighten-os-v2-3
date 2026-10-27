@@ -3354,7 +3354,7 @@ function UnifiedDrawingUpload({state,persist,file,initialProjectId,onQueued,onIm
 }
 
 function AppErrorNotice({message,onRetry}){return <div role="alert" className="app-error-notice" style={{'--app-font-body':FONT_BODY}}><div style={{flex:1,minWidth:0}}><strong style={{display:'block',fontSize:12,fontWeight:600,marginBottom:3}}>Unable to confirm the request</strong><span>{message}</span></div>{onRetry&&<button type="button" onClick={onRetry} style={{...smallBtn,alignSelf:'center',flexShrink:0}}>Retry</button>}</div>;}
-function EmailDrawingInbox(){const [open,setOpen]=useState(false),[rows,setRows]=useState([]),[busy,setBusy]=useState(false),[error,setError]=useState('');const load=async()=>{setBusy(true);setError('');try{setRows(await apiRequest('listEmailDrawingIntakes',{},'GET',90000));}catch(e){setError(e.message);}finally{setBusy(false);}};return <section style={{marginBottom:16,fontFamily:FONT_BODY}}><button type="button" aria-expanded={open} style={smallBtn} onClick={()=>{setOpen(v=>!v);if(!open)load();}}>Incoming email drawings</button>{open&&<div style={{border:`1px solid ${T.line}`,padding:14,marginTop:10}}><div style={{display:'flex',justifyContent:'space-between',gap:12}}><p style={{fontSize:12,color:T.inkDim,marginTop:0}}>Forward drawings to your configured intake mailbox. Reply to the assistant's questions by email to confirm upload.</p><button type="button" style={smallBtn} disabled={busy} onClick={load}>Refresh</button></div>{busy&&<p role="status" style={{fontSize:12}}>Loading incoming drawings…</p>}{error&&<AppErrorNotice message={error} onRetry={load}/>}<div style={{overflowX:'auto'}}><table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}><thead><tr>{['Drawings','Sender','Status'].map(h=><th key={h} style={{padding:9,textAlign:'left',background:'#D2CDC1'}}>{h}</th>)}</tr></thead><tbody>{rows.map(r=><tr key={r.id}><td style={{padding:9,borderBottom:`1px solid ${T.line}`}}>{r.files.map((f,i)=><div key={i}>{f.url?<a href={f.url} target="_blank" rel="noopener noreferrer">{f.name}</a>:f.name}</div>)}</td><td style={{padding:9,borderBottom:`1px solid ${T.line}`}}>{r.sender}</td><td style={{padding:9,borderBottom:`1px solid ${T.line}`}}>{r.status}{r.error&&<div style={{fontSize:11,color:T.redline,marginTop:4}}>{r.error}</div>}</td></tr>)}</tbody></table></div>{!rows.length&&!busy&&!error&&<p style={{fontSize:12,color:T.inkDim}}>No incoming drawings yet. Email intake must be configured and enabled by the mailbox owner.</p>}</div>}</section>;}
+function EmailDrawingInbox(){const [open,setOpen]=useState(false),[rows,setRows]=useState([]),[busy,setBusy]=useState(false),[error,setError]=useState('');const load=async()=>{setBusy(true);setError('');try{setRows(await apiRequest('listEmailDrawingIntakes',{},'GET',90000));}catch(e){setError(e.message);}finally{setBusy(false);}};return <section style={{marginBottom:16,fontFamily:FONT_BODY}}><button type="button" aria-expanded={open} style={smallBtn} onClick={()=>{setOpen(v=>!v);if(!open)load();}}>Incoming email drawings</button>{open&&<div style={{border:`1px solid ${T.line}`,padding:14,marginTop:10}}><div style={{display:'flex',justifyContent:'space-between',gap:12}}><p style={{fontSize:12,color:T.inkDim,marginTop:0}}>Team members send drawings to the intake mailbox. The receiving Admin mailbox answers the assistant’s questions and confirms upload.</p><button type="button" style={smallBtn} disabled={busy} onClick={load}>Refresh</button></div>{busy&&<p role="status" style={{fontSize:12}}>Loading incoming drawings…</p>}{error&&<AppErrorNotice message={error} onRetry={load}/>}<div style={{overflowX:'auto'}}><table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}><thead><tr>{['Drawings','Sender','Status'].map(h=><th key={h} style={{padding:9,textAlign:'left',background:'#D2CDC1'}}>{h}</th>)}</tr></thead><tbody>{rows.map(r=><tr key={r.id}><td style={{padding:9,borderBottom:`1px solid ${T.line}`}}>{r.files.map((f,i)=><div key={i}>{f.url?<a href={f.url} target="_blank" rel="noopener noreferrer">{f.name}</a>:f.name}</div>)}</td><td style={{padding:9,borderBottom:`1px solid ${T.line}`}}>{r.sender}</td><td style={{padding:9,borderBottom:`1px solid ${T.line}`}}>{r.status}{r.error&&<div style={{fontSize:11,color:T.redline,marginTop:4}}>{r.error}</div>}</td></tr>)}</tbody></table></div>{!rows.length&&!busy&&!error&&<p style={{fontSize:12,color:T.inkDim}}>No incoming drawings yet. Email intake must be configured and enabled by the mailbox owner.</p>}</div>}</section>;}
 function ReceivedSentView({state,persist}){
   const [historicalBusy,setHistoricalBusy]=useState(false);
   const [projectId,setProjectId]=useState('');
@@ -3914,33 +3914,33 @@ function TimesheetView({ state, persist }) {
   const [remoteTasks, setRemoteTasks] = useState(() => initialWihCache?.rows || []);
   const [loadingRemote, setLoadingRemote] = useState(() => !initialWihCache);
   const [syncingRemote, setSyncingRemote] = useState(false);
+  const [reconciling,setReconciling]=useState(false),[reconcileError,setReconcileError]=useState('');
+  const wihRequestSeq=useRef(0),wihRecovery=useRef(false),wihMounted=useRef(true);
   const [wihError,setWihError]=useState("");
   const [wihDiagnostics,setWihDiagnostics]=useState(()=>initialWihCache?.diagnostics||null);
   const [completeEditor, setCompleteEditor] = useState(null);
   const [busyId, setBusyId] = useState("");
-  const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
-  const [bulkProjectId, setBulkProjectId] = useState("");
-  const [bulkAssignments, setBulkAssignments] = useState({});
-  const [bulkSaving, setBulkSaving] = useState(false);
   const activeTeam=(state.teamMaster||[]).filter(m=>m.active!==false&&String(m.active).toLowerCase()!=="false");
   const teamNames=activeTeam.map(m=>m.name).filter(Boolean);
 
   const refresh=async(force=false)=>{
     const cached = readWihCache();
     const freshCache = cached && (Date.now() - Number(cached.savedAt || 0) < WIH_CACHE_MS);
-    if (!force && freshCache) {
+    if (!force && freshCache && Array.isArray(cached.diagnostics?.repairCandidates)) {
       setRemoteTasks(cached.rows);setWihDiagnostics(cached.diagnostics||null);
       setLoadingRemote(false);
-      return;
+      return cached.diagnostics||null;
     }
     if (!remoteTasks.length) setLoadingRemote(true);
+    const seq=++wihRequestSeq.current,generation=AUTH_SESSION_GENERATION;
     setSyncingRemote(true);setWihError("");
     try{
       // Only admins may augment WIH with project-wide dashboard records.
       // WIH must show EVERY real Design Task / Design No. across every active project.
       // getWIH can contain only tasks that already have a WIH/timesheet row, so merge it
       // with each project's authoritative Design Dashboard task IDs from Google Sheets.
-      const wihRows=await apiRequest('getWIH',{includeCompleted:true,includeDiagnostics:true},'GET');
+      const wihRows=await apiRequest('getWIH',{includeCompleted:true,includeDiagnostics:true,fastRead:true},'GET',45000);
+      if(!wihMounted.current||seq!==wihRequestSeq.current||generation!==AUTH_SESSION_GENERATION)return null;
       if(!Array.isArray(wihRows)&&!Array.isArray(wihRows?.rows))throw Error('The backend returned an unexpected work list. Redeploy the included Code.gs and refresh.');
       const base=Array.isArray(wihRows)?wihRows:wihRows.rows;const diagnostics=wihRows?.diagnostics||null;setWihDiagnostics(diagnostics);
       if(base.some(r=>!Object.prototype.hasOwnProperty.call(r,"receipt")))throw Error("Update and redeploy the included Apps Script backend, then refresh WIH. The running backend is missing received-drawing links.");
@@ -3948,14 +3948,25 @@ function TimesheetView({ state, persist }) {
       const nextRows=[...byId.values()];
       setRemoteTasks(nextRows);
       try { localStorage.setItem(WIH_CACHE_KEY, JSON.stringify({savedAt:Date.now(), rows:nextRows,diagnostics})); } catch (_) {}
+      return diagnostics;
     }
     catch(e){
-      console.warn("WIH backend load failed",e);setWihError(e.message||"Could not load Work in Hand.");
+      if(wihMounted.current&&seq===wihRequestSeq.current&&generation===AUTH_SESSION_GENERATION){console.warn("WIH backend load failed",e);setWihError(e.message||"Could not load Work in Hand.");}
       // Keep the last cached/current rows visible if Google Sheets is temporarily slow.
     }
-    finally{setLoadingRemote(false);setSyncingRemote(false);}
+    finally{if(wihMounted.current&&seq===wihRequestSeq.current&&generation===AUTH_SESSION_GENERATION){setLoadingRemote(false);setSyncingRemote(false);}}
   };
-  useEffect(()=>{refresh(false);},[]);
+  const refreshAndRecover=async(force=false)=>{
+    const diagnostics=await refresh(force);if(!wihMounted.current||wihRecovery.current||!Array.isArray(diagnostics?.repairCandidates))return;
+    const generation=AUTH_SESSION_GENERATION,cacheKey=WIH_CACHE_KEY+':reconciled',ttl=10*60*1000;let known={};
+    try{known=JSON.parse(localStorage.getItem(cacheKey)||'{}')||{};}catch{}
+    const candidates=diagnostics.repairCandidates.filter(c=>c?.projectId&&typeof c.revision==='string'&&(force||!known[c.projectId]||known[c.projectId].revision!==c.revision||Date.now()-Number(known[c.projectId].at||0)>ttl));
+    if(!candidates.length)return;wihRecovery.current=true;setReconciling(true);setReconcileError('');let successful=0,failed=false;
+    try{for(const c of candidates){if(!wihMounted.current||generation!==AUTH_SESSION_GENERATION)break;try{await apiRequest('reconcileWihProject',{projectId:c.projectId},'POST',120000);if(!wihMounted.current||generation!==AUTH_SESSION_GENERATION)break;known[c.projectId]={revision:c.revision,at:Date.now()};successful++;try{localStorage.setItem(cacheKey,JSON.stringify(known));}catch{}await refresh(true);}catch(e){failed=true;console.warn('WIH project recovery failed',e);}}
+      if(wihMounted.current&&generation===AUTH_SESSION_GENERATION){if(failed)setReconcileError('Some project work could not be updated. Use Refresh work to retry.');}
+    }finally{wihRecovery.current=false;if(wihMounted.current&&generation===AUTH_SESSION_GENERATION)setReconciling(false);}
+  };
+  useEffect(()=>{wihMounted.current=true;refreshAndRecover(false);return()=>{wihMounted.current=false;wihRequestSeq.current++;};},[]);
 
   const currentProjectIds=new Set((state.projects||[]).map(p=>String(p.id)));
   const visibleRemoteTasks=remoteTasks.filter(r=>r.receipt?.drawingId&&currentProjectIds.has(String(r.projectId||r.task?.projectId))&&wihCanSeeTask(state.currentUser,r));
@@ -3994,42 +4005,6 @@ function TimesheetView({ state, persist }) {
   const endedSessions=displayTasks.filter(t=>(person==='All'||t.assignee===person)&&t.plan&&!isDone(t.status)&&Date.parse(t.plan.plannedEnd)<=clock);
   const people=[...new Set(teamNames)];
   useEffect(()=>{if(person!=="All"&&!people.includes(person))setPerson("All");},[person,people.join("\u0000")]);
-  const bulkProjects=[...new Map(displayTasks.filter(t=>assignProject(t.projectId)&&!isDone(t.status)).map(t=>[String(t.projectId),{id:String(t.projectId),name:t.projectName||String(t.projectId)}])).values()];
-  const bulkProjectTasks=displayTasks.filter(t=>String(t.projectId)===String(bulkProjectId)&&!isDone(t.status)&&t.designTaskId);
-  const bulkTaskGroups=[...new Map(bulkProjectTasks.map(t=>[t.title,{title:t.title,tasks:bulkProjectTasks.filter(x=>x.title===t.title)}])).values()];
-  const openBulkAssign=()=>{
-    const first=bulkProjects[0]?.id||"";
-    setBulkProjectId(first);
-    setBulkAssignments({});
-    setBulkAssignOpen(true);
-  };
-  const saveBulkAssignments=async()=>{
-    const selected=bulkTaskGroups.filter(g=>bulkAssignments[g.title]);
-    if(!bulkProjectId)return alert("Select a project.");
-    if(!selected.length)return alert("Select a team member for at least one task type.");
-    setBulkSaving(true);
-    try{
-      for(const group of selected){
-        const name=bulkAssignments[group.title];
-        const member=activeTeam.find(m=>m.name===name);
-        for(const t of group.tasks){
-          await projectApi.assignTask({designTaskId:t.designTaskId,assigneeUserId:member?.userId||member?.employeeId||"",assigneeName:name});
-        }
-      }
-      await refresh(true);
-      setBulkAssignOpen(false);
-    }catch(e){alert(`Project task assignment failed: ${e?.message||e}`);}
-    finally{setBulkSaving(false);}
-  };
-
-  const assign=async(t,name)=>{
-    if(!t.designTaskId)return;
-    const member=activeTeam.find(m=>m.name===name);
-    if(name&&!member)return alert("Choose an active Team Master member.");
-    setBusyId(t.designTaskId);
-    try{await projectApi.assignTask({designTaskId:t.designTaskId,assigneeUserId:member?.userId||member?.employeeId||"",assigneeName:name});await refresh(true);}
-    catch(e){alert(`Task assignment failed: ${e?.message||e}`);}finally{setBusyId("");}
-  };
   const action=async(t,kind)=>{
     if(!t.designTaskId)return;
     setBusyId(t.designTaskId);
@@ -4052,8 +4027,7 @@ function TimesheetView({ state, persist }) {
     {showWihFilters&&<div style={{background:"#fff",border:`1px solid ${T.line}`,borderRadius:8,padding:"12px 14px",marginBottom:14}}>
       <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>
         <span style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginRight:4}}>TASK SECTION</span>
-        {["Pending","Completed","Unallotted","All"].map(x=><Chip key={x} active={taskSection===x} onClick={()=>setTaskSection(x)}>{x} ({sectionCounts[x]})</Chip>)}
-        {canAssign&&<button onClick={openBulkAssign} disabled={!bulkProjects.length} style={{...smallBtn,background:T.navy,color:"#fff",padding:"9px 13px",marginLeft:"auto"}}>PROJECT-WISE ASSIGNMENT</button>}
+        {["Pending","Completed","Unallotted","All"].map(x=><Chip key={x} active={taskSection===x} onClick={()=>setTaskSection(x)}>{x} ({loadingRemote&&!remoteTasks.length?'…':sectionCounts[x]})</Chip>)}
       </div>
       <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
         <span style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginRight:4}}>EMPLOYEE</span>
@@ -4061,15 +4035,13 @@ function TimesheetView({ state, persist }) {
         {!canAssign&&<span>{state.currentUser?.name} · Own tasks only</span>}
       </div>
     </div>}
-    {!showWihFilters&&canAssign&&<button style={{...smallBtn,marginBottom:12}} disabled={!bulkProjects.length} onClick={openBulkAssign}>Project-wise assignment</button>}
     {workTab==='calendar'&&endedSessions.length>0&&<div role="alert" style={{padding:12,border:`1px solid ${T.orange}`,fontSize:12,marginBottom:12}}>Session ended — resolve now. {endedSessions.map(t=><div key={t.designTaskId} style={{marginTop:6}}>{t.projectName} · {t.title} <button style={smallBtn} onClick={()=>setPlanningTask({...t})}>Extend / postpone</button><button style={smallBtn} disabled={busyId===t.designTaskId||isBlocked(t.status)} onClick={()=>setCompleteEditor({task:t,file:null,...workDrawingDetails(t),actualHours:t.hours||'',notes:''})}>Complete</button></div>)}<div style={{marginTop:6}}>The original TAT remains unchanged.</div></div>}
     {(workTab==='calendar'||planningTask)&&<WihPlanner onAction={action} busyId={busyId} onComplete={t=>setCompleteEditor({task:t,file:null,...workDrawingDetails(t),actualHours:t.hours||'',notes:''})} state={state} tasks={tasks} requestedTask={planningTask} onSaved={(id,plan)=>{setRemoteTasks(rows=>rows.map(r=>String(r.designTaskId)===String(id)?{...r,plan}:r));try{localStorage.removeItem(WIH_CACHE_KEY);}catch{}setPlanningTask(null);refresh(true);}}/>}
-    <div style={{display:'flex',gap:10,alignItems:'center',marginBottom:10}}><button type="button" style={smallBtn} disabled={syncingRemote} onClick={()=>refresh(true)}>Refresh work</button>{wihError&&<span role="alert" style={{fontSize:12,color:T.redline}}>{wihError}</span>}</div>
-    {loadingRemote&&remoteTasks.length===0&&<div style={{fontFamily:FONT_BODY,color:T.inkDim,padding:"10px 0"}}>Loading WIH tasks for the first time…</div>}
-    {!loadingRemote&&tasks.length===0&&<div style={{color:T.inkDim,fontFamily:FONT_BODY,fontSize:13,padding:"20px 0"}}>{displayTasks.length>0?'No tasks match this selection.':wihError?'The work list could not be refreshed. Please retry Refresh work.':<><strong>No received-drawing tasks are available yet.</strong><div style={{marginTop:8}}>{wihDiagnostics?.pendingClassification??(state.intakes||[]).filter(i=>!i.classified).length} drawing(s) awaiting classification. Open Classify, confirm the project, drawing type and floor / area, then refresh work.</div>{!!wihDiagnostics?.missingReceivedLink&&<div style={{marginTop:8}}>{wihDiagnostics.missingReceivedLink} existing task(s) have no valid received-drawing link. Check that their received files are linked to the same project and have not been trashed.</div>}</>}</div>}
-    {workTab==='todo'&&<div style={{overflowX:'auto',background:'#fff',border:`1px solid ${T.line}`}}><table style={{width:'100%',borderCollapse:'collapse',minWidth:760,fontFamily:FONT_BODY}}><thead><tr>{['Project','To-do','Responsible','Deadline','Align'].map(label=><th key={label} style={{background:'#D2CDC1',fontSize:12,fontWeight:600,padding:'11px 12px',textAlign:'left',borderBottom:`1px solid ${T.line}`}}>{label}</th>)}</tr></thead><tbody>{tasks.map(t=>{const editable=canWork&&(assignProject(t.projectId)||t.assigneeUserId===state.currentUser?.userId),cell={padding:'10px 12px',fontSize:12,borderBottom:`1px solid ${T.line}`,verticalAlign:'middle'};return <tr key={t.id}><td style={cell}>{t.projectName}</td><td style={cell}><strong>{t.title}</strong><div style={{fontSize:11,color:T.inkDim,marginTop:4}}>{[t.floor,t.area,t.drawingType].filter(Boolean).join(' · ')}</div><WihDashboardStatus task={t}/></td><td style={cell}>{assignProject(t.projectId)?<select aria-label={`Assign team member for ${t.designNo||t.id}`} disabled={busyId===t.designTaskId||isDone(t.status)} value={people.includes(t.assignee)?t.assignee:''} onChange={e=>assign(t,e.target.value)} style={{...inputStyle,fontSize:12,padding:'6px 8px'}}><option value="">Assign team member</option>{people.map(n=><option key={n}>{n}</option>)}</select>:t.assignee||'Unassigned'}</td><td style={cell}>{t.plan?.internalDueDate?<><div>{formatProjectDate(t.plan.internalDueDate)}</div>{wihUrgency(t,clock).urgent&&<div style={{fontSize:11,color:T.redline,fontWeight:600,marginTop:3}}>URGENT</div>}</>:editable&&!isDone(t.status)?<button style={smallBtn} onClick={()=>{setTatError('');setTatEditor({task:t,days:3});}}>Enter TAT</button>:<span style={{color:T.inkDim}}>TAT not entered</span>}</td><td style={cell}>{editable&&!isDone(t.status)&&<button type="button" style={smallBtn} disabled={!t.plan?.internalDueDate} title={!t.plan?'Enter TAT first':'Add this work to your calendar'} onClick={()=>{setWorkTab('calendar');setPlanningTask({...t});}}>Align</button>}</td></tr>;})}</tbody></table></div>}
+    <div style={{display:'flex',gap:10,alignItems:'center',marginBottom:10}}><button type="button" style={smallBtn} disabled={syncingRemote} onClick={()=>refreshAndRecover(true)}>Refresh work</button>{reconciling&&<span role="status" style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>Updating project work…</span>}{reconcileError&&<span role="alert" style={{fontFamily:FONT_BODY,fontSize:12,color:T.redline}}>{reconcileError}</span>}{wihError&&<span role="alert" style={{fontSize:12,color:T.redline}}>{wihError}</span>}</div>
+    {loadingRemote&&remoteTasks.length===0&&<div role="status" style={{fontFamily:FONT_BODY,fontSize:12,fontWeight:400,lineHeight:1.5,color:T.inkDim,padding:"6px 0"}}>Loading work…</div>}
+    {!loadingRemote&&!reconciling&&tasks.length===0&&<div style={{color:T.inkDim,fontFamily:FONT_BODY,fontSize:13,padding:"20px 0"}}>{displayTasks.length>0?'No tasks match this selection.':wihError?'The work list could not be refreshed. Please retry Refresh work.':<><strong>No received-drawing tasks are available yet.</strong><div style={{marginTop:8}}>{wihDiagnostics?.pendingClassification??(state.intakes||[]).filter(i=>!i.classified).length} drawing(s) awaiting classification. Open Classify, confirm the project, drawing type and floor / area, then refresh work.</div>{!!wihDiagnostics?.missingReceivedLink&&<div style={{marginTop:8}}>{wihDiagnostics.missingReceivedLink} existing task(s) have no valid received-drawing link. Check that their received files are linked to the same project and have not been trashed.</div>}</>}</div>}
+    {workTab==='todo'&&<div style={{overflowX:'auto',background:'#fff',border:`1px solid ${T.line}`}}><table style={{width:'100%',borderCollapse:'collapse',tableLayout:'fixed',minWidth:760,fontFamily:FONT_BODY}}><colgroup><col style={{width:'18%'}}/><col style={{width:'36%'}}/><col style={{width:'18%'}}/><col style={{width:'16%'}}/><col style={{width:'12%'}}/></colgroup><thead><tr>{['Project','To-do','Responsible','Deadline','Align'].map(label=><th key={label} style={{background:'#D2CDC1',fontSize:12,fontWeight:600,padding:'11px 12px',textAlign:'left',borderBottom:`1px solid ${T.line}`}}>{label}</th>)}</tr></thead><tbody>{tasks.map(t=>{const editable=canWork&&(assignProject(t.projectId)||t.assigneeUserId===state.currentUser?.userId),cell={padding:'10px 12px',fontSize:12,borderBottom:`1px solid ${T.line}`,verticalAlign:'middle'};return <tr key={t.id}><td style={cell}>{t.projectName}</td><td style={cell}><strong>{t.title}</strong><div style={{fontSize:11,color:T.inkDim,marginTop:4}}>{[t.floor,t.area,t.drawingType].filter(Boolean).join(' · ')}</div><WihDashboardStatus task={t}/></td><td style={{...cell,overflowWrap:'anywhere'}}>{String(t.assignee||'').trim()||'Not assigned'}</td><td style={cell}>{t.plan?.internalDueDate?<><div>{formatProjectDate(t.plan.internalDueDate)}</div>{wihUrgency(t,clock).urgent&&<div style={{fontSize:11,color:T.redline,fontWeight:600,marginTop:3}}>URGENT</div>}</>:editable&&!isDone(t.status)?<button style={smallBtn} onClick={()=>{setTatError('');setTatEditor({task:t,days:3});}}>Enter TAT</button>:<span style={{color:T.inkDim}}>TAT not entered</span>}</td><td style={cell}>{editable&&!isDone(t.status)&&<button type="button" style={smallBtn} disabled={!t.plan?.internalDueDate} title={!t.plan?'Enter TAT first':'Add this work to your calendar'} onClick={()=>{setWorkTab('calendar');setPlanningTask({...t});}}>Align</button>}</td></tr>;})}</tbody></table></div>}
     {tatEditor&&<div style={{position:'fixed',inset:0,zIndex:14000,background:'rgba(8,25,45,.45)',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}><div role="dialog" aria-modal="true" aria-label="Enter TAT" style={{width:'min(420px,95vw)',background:T.paper,padding:22,border:`1px solid ${T.line}`,fontFamily:FONT_BODY}}><h3 style={{fontFamily:FONT_DISPLAY,marginTop:0}}>Enter TAT</h3><p style={{fontSize:12}}>{tatEditor.task.projectName} · {tatEditor.task.title}</p><label style={{fontSize:12}}>Completion time (calendar days from receipt)<input aria-label="TAT days" type="number" min="1" max="365" value={tatEditor.days} disabled={tatBusy} style={inputStyle} onChange={e=>setTatEditor(x=>({...x,days:e.target.value}))}/></label><p style={{fontSize:12}}>TAT and the calculated deadline are locked after saving. Use Align afterwards to add a calendar slot.</p>{tatError&&<p role="alert" style={{fontSize:12,color:T.redline}}>{tatError}</p>}<div style={{display:'flex',gap:8,justifyContent:'flex-end'}}><button style={smallBtn} disabled={tatBusy} onClick={()=>setTatEditor(null)}>Cancel</button><button style={smallBtn} disabled={tatBusy} onClick={async()=>{if(tatBusy)return;setTatBusy(true);setTatError('');try{const plan=await apiRequest('saveWihPlan',{designTaskId:tatEditor.task.designTaskId,tatDays:Number(tatEditor.days),tatOnly:true},'POST',120000);setRemoteTasks(rows=>rows.map(r=>String(r.designTaskId)===String(tatEditor.task.designTaskId)?{...r,plan}:r));try{localStorage.removeItem(WIH_CACHE_KEY);}catch{}setTatEditor(null);}catch(e){setTatError(e.message);}finally{setTatBusy(false);}}}>{tatBusy?'Saving…':'Save TAT'}</button></div></div></div>}
-    {bulkAssignOpen&&<div style={{position:"fixed",inset:0,zIndex:13900,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}><div style={{width:"min(760px,96vw)",maxHeight:"88vh",overflow:"auto",background:T.paper,border:`1px solid ${T.line}`}}><div style={{background:T.navy,color:"#fff",padding:15,fontFamily:FONT_DISPLAY,fontSize:19}}>Project-wise Task Assignment</div><div style={{padding:16}}><div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,marginBottom:14}}>Select one project, then assign each task type once. The selected team member will be applied to every open task of that type in this project.</div><Field label="PROJECT"><ProjectStatusSelect projects={bulkProjects} value={bulkProjectId} onChange={e=>{setBulkProjectId(e.target.value);setBulkAssignments({});}} style={inputStyle}>{bulkProjects.map(p=><option key={p.id} value={p.id}>{p.no||p.projectNo||"—"} — {p.name}</option>)}</ProjectStatusSelect></Field>{bulkTaskGroups.length===0?<div style={{fontFamily:FONT_BODY,color:T.inkDim,padding:"14px 0"}}>No open WIH tasks for this project.</div>:<div style={{border:`1px solid ${T.line}`}}>{bulkTaskGroups.map(g=><div key={g.title} style={{display:"grid",gridTemplateColumns:"1.4fr 90px 1fr",gap:10,alignItems:"center",padding:"11px 12px",borderBottom:`1px solid ${T.line}`,background:"#fff"}}><div><div style={{fontFamily:FONT_BODY,fontWeight:700,fontSize:13}}>{g.title}</div><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim}}>{g.tasks.length} open task{g.tasks.length===1?"":"s"}</div></div><div style={{fontFamily:FONT_MONO,fontSize:11,color:T.inkDim}}>{[...new Set(g.tasks.map(t=>t.floor).filter(Boolean))].join(", ")||"—"}</div><select value={bulkAssignments[g.title]||""} onChange={e=>setBulkAssignments(x=>({...x,[g.title]:e.target.value}))} style={{...inputStyle,padding:"7px 8px",fontSize:12}}><option value="">Keep current / unassigned</option>{people.map(n=><option key={n}>{n}</option>)}</select></div>)}</div>}<div style={{marginTop:12,fontFamily:FONT_MONO,fontSize:11,color:T.inkDim}}>{bulkProjectTasks.length} total open task{bulkProjectTasks.length===1?"":"s"} in selected project.</div></div><div style={{padding:14,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}><button disabled={bulkSaving} onClick={()=>setBulkAssignOpen(false)} style={{...smallBtn,background:"#fff"}}>Cancel</button><button disabled={bulkSaving||!bulkTaskGroups.length} onClick={saveBulkAssignments} style={{...smallBtn,background:T.navy,color:"#fff",padding:"9px 14px"}}>{bulkSaving?"SAVING…":"SAVE PROJECT ASSIGNMENTS"}</button></div></div></div>}
     {completeEditor&&<div style={{position:"fixed",inset:0,zIndex:14000,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}><div style={{width:"min(650px,96vw)",background:T.paper,border:`1px solid ${T.line}`}}><div style={{background:T.navy,color:"#fff",padding:14,fontFamily:FONT_DISPLAY,fontSize:18}}>Complete WIH Task · {completeEditor.task.designNo||completeEditor.task.title}</div><div style={{padding:16}}><p style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>The completed drawing is saved in this project’s Output folder. Issue it from Drive to move it to Sent.</p>{workUploadProgress!==null&&<p role="status" style={{fontSize:12}}>Uploading to Output · {workUploadProgress}%</p>}<Field label={completeEditor.task.completionUploadRequired===false?"Output / meeting record (optional)":"Completed drawing / output file *"}><input type="file" style={{...inputStyle,padding:8}} onChange={e=>setCompleteEditor(x=>({...x,file:e.target.files?.[0]||null,...workDrawingDetails(x.task,e.target.files?.[0]?.name)}))}/></Field>{completeEditor.file&&<div style={{borderTop:`1px solid ${T.line}`,paddingTop:12,marginTop:12}}><p style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim}}>Picked from the task and file. Confirm once here; these details carry through to issue.</p>{[['Drawing code','drawingCode'],['Floor(s)','drawingFloor'],['Zone / Area','drawingArea']].map(([label,key])=><Field key={key} label={label}><input aria-label={`Work drawing ${key}`} disabled={busyId===completeEditor.task.designTaskId} value={completeEditor[key]||''} onChange={e=>setCompleteEditor(x=>({...x,[key]:e.target.value}))} style={inputStyle}/></Field>)}</div>}<Field label="Actual time taken (hours) *"><input type="number" min="0.01" step="0.25" value={completeEditor.actualHours} onChange={e=>setCompleteEditor(x=>({...x,actualHours:e.target.value}))} style={inputStyle}/></Field><Field label={completeEditor.task.taskCategory==='Meeting'?"Meeting minutes / outcome *":"Completion remarks"}><textarea value={completeEditor.notes} onChange={e=>setCompleteEditor(x=>({...x,notes:e.target.value}))} style={{...inputStyle,minHeight:70}}/></Field></div><div style={{padding:14,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}><button disabled={busyId===completeEditor.task.designTaskId} onClick={()=>{setCompleteEditor(null);setWorkUploadProgress(null);}} style={{...smallBtn,background:"#fff"}}>Cancel</button><button disabled={busyId===completeEditor.task.designTaskId} onClick={finish} style={{...smallBtn,background:T.navy,color:"#fff"}}>Upload & Complete Task</button></div></div></div>}
   </div>;
 }

@@ -133,6 +133,7 @@ export default async function handler(req,res) {
     if(!identity)return send(401,{ok:false,error:{message:'Your session has ended. Sign in again.'}});
     const payload=method==='GET'?Object.fromEntries(Object.entries(query).filter(([k])=>k!=='action')):body.payload||{};
     if(!payload||Array.isArray(payload)||typeof payload!=='object')return send(400,{ok:false,error:{message:'Invalid payload'}});
+    if(action==='getCadSourceTransfer')return send(403,{ok:false,error:{message:'Internal CAD transfer action is unavailable to browser callers.'}});
     if(['cadPrepare','cadStatus','cadViewerToken'].includes(action)){
       if(action==='cadPrepare'&&method!=='POST')return send(405,{ok:false,error:{message:'Preparing CAD requires POST.'}});
       if(!payload.projectId||!payload.driveFileId)return send(400,{ok:false,error:{message:'Choose a saved project drawing.'}});
