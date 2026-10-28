@@ -3393,6 +3393,13 @@ function ReceivedFileManager({data,state,persist,onChanged,row}){
  return <div style={{marginTop:8,fontFamily:FONT_BODY,fontSize:12}}><div style={{display:'flex',gap:8}}><button type="button" style={smallBtn} disabled={busy} aria-label={`Edit received ${row.fileName}`} onClick={()=>select(rows[0].drawingId)}>Edit</button><button type="button" style={smallBtn} disabled={busy||!(rows[0].driveFileId||fileFor(rows[0]).driveFileId)} aria-label={`Delete received ${row.fileName}`} onClick={()=>save(true,rows[0])}>Delete</button></div>{form&&<div role="dialog" aria-modal="true" aria-label="Edit received drawing" style={{position:'fixed',inset:0,zIndex:16000,background:'rgba(8,25,45,.45)',display:'flex',justifyContent:'flex-end',textAlign:'left'}}><div style={{width:520,maxWidth:'100%',height:'100%',overflowY:'auto',padding:20,boxSizing:'border-box',background:T.paper}}><h3 style={{fontFamily:FONT_DISPLAY}}>Edit received drawing</h3><p style={{overflowWrap:'anywhere'}}>{row.fileName}</p><label style={{display:'block',marginTop:12}}>Received entry<select disabled={busy} aria-label="Select received entry to manage" style={{...inputStyle,width:'100%'}} value={selected} onChange={e=>select(e.target.value)}><option value="">Select a received drawing</option>{rows.map(r=><option key={r.drawingId} value={r.drawingId}>{state.projects.find(p=>String(p.id)===String(r.projectId))?.no} · {fileFor(r).fileName||r.fileName||r.drawingId} · {r.floor} {r.area} · {r.drawingType} · {r.drawingId}</option>)}</select></label>{form&&<fieldset disabled={busy} style={{border:0,padding:0,marginTop:12,display:'grid',gap:12}}><legend style={{fontFamily:FONT_DISPLAY,fontSize:16}}>Edit received details</legend><label>Drawing type<input disabled={sheetDashboardFlag(form.classified)} style={{...inputStyle,width:'100%'}} value={form.drawingType||''} onChange={e=>setForm({...form,drawingType:e.target.value})}/></label><div>Floors<div style={{display:'flex',gap:12,flexWrap:'wrap',marginTop:6}}>{floorOptions.map(f=><label key={f}><input type="checkbox" disabled={sheetDashboardFlag(form.classified)} checked={form.floors.includes(f)} onChange={e=>setForm({...form,floors:e.target.checked?[...form.floors,f]:form.floors.filter(v=>v!==f)})}/> {f}</label>)}</div></div>{sheetDashboardFlag(form.classified)&&<p style={{margin:0,color:T.inkDim}}>Floor/type tags are protected after classification because work may already be linked to them.</p>}<label>Received date<input type="date" max={todayISO()} style={inputStyle} value={form.receivedSentDate} onChange={e=>setForm({...form,receivedSentDate:e.target.value})}/></label>{[['revisionNo','Revision'],['receivedFromSentTo','Received from'],['notes','Notes']].map(([k,label])=><label key={k}>{label}<input style={{...inputStyle,width:'100%'}} value={form[k]||''} onChange={e=>setForm({...form,[k]:e.target.value})}/></label>)}<p style={{margin:0,color:T.inkDim}}>Each selection is one received entry. Trash removes the physical file and all its shared parts. Changing the received date updates the register; its existing Drive folder is retained.</p><div style={{display:'flex',gap:10}}><button type="button" style={smallBtn} onClick={()=>save(false)}>Save changes</button><button type="button" style={smallBtn} disabled={!(form.driveFileId||fileFor(form).driveFileId)} onClick={()=>save(true)}>Move file to Trash</button><button type="button" style={smallBtn} onClick={()=>select('')}>Cancel</button></div></fieldset>}</div></div>}{busy&&<p role="status">Saving…</p>}{message&&<p role="status" style={{overflowWrap:'anywhere'}}>{message}</p>}</div>;
 }
 
+function ReceivedWorkspaceView({state,persist}){
+ const [tab,setTab]=useState('upload');
+ const viewer=state.currentUser?.appAccess?.toLowerCase()==='viewer';
+ const pending=(state.intakes||[]).filter(i=>!i.classified).length;
+ return <div><div role="tablist" aria-label="Received / Sent sections" style={{display:'flex',alignItems:'center',gap:0,borderBottom:`1px solid ${T.line}`,marginBottom:18,overflowX:'auto',background:'#fff'}}>{[['upload','Upload'],['classify','Classify'],['drive','Drive']].map(([id,label])=><button type="button" role="tab" aria-selected={tab===id} aria-controls={`received-panel-${id}`} id={`received-tab-${id}`} key={id} disabled={id==='classify'&&viewer} onClick={()=>setTab(id)} style={{padding:'11px 16px',border:'none',borderBottom:`3px solid ${tab===id?T.cyan:'transparent'}`,background:tab===id?T.navy:'transparent',color:tab===id?'#fff':T.inkDim,cursor:id==='classify'&&viewer?'not-allowed':'pointer',fontFamily:FONT_BODY,fontSize:12,fontWeight:tab===id?700:500,whiteSpace:'nowrap',opacity:(id==='classify'&&viewer)?0.5:1}}>{label}{id==='classify'&&pending>0?` (${pending})`:''}</button>)}</div><div role="tabpanel" id={`received-panel-${tab}`} aria-labelledby={`received-tab-${tab}`}>{tab==='upload'?<ReceivedSentView state={state} persist={persist}/>:tab==='classify'&&!viewer?<ClassifyView state={state} persist={persist}/>:<ProjectDriveView state={state} persist={persist}/>}</div></div>;
+}
+
 function ReceivedSentView({state,persist}){
   const [historicalBusy,setHistoricalBusy]=useState(false);
   const [projectId,setProjectId]=useState('');
@@ -3410,7 +3417,7 @@ function ReceivedSentView({state,persist}){
   const head={...cell,background:'#D2CDC1',color:T.ink,fontFamily:FONT_MONO,fontSize:10,fontWeight:700,border:'1px solid #9D998F',borderBottom:'1px solid #B8B5AC'};
   const safeLink=url=>{try{const u=new URL(url);return ['https:','http:'].includes(u.protocol)?u.href:'';}catch{return '';}};
   const link=r=>safeLink(r.driveUrl)?<a href={safeLink(r.driveUrl)} target="_blank" rel="noreferrer" aria-label={`Open ${drawingFileType(r)} file ${r.fileName}`} style={{color:T.blue,fontWeight:600,whiteSpace:'nowrap'}}>{drawingFileType(r)}</a>:<span style={{color:T.inkDim}}>No file link</span>;
-  return <section style={{fontFamily:FONT_BODY}}><h2 style={{fontFamily:FONT_DISPLAY,margin:'4px 0 8px'}}>Received / Sent</h2><p style={{fontSize:13,color:T.inkDim}}>Project drawing register. Expand a floor summary to see every selected zone. Sent files are recorded design outputs; opening this page does not send files.</p>
+  return <section style={{fontFamily:FONT_BODY}}><h2 style={{fontFamily:FONT_DISPLAY,margin:'4px 0 8px'}}>Upload</h2><p style={{fontSize:13,color:T.inkDim}}>Project drawing register. Expand a floor summary to see every selected zone. Sent files are recorded design outputs; opening this page does not send files.</p>
     <EmailDrawingInbox state={state} persist={persist} refreshToken={revision} onChanged={()=>setRevision(n=>n+1)}/>{canReceive&&<><div className={`received-drawing-drop${dragging?' is-dragging':''}${dropFile?' is-open':''}`} onDragEnter={e=>{e.preventDefault();dragDepth.current++;setDragging(true);}} onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect='copy';}} onDragLeave={e=>{e.preventDefault();dragDepth.current=Math.max(0,dragDepth.current-1);if(!dragDepth.current)setDragging(false);}} onDrop={e=>{e.preventDefault();openDrawing(e.dataTransfer.files);}}><button ref={dropButton} type="button" aria-label="Upload received drawing" style={{border:0,background:'transparent',cursor:'pointer',padding:4}} onClick={()=>dropInput.current?.click()}><img src="/received-drawing-folder.png" alt="" className="received-drawing-folder"/></button><div><strong style={{fontFamily:FONT_DISPLAY,fontSize:15}}>Drop a received drawing here</strong><p style={{fontSize:12,color:T.inkDim,margin:'5px 0'}}>or click the folder to choose a file. Confirm project, floors and drawing details before logging.</p></div><input ref={dropInput} type="file" aria-label="Choose received drawing" style={{display:'none'}} onChange={e=>{openDrawing(e.target.files);e.target.value='';}}/></div>{dropError&&<p role="alert" style={{color:T.redline,fontSize:12}}>{dropError}</p>}{uploadHint&&<p role="status" style={{fontSize:12,color:T.inkDim}}>{uploadHint}</p>}<PendingReceivedUploads state={state} persist={persist}/></>}
     {dropFile&&<div role="dialog" aria-modal="true" aria-label="Log received drawing" onKeyDown={e=>{if(e.key==='Escape')closeUpload();if(e.key==='Tab'){const items=[...e.currentTarget.querySelectorAll('button:not(:disabled),select:not(:disabled),input:not(:disabled),textarea:not(:disabled)')].filter(n=>n.type!=='hidden');const first=items[0],last=items.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}}} style={{position:'fixed',inset:0,zIndex:15000,background:'rgba(8,25,45,.45)',display:'flex',justifyContent:'flex-end'}}><div style={{background:T.paper,width:520,maxWidth:'100%',height:'100%',display:'flex',flexDirection:'column',boxShadow:'-8px 0 30px #08192d20',fontFamily:FONT_BODY}}><div style={{padding:'18px 20px',borderBottom:`1px solid ${T.line}`,display:'flex',justifyContent:'space-between',alignItems:'center',gap:12}}><h3 style={{fontFamily:FONT_DISPLAY,fontSize:18,margin:0}}>Received — Upload</h3><button autoFocus type="button" disabled={historicalBusy} style={smallBtn} onClick={closeUpload}>Close</button></div><div style={{padding:20,overflowY:'auto',flex:1}}><p style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>{inferDrawingProject(dropFile.name,state.projects)?'Project matched from the filename. Please confirm it below.':'No unique project match found in the filename. Please confirm the project below.'}</p><UnifiedDrawingUpload key={dropFile.name+dropFile.lastModified} state={state} persist={persist} file={dropFile} initialProjectId={inferDrawingProject(dropFile.name,state.projects)||projectId} onBusy={setHistoricalBusy} onImported={()=>{setRevision(n=>n+1);setUploadHint("Historical drawing imported. It is available in the register and Drive archive.");}} onQueued={id=>{setProjectId(current=>current?id:'');setUploadHint('Drawing queued for upload. This register refreshes automatically when Google Drive and Sheets confirm the save.');closeUpload();}}/></div></div></div>}
     <div style={{display:'flex',gap:12,alignItems:'flex-end',flexWrap:'wrap',marginBottom:16}}><div style={{display:'grid',gap:6,fontSize:12,flex:'1 1 320px'}}><span>Project</span><DrawingProjectSelect value={projectId} projects={state.projects||[]} onChange={id=>{setProjectId(id);setQuery('');}}/></div><input aria-label="Search drawing register" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search drawing, floor, area, type or revision" style={{...inputStyle,flex:'1 1 260px'}}/><button type="button" style={smallBtn} disabled={loading} onClick={()=>setRevision(n=>n+1)}>Refresh</button></div>
@@ -5358,6 +5365,15 @@ const SHEET_DASHBOARD_WORK = [
   {label:'Furniture Drawings',scopeKey:'wardrobe',match:/furniture|joinery/i,legacy:'furniture'},
   {label:'Finalize Decorative Lighting',scopeKey:'art_curation',match:/decorative/i,legacy:'decorativeSelection'}
 ];
+function hoursVisibility(user,projectId){
+ if(String(user?.email||'').trim().toLowerCase()==='system.enlighten@gmail.com'&&String(user?.appAccess||'').toLowerCase()==='admin')return 'all';
+ if(String(user?.appAccess||'').toLowerCase()!=='viewer'&&user?.projectRoles?.[String(projectId)]==='Admin')return 'project';
+ return 'own';
+}
+function visiblePersonHoursRows(rows,user,projectId){
+ const scope=hoursVisibility(user,projectId);
+ return rows.filter(row=>String(row.projectId)===String(projectId)&&(scope!=='own'||!!user?.userId&&String(row.assigneeUserId)===String(user.userId)));
+}
 function sheetDashboardFlag(value){return value===true||String(value).toLowerCase()==='true'||value===1;}
 function sheetDashboardStatus(records){
   if(!records.length)return '';
@@ -5453,7 +5469,8 @@ function DrawingControlDashboard({state,projectId,deferLoad=false,heading,onEdit
   const tasksMap=new Map((payload?.tasks||[]).map(t=>[String(t.designTaskId),{...t}]));
   wih.forEach(w=>{const id=String(w.designTaskId);tasksMap.set(id,{...(tasksMap.get(id)||{}),...(w.task||{}),actualStatus:w.status});});
   const tasks=[...tasksMap.values()],parents=new Map(tasks.map(t=>[String(t.designTaskId),t]));
-  const logs=wih.filter(r=>/completed|done/i.test(String(r.status||r.task?.status||''))).map(r=>({person:r.assigneeName||r.task?.assigneeName||'Unassigned',duration:Number(r.totalMinutes||0)/60}));
+  const hoursScope=hoursVisibility(state.currentUser,project.id);
+  const logs=visiblePersonHoursRows(wih,state.currentUser,project.id).filter(r=>/completed|done/i.test(String(r.status||r.task?.status||''))).map(r=>({person:r.assigneeName||r.task?.assigneeName||'Unassigned',duration:Number(r.totalMinutes||0)/60}));
   const totalHours=logs.reduce((sum,r)=>sum+r.duration,0),personHours=Object.entries(logs.reduce((sum,r)=>{sum[r.person]=(sum[r.person]||0)+r.duration;return sum;},{})).sort((a,b)=>b[1]-a[1]);
   const workColumns=SHEET_DASHBOARD_WORK.filter(def=>!def.scopeKey||sheetDashboardFlag(project.scope?.[def.scopeKey]));
   const receivedCols=[['Layout','layoutReceived'],['FC','fcReceived'],['Detail','detailReceived'],['3D','3dReceived']];
@@ -5475,7 +5492,7 @@ function DrawingControlDashboard({state,projectId,deferLoad=false,heading,onEdit
     {loading&&<p role="status" style={{fontFamily:FONT_BODY,fontSize:11,fontWeight:400,lineHeight:1.4,color:'#77776F',margin:'3px 0 8px'}}>{ready?'Loading project drawings and WIH status…':'Details load as this project comes into view…'}</p>}
     <div ref={layoutRef} style={{display:'grid',gridTemplateColumns:showHours?'minmax(0,1fr) 330px':'minmax(0,1fr)',gap:showHours?16:0,alignItems:'start',width:'100%',minWidth:0}}>
       <div style={{minWidth:0,background:'#fff'}}>
-        <table style={{width:'100%',borderCollapse:'collapse',marginBottom:8}}><tbody>{[[`Project ${project.no||project.projectNo||''}:`,project.name],['Start Date:',formatProjectDate(project.startDate)],['Time in hours:',loading?'Loading…':totalHours.toFixed(1)]].map(([label,value])=><tr key={label}><td style={{...cell,fontFamily:FONT_BODY,fontWeight:700,width:220}}>{label}</td><td style={{...cell,fontFamily:FONT_BODY}}>{label==='Time in hours:'?<div style={{display:'flex',gap:12,alignItems:'center',flexWrap:'wrap'}}><span>{value}</span><button type="button" aria-label={`Hours by person for ${project.name}`} aria-expanded={showHours} aria-controls={`project-hours-${project.id}`} style={{...smallBtn}} onClick={()=>setShowHours(open=>!open)}>{showHours?'Hide hours by person':'Hours by person'}</button></div>:value}</td></tr>)}</tbody></table>
+        <table style={{width:'100%',borderCollapse:'collapse',marginBottom:8}}><tbody>{[[`Project ${project.no||project.projectNo||''}:`,project.name],['Start Date:',formatProjectDate(project.startDate)],['Time in hours:',loading?'Loading…':totalHours.toFixed(1)]].map(([label,value])=><tr key={label}><td style={{...cell,fontFamily:FONT_BODY,fontWeight:700,width:220}}>{label}</td><td style={{...cell,fontFamily:FONT_BODY}}>{label==='Time in hours:'?<div style={{display:'flex',gap:12,alignItems:'center',flexWrap:'wrap'}}><span>{value}</span><button type="button" aria-label={`Hours by person for ${project.name}`} aria-expanded={showHours} aria-controls={`project-hours-${project.id}`} style={{...smallBtn}} onClick={()=>setShowHours(open=>!open)}>{showHours?'Hide hours':hoursScope==='own'?'My hours':'Hours by person'}</button></div>:value}</td></tr>)}</tbody></table>
 
         <div role={showHours?'region':undefined} aria-label={showHours?`Scrollable design table for ${project.name}`:undefined} tabIndex={showHours?0:undefined} style={{width:'100%',minWidth:0,overflowX:showHours?'auto':'visible',border:`1px solid ${T.line}`,boxSizing:'border-box'}}>
           <table aria-label="Project design matrix" style={{borderCollapse:'collapse',tableLayout:'fixed',width:'100%',...(showHours?{minWidth:Math.max(fullTableWidth,568+112*workColumns.length)}:{})}}>
@@ -5493,7 +5510,7 @@ function DrawingControlDashboard({state,projectId,deferLoad=false,heading,onEdit
 
         <ProjectMomTasks key={project.id} state={state} projectId={project.id} enabled={ready} revision={revision}/>
       </div>
-      {showHours&&<aside id={`project-hours-${project.id}`} aria-label="Hours by Person" style={{border:`1px solid ${T.line}`,background:'#fff',position:'sticky',top:0,minWidth:0}}><div style={{padding:12,borderBottom:`1px solid ${T.line}`,background:'#FAF9F5'}}><div style={{fontFamily:FONT_MONO,fontSize:9,fontWeight:700,marginBottom:8,background:'#D2CDC1',color:'#1C1C19',padding:'9px 10px',borderBottom:`2px solid ${T.ink}`}}>HOURS BY PERSON</div>{personHours.map(([person,hours])=><div key={person} style={{display:'flex',justifyContent:'space-between',gap:12,fontFamily:FONT_BODY,fontSize:11,padding:'4px 0'}}><span>{person}</span><strong>{hours.toFixed(1)} h</strong></div>)}{!personHours.length&&<div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim}}>{loading?'Loading hours…':'No completed WIH hours yet.'}</div>}</div></aside>}
+      {showHours&&<aside id={`project-hours-${project.id}`} aria-label="Hours by Person" style={{border:`1px solid ${T.line}`,background:'#fff',position:'sticky',top:0,minWidth:0}}><div style={{padding:12,borderBottom:`1px solid ${T.line}`,background:'#FAF9F5'}}><div style={{fontFamily:FONT_MONO,fontSize:9,fontWeight:700,marginBottom:8,background:'#D2CDC1',color:'#1C1C19',padding:'9px 10px',borderBottom:`2px solid ${T.ink}`}}>{hoursScope==='own'?'MY HOURS':hoursScope==='project'?'PROJECT HOURS BY PERSON':'HOURS BY PERSON'}</div>{personHours.map(([person,hours])=><div key={person} style={{display:'flex',justifyContent:'space-between',gap:12,fontFamily:FONT_BODY,fontSize:11,padding:'4px 0'}}><span>{person}</span><strong>{hours.toFixed(1)} h</strong></div>)}{!personHours.length&&<div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim}}>{loading?'Loading hours…':'No completed WIH hours yet.'}</div>}</div></aside>}
 
     </div>
   </div>;
@@ -5522,8 +5539,8 @@ function DesignWorkflowAccess({state,persist}){
 }
 
 function DesignWorkspaceView({state,persist}){
-  const [tab,setTab]=useState('line');
-  return <div><div role="tablist" aria-label="Design Dashboard sections" style={{display:'flex',borderBottom:`1px solid ${T.line}`,marginBottom:18,overflowX:'auto',background:'#fff'}}>{[['line','Line of Work'],['dashboard','Dashboard']].map(([id,label])=><button type="button" role="tab" key={id} id={`design-tab-${id}`} aria-selected={tab===id} aria-controls={`design-panel-${id}`} onClick={()=>setTab(id)} style={{padding:'11px 16px',border:0,borderBottom:`3px solid ${tab===id?T.cyan:'transparent'}`,background:tab===id?T.navy:'transparent',color:tab===id?'#fff':T.inkDim,cursor:'pointer',fontFamily:FONT_BODY,fontSize:12,fontWeight:tab===id?700:500,whiteSpace:'nowrap'}}>{label}</button>)}</div><div role="tabpanel" id={`design-panel-${tab}`} aria-labelledby={`design-tab-${tab}`}>{tab==='dashboard'?<DesignFlowView state={state} persist={persist}/>:<DesignWorkflowAccess state={state} persist={persist}/>}</div></div>;
+  const [tab,setTab]=useState('dashboard');
+  return <div><div role="tablist" aria-label="Dashboard sections" style={{display:'flex',borderBottom:`1px solid ${T.line}`,marginBottom:18,overflowX:'auto',background:'#fff'}}>{[['dashboard','Dashboard'],['line','Line of Work']].map(([id,label])=><button type="button" role="tab" key={id} id={`design-tab-${id}`} aria-selected={tab===id} aria-controls={`design-panel-${id}`} onClick={()=>setTab(id)} style={{padding:'11px 16px',border:0,borderBottom:`3px solid ${tab===id?T.cyan:'transparent'}`,background:tab===id?T.navy:'transparent',color:tab===id?'#fff':T.inkDim,cursor:'pointer',fontFamily:FONT_BODY,fontSize:12,fontWeight:tab===id?700:500,whiteSpace:'nowrap'}}>{label}</button>)}</div><div role="tabpanel" id={`design-panel-${tab}`} aria-labelledby={`design-tab-${tab}`}>{tab==='dashboard'?<DesignFlowView state={state} persist={persist}/>:<DesignWorkflowAccess state={state} persist={persist}/>}</div></div>;
 }
 
 function DesignFlowView({state,persist}){
@@ -6199,7 +6216,7 @@ function ProjectView({ state, persist }) {
     </div>}
 
     <div style={{display:"flex",alignItems:"center",gap:0,borderBottom:`1px solid ${T.line}`,marginBottom:18,overflowX:"auto",background:"#fff"}}>
-      {[["list","Projects & Scope"],["team","Directory"],["delegation","Delegation"]].map(([id,label])=>
+      {[["list","Projects & Scope"],["team","Directory"],["delegation","Delegation"],["floor","Floor / Zone"]].map(([id,label])=>
         <button type="button" key={id} onClick={(e)=>{e.preventDefault();e.stopPropagation();setTab(id);}} style={{
           padding:"11px 16px",border:"none",borderBottom:`3px solid ${tab===id?T.cyan:"transparent"}`,
           background:tab===id?T.navy:"transparent",color:tab===id?"#fff":T.inkDim,cursor:"pointer",
@@ -6374,6 +6391,7 @@ function ProjectView({ state, persist }) {
       </div>}
     </div>}
 
+    {tab==="floor"&&<DashboardView state={state} persist={persist}/>}
     {tab==="team"&&<ProjectDirectory state={state} persist={persist}/>}{tab==="delegation"&&<WorkflowDelegationView state={state}/>}
   </div>;
 }
@@ -6734,12 +6752,9 @@ function SettingsView({ state, persist }) {
    APP SHELL
 --------------------------------------------------------------- */
 const NAV = [
+  { id: "design", label: "Dashboard", icon: FileText, group: "PROJECT" },
   { id: "project", label: "Project", icon: Building2, group: "PROJECT" },
-  { id: "design", label: "Design Dashboard", icon: FileText, group: "PROJECT" },
-  { id: "dashboard", label: "Floor / Zone", icon: LayoutGrid, group: "RECEIVED / SENT" },
   { id: "drawingRegister", label: "Received / Sent", icon: FileText, group: "RECEIVED / SENT" },
-  { id: "classify", label: "Classify", icon: ClipboardCheck, group: "RECEIVED / SENT" },
-  { id: "drive", label: "Drive", icon: FolderOpen, group: "RECEIVED / SENT" },
   { id: "timesheet", label: "WIH Sheet", icon: Clock, group: "WIH SHEET" },
   { id: "technicalTable", label: "Technical Table", icon: FileText, group: "WIH SHEET" },
   { id: "executionMain", label: "Execution Dashboard", icon: HardHat, group: "WIH SHEET" },
@@ -6758,7 +6773,7 @@ function SidebarNavigation({items,view,onChange,pendingCount}){
 
 function projectNavigationItems(user){
   if(user?.appAccess?.toLowerCase()==='admin')return NAV;
-  const ids=user?.appAccess?.toLowerCase()==='viewer'?['project','design','drawingRegister','drive','timesheet','technicalTable','site','performance']:['project','design','dashboard','classify','drawingRegister','drive','timesheet','technicalTable','site','performance'];
+  const ids=user?.appAccess?.toLowerCase()==='viewer'?['project','design','drawingRegister','timesheet','technicalTable','site','performance']:['project','design','drawingRegister','timesheet','technicalTable','site','performance'];
   return NAV.filter(n=>ids.includes(n.id));
 }
 
@@ -6836,10 +6851,7 @@ function StudioApp() {
           {isAdmin && view === "designLineOfWork" && <DesignLineOfWorkView state={state} persist={persist} />}
           {allowedNav.some(n=>n.id==="design") && view === "design" && <DesignWorkspaceView state={state} persist={persist} />}
           
-          {allowedNav.some(n=>n.id==="dashboard") && view === "dashboard" && <DashboardView state={state} persist={persist} />}
-          {allowedNav.some(n=>n.id==="drawingRegister") && view === "drawingRegister" && <ReceivedSentView state={state} persist={persist}/>}
-          {allowedNav.some(n=>n.id==="classify") && view === "classify" && <ClassifyView state={state} persist={persist} />}
-          {allowedNav.some(n=>n.id==="drive") && view === "drive" && <ProjectDriveView state={state} persist={persist}/>}
+          {allowedNav.some(n=>n.id==="drawingRegister") && view === "drawingRegister" && <ReceivedWorkspaceView state={state} persist={persist}/>}
           {view === "technicalTable" && <TechnicalTableView state={state}/> }
           {view === "performance" && <PerformanceView state={state}/>}
           {view === "timesheet" && <><TimesheetView state={state} persist={persist} /><section style={{marginTop:20}}><button style={smallBtn} onClick={()=>setShowWihMeetings(v=>!v)}>{showWihMeetings?"Hide meetings":"Upcoming & past meetings"}</button>{showWihMeetings&&<MeetingsView state={state} persist={persist}/>}</section></>}
@@ -6931,7 +6943,7 @@ function ProjectPermissionsView({state,persist}){
     const next=typeof update==='function'?update(scope):update;
     return {...latest,projects:latest.projects.map(x=>x.id===p.id?(next.projects.find(n=>n.id===p.id)||x):x)};
   });
-  return <div><h2>Projects</h2><ProjectStatusSelect projects={state.projects} aria-label="Assigned project" style={inputStyle} value={p.id} onChange={e=>{setSelected(e.target.value);setTab('scope');}}>{state.projects.map(x=><option key={x.id} value={x.id}>{x.no} · {x.name}</option>)}</ProjectStatusSelect><p>Project role: <b>{contactRoleLabel(role)}</b> · {admin?'Manage this project':'View only'}</p><div style={{display:'flex',gap:8,marginBottom:18}}>{[['scope','Projects & Scope'],['delegation','Delegation'],['floor','Floor & Zone'],['site','Site Punch-in']].map(([id,label])=><Btn key={id} onClick={()=>setTab(id)} variant={tab===id?'dark':'ghost'}>{label}</Btn>)}</div>
+  return <div><h2>Projects</h2><ProjectStatusSelect projects={state.projects} aria-label="Assigned project" style={inputStyle} value={p.id} onChange={e=>{setSelected(e.target.value);setTab('scope');}}>{state.projects.map(x=><option key={x.id} value={x.id}>{x.no} · {x.name}</option>)}</ProjectStatusSelect><p>Project role: <b>{contactRoleLabel(role)}</b> · {admin?'Manage this project':'View only'}</p><div style={{display:'flex',gap:0,marginBottom:18,borderBottom:`1px solid ${T.line}`,overflowX:'auto',background:'#fff'}}>{[['scope','Projects & Scope'],['delegation','Delegation'],['floor','Floor / Zone'],['site','Site Punch-in']].map(([id,label])=><button type="button" key={id} onClick={()=>setTab(id)} style={{padding:'11px 16px',border:'none',borderBottom:`3px solid ${tab===id?T.cyan:'transparent'}`,background:tab===id?T.navy:'transparent',color:tab===id?'#fff':T.inkDim,fontFamily:FONT_BODY,fontSize:12,fontWeight:tab===id?700:500,whiteSpace:'nowrap',cursor:'pointer'}}>{label}</button>)}</div>
   {tab==='delegation'&&<WorkflowDelegationView key={p.id} state={state} initialProjectId={p.id}/>}{tab==='scope'&&(admin?<ProjectScopeAdmin key={p.id} project={p} onSaved={async row=>saveScoped({...scoped,projects:[backendProjectToFrontend(row,p)]})}/>:<MemberProjectsView key={p.id} state={scoped}/>)}
   {tab==='floor'&&((state.currentUser.appAccess.toLowerCase()!=='viewer')?<DashboardView key={p.id} state={scoped} persist={saveScoped}/>:<table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Zone','Floor','Area'].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{(p.floorZones||[]).map((r,i)=><tr key={r.floorZoneId||i}>{[r.zoneCode,r.floor,r.area].map((v,j)=><td key={j} style={tdStyle}>{v}</td>)}</tr>)}</tbody></table>)}
   {tab==='site'&&<ProjectPunchInsView key={p.id} state={scoped}/>}
