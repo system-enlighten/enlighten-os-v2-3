@@ -1,3 +1,4 @@
+import {draftProductFromSheet} from '../server/product-ai.js';
 import {runCadAction} from '../server/cad.js';
 import {createHmac,timingSafeEqual} from 'node:crypto';
 import {OAuth2Client} from 'google-auth-library';
@@ -139,6 +140,13 @@ export default async function handler(req,res) {
       if(!payload.projectId||!payload.driveFileId)return send(400,{ok:false,error:{message:'Choose a saved project drawing.'}});
       const backend=async(name,data)=>{const response=await fetchAppsScript(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(signRequest(name,data,identity,secret)),signal:AbortSignal.timeout(90000)});const result=await response.json();if(!result.ok)throw Error(result.error?.message||'Drawing access denied.');return result.data;};
       try{return send(200,{ok:true,data:await runCadAction(action,payload,backend)});}catch(e){return send(502,{ok:false,error:{message:e.name==='TimeoutError'?'CAD preparation took too long. Retry; completed previews are reused.':e.message}});}
+    }
+    if(action==='draftProductFromSpreadsheet'){
+      if(method!=='POST')return send(405,{ok:false,error:{message:'AI import requires POST.'}});
+      const response=await fetchAppsScript(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(signRequest('getProductImportAccess',{},identity,secret)),signal:AbortSignal.timeout(60000)});
+      let access;try{access=await response.json();}catch{throw Error('Apps Script access check failed. Update Code.gs and redeploy.');}
+      if(!access.ok)return send(403,{ok:false,error:{message:access.error?.message||'Admin access required.'}});
+      try{return send(200,{ok:true,data:await draftProductFromSheet(payload)});}catch(e){return send(502,{ok:false,error:{message:e.message}});}
     }
     if(action==='generateProjectBook'){
       if(method!=='POST')return send(405,{ok:false,error:{message:'Book generation requires POST.'}});
