@@ -1,3 +1,4 @@
+import FeedbackView from './FeedbackView.jsx';
 import ProjectDiaryTimeline from './ProjectDiaryTimeline.jsx';
 import WihMetrics from './WihMetrics.jsx';
 import './WihTheme.css';
@@ -6855,6 +6856,7 @@ const NAV = [
   { id: "diary", label: "Diary", icon: FileText, group: "SITE PUNCH-IN" },
   { id: "settings", label: "Team & Tasks", icon: Settings2, group: "ADMIN" },
   { id: "performance", label: "Performance", icon: Clock, group: "ADMIN" },
+  { id: "feedback", label: "Feedback", icon: FileText, group: "ADMIN" },
 ];
 
 function SidebarNavigation({items,view,onChange,pendingCount}){
@@ -6867,7 +6869,7 @@ function SidebarNavigation({items,view,onChange,pendingCount}){
 
 function projectNavigationItems(user){
   if(wihSystemAccount(user)&&user?.appAccess?.toLowerCase()==='admin')return NAV;
-  const ids=user?.appAccess?.toLowerCase()==='viewer'?['project','design','drawingRegister','drive','timesheet','technicalTable','scheduleSpec','site','diary','performance']:['project','design','drawingRegister','drive','timesheet','technicalTable','scheduleSpec','site','diary','performance'];
+  const ids=user?.appAccess?.toLowerCase()==='viewer'?['project','design','drawingRegister','drive','timesheet','technicalTable','scheduleSpec','site','diary','performance','feedback']:['project','design','drawingRegister','drive','timesheet','technicalTable','scheduleSpec','site','diary','performance','feedback'];
   const projectAdmin=user?.appAccess?.toLowerCase()!=='viewer'&&Object.values(user?.projectRoles||{}).includes('Admin');
   if(projectAdmin)ids.push('settings');
   if(user?.appAccess?.toLowerCase()==='admin')return NAV.filter(n=>n.id!=='settings'||projectAdmin);
@@ -6878,6 +6880,7 @@ function StudioApp() {
   const { state, loading, saveErr, backendErr, currentUser, persist } = useStudioState();
   const [view, setView] = useState(window.location.hash==="#email-intake" ? "drawingRegister" : "project");
   const [showWihMeetings,setShowWihMeetings]=useState(false);
+  const [feedbackContext,setFeedbackContext]=useState("General");
   const [diaryWorkflowTarget,setDiaryWorkflowTarget]=useState(null);
 
   if (loading || !state) {
@@ -6922,7 +6925,7 @@ function StudioApp() {
           </div>
           <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.cyan, opacity: 0.7, marginTop: 4 }}>lighting design · intake → task → timesheet</div>
         </div>
-        <SidebarNavigation items={allowedNav} view={view} onChange={setView} pendingCount={pendingCount}/>
+        <SidebarNavigation items={allowedNav} view={view} onChange={next=>{if(next==='feedback')setFeedbackContext(viewLabel);setView(next)}} pendingCount={pendingCount}/>
         <div style={{ padding: "20px", marginTop: 20, fontFamily: FONT_MONO, fontSize: 10, color: T.cyan, opacity: 0.7 }}>
           <div style={{ marginBottom: 6 }}>{currentUser?.appAccess} · {currentUser?.name || ""}</div>
           <div style={{ opacity: 0.7, wordBreak: "break-all" }}>{currentUser?.email || ""}</div>
@@ -6954,6 +6957,7 @@ function StudioApp() {
           {view === "technicalTable" && <TechnicalTableView state={state}/> }
           {allowedNav.some(n=>n.id==="scheduleSpec") && view === "scheduleSpec" && <ScheduleSpecSheetView state={state}/>}
           {view === "performance" && <PerformanceView state={state}/>}
+          {view === "feedback" && <FeedbackView state={state} request={apiRequest} initialSection={feedbackContext}/>}
           {view === "timesheet" && <><TimesheetView state={state} persist={persist} /><section className="wih-meetings-footer" style={{marginTop:20}}><button style={smallBtn} onClick={()=>setShowWihMeetings(v=>!v)}>{showWihMeetings?"Hide meetings":"Upcoming & past meetings"}</button>{showWihMeetings&&<MeetingsView state={state} persist={persist}/>}</section></>}
           {allowedNav.some(n=>n.id==="site") && view === "site" && <ProjectPunchInsView state={state}/>}
           {allowedNav.some(n=>n.id==="diary") && view === "diary" && <DiaryView state={state} persist={persist} onOpenWorkflow={(projectId,visitPlanId)=>{setDiaryWorkflowTarget({projectId,visitPlanId,token:Date.now()});setView("design");}}/>}
