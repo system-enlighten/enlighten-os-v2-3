@@ -1,0 +1,130 @@
+[
+  {
+    "image": "assets/landing-sunset.jpg",
+    "thumb": "assets/landing-sunset.jpg",
+    "title": "enLIGHTen",
+    "category": "",
+    "alt": "Sunset over the water, the same background as the enLIGHTen login page.",
+    "intro": true
+  },
+  {
+    "image": "assets/photo-01.webp",
+    "thumb": "assets/thumb-01.webp",
+    "title": "Still water, warm light",
+    "category": "Exterior",
+    "alt": "Still water, warm light \u2014 architectural lighting photograph",
+    "source": "IMG_1-.PNG"
+  },
+  {
+    "image": "assets/photo-02.webp",
+    "thumb": "assets/thumb-02.webp",
+    "title": "An illuminated arrival",
+    "category": "Architecture",
+    "alt": "An illuminated arrival \u2014 architectural lighting photograph",
+    "source": "IMG_6674.png"
+  },
+  {
+    "image": "assets/photo-03.webp",
+    "thumb": "assets/thumb-03.webp",
+    "title": "The sheltered veranda",
+    "category": "Architecture",
+    "alt": "The sheltered veranda \u2014 architectural lighting photograph",
+    "source": "IMG_6483.png"
+  },
+  {
+    "image": "assets/photo-04.webp",
+    "thumb": "assets/thumb-04.webp",
+    "title": "Gathered in light",
+    "category": "Interior",
+    "alt": "Gathered in light \u2014 architectural lighting photograph",
+    "source": "IMG_7634.JPG"
+  },
+  {
+    "image": "assets/photo-05.webp",
+    "thumb": "assets/thumb-05.webp",
+    "title": "A quieter kind of evening",
+    "category": "Interior",
+    "alt": "A quieter kind of evening \u2014 architectural lighting photograph",
+    "source": "IMG_7673.JPG"
+  },
+  {
+    "image": "assets/photo-06.webp",
+    "thumb": "assets/thumb-06.webp",
+    "title": "Reflections at dusk",
+    "category": "Exterior",
+    "alt": "Reflections at dusk \u2014 architectural lighting photograph",
+    "source": "IMG_3.png"
+  },
+  {
+    "image": "assets/photo-07.webp",
+    "thumb": "assets/thumb-07.webp",
+    "title": "A passage of light",
+    "category": "Exterior",
+    "alt": "A passage of light \u2014 architectural lighting photograph",
+    "source": "IMG_4.png"
+  },
+  {
+    "image": "assets/photo-08.webp",
+    "thumb": "assets/thumb-08.webp",
+    "title": "Light along the water",
+    "category": "Exterior",
+    "alt": "Light along the water \u2014 architectural lighting photograph",
+    "source": "IMG_8.png"
+  },
+  {
+    "image": "assets/photo-09.webp",
+    "thumb": "assets/thumb-09.webp",
+    "title": "An evening threshold",
+    "category": "Architecture",
+    "alt": "An evening threshold \u2014 architectural lighting photograph",
+    "source": "IMG_9.PNG"
+  },
+  {
+    "image": "assets/photo-10.webp",
+    "thumb": "assets/thumb-10.webp",
+    "title": "The warmth within",
+    "category": "Interior",
+    "alt": "The warmth within \u2014 architectural lighting photograph",
+    "source": "IMG_10.png"
+  },
+  {
+    "image": "assets/photo-11.webp",
+    "thumb": "assets/thumb-11.webp",
+    "title": "A different perspective",
+    "category": "Interior",
+    "alt": "A different perspective \u2014 architectural lighting photograph",
+    "source": "IMG_7670.JPG"
+  },
+  {
+    "image": "assets/photo-12.webp",
+    "thumb": "assets/thumb-12.webp",
+    "title": "Light and shadow",
+    "category": "Interior",
+    "alt": "Light and shadow \u2014 architectural lighting photograph",
+    "source": "IMG_7645.JPG"
+  },
+  {
+    "image": "assets/photo-13.webp",
+    "thumb": "assets/thumb-13.webp",
+    "title": "Beyond the window",
+    "category": "Interior",
+    "alt": "Beyond the window \u2014 architectural lighting photograph",
+    "source": "IMG_1.jpg"
+  },
+  {
+    "image": "assets/photo-14.webp",
+    "thumb": "assets/thumb-14.webp",
+    "title": "A gentle glow",
+    "category": "Interior",
+    "alt": "A gentle glow \u2014 architectural lighting photograph",
+    "source": "IMG_7674.JPG"
+  },
+  {
+    "image": "assets/photo-15.webp",
+    "thumb": "assets/thumb-15.webp",
+    "title": "Rooms in conversation",
+    "category": "Interior",
+    "alt": "Rooms in conversation \u2014 architectural lighting photograph",
+    "source": "IMG_3.jpg"
+  }
+]

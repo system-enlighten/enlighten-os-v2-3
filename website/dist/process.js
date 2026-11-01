@@ -1,0 +1,1 @@
+'use strict';document.querySelectorAll('[data-layer]').forEach(input=>input.addEventListener('change',()=>{document.getElementById(input.dataset.layer).classList.toggle('off',!input.checked);}));
