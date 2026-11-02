@@ -1,3 +1,10 @@
+function meetingConfiguredFloors(project,liveZones=[]){
+ const scope=designDashboardScopeFloors(project);
+ const rows=[...liveZones,...(project?.floorZones||[]),...Object.values(project?.zones||{})];
+ const configured=scope.length?scope:rows.map(z=>z.floor);
+ return [...new Set(configured.map(v=>String(v||'').trim()).filter(v=>v&&!/^(bath elevation|furniture|art curation)$/i.test(v)))];
+}
+
 import DashboardReceivedUpload from './DashboardReceivedUpload.jsx';
 import {dashboardReceivedKey} from './dashboard-received-upload.js';
 import FeedbackView from './FeedbackView.jsx';
@@ -4921,8 +4928,8 @@ function activeVisits(rows){return (rows||[]).filter(r=>r.active!==false&&String
 
 function visitHistory(row){try{const list=JSON.parse(row.history||'[]');return Array.isArray(list)?list:[];}catch{return [];}}
 function executionVisitDefaults(project){
-  const known=[...new Set((project.floorZones||Object.values(project.zones||{})).map(z=>z.floor).filter(Boolean))].filter(f=>!/facade/i.test(f));
-  const floors=known.length?known:['1F','2F','3F','4F','Terrace','Stilt'];
+  const floors=meetingConfiguredFloors(project).filter(f=>!/^(facade|landscape|bath elevation|furniture|art curation)$/i.test(f));
+  if(!floors.length)return [];
   const rows=[];const add=(stage,milestone,floor,visitType,essential=false,weekly=false)=>rows.push({visitPlanId:`EV-${project.id}-${rows.length+1}`,projectId:project.id,seq:rows.length+1,stage,milestone,floor,visitType,essential,weekly,plannedVisits:1,closed:false,history:'[]'});
   [['False Ceiling','False Ceiling',true],['Electrical','Wiring',true],['Bathroom Stone','Bathroom Stone',false],['Ceiling Pack','Ceiling Pack | Moulding Sampling & Review',true],['Furniture','Furniture',false]].forEach(([stage,milestone,essential])=>{floors.forEach((f,i)=>add(stage,milestone,f,stage==='Furniture'||i<(stage==='Ceiling Pack'?1:2)?'Briefing & Review':'Review',essential));if(stage==='Bathroom Stone')add('Facade','Facade Elevation','Facade','Briefing & Review');});
   for(let i=0;i<floors.length;i+=2)add('Transition to Execution','Finalise Architectural Lighting',floors.slice(i,i+2).join(' + '),'Visit',true);
@@ -6623,7 +6630,15 @@ function MeetingsView({ state, persist, scheduleOnly=false, initialProjectId, in
   const [coverageWorkspace,setCoverageWorkspace]=useState(()=>cachedWorkflowWorkspace(initialProjectId));
   useEffect(()=>{let live=true;if(initialVisit&&form.projectId)loadWorkflowWorkspace(form.projectId).then(data=>{if(live)setCoverageWorkspace(data);}).catch(()=>{});return()=>{live=false;};},[form.projectId,initialVisit?.visitPlanId]);
   const workChoices=[...new Set(['False Ceiling','Wiring','Bathroom Stone','Furniture','Facade','Finalise Architectural Lighting','Wall Electrical','Control Finalisation','Ceiling Pack | Moulding Sampling & Review','Marking | Cutting','Light Installation','Snag List','Staging and Scene Setting',...(coverageWorkspace?.visits||[]).flatMap(visitWorkItems),...(coverageWorkspace?.workflow||[]).map(r=>r.tasks),...(initialVisit?visitWorkItems(initialVisit):[]),...form.workItems].filter(Boolean))];
-  const floorChoices=[...new Set([...(state.projects.find(p=>p.id===form.projectId)?.floorZones||[]).map(z=>z.floor),...Object.values(state.projects.find(p=>p.id===form.projectId)?.zones||{}).map(z=>z.floor),...(coverageWorkspace?.visits||[]).flatMap(visitFloors),...(initialVisit?visitFloors(initialVisit):[]),...form.floors].filter(Boolean))];
+  const meetingProject=state.projects.find(p=>String(p.id)===String(form.projectId));
+  const [meetingFloorZones,setMeetingFloorZones]=useState([]);
+  const [meetingFloorError,setMeetingFloorError]=useState('');
+  useEffect(()=>{let live=true;setMeetingFloorZones([]);setMeetingFloorError('');if(form.projectId)projectApi.listFloorZones(form.projectId).then(rows=>{if(live)setMeetingFloorZones(Array.isArray(rows)?rows:[]);}).catch(e=>{if(live)setMeetingFloorError(e.message||'Could not refresh project floors.');});return()=>{live=false;};},[form.projectId]);
+  const floorChoices=meetingConfiguredFloors(meetingProject,meetingFloorZones);
+  if(initialVisit?._designMeeting)floorChoices.push('Project');
+  const floorChoiceKey=JSON.stringify(floorChoices);
+  useEffect(()=>{setForm(f=>{const floors=f.floors.filter(value=>floorChoices.includes(value));return floors.length===f.floors.length?f:{...f,floors};});},[form.projectId,floorChoiceKey]);
+
   const projectName=id=>state.projects.find(p=>p.id===id)?.name||"—";
 
   const saveMeeting=async meeting=>{
@@ -6633,6 +6648,7 @@ function MeetingsView({ state, persist, scheduleOnly=false, initialProjectId, in
   };
   const addMeeting=async()=>{
     if(!form.title.trim()||!form.projectId)return;
+    if(initialVisit&&(!form.floors.length||form.floors.some(f=>!floorChoices.includes(f)))){setMeetingError('Select the configured project floors for this meeting.');return;}
     const saved=await saveMeeting({id:uid(),...form,title:form.title.trim()});
     if(saved&&onScheduled){try{await onScheduled();}catch(e){setMeetingError('Meeting saved. Refresh Line of Work to see the updated schedule.');}return;}
     if(saved)setForm(current=>({...current,id:uid(),title:'',agenda:'',participants:'',location:'',happened:false,nextDate:''}));
@@ -6661,6 +6677,7 @@ function MeetingsView({ state, persist, scheduleOnly=false, initialProjectId, in
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:10}}><Field label="Date"><input aria-label="Meeting date" type="date" style={inputStyle} value={form.date} onChange={e=>setForm({...form,date:e.target.value})}/></Field><Field label="Time"><input aria-label="Meeting time" type="time" style={inputStyle} value={form.time} onChange={e=>setForm({...form,time:e.target.value})}/></Field></div>
       <Field label="Meeting format"><select aria-label="Meeting format" disabled={meetingBusy} style={inputStyle} value={form.meetingMode||'Physical on-site meeting'} onChange={e=>setForm(f=>({...f,meetingMode:e.target.value,location:''}))}><option value="Physical on-site meeting">Physical on-site meeting</option><option value="Zoom call">Zoom call</option></select></Field>
       <Field label={form.meetingMode==='Zoom call'?'Zoom meeting link':'On-site location'}><input aria-label={form.meetingMode==='Zoom call'?'Zoom meeting link':'On-site location'} placeholder={form.meetingMode==='Zoom call'?'Paste Zoom link (optional)':'Site address / meeting point (optional)'} style={inputStyle} value={form.location} onChange={e=>setForm({...form,location:e.target.value})}/></Field>
+      {meetingFloorError&&<p role="alert" style={{fontSize:12,color:T.redline}}>Could not refresh floors: {meetingFloorError}</p>}
       {initialVisit&&<details aria-label="Combined meeting coverage" style={{border:`1px solid ${T.line}`,padding:12,marginBottom:14}}><summary style={{cursor:'pointer',fontFamily:FONT_BODY,fontSize:12,fontWeight:600}}>Work & floors · {form.workItems.join(' + ')||'Choose work'} · {form.floors.join(', ')||'Choose floors'}</summary><p style={{fontSize:12,color:T.inkDim,margin:'9px 0'}}>Select multiple work stages and floors for one visit.</p><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:10}}>{[['Work stages','workItems',workChoices],['Floors','floors',floorChoices]].map(([label,key,options])=><fieldset key={key} style={{border:`1px solid ${T.line}`,padding:10,maxHeight:190,overflowY:'auto'}}><legend style={{fontFamily:FONT_BODY,fontSize:12}}>{label}</legend>{options.map(value=><label key={value} style={{display:'flex',alignItems:'center',gap:8,fontFamily:FONT_BODY,fontSize:12,marginBottom:7}}><input type="checkbox" aria-label={`Meeting ${key} ${value}`} checked={form[key].includes(value)} onChange={e=>setForm(f=>({...f,[key]:e.target.checked?[...new Set([...f[key],value])]:f[key].filter(v=>v!==value)}))}/>{value}</label>)}</fieldset>)}</div></details>}
       <details style={{border:`1px solid ${T.line}`,padding:12,marginBottom:16}}><summary style={{cursor:'pointer',fontFamily:FONT_BODY,fontSize:12,fontWeight:600}}>Participants & agenda (optional)</summary><div style={{marginTop:12}}><Field label="Participants"><input aria-label="Meeting participants" style={inputStyle} value={form.participants} onChange={e=>setForm({...form,participants:e.target.value})}/></Field><Field label="Agenda"><textarea aria-label="Meeting agenda" style={{...inputStyle,minHeight:75}} value={form.agenda} onChange={e=>setForm({...form,agenda:e.target.value})}/></Field></div></details>
       <details style={{border:`1px solid ${T.line}`,padding:12,marginBottom:16}}><summary style={{cursor:'pointer',fontSize:12,fontWeight:600}}>Upload received drawing (optional)</summary><p style={{fontSize:12}}>You can schedule this meeting before drawings are received. Upload here when a drawing is available.</p><MeetingDrawingUpload key={form.projectId} projectId={form.projectId} state={state} persist={persist} onBusy={setDrawingBusy}/></details>
