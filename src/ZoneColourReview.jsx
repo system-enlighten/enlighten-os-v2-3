@@ -1,3 +1,4 @@
+import {detectWallZones} from './wall-zone-detector.mjs';
 import {fillZoneBoundary} from './zone-boundary-fill.js';
 import React,{useEffect,useRef,useState} from 'react';
 const tone=id=>'hsl('+Math.round(id*137.508%360)+' 46% 43%)';
@@ -36,10 +37,10 @@ export default function ZoneColourReview({projectId,request,onLabels,onFile,disa
    sourceCanvas.current=canvas;
    const image=canvas.toDataURL('image/jpeg',.88);
    setPreview({image,width:canvas.width,height:canvas.height});setMessage('Finding room outlines…');
-   const result=await request('recognizeZoneRegions',{projectId,image},'POST',125000);
+   const candidates=await detectWallZones(canvas,page,viewport);
    if(n!==seq.current)return;
-   const found=cleanRegions(result.regions).map(r=>({...r,id:++ids.current,suggested:true}));
-   setRegions(found);setMessage(found.length?'Check the suggested outlines. Name blank areas or trace any that were missed.':'No reliable outlines found. Use Trace area to add them.');
+   const found=candidates.map(r=>({...r,id:++ids.current,suggested:true}));
+   setRegions(found);setMessage(found.length?'Review the outlines matched to enclosed linework. Use Fill enclosed area or Trace area for missing rooms.':'No reliable outlines found. Use Trace area to add them.');
   }catch(e){if(n===seq.current)setMessage(e.message||'Could not read the plan.');}
   finally{if(doc)await doc.destroy().catch(()=>{});if(n===seq.current)setBusy(false);}
  };
@@ -54,17 +55,17 @@ export default function ZoneColourReview({projectId,request,onLabels,onFile,disa
   if(!sourceCanvas.current||crop?.length!==2||busy)return;
   const [a,b]=crop,left=Math.min(a.x,b.x),top=Math.min(a.y,b.y),width=Math.abs(a.x-b.x),height=Math.abs(a.y-b.y);
   if(width<20||height<20){setMessage('Select a larger rectangle around the rooms.');return;}
-  if(regions.length&&!window.confirm('Replace the current outlines and their draft labels with new suggestions from this crop?'))return;
+  if(regions.some(r=>r.suggested)&&!window.confirm('Replace automatic suggestions with new suggestions from this crop?'))return;
   const original=sourceCanvas.current,n=++seq.current,canvas=document.createElement('canvas');
   const sx=left*original.width/1000,sy=top*original.height/1000,sw=width*original.width/1000,sh=height*original.height/1000;
   canvas.width=Math.max(1,Math.round(sw));canvas.height=Math.max(1,Math.round(sh));
   canvas.getContext('2d').drawImage(original,sx,sy,sw,sh,0,0,canvas.width,canvas.height);
   setBusy(true);setMessage('Finding outlines inside the selected plan area…');
   try{
-   const result=await request('recognizeZoneRegions',{projectId,image:canvas.toDataURL('image/jpeg',.88)},'POST',125000);
+   const candidates=await detectWallZones(original,null,null,[left,top,left+width,top+height]);
    if(n!==seq.current)return;
-   const found=cleanRegions(result.regions).map(r=>({...r,id:++ids.current,suggested:true,points:r.points.map(p=>({x:left+p.x*width/1000,y:top+p.y*height/1000}))}));
-   if(found.length){setRegions(found);setSelected(null);setCrop(null);setMessage('Check the numbered outlines against the rooms. Retrace any incorrect outline.');}
+   const found=candidates.map(r=>({...r,id:++ids.current,suggested:true}));
+   if(found.length){setRegions(list=>[...list.filter(r=>!r.suggested),...found]);setSelected(null);setCrop(null);setMessage('Check the numbered outlines against the rooms. Retrace any incorrect outline.');}
    else setMessage('No clear outlines found inside that selection. Existing outlines were kept.');
   }catch(e){if(n===seq.current)setMessage(e.message||'Could not read the selected area.');}
   finally{if(n===seq.current)setBusy(false);}
@@ -73,7 +74,7 @@ export default function ZoneColourReview({projectId,request,onLabels,onFile,disa
  const addTrace=()=>{const [region]=cleanRegions([{points:trace}]);if(!region)return;const id=retrace??++ids.current;setRegions(list=>retrace===null?[...list,{...region,id}]:list.map(r=>r.id===id?{...r,points:region.points,suggested:false}:r));setSelected(id);setTrace(null);setRetrace(null);};
  const valid=regions.length>0&&regions.every(r=>/^[A-Z]+$/.test(r.code.trim())&&r.name.trim())&&new Set(regions.map(r=>r.code.trim())).size===regions.length;
  return <section aria-label="Colour-coded zone review" style={{padding:10,border:'1px solid #d9d2c3',margin:'10px 0'}}>
-  <p>Choose a single-floor PDF. AI suggests outlines from the rendered plan; review them before adding the rows. Unnamed rooms stay blank.</p>
+  <p>Choose a single-floor PDF. The tracer follows enclosed red and blue wall lines; review them before adding the rows. Unnamed rooms stay blank.</p>
   <input type="file" accept=".pdf,application/pdf" disabled={disabled} aria-label="Choose PDF for coloured zones" onChange={e=>{change(e.target.files?.[0]);e.target.value='';}}/>
   {message&&<p role="status">{message}</p>}
   {preview&&<><div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap',margin:'8px 0'}}>
@@ -81,7 +82,7 @@ export default function ZoneColourReview({projectId,request,onLabels,onFile,disa
    <span aria-live="polite">{Math.round(zoom*100)}%</span>
    <button type="button" disabled={zoom>=3} onClick={()=>setZoom(z=>Math.min(3,z+.25))}>Zoom in</button>
    <button type="button" onClick={()=>setZoom(1)}>Fit width</button>
-   {regions.some(r=>r.suggested)&&<button type="button" disabled={busy||disabled||added||!!trace||!!crop||fill} onClick={()=>{if(window.confirm('Remove AI suggestions? Manually traced and filled areas will stay.')){setRegions(list=>list.filter(r=>!r.suggested));setSelected(null);}}}>Clear AI suggestions</button>}
+   {regions.some(r=>r.suggested)&&<button type="button" disabled={busy||disabled||added||!!trace||!!crop||fill} onClick={()=>{if(window.confirm('Remove AI suggestions? Manually traced and filled areas will stay.')){setRegions(list=>list.filter(r=>!r.suggested));setSelected(null);}}}>Clear automatic outlines</button>}
   </div><div style={{overflow:'auto',maxHeight:'60vh',border:'1px solid #d9d2c3'}}><svg viewBox="0 0 1000 1000" preserveAspectRatio="none" style={{display:'block',width:(zoom*100)+'%',maxWidth:'none',height:'auto',aspectRatio:preview.width+'/'+preview.height,cursor:trace||fill||crop?'crosshair':'default'}} aria-label="Floor plan with coloured area outlines" onClick={e=>{if(busy||(!trace&&!crop&&!fill))return;const svg=e.currentTarget,transform=svg.getScreenCTM();if(!transform)return;const screen=svg.createSVGPoint();screen.x=e.clientX;screen.y=e.clientY;const plan=screen.matrixTransform(transform.inverse());const point={x:Math.max(0,Math.min(1000,plan.x)),y:Math.max(0,Math.min(1000,plan.y))};if(fill)fillAt(point);else if(crop)setCrop(crop.length===2?[point]:[...crop,point]);else setTrace([...trace,point]);}}>
    <image href={preview.image} width="1000" height="1000" preserveAspectRatio="none"/>
    {regions.map((r,i)=><polygon key={r.id} points={r.points.map(p=>p.x+','+p.y).join(' ')} fill={tone(r.id)} fillOpacity={selected===r.id ? .46 : .23} stroke={tone(r.id)} strokeWidth={selected===r.id?4:2} vectorEffect="non-scaling-stroke" onClick={()=>{if(!trace&&!crop&&!fill)setSelected(r.id);}}><title>{r.name||'Unnamed area'}</title></polygon>)}

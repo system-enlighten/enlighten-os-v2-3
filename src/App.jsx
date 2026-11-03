@@ -3508,7 +3508,7 @@ function runReceivedUploadJob(persist,job,file){
         }
       if(generation!==AUTH_SESSION_GENERATION)return;
       const records=Array.isArray(saved.parts)?saved.parts:[saved];
-      const newIntakes=records.map(row=>{let tagged=metadata.floors;try{tagged=JSON.parse(row.floorTags||'[]');}catch{}return {id:row.drawingId,projectId:metadata.projectId,floor:row.floor||tagged.join(', '),floors:tagged,zone:'',areas:[],drawingType:canonicalDrawingType(row.drawingType||metadata.drawingType),fileName:metadata.fileName,driveUrl:row.driveUrl||'',driveFileId:row.driveFileId||'',mimeType:metadata.mimeType,note:metadata.notes,date:row.receivedSentDate||metadata.receivedSentDate,uploadedAt:row.createdAt||new Date().toISOString(),classified:row.classified===true||String(row.classified)==='true',source:'Received Upload'};});
+      const newIntakes=records.map(row=>{let tagged=metadata.floors;try{tagged=JSON.parse(row.floorTags||'[]');}catch{}return {id:row.drawingId,projectId:metadata.projectId,floor:row.floor||tagged.join(', '),floors:tagged,zone:row.area||metadata.area||'',areas:row.area||metadata.area?[row.area||metadata.area]:[],drawingType:canonicalDrawingType(row.drawingType||metadata.drawingType),fileName:metadata.fileName,driveUrl:row.driveUrl||'',driveFileId:row.driveFileId||'',mimeType:metadata.mimeType,note:metadata.notes,date:row.receivedSentDate||metadata.receivedSentDate,uploadedAt:row.createdAt||new Date().toISOString(),classified:row.classified===true||String(row.classified)==='true',source:'Received Upload'};});
       await persist(latest=>({...latest,intakes:[...newIntakes,...(latest.intakes||[]).filter(i=>!newIntakes.some(n=>n.id===i.id))],pendingReceivedUploads:(latest.pendingReceivedUploads||[]).filter(j=>j.id!==job.id)}));
       RECEIVED_UPLOAD_JOBS.delete(job.id);
     }catch(e){
@@ -5511,7 +5511,7 @@ function ProjectMomTasks({state,projectId,enabled=true,revision=0}){
   </section>;
 }
 
-function DrawingControlDashboard({state,projectId,deferLoad=false,heading,onEdit,onOpenWorkflow}){
+function DrawingControlDashboard({state,projectId,deferLoad=false,heading,onEdit,onOpenWorkflow,onReceive,receivedRevision}){
   const project=(state.projects||[]).find(p=>String(p.id)===String(projectId));
   const [payload,setPayload]=useState(null),[wih,setWih]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[revision,setRevision]=useState(0);
   const sectionRef=useRef(null),[ready,setReady]=useState(!deferLoad),[showHours,setShowHours]=useState(false);
@@ -5536,7 +5536,7 @@ function DrawingControlDashboard({state,projectId,deferLoad=false,heading,onEdit
     if(!ready)return()=>{live=false;};
     queueDesignDashboardLoad(()=>live?Promise.all([projectApi.getDesignDashboard(project.id),projectApi.getWIH(true,project.id)]):[null,[]]).then(([dashboard,work])=>{if(live){setPayload(dashboard);setWih(Array.isArray(work)?work:[]);}}).catch(e=>{if(live)setError(e.message||'Could not load dashboard data.');}).finally(()=>{if(live)setLoading(false);});
     return()=>{live=false;};
-  },[project?.id,revision,ready]);
+  },[project?.id,revision,ready,receivedRevision]);
   if(!project)return <p>No active project available.</p>;
   const eq=(a,b)=>String(a||'').trim().toLowerCase()===String(b||'').trim().toLowerCase();
   const allZones=(Array.isArray(payload?.floorZones)?payload.floorZones:project.floorZones||Object.entries(project.zones||{}).map(([zoneCode,z])=>({zoneCode,floor:z.floor,area:z.room}))).filter(z=>z.floor&&(z.area||z.room));
@@ -5577,7 +5577,7 @@ function DrawingControlDashboard({state,projectId,deferLoad=false,heading,onEdit
             <tbody>{zones.map((z,i)=>{const area=z.area||z.room,cn=z.zoneCode||z.cn||'',dbRow=(payload?.rows||[]).find(r=>eq(r.floor,z.floor)&&eq(r.area,area));const bg=i%2?'#F3F1EA':'#fff';const boundary=i===0||zones[i-1].floor!==z.floor;const identity={...cell,background:bg,borderTop:boundary?`2px solid ${T.line}`:`1px solid ${T.line}`};
               const room=project.designExecutionBoard?.rooms?.find(r=>eq(r.flr||r.floor,z.floor)&&eq(r.area,area));
               return <tr key={JSON.stringify([z.floor,area])} style={{background:bg,borderTop:boundary?`2px solid ${T.line}`:undefined}}><td style={identity}>{z.floor}</td><td style={identity}>{cn}</td><td style={identity}>{area}</td>
-              {receivedCols.map(([label,key])=><td key={key} style={{...cell,textAlign:'center'}}>{payload?<input type="checkbox" aria-label={`${z.floor} ${area} ${label} received`} checked={sheetDashboardFlag(dbRow?.[key])} disabled style={{accentColor:T.blue,opacity:1,width:12,height:12,margin:0,maxWidth:'100%'}}/>:'—'}</td>)}
+              {receivedCols.map(([label,key])=><td key={key} style={{...cell,textAlign:'center'}}>{<input type="checkbox" aria-label={`${onReceive?'Upload':'Received'} ${z.floor} ${area} ${label} drawing`} checked={sheetDashboardFlag(dbRow?.[key])} disabled={!onReceive} onChange={()=>onReceive?.({projectId:project.id,floor:z.floor,area,drawingType:label==='FC'?'False Ceiling':label})} style={{accentColor:T.blue,opacity:1,width:12,height:12,margin:0,maxWidth:'100%',cursor:onReceive?'pointer':undefined}}/>}</td>)}
               {workColumns.map(def=>{const result=liveWork(def,z,dbRow);return displayStatus(result.status,result.date,result.title,def.label);})}
 </tr>;
             })}{!zones.length&&!loading&&<tr><td colSpan={3+receivedCols.length+workColumns.length} style={{...cell,padding:18}}>No floor/area rows for this project. Add them in Floor & Zone.</td></tr>}</tbody>
@@ -5623,6 +5623,21 @@ function DesignWorkspaceView({state,persist,workflowTarget}){
 
 function DesignFlowView({state,persist,onOpenWorkflow}){
   const [editId,setEditId]=useState(''),[projectDraft,setProjectDraft]=useState({}),[saving,setSaving]=useState(false),[error,setError]=useState('');
+  const [target,setTarget]=useState(null),[uploadError,setUploadError]=useState(''),[receivedRevision,setReceivedRevision]=useState(0),[queuing,setQueuing]=useState(false);
+  const canReceive=!!persist&&!!state.currentUser&&state.currentUser.appAccess?.toLowerCase()!=='viewer';
+  const receive=async file=>{
+    if(!file||!target||queuing)return;
+    if(!file.size){setUploadError('Choose a non-empty drawing file.');return;}
+    setQueuing(true);setUploadError('');
+    const job={id:'DRW-UPL-'+crypto.randomUUID(),metadata:{...target,floors:[target.floor],fileName:file.name,mimeType:file.type||'application/octet-stream',fileSize:file.size,fileLastModified:file.lastModified,receivedSentDate:todayISO()},ownerEmail:state.currentUser.email||'',status:'queued',phase:'Waiting to upload…',progress:0};
+    try{
+      await persist(latest=>({...latest,pendingReceivedUploads:[...(latest.pendingReceivedUploads||[]),job]}));
+      setTarget(null);
+      await runReceivedUploadJob(persist,job,file);
+      setReceivedRevision(n=>n+1);
+    }catch(e){setUploadError(e.message);}
+    finally{setQueuing(false);}
+  };
   const seen=new Set();
   const projects=orderedProjects(state.projects).filter(p=>{
     if(p.completed||p.status==='Completed'||p.projectControl?.projectStatus==='Completed')return false;
@@ -5641,8 +5656,10 @@ function DesignFlowView({state,persist,onOpenWorkflow}){
   return <div>
     <header style={{marginBottom:14}}><h2 style={{fontFamily:FONT_DISPLAY,fontSize:26,margin:'0 0 12px'}}>System Design</h2><section aria-label="System Design values" style={{borderLeft:`3px solid ${T.blue}`,padding:'2px 0 2px 14px',maxWidth:1100}}><div style={{fontFamily:FONT_MONO,fontSize:10,fontWeight:700,letterSpacing:'.06em',color:T.blue,marginBottom:7}}>VALUES</div><p style={{fontFamily:FONT_BODY,fontSize:13,lineHeight:1.65,color:T.ink,margin:'0 0 12px',fontStyle:'italic'}}>Construction is not a one-day thing.<br/>It’s a process. It’s a year-long relationship. Sometimes even more.<br/>First of all, you should know what you’re doing; only then will you be able to drive on the right road.</p><p style={{fontFamily:FONT_BODY,fontSize:13,lineHeight:1.65,color:T.ink,margin:'0 0 6px',fontStyle:'italic'}}>Lighting is what is going to define the mood of the space.</p><div style={{fontFamily:FONT_BODY,fontSize:13,fontWeight:600,color:T.blue}}>Energetic&nbsp; | &nbsp;Relax&nbsp; | &nbsp;Focus</div></section></header>
 
+    {canReceive&&<PendingReceivedUploads state={state} persist={persist}/>}
+    {target&&<div role="dialog" aria-modal="true" aria-label="Upload received drawing" onKeyDown={e=>{if(e.key==='Escape'&&!queuing)setTarget(null);}} style={{position:'fixed',inset:0,zIndex:15000,background:'rgba(8,25,45,.45)',display:'flex',justifyContent:'center',alignItems:'flex-start',padding:24}}><div style={{background:T.paper,border:`1px solid ${T.line}`,padding:20,width:480,maxWidth:'100%',fontFamily:FONT_BODY}}><h3 style={{margin:'0 0 8px'}}>Upload received drawing</h3><p>{projects.find(p=>p.id===target.projectId)?.name} · {target.floor} · {target.area} · {target.drawingType}</p><input autoFocus type="file" aria-label="Select drawing to upload" disabled={queuing} onChange={e=>{const file=e.target.files?.[0];e.target.value='';receive(file);}}/><button type="button" style={smallBtn} disabled={queuing} onClick={()=>setTarget(null)}>Cancel</button>{uploadError&&<AppErrorNotice message={uploadError}/>}</div></div>}
     {projects.map((p,index)=><section key={p.id} aria-label={`Design dashboard ${p.name}`} style={{paddingBottom:18,marginBottom:18,borderBottom:`2px solid ${T.line}`}}>
-      <DrawingControlDashboard state={state} projectId={p.id} deferLoad={index>0} heading={p.name} onOpenWorkflow={onOpenWorkflow} onEdit={canEditProject(p.id)?()=>openEdit(p):undefined}/>
+      <DrawingControlDashboard state={state} receivedRevision={receivedRevision} onReceive={canReceive&&!queuing?value=>{setUploadError('');setTarget(value);}:undefined} projectId={p.id} deferLoad={index>0} heading={p.name} onOpenWorkflow={onOpenWorkflow} onEdit={canEditProject(p.id)?()=>openEdit(p):undefined}/>
     </section>)}
     {projects.length>0&&<footer aria-label="Design dashboard status legend">
         <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:12,fontFamily:FONT_MONO,fontSize:10}}>{['Pending','Open','Aligned','In-progress','Up for review','Completed'].map(status=><span key={status} style={{padding:'5px 8px',background:sheetDashboardTone(status).bg,color:sheetDashboardTone(status).fg}}>{status}</span>)}</div>

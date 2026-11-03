@@ -37,3 +37,25 @@ export function fillZoneBoundary(data,w,h,x,y){
  if(best.length<3||area>total*.5)return null;
  return best.filter((p,i)=>{const a=best[(i+best.length-1)%best.length],b=best[(i+1)%best.length];return (p.x-a.x)*(b.y-p.y)!==(p.y-a.y)*(b.x-p.x);}).map(p=>({x:p.x*1000/w,y:p.y*1000/h}));
 }
+
+// Model coordinates are hints only. Draw geometry from the same raster as the preview.
+export function snapZoneSuggestions(data,w,h,regions){
+ const bounds=points=>[Math.min(...points.map(p=>p.x)),Math.min(...points.map(p=>p.y)),Math.max(...points.map(p=>p.x)),Math.max(...points.map(p=>p.y))];
+ const area=b=>(b[2]-b[0])*(b[3]-b[1]);
+ const overlap=(a,b)=>Math.max(0,Math.min(a[2],b[2])-Math.max(a[0],b[0]))*Math.max(0,Math.min(a[3],b[3])-Math.max(a[1],b[1]));
+ const found=[];
+ for(const region of regions.slice(0,40)){
+  const box=bounds(region.points),size=area(box);
+  if(size<100||size>250000)continue;
+  for(const [u,v] of [[.5,.5],[.39,.43],[.61,.57]]){
+   const x=Math.floor((box[0]+u*(box[2]-box[0]))*w/1000),y=Math.floor((box[1]+v*(box[3]-box[1]))*h/1000);
+   const points=fillZoneBoundary(data,w,h,x,y);
+   if(!points?.length)continue;
+   const actual=bounds(points),shared=overlap(actual,box),actualSize=area(actual);
+   if(shared/(size+actualSize-shared)<.68)continue;
+   if(found.some(r=>overlap(actual,r.box)>.25*Math.min(actualSize,area(r.box))))continue;
+   found.push({region:{...region,points},box:actual});break;
+  }
+ }
+ return found.map(r=>r.region);
+}
