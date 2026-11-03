@@ -1,3 +1,5 @@
+import ZoneColourReview from './ZoneColourReview.jsx';
+import {appendPlanDraft} from './zone-plan-draft.js';
 import FeedbackView from './FeedbackView.jsx';
 import ProjectDiaryTimeline from './ProjectDiaryTimeline.jsx';
 import WihMetrics from './WihMetrics.jsx';
@@ -2326,8 +2328,8 @@ function allZoneLetters(projects) {
 // as the sheet groups them — under Owner, Design, and Construction.
 const ROLE_CATEGORIES = [
   { category: "Owner", roles: ["Owner", "Site Incharge", "Accounts Incharge"] },
-  { category: "Design", roles: ["Architect", "Interior Designer", "Principal Lighting Designer", "Lighting Designer", "Lighting Engineer", "Process Coordinator"] },
-  { category: "Construction", roles: ["Site Supervisor", "PMC", "Electrical Contractor", "POP Contractor", "Stone Contractor", "Furniture Contractor", "Lighting Supplier", "Automation"] },
+  { category: "Design", roles: ["Architect", "Principal Lighting Designer", "Lighting Designer", "Lighting Engineer", "Process Coordinator"] },
+  { category: "Construction", roles: ["Site Supervisor", "Electrical Contractor", "POP Contractor", "Stone Contractor", "Furniture Contractor", "Lighting Supplier", "Automation"] },
 ];
 // Preserve the saved Owner role key so existing Sheet rows continue to match.
 const contactRoleLabel = role => role === "Owner" ? "Client" : role;
@@ -3251,17 +3253,26 @@ async function uploadProjectDrawingJob(file,projectId,destination,entry,onProgre
   const result=await transferDrawingToDrive(entry,file,onProgress);
   entry.completion=result;onProgress?.(100);entry.saved=await uploadApiRequest(finish,{completionTicket:result.completionTicket},120000);return entry.saved;
 }
-function ZonePlanReview({projectId,floor}){
- const [file,setFile]=useState(null),[url,setUrl]=useState(''),[reviewed,setReviewed]=useState(false),[busy,setBusy]=useState(false),[progress,setProgress]=useState(0),[message,setMessage]=useState(''),[saved,setSaved]=useState(false);
- const job=useRef({});
- useEffect(()=>{if(!file)return;const preview=URL.createObjectURL(file);setUrl(preview);return()=>URL.revokeObjectURL(preview);},[file]);
- const upload=async()=>{if(!file||!reviewed||busy||saved)return;setBusy(true);setMessage('');try{await uploadProjectDrawingJob(file,projectId,'Base',job.current,setProgress);setSaved(true);setMessage('Plan saved in this project’s Drive → Base. Save the zone entries separately.');}catch(e){if(/expired|invalid.*session/i.test(e.message))job.current.failedExpired=true;setMessage(e.message);}finally{setBusy(false);}};
- return <details style={{margin:'8px 16px',padding:10,border:`1px solid ${T.line}`,fontSize:12}}>
- <summary style={{cursor:'pointer',fontWeight:600}}>Review a zone plan PDF · {floor||'select a floor'}</summary>
- <p>Choose a zones-only PDF. Check its floor, boundaries and codes against your entries below or above. The PDF is stored in Drive → Base; it does not create zones automatically.</p>
- <input aria-label="Zone plan PDF" type="file" accept="application/pdf,.pdf" disabled={busy||!floor} onChange={e=>{const f=e.target.files?.[0];if(!f)return;setReviewed(false);setSaved(false);setMessage('');setUrl('');setFile(null);if(!/\.pdf$/i.test(f.name)||!f.size||f.size>100*1024*1024){setMessage('Choose a non-empty PDF up to 100 MB.');e.target.value='';return;}setFile(f);}}/>
- {file&&url&&<><iframe title="Zone plan PDF preview" src={url} style={{display:'block',width:'100%',height:300,border:`1px solid ${T.line}`,marginTop:8}}/><a href={url} target="_blank" rel="noreferrer">Open PDF in a new tab</a><label style={{display:'block',margin:'8px 0'}}><input type="checkbox" checked={reviewed} disabled={busy||saved} onChange={e=>setReviewed(e.target.checked)}/> I checked the plan against the selected floor and zone codes.</label><button type="button" style={smallBtn} disabled={!reviewed||busy||saved} onClick={upload}>{busy?`Uploading ${progress}%`:saved?'Uploaded':'Upload reviewed PDF to Base'}</button></>}
- {message&&<p role="status">{message}</p>}
+function ZonePlanDraftReview({projectId,floor,disabled,onLabels}){
+ const [file,setFile]=useState(null),[url,setUrl]=useState(''),[message,setMessage]=useState(''),[uploading,setUploading]=useState(false),[reviewed,setReviewed]=useState(false),[saved,setSaved]=useState(false);
+ const job=useRef({}),tagged=useRef(null);
+ useEffect(()=>{if(!file)return;const link=URL.createObjectURL(file);setUrl(link);return()=>URL.revokeObjectURL(link);},[file]);
+ const acceptFile=f=>{setFile(f);setUrl('');setReviewed(false);setSaved(false);setMessage('');};
+ const upload=async()=>{
+  if(!file||!reviewed||uploading||saved)return;
+  setUploading(true);
+  try{
+   if(tagged.current?.source!==file)tagged.current={source:file,file:new File([file],'[Zone plan '+encodeURIComponent(String(floor).trim().toLowerCase())+'] '+file.name,{type:'application/pdf',lastModified:file.lastModified})};
+   await uploadProjectDrawingJob(tagged.current.file,projectId,'Base',job.current);
+   setSaved(true);setMessage('Plan saved to Drive → Base. Submit the draft rows separately.');
+  }catch(e){if(/expired|invalid.*session/i.test(e.message))job.current.failedExpired=true;setMessage(e.message);}
+  finally{setUploading(false);}
+ };
+ return <details open style={{margin:'10px 0',padding:12,border:`1px solid ${T.line}`,fontSize:12}}>
+  <summary style={{cursor:'pointer',fontWeight:600}}>Read zone plan PDF · {floor||'Select a floor'}</summary>
+  <ZoneColourReview projectId={projectId} request={apiRequest} onLabels={onLabels} onFile={acceptFile} disabled={disabled||uploading}/>
+  {message&&<p role="status">{message}</p>}
+  {file&&url&&<><a href={url} target="_blank" rel="noreferrer">Open PDF in a new tab</a><label style={{display:'block',margin:'8px 0'}}><input type="checkbox" checked={reviewed} disabled={disabled||uploading||saved} onChange={e=>setReviewed(e.target.checked)}/> I reviewed the PDF for this floor.</label><button type="button" style={smallBtn} disabled={disabled||!reviewed||uploading||saved} onClick={upload}>{uploading?'Uploading…':saved?'PDF saved':'Save reviewed PDF to Base'}</button></>}
  </details>;
 }
 
@@ -3440,8 +3451,6 @@ function ReceivedWorkspaceView({state,persist}){
  return <div><div role="tablist" aria-label="Received / Sent sections" style={{display:'flex',alignItems:'center',gap:0,borderBottom:`1px solid ${T.line}`,marginBottom:18,overflowX:'auto',background:'#fff'}}>{[['upload','Upload'],['classify','Classify']].map(([id,label])=><button type="button" role="tab" aria-selected={tab===id} aria-controls={`received-panel-${id}`} id={`received-tab-${id}`} key={id} disabled={id==='classify'&&viewer} onClick={()=>setTab(id)} style={{padding:'11px 16px',border:'none',borderBottom:`3px solid ${tab===id?T.cyan:'transparent'}`,background:tab===id?T.navy:'transparent',color:tab===id?'#fff':T.inkDim,cursor:id==='classify'&&viewer?'not-allowed':'pointer',fontFamily:FONT_BODY,fontSize:12,fontWeight:tab===id?700:500,whiteSpace:'nowrap',opacity:(id==='classify'&&viewer)?0.5:1}}>{label}{id==='classify'&&pending>0?` (${pending})`:''}</button>)}</div><div role="tabpanel" id={`received-panel-${tab}`} aria-labelledby={`received-tab-${tab}`}>{tab==='upload'?<ReceivedSentView state={state} persist={persist}/>:!viewer?<ClassifyView state={state} persist={persist}/>:null}</div></div>;
 }
 
-const DRAWING_REGISTER_CACHE=new Map();
-
 function ReceivedSentView({state,persist}){
   const [historicalBusy,setHistoricalBusy]=useState(false);
   const [projectId,setProjectId]=useState('');
@@ -3450,24 +3459,9 @@ function ReceivedSentView({state,persist}){
   const canReceive=!!persist&&state.currentUser?.appAccess?.toLowerCase()!=='viewer'&&!!state.currentUser;
   const openDrawing=files=>{setDragging(false);dragDepth.current=0;setDropError('');if(!canReceive)return;if(files?.length!==1){setDropError('Drop one drawing at a time. You can tag multiple floors in the form.');return;}if(!files[0].size){setDropError('Choose a non-empty drawing file.');return;}setDropFile(files[0]);};
   const closeUpload=()=>{if(historicalBusy)return;setDropFile(null);dropButton.current?.focus();};
-  const generation=AUTH_SESSION_GENERATION, registerKey=JSON.stringify([generation,projectId]);
-  const [snapshot,setSnapshot]=useState(null),[error,setError]=useState(''),[loading,setLoading]=useState(false),[query,setQuery]=useState(''),[revision,setRevision]=useState(0);
+  const [result,setResult]=useState(null),[error,setError]=useState(''),[loading,setLoading]=useState(false),[query,setQuery]=useState(''),[revision,setRevision]=useState(0);
   const project=(state.projects||[]).find(p=>String(p.id)===String(projectId));
-  const result=snapshot?.key===registerKey?snapshot:DRAWING_REGISTER_CACHE.get(registerKey);
-  useEffect(()=>{
-    let live=true;
-    const current=()=>live&&generation===AUTH_SESSION_GENERATION;
-    setError('');setLoading(true);
-    (projectId?projectApi.listDrawingRegister(projectId):projectApi.listRecentDrawingRegister()).then(data=>{
-      if(!current())return;
-      const next={key:registerKey,projectId,data};
-      DRAWING_REGISTER_CACHE.delete(registerKey);DRAWING_REGISTER_CACHE.set(registerKey,next);
-      while(DRAWING_REGISTER_CACHE.size>12)DRAWING_REGISTER_CACHE.delete(DRAWING_REGISTER_CACHE.keys().next().value);
-      setSnapshot(next);
-    }).catch(err=>{if(current())setError(err.message||'Could not refresh drawing register.');})
-      .finally(()=>{if(current())setLoading(false);});
-    return()=>{live=false;};
-  },[registerKey,projectId,revision,state.intakes,state.projects]);
+  useEffect(()=>{let live=true;setResult(null);setError('');setLoading(true);(projectId?projectApi.listDrawingRegister(projectId):projectApi.listRecentDrawingRegister()).then(data=>{if(live)setResult({projectId,data});}).catch(err=>{if(live)setError(err.message||'Could not load drawing register.');}).finally(()=>{if(live)setLoading(false);});return()=>{live=false;};},[projectId,revision,state.intakes,state.projects]);
   const groups=result?.projectId===projectId?(project?[project]:state.projects||[]).flatMap(p=>buildDrawingRegister(p,result.data).map(g=>({...g,project:p,id:JSON.stringify([p.id,g.id])}))).sort((a,b)=>String(b.received?.date||b.sent[0]?.date||'').localeCompare(String(a.received?.date||a.sent[0]?.date||''))):[];
   const filtered=groups.filter(g=>[g.received,...g.sent].filter(Boolean).some(r=>[g.project.name,g.project.no,r.fileName,r.drawingType,r.revisionNo,...r.coverage.flatMap(c=>[c.floor,c.area])].join(' ').toLowerCase().includes(query.toLowerCase())));
   const cell={padding:'12px 10px',border:`1px solid ${T.line}`,verticalAlign:'top',textAlign:'left',fontFamily:FONT_BODY,fontSize:12,lineHeight:1.5,overflowWrap:'anywhere'};
@@ -3479,8 +3473,8 @@ function ReceivedSentView({state,persist}){
     {dropFile&&<div role="dialog" aria-modal="true" aria-label="Log received drawing" onKeyDown={e=>{if(e.key==='Escape')closeUpload();if(e.key==='Tab'){const items=[...e.currentTarget.querySelectorAll('button:not(:disabled),select:not(:disabled),input:not(:disabled),textarea:not(:disabled)')].filter(n=>n.type!=='hidden');const first=items[0],last=items.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}}} style={{position:'fixed',inset:0,zIndex:15000,background:'rgba(8,25,45,.45)',display:'flex',justifyContent:'flex-end'}}><div style={{background:T.paper,width:520,maxWidth:'100%',height:'100%',display:'flex',flexDirection:'column',boxShadow:'-8px 0 30px #08192d20',fontFamily:FONT_BODY}}><div style={{padding:'18px 20px',borderBottom:`1px solid ${T.line}`,display:'flex',justifyContent:'space-between',alignItems:'center',gap:12}}><h3 style={{fontFamily:FONT_DISPLAY,fontSize:18,margin:0}}>Received — Upload</h3><button autoFocus type="button" disabled={historicalBusy} style={smallBtn} onClick={closeUpload}>Close</button></div><div style={{padding:20,overflowY:'auto',flex:1}}><p style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>{inferDrawingProject(dropFile.name,state.projects)?'Project matched from the filename. Please confirm it below.':'No unique project match found in the filename. Please confirm the project below.'}</p><UnifiedDrawingUpload key={dropFile.name+dropFile.lastModified} state={state} persist={persist} file={dropFile} initialProjectId={inferDrawingProject(dropFile.name,state.projects)||projectId} onBusy={setHistoricalBusy} onImported={()=>{setRevision(n=>n+1);setUploadHint("Historical drawing imported. It is available in the register and Drive archive.");}} onQueued={id=>{setProjectId(current=>current?id:'');setUploadHint('Drawing queued for upload. This register refreshes automatically when Google Drive and Sheets confirm the save.');closeUpload();}}/></div></div></div>}
     <div style={{display:'flex',gap:12,alignItems:'flex-end',flexWrap:'wrap',marginBottom:16}}><div style={{display:'grid',gap:6,fontSize:12,flex:'1 1 320px'}}><span>Project</span><DrawingProjectSelect value={projectId} projects={state.projects||[]} onChange={id=>{setProjectId(id);setQuery('');}}/></div><input aria-label="Search drawing register" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search drawing, floor, area, type or revision" style={{...inputStyle,flex:'1 1 260px'}}/><button type="button" style={smallBtn} disabled={loading} onClick={()=>setRevision(n=>n+1)}>Refresh</button></div>
     {!!result?.data?.files?.some(f=>sheetDashboardFlag(f.historicalImport)&&(!projectId||String(f.projectId)===String(projectId)))&&<details style={{margin:'16px 0',border:`1px solid ${T.line}`,padding:12}}><summary style={{cursor:'pointer',fontFamily:FONT_BODY,fontSize:13}}>Past work archive — all folders and revisions</summary><div style={{overflowX:'auto',marginTop:10}}><table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}><thead><tr>{['Project','Drawing','Folder','Original date','Revision','Type','Floor / Area','File'].map(h=><th key={h} style={{padding:8,textAlign:'left',background:'#D2CDC1',color:T.ink}}>{h}</th>)}</tr></thead><tbody>{result.data.files.filter(f=>sheetDashboardFlag(f.historicalImport)&&!sheetDashboardFlag(f.trashed)&&(!projectId||String(f.projectId)===String(projectId))).sort((a,b)=>String(b.originalDate||'').localeCompare(String(a.originalDate||''))).map(f=><tr key={f.fileId}>{[(state.projects||[]).find(p=>String(p.id)===String(f.projectId))?.no||'',f.fileName,f.direction,formatProjectDate(f.originalDate),f.revisionNo||'—',f.drawingCode||'—',[f.floor,f.area].filter(Boolean).join(' / ')||'—'].map((v,i)=><td key={i} style={{padding:8,borderBottom:`1px solid ${T.line}`}}>{v}</td>)}<td style={{padding:8}}>{link(f)}</td></tr>)}</tbody></table></div></details>}
-    {loading&&<p role="status" style={{fontFamily:FONT_BODY,fontSize:13,fontWeight:400,lineHeight:1.5,color:T.inkDim,margin:"12px 0"}}>{result?'Refreshing drawing register…':'Loading drawing register…'}</p>}{error&&<AppErrorNotice message={error} onRetry={()=>setRevision(n=>n+1)}/>}
-    {result&&<><p style={{fontSize:12,color:T.inkDim}}>{groups.filter(g=>g.received).length} received file(s) · {groups.reduce((n,g)=>n+g.sent.length,0)} sent file(s)</p><div style={{overflowX:'auto'}}><table style={{width:'100%',minWidth:1380,borderCollapse:'collapse',tableLayout:'fixed'}}><colgroup>{[85,125,205,85,190,60,80,205,160,60,85,80].map((w,i)=><col key={i} style={{width:w}}/>)}</colgroup><thead><tr><th colSpan={7} style={{...head,background:'#D2CDC1',textAlign:'center',fontSize:12,borderRight:`3px solid ${T.ink}`}}>RECEIVED</th><th colSpan={5} style={{...head,background:T.navy,color:'#fff',textAlign:'center',fontSize:12,borderLeft:`3px solid ${T.ink}`}}>SENT</th></tr><tr>{['Date','Project','Floor / Zones','Type','Drawing Name','Rev No.','Link','Floor / Type','Drawing Name','Rev No.','Issue Date','Link'].map((h,i)=><th key={i} style={{...head,...(i===7?{borderLeft:`3px solid ${T.ink}`}:{})}}>{h}</th>)}</tr></thead><tbody>{filtered.flatMap(g=>Array.from({length:Math.max(1,g.sent.length)},(_,i)=>{const project=g.project,r=g.received,sent=g.sent[i],span=Math.max(1,g.sent.length);return <tr key={`${g.id}-${i}`} style={{background:i%2?'#fff':'transparent'}}>{i===0&&(r?<><td rowSpan={span} style={cell}>{formatProjectDate(r.date)}</td><td rowSpan={span} style={cell}>{project.no||project.name}</td><td rowSpan={span} style={cell}><DrawingCoverage row={r} project={project}/></td><td rowSpan={span} style={cell}>{r.drawingType||'—'}</td><td rowSpan={span} style={cell}>{r.fileName}{r.drawingIds?.length>0&&<ReceivedFileManager row={r} data={result.data} state={state} persist={persist} onChanged={()=>setRevision(n=>n+1)}/>}</td><td rowSpan={span} style={cell}>{r.revisionNo!==''?r.revisionNo:'—'}</td><td rowSpan={span} style={{...cell,borderRight:`3px solid ${T.ink}`}}>{link(r)}</td></>:<td colSpan={7} rowSpan={span} style={{...cell,color:T.inkDim}}>{project.no||project.name} · Sent drawing · no received source linked</td>)}{sent?<><td style={{...cell,borderLeft:`3px solid ${T.ink}`}}><DrawingCoverage row={sent} project={project}/><div style={{fontSize:11,color:T.inkDim,marginTop:6}}>{sent.drawingType}</div></td><td style={cell}>{sent.fileName}</td><td style={cell}>{sent.revisionNo!==''?sent.revisionNo:'—'}</td><td style={cell}>{formatProjectDate(sent.date)}</td><td style={cell}>{link(sent)}</td></>:<td colSpan={5} style={{...cell,color:T.inkDim,borderLeft:`3px solid ${T.ink}`}}>No sent drawing linked yet</td>}</tr>;}))}{!filtered.length&&<tr><td colSpan={12} style={cell}>No drawings found{project?' for this project':''}{query?' matching your search':''}.</td></tr>}</tbody></table></div></>}
+    {loading&&<p role="status" style={{fontFamily:FONT_BODY,fontSize:13,fontWeight:400,lineHeight:1.5,color:T.inkDim,margin:"12px 0"}}>Loading drawing register…</p>}{error&&<AppErrorNotice message={error} onRetry={()=>setRevision(n=>n+1)}/>}
+    {!loading&&!error&&result&&<><p style={{fontSize:12,color:T.inkDim}}>{groups.filter(g=>g.received).length} received file(s) · {groups.reduce((n,g)=>n+g.sent.length,0)} sent file(s)</p><div style={{overflowX:'auto'}}><table style={{width:'100%',minWidth:1380,borderCollapse:'collapse',tableLayout:'fixed'}}><colgroup>{[85,125,205,85,190,60,80,205,160,60,85,80].map((w,i)=><col key={i} style={{width:w}}/>)}</colgroup><thead><tr><th colSpan={7} style={{...head,background:'#D2CDC1',textAlign:'center',fontSize:12,borderRight:`3px solid ${T.ink}`}}>RECEIVED</th><th colSpan={5} style={{...head,background:T.navy,color:'#fff',textAlign:'center',fontSize:12,borderLeft:`3px solid ${T.ink}`}}>SENT</th></tr><tr>{['Date','Project','Floor / Zones','Type','Drawing Name','Rev No.','Link','Floor / Type','Drawing Name','Rev No.','Issue Date','Link'].map((h,i)=><th key={i} style={{...head,...(i===7?{borderLeft:`3px solid ${T.ink}`}:{})}}>{h}</th>)}</tr></thead><tbody>{filtered.flatMap(g=>Array.from({length:Math.max(1,g.sent.length)},(_,i)=>{const project=g.project,r=g.received,sent=g.sent[i],span=Math.max(1,g.sent.length);return <tr key={`${g.id}-${i}`} style={{background:i%2?'#fff':'transparent'}}>{i===0&&(r?<><td rowSpan={span} style={cell}>{formatProjectDate(r.date)}</td><td rowSpan={span} style={cell}>{project.no||project.name}</td><td rowSpan={span} style={cell}><DrawingCoverage row={r} project={project}/></td><td rowSpan={span} style={cell}>{r.drawingType||'—'}</td><td rowSpan={span} style={cell}>{r.fileName}{r.drawingIds?.length>0&&<ReceivedFileManager row={r} data={result.data} state={state} persist={persist} onChanged={()=>setRevision(n=>n+1)}/>}</td><td rowSpan={span} style={cell}>{r.revisionNo!==''?r.revisionNo:'—'}</td><td rowSpan={span} style={{...cell,borderRight:`3px solid ${T.ink}`}}>{link(r)}</td></>:<td colSpan={7} rowSpan={span} style={{...cell,color:T.inkDim}}>{project.no||project.name} · Sent drawing · no received source linked</td>)}{sent?<><td style={{...cell,borderLeft:`3px solid ${T.ink}`}}><DrawingCoverage row={sent} project={project}/><div style={{fontSize:11,color:T.inkDim,marginTop:6}}>{sent.drawingType}</div></td><td style={cell}>{sent.fileName}</td><td style={cell}>{sent.revisionNo!==''?sent.revisionNo:'—'}</td><td style={cell}>{formatProjectDate(sent.date)}</td><td style={cell}>{link(sent)}</td></>:<td colSpan={5} style={{...cell,color:T.inkDim,borderLeft:`3px solid ${T.ink}`}}>No sent drawing linked yet</td>}</tr>;}))}{!filtered.length&&<tr><td colSpan={12} style={cell}>No drawings found{project?' for this project':''}{query?' matching your search':''}.</td></tr>}</tbody></table></div></>}
   </section>;
 }
 
@@ -4321,7 +4315,7 @@ function DashboardView({ state, persist }) {
     <div style={{fontFamily:FONT_MONO,fontSize:10,fontWeight:700,color:T.inkDim,marginBottom:8}}>FLOOR / ZONE MATRIX · SELECT A PROJECT COLUMN TO EDIT ITS AREAS BELOW</div>
     <div style={{border:`1px solid ${T.line}`,background:"transparent",marginBottom:18,overflow:"auto",maxHeight:"68vh"}}>
       {(()=>{
-        const floorOrder=["GF","1F","2F","3F","4F","Terrace","Facade","Landscape"];
+        const floorOrder=["-1F","SF","GF","1F","2F","3F","4F","Terrace","Facade","Landscape"];
         const allFloors=[...new Set([...floorOrder,...projects.flatMap(p=>designDashboardScopeFloors(p))])];
         const zoneCodes=[...new Set(projects.flatMap(p=>(p.floorZones||Object.entries(p.zones||{}).map(([zoneCode,v])=>({zoneCode,...v}))).map(r=>String(r.zoneCode||"").trim().toUpperCase()).filter(Boolean)))].sort(compareZoneCodes);
         const cell={padding:"7px 8px",borderRight:`1px solid ${T.line}`,borderBottom:`1px solid ${T.line}`,fontFamily:FONT_MONO,fontSize:11,whiteSpace:"nowrap",textAlign:"left"};
@@ -4350,14 +4344,13 @@ function DashboardView({ state, persist }) {
     </div>}
 
     {editor&&project&&<div style={{position:"fixed",inset:0,zIndex:13000,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-      <div style={{width:"min(650px,96vw)",maxHeight:"90vh",overflowY:"auto",background:T.paper,border:`1px solid ${T.line}`}}>
+      <div style={{width:"min(650px,96vw)",background:T.paper,border:`1px solid ${T.line}`}}>
         <div style={{background:T.navy,color:"#fff",padding:14,fontFamily:FONT_DISPLAY,fontSize:18}}>{editor.mode==="edit"?"Edit":"Add"} Floor / Zone · {project.no}</div>
         <div style={{padding:16,display:"grid",gridTemplateColumns:"160px 1fr",gap:12}}>
           <Field label="Zone Code"><input value={editor.zoneCode} onChange={e=>setEditor(x=>({...x,zoneCode:e.target.value.toUpperCase()}))} placeholder="Zone Code (A, Z, AA, AB, BA…)" style={inputStyle}/></Field>
           <Field label="Floor from Project Scope"><select value={editor.floor} onChange={e=>setEditor(x=>({...x,floor:e.target.value}))} style={inputStyle}>{scopeFloors.map(f=><option key={f}>{f}</option>)}</select></Field>
           <div style={{gridColumn:"1 / -1"}}><Field label="Area / Room"><input value={editor.area} onChange={e=>setEditor(x=>({...x,area:e.target.value}))} placeholder="Living Room, Bedroom, Washroom..." style={inputStyle}/></Field></div>
         </div>
-        <ZonePlanReview key={project.id+":"+editor.floor} projectId={project.id} floor={editor.floor}/>
         <div style={{padding:14,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}><button type="button" onClick={()=>setEditor(null)} style={{...smallBtn,background:"#fff"}}>Cancel</button><button type="button" onClick={save} disabled={areaSaving} style={{...smallBtn,background:T.navy,color:"#fff"}}>{areaSaving?"Saving area…":"Save Floor / Zone"}</button></div>
       </div>
     </div>}
@@ -4366,29 +4359,37 @@ function DashboardView({ state, persist }) {
       <div style={{width:"min(760px,96vw)",background:T.paper,border:`1px solid ${T.line}`,maxHeight:"90vh",overflowY:"auto"}}>
         <div style={{background:T.navy,color:"#fff",padding:14,fontFamily:FONT_DISPLAY,fontSize:18}}>Bulk Add Areas / Zones · {project.no}</div>
         <div style={{padding:16}}>
-          <div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,marginBottom:12}}>Add many rooms/spaces in one save. Enter <b>Zone Code | Area / Room</b>, one per line. The selected floor above is applied to every line. Zone Code must be entered by the doer.</div>
+          <div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,marginBottom:12}}>Choose a floor and upload a plan to draft zone rows, or enter them manually. Review all codes and names before submitting.</div>
           <Field label="Default Floor">
             <select value={bulkEditor.floor} onChange={e=>setBulkEditor(x=>({...x,floor:e.target.value}))} style={inputStyle}>{scopeFloors.map(f=><option key={f}>{f}</option>)}</select>
           </Field>
-          <ZonePlanReview key={project.id+":"+bulkEditor.floor} projectId={project.id} floor={bulkEditor.floor}/>
+          <ZonePlanDraftReview key={project.id+":"+bulkEditor.floor} projectId={project.id} floor={bulkEditor.floor} disabled={bulkSaving} onLabels={labels=>setBulkEditor(current=>current&&current.floor===bulkEditor.floor?{...current,text:appendPlanDraft(current.text,labels,rows,bulkEditor.floor).text}:current)}/>
           <div style={{marginTop:12}}>
             <Field label="Areas / Rooms — one per line">
               <textarea autoFocus value={bulkEditor.text} onChange={e=>setBulkEditor(x=>({...x,text:e.target.value}))} placeholder={'A | Living Room\nB | Dining Room\nC | Kitchen\nD | Guest Bedroom\nE | Master Bedroom'} style={{...inputStyle,minHeight:180,resize:"vertical",fontFamily:FONT_BODY}}/>
             </Field>
           </div>
           {parseBulkPreview().length>0&&<div style={{marginTop:12,border:`1px solid ${T.line}`,background:"#fff"}}>
-            <div style={{padding:"9px 10px",background:T.paper2,fontFamily:FONT_MONO,fontSize:10,fontWeight:700}}>PREVIEW — exactly what will be saved</div>
+            <div style={{padding:"9px 10px",background:T.paper2,fontFamily:FONT_MONO,fontSize:10,fontWeight:700}}>REVIEW DRAFT — edit before submitting</div>
             <div style={{display:"grid",gridTemplateColumns:"100px 150px 1fr",fontSize:11,fontWeight:700,borderTop:`1px solid ${T.line}`}}><div style={{padding:8}}>Zone Code</div><div style={{padding:8}}>Floor</div><div style={{padding:8}}>Area / Room</div></div>
-            {parseBulkPreview().map((r,i)=><div key={r.lineIndex} style={{display:"grid",gridTemplateColumns:"100px 150px 1fr",fontSize:12,borderTop:`1px solid ${T.line}`,alignItems:"center"}}>
-              <div style={{padding:8,fontFamily:FONT_MONO,fontWeight:700,color:r.valid?T.ink:"#b00020"}}>{r.zoneCode||"MISSING"}</div>
-              <div style={{padding:8}}>{r.floor}</div><div style={{padding:8,fontWeight:600}}>{r.area||"MISSING"}</div>
-            </div>)}
+            {parseBulkPreview().map(r=>{
+              const edit=(code,name)=>setBulkEditor(current=>{const lines=current.text.split(/\r?\n/);lines[r.lineIndex]=code.replace(/[|\r\n]/g,'')+' | '+name.replace(/[\r\n]/g,' ');return {...current,text:lines.join('\n')};});
+              const rawName=String(bulkEditor.text.split(/\r?\n/)[r.lineIndex]||'').split('|').slice(1).join('|').replace(/^ /,'');
+              const duplicate=rows.some(saved=>String(saved.zoneCode||'').trim().toUpperCase()===r.zoneCode)||parseBulkPreview().some(other=>other.lineIndex!==r.lineIndex&&other.zoneCode===r.zoneCode);
+              return <div key={r.lineIndex} style={{display:'grid',gridTemplateColumns:'100px 90px minmax(120px,1fr) auto',gap:6,padding:8,borderTop:`1px solid ${T.line}`,alignItems:'center'}}>
+                <input aria-label={`Zone code for row ${r.lineIndex+1}`} style={inputStyle} placeholder="Code" value={r.zoneCode} disabled={bulkSaving} onChange={e=>edit(e.target.value.toUpperCase(),r.area)}/>
+                <span>{r.floor}</span>
+                <input aria-label={`Area name for row ${r.lineIndex+1}`} style={inputStyle} placeholder="Area / Room" value={rawName} disabled={bulkSaving} onChange={e=>edit(r.zoneCode,e.target.value)}/>
+                <button type="button" style={smallBtn} disabled={bulkSaving} onClick={()=>setBulkEditor(current=>({...current,text:current.text.split(/\r?\n/).filter((_,i)=>i!==r.lineIndex).join('\n')}))}>Remove</button>
+                {(!r.valid||duplicate)&&<small style={{gridColumn:'1 / -1',color:T.redline}}>{duplicate?'Zone code already used. Correct or remove this row.':'Enter a letter zone code and an area name.'}</small>}
+              </div>;
+            })}
           </div>}
-          <div style={{marginTop:10,padding:10,background:T.paper2,border:`1px solid ${T.line}`,fontFamily:FONT_MONO,fontSize:10,lineHeight:1.6}}>Example:<br/><b>A | Living Room</b><br/><b>B | Dining Room</b><br/><b>Only this format is applicable: Zone Code | Area / Room, one per line.</b><br/><b>Zone Code is entered by the doer; the selected floor is applied automatically.</b></div>
+          <div style={{marginTop:10,padding:10,background:T.paper2,border:`1px solid ${T.line}`,fontFamily:FONT_MONO,fontSize:10,lineHeight:1.6}}>Example:<br/><b>A | Living Room</b><br/><b>B | Dining Room</b><br/><b>Only this format is applicable: Zone Code | Area / Room, one per line.</b><br/><b>Review each zone code before submitting; the selected floor applies to every row.</b></div>
         </div>
         <div style={{padding:14,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}>
           <button type="button" disabled={bulkSaving} onClick={()=>setBulkEditor(null)} style={{...smallBtn,background:"#fff"}}>Cancel</button>
-          <button type="button" disabled={bulkSaving} onClick={saveBulk} style={{...smallBtn,background:T.navy,color:"#fff",opacity:bulkSaving?.65:1,cursor:bulkSaving?"wait":"pointer"}}>{bulkSaving?"Saving areas…":"Save All Areas"}</button>
+          <button type="button" disabled={bulkSaving} onClick={saveBulk} style={{...smallBtn,background:T.navy,color:"#fff",opacity:bulkSaving?.65:1,cursor:bulkSaving?"wait":"pointer"}}>{bulkSaving?"Saving areas…":"Submit reviewed areas"}</button>
         </div>
       </div>
     </div>}
@@ -4699,17 +4700,15 @@ function ProjectScopeView({ state, persist, selectedId }) {
 }
 
 function ProjectTeamContactFields({contacts, onChange}) {
- const [group,setGroup]=useState("Owner"),[added,setAdded]=useState([]);
- const defaults=new Set(["Owner","Architect","Principal Lighting Designer","Lighting Engineer"]);
- const selected=ROLE_CATEGORIES.find(c=>c.category===group);
- const visible=selected.roles.filter(role=>defaults.has(role)||added.includes(role)||["name","company","email","mobile"].some(key=>String(contacts[role]?.[key]||"").trim()));
- const add=role=>{setAdded(current=>current.includes(role)?current:[...current,role]);setGroup(ROLE_CATEGORIES.find(c=>c.roles.includes(role)).category);};
- return <section aria-label="Project contacts" style={{marginBottom:16,fontFamily:FONT_BODY}}>
-  <div role="group" aria-label="Add a project contact" style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>{["Owner","Architect","Interior Designer","PMC"].filter(role=>ROLES.includes(role)).map(role=><button key={role} type="button" style={smallBtn} onClick={()=>add(role)}>{contactRoleLabel(role)}</button>)}</div>
-  <div role="group" aria-label="Contact groups" style={{display:"flex",gap:6,marginBottom:10}}>{ROLE_CATEGORIES.map(({category})=><button key={category} type="button" aria-pressed={group===category} style={{...smallBtn,...(group===category?{background:T.navy,color:"#fff"}:{})}} onClick={()=>setGroup(category)}>{contactRoleLabel(category)}</button>)}</div>
-  {selected.roles.some(role=>!visible.includes(role))&&<label style={{display:"block",fontSize:12,marginBottom:10}}>Add a {contactRoleLabel(group).toLowerCase()} contact<select style={{...inputStyle,maxWidth:280,display:"block",marginTop:5}} value="" onChange={e=>{if(e.target.value)add(e.target.value);}}><option value="">Choose a role…</option>{selected.roles.filter(role=>!visible.includes(role)).map(role=><option key={role} value={role}>{contactRoleLabel(role)}</option>)}</select></label>}
-  {visible.map(role=><fieldset key={role} style={{border:0,borderTop:`1px solid ${T.line}`,padding:"8px 0 12px",margin:0,minWidth:0}}><legend style={{fontSize:12,fontWeight:600,color:T.ink}}>{contactRoleLabel(role)}</legend><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(135px,1fr))",gap:8}}>{[["name","Contact name"],["company","Company / Studio"],["email","Email"],["mobile","Mobile"]].map(([field,label])=><input key={field} aria-label={`${contactRoleLabel(role)} ${label}`} style={inputStyle} placeholder={label} value={contacts[role]?.[field]||""} onChange={e=>onChange(role,field,e.target.value)}/>)}</div></fieldset>)}
- </section>;
+  return <div style={{display:"flex",flexDirection:"column",gap:18,marginBottom:16}}>
+    {ROLE_CATEGORIES.map(({category,roles}) => <div key={category}>
+      <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".08em",textTransform:"uppercase",color:categoryColor(category),marginBottom:8}}>{contactRoleLabel(category)}</div>
+      <div style={{borderTop:`2px solid ${T.ink}`}}>{roles.map(role => <div key={role} style={{display:"grid",gridTemplateColumns:"170px repeat(4,minmax(110px,1fr))",gap:8,padding:"10px 0",borderBottom:`1px solid ${T.line}`,alignItems:"center"}}>
+        <div style={{fontFamily:FONT_MONO,fontSize:11.5,color:T.inkDim}}>{contactRoleLabel(role)}</div>
+        {[["name","Contact name"],["company","Company / Studio"],["email","Email"],["mobile","Mobile"]].map(([field,label]) => <input key={field} aria-label={`${contactRoleLabel(role)} ${label}`} style={inputStyle} placeholder={label} value={contacts[role]?.[field] || ""} onChange={e=>onChange(role,field,e.target.value)}/>)}
+      </div>)}</div>
+    </div>)}
+  </div>;
 }
 
 function ProjectTeamView({ state, persist, selectedId }) {
@@ -5512,13 +5511,9 @@ function ProjectMomTasks({state,projectId,enabled=true,revision=0}){
   </section>;
 }
 
-const DESIGN_STATUS_CACHE=new Map();
-
 function DrawingControlDashboard({state,projectId,deferLoad=false,heading,onEdit,onOpenWorkflow}){
   const project=(state.projects||[]).find(p=>String(p.id)===String(projectId));
-  const generation=AUTH_SESSION_GENERATION, cacheKey=JSON.stringify([generation,projectId]);
-  const cached=DESIGN_STATUS_CACHE.get(cacheKey);
-  const [payload,setPayload]=useState(()=>cached?.dashboard||null),[wih,setWih]=useState(()=>cached?.work||[]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[revision,setRevision]=useState(0);
+  const [payload,setPayload]=useState(null),[wih,setWih]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[revision,setRevision]=useState(0);
   const sectionRef=useRef(null),[ready,setReady]=useState(!deferLoad),[showHours,setShowHours]=useState(false);
   useEffect(()=>setShowHours(false),[project?.id]);
   const layoutRef=useRef(null),[fullTableWidth,setFullTableWidth]=useState(0);
@@ -5536,31 +5531,12 @@ function DrawingControlDashboard({state,projectId,deferLoad=false,heading,onEdit
     if(sectionRef.current)observer.observe(sectionRef.current);
     return()=>observer.disconnect();
   },[ready]);
-  useEffect(()=>{
-    let live=true;
-    const cached=DESIGN_STATUS_CACHE.get(cacheKey);
-    setPayload(cached?.dashboard||null);setWih(cached?.work||[]);setError('');setLoading(!!project?.id);
-    if(!project?.id||!ready)return;
-    const current=()=>live&&generation===AUTH_SESSION_GENERATION;
-    const cache=(key,value)=>{
-      if(!current())return;
-      const entry={...DESIGN_STATUS_CACHE.get(cacheKey),[key]:value};
-      DESIGN_STATUS_CACHE.delete(cacheKey);DESIGN_STATUS_CACHE.set(cacheKey,entry);
-      while(DESIGN_STATUS_CACHE.size>48)DESIGN_STATUS_CACHE.delete(DESIGN_STATUS_CACHE.keys().next().value);
-    };
-    queueDesignDashboardLoad(async()=>{
-      if(!current())return [];
-      return Promise.allSettled([
-        projectApi.getDesignDashboard(project.id).then(data=>{if(current()){cache('dashboard',data);setPayload(data);}}),
-        projectApi.getWIH(true,project.id).then(data=>{if(current()){const rows=Array.isArray(data)?data:[];cache('work',rows);setWih(rows);}})
-      ]);
-    }).then(results=>{
-      if(!current())return;
-      const failure=results.find(r=>r.status==='rejected');
-      if(failure)setError(failure.reason?.message||'Could not refresh all dashboard data.');
-    }).catch(e=>{if(current())setError(e.message||'Could not refresh dashboard.');}).finally(()=>{if(current())setLoading(false);});
+  useEffect(()=>{let live=true;setPayload(null);setWih([]);setLoading(true);setError('');
+    if(!project?.id){setLoading(false);return()=>{live=false;};}
+    if(!ready)return()=>{live=false;};
+    queueDesignDashboardLoad(()=>live?Promise.all([projectApi.getDesignDashboard(project.id),projectApi.getWIH(true,project.id)]):[null,[]]).then(([dashboard,work])=>{if(live){setPayload(dashboard);setWih(Array.isArray(work)?work:[]);}}).catch(e=>{if(live)setError(e.message||'Could not load dashboard data.');}).finally(()=>{if(live)setLoading(false);});
     return()=>{live=false;};
-  },[cacheKey,project?.id,revision,ready]);
+  },[project?.id,revision,ready]);
   if(!project)return <p>No active project available.</p>;
   const eq=(a,b)=>String(a||'').trim().toLowerCase()===String(b||'').trim().toLowerCase();
   const allZones=(Array.isArray(payload?.floorZones)?payload.floorZones:project.floorZones||Object.entries(project.zones||{}).map(([zoneCode,z])=>({zoneCode,floor:z.floor,area:z.room}))).filter(z=>z.floor&&(z.area||z.room));
@@ -5589,10 +5565,10 @@ function DrawingControlDashboard({state,projectId,deferLoad=false,heading,onEdit
   return <div ref={sectionRef}>
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap',marginBottom:6}}><div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>{heading?<h2 style={{fontFamily:FONT_DISPLAY,margin:0,fontSize:22,color:T.ink}}>{heading}</h2>:<span/>}{onOpenWorkflow&&<button type="button" aria-label={`Line of Work for ${project.name}`} style={smallBtn} onClick={()=>onOpenWorkflow(project.id)}>Line of Work</button>}</div><div style={{display:'flex',gap:8,alignItems:'center'}}><button type="button" disabled={loading} style={{...smallBtn,padding:'5px 8px',fontSize:10}} onClick={()=>setRevision(x=>x+1)}>Refresh Dashboard</button>{onEdit&&<button type="button" onClick={onEdit} style={{...smallBtn,background:'#fff',padding:'5px 8px',fontSize:10}}>EDIT PROJECT</button>}</div></div>
     {error&&<p role="alert" style={{color:T.redline}}>{error}</p>}
-    {loading&&<p role="status" style={{fontFamily:FONT_BODY,fontSize:11,fontWeight:400,lineHeight:1.4,color:'#77776F',margin:'3px 0 8px'}}>{ready?(payload?'Refreshing project status…':'Loading project drawings and WIH status…'):'Details load as this project comes into view…'}</p>}
+    {loading&&<p role="status" style={{fontFamily:FONT_BODY,fontSize:11,fontWeight:400,lineHeight:1.4,color:'#77776F',margin:'3px 0 8px'}}>{ready?'Loading project drawings and WIH status…':'Details load as this project comes into view…'}</p>}
     <div ref={layoutRef} style={{display:'grid',gridTemplateColumns:showHours?'minmax(0,1fr) 330px':'minmax(0,1fr)',gap:showHours?16:0,alignItems:'start',width:'100%',minWidth:0}}>
       <div style={{minWidth:0,background:'#fff'}}>
-        <table style={{width:'100%',borderCollapse:'collapse',marginBottom:8}}><tbody>{[[`Project ${project.no||project.projectNo||''}:`,project.name],['Start Date:',formatProjectDate(project.startDate)],['Time in hours:',loading&&!cached?.work&&!wih.length?'Loading…':totalHours.toFixed(1)]].map(([label,value])=><tr key={label}><td style={{...cell,fontFamily:FONT_BODY,fontWeight:700,width:220}}>{label}</td><td style={{...cell,fontFamily:FONT_BODY}}>{label==='Time in hours:'?<div style={{display:'flex',gap:12,alignItems:'center',flexWrap:'wrap'}}><span>{value}</span><button type="button" aria-label={`Hours by person for ${project.name}`} aria-expanded={showHours} aria-controls={`project-hours-${project.id}`} style={{...smallBtn}} onClick={()=>setShowHours(open=>!open)}>{showHours?'Hide hours':hoursScope==='own'?'My hours':'Hours by person'}</button></div>:value}</td></tr>)}</tbody></table>
+        <table style={{width:'100%',borderCollapse:'collapse',marginBottom:8}}><tbody>{[[`Project ${project.no||project.projectNo||''}:`,project.name],['Start Date:',formatProjectDate(project.startDate)],['Time in hours:',loading?'Loading…':totalHours.toFixed(1)]].map(([label,value])=><tr key={label}><td style={{...cell,fontFamily:FONT_BODY,fontWeight:700,width:220}}>{label}</td><td style={{...cell,fontFamily:FONT_BODY}}>{label==='Time in hours:'?<div style={{display:'flex',gap:12,alignItems:'center',flexWrap:'wrap'}}><span>{value}</span><button type="button" aria-label={`Hours by person for ${project.name}`} aria-expanded={showHours} aria-controls={`project-hours-${project.id}`} style={{...smallBtn}} onClick={()=>setShowHours(open=>!open)}>{showHours?'Hide hours':hoursScope==='own'?'My hours':'Hours by person'}</button></div>:value}</td></tr>)}</tbody></table>
 
         <div role={showHours?'region':undefined} aria-label={showHours?`Scrollable design table for ${project.name}`:undefined} tabIndex={showHours?0:undefined} style={{width:'100%',minWidth:0,overflowX:showHours?'auto':'visible',border:`1px solid ${T.line}`,boxSizing:'border-box'}}>
           <table aria-label="Project design matrix" style={{borderCollapse:'collapse',tableLayout:'fixed',width:'100%',...(showHours?{minWidth:Math.max(fullTableWidth,568+112*workColumns.length)}:{})}}>
