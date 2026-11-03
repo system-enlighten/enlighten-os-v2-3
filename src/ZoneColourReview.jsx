@@ -1,3 +1,4 @@
+import {fillZoneBoundary} from './zone-boundary-fill.js';
 import React,{useEffect,useRef,useState} from 'react';
 const tone=id=>'hsl('+Math.round(id*137.508%360)+' 46% 43%)';
 export function cleanRegions(regions){
@@ -12,12 +13,12 @@ export function cleanRegions(regions){
 export default function ZoneColourReview({projectId,request,onLabels,onFile,disabled}){
  const [preview,setPreview]=useState(null),[regions,setRegions]=useState([]),[selected,setSelected]=useState(null),[trace,setTrace]=useState(null),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[added,setAdded]=useState(false);
  const seq=useRef(0),ids=useRef(0),sourceCanvas=useRef(null);
- const [crop,setCrop]=useState(null),[retrace,setRetrace]=useState(null);
+ const [fill,setFill]=useState(false),[crop,setCrop]=useState(null),[retrace,setRetrace]=useState(null);
  useEffect(()=>()=>{seq.current++;},[]);
  const change=async file=>{
   if(!file)return;
   const n=++seq.current;
-  sourceCanvas.current=null;setCrop(null);setRetrace(null);setPreview(null);setRegions([]);setSelected(null);setTrace(null);setAdded(false);setBusy(false);setMessage('');
+  sourceCanvas.current=null;setFill(false);setCrop(null);setRetrace(null);setPreview(null);setRegions([]);setSelected(null);setTrace(null);setAdded(false);setBusy(false);setMessage('');
   if(!/\.pdf$/i.test(file.name)||!file.size||file.size>20*1024*1024){onFile(null);setMessage('Choose a PDF up to 20 MB.');return;}
   onFile(file);setBusy(true);setMessage('Rendering floor plan…');
   let doc;
@@ -40,6 +41,13 @@ export default function ZoneColourReview({projectId,request,onLabels,onFile,disa
    setRegions(found);setMessage(found.length?'Check the suggested outlines. Name blank areas or trace any that were missed.':'No reliable outlines found. Use Trace area to add them.');
   }catch(e){if(n===seq.current)setMessage(e.message||'Could not read the plan.');}
   finally{if(doc)await doc.destroy().catch(()=>{});if(n===seq.current)setBusy(false);}
+ };
+ const fillAt=point=>{
+  const canvas=sourceCanvas.current;if(!canvas)return;
+  const w=canvas.width,h=canvas.height;
+  const points=fillZoneBoundary(canvas.getContext('2d').getImageData(0,0,w,h).data,w,h,Math.min(w-1,Math.floor(point.x*w/1000)),Math.min(h-1,Math.floor(point.y*h/1000)));
+  if(!points||points.length<3){setMessage('No enclosed area found at that point. Click a clear space inside the room, or use Trace area.');return;}
+  const id=++ids.current;setRegions(list=>[...list,{id,points,code:'',name:''}]);setSelected(id);setFill(false);setMessage('Check the filled boundary, then enter its zone code and room name.');
  };
  const detectCrop=async()=>{
   if(!sourceCanvas.current||crop?.length!==2||busy)return;
@@ -67,19 +75,21 @@ export default function ZoneColourReview({projectId,request,onLabels,onFile,disa
   <p>Choose a single-floor PDF. AI suggests outlines from the rendered plan; review them before adding the rows. Unnamed rooms stay blank.</p>
   <input type="file" accept=".pdf,application/pdf" disabled={disabled} aria-label="Choose PDF for coloured zones" onChange={e=>{change(e.target.files?.[0]);e.target.value='';}}/>
   {message&&<p role="status">{message}</p>}
-  {preview&&<><svg viewBox="0 0 1000 1000" preserveAspectRatio="none" style={{display:'block',width:'100%',aspectRatio:preview.width+'/'+preview.height,cursor:trace?'crosshair':'default'}} aria-label="Floor plan with coloured area outlines" onClick={e=>{if(busy||(!trace&&!crop))return;const b=e.currentTarget.getBoundingClientRect();const point={x:Math.max(0,Math.min(1000,(e.clientX-b.left)*1000/b.width)),y:Math.max(0,Math.min(1000,(e.clientY-b.top)*1000/b.height))};if(crop)setCrop(crop.length===2?[point]:[...crop,point]);else setTrace([...trace,point]);}}>
+  {preview&&<><svg viewBox="0 0 1000 1000" preserveAspectRatio="none" style={{display:'block',width:'100%',aspectRatio:preview.width+'/'+preview.height,cursor:trace||fill||crop?'crosshair':'default'}} aria-label="Floor plan with coloured area outlines" onClick={e=>{if(busy||(!trace&&!crop&&!fill))return;const b=e.currentTarget.getBoundingClientRect();const point={x:Math.max(0,Math.min(1000,(e.clientX-b.left)*1000/b.width)),y:Math.max(0,Math.min(1000,(e.clientY-b.top)*1000/b.height))};if(fill)fillAt(point);else if(crop)setCrop(crop.length===2?[point]:[...crop,point]);else setTrace([...trace,point]);}}>
    <image href={preview.image} width="1000" height="1000" preserveAspectRatio="none"/>
-   {regions.map((r,i)=><polygon key={r.id} points={r.points.map(p=>p.x+','+p.y).join(' ')} fill={tone(r.id)} fillOpacity={selected===r.id ? .46 : .23} stroke={tone(r.id)} strokeWidth={selected===r.id?4:2} vectorEffect="non-scaling-stroke" onClick={()=>{if(!trace&&!crop)setSelected(r.id);}}><title>{r.name||'Unnamed area'}</title></polygon>)}
+   {regions.map((r,i)=><polygon key={r.id} points={r.points.map(p=>p.x+','+p.y).join(' ')} fill={tone(r.id)} fillOpacity={selected===r.id ? .46 : .23} stroke={tone(r.id)} strokeWidth={selected===r.id?4:2} vectorEffect="non-scaling-stroke" onClick={()=>{if(!trace&&!crop&&!fill)setSelected(r.id);}}><title>{r.name||'Unnamed area'}</title></polygon>)}
    {regions.map((r,i)=>{const x=r.points.reduce((n,p)=>n+p.x,0)/r.points.length,y=r.points.reduce((n,p)=>n+p.y,0)/r.points.length;return <g key={'label'+r.id} pointerEvents="none"><circle cx={x} cy={y} r="12" fill={tone(r.id)}/><text x={x} y={y} textAnchor="middle" dominantBaseline="central" fontSize="14" fill="white">{i+1}</text></g>;})}
    {crop?.length===2&&<rect x={Math.min(crop[0].x,crop[1].x)} y={Math.min(crop[0].y,crop[1].y)} width={Math.abs(crop[0].x-crop[1].x)} height={Math.abs(crop[0].y-crop[1].y)} fill="none" stroke="#142c49" strokeWidth="3" strokeDasharray="6 4"/>}
    {trace&&<polyline points={trace.map(p=>p.x+','+p.y).join(' ')} fill="none" stroke="#142c49" strokeWidth="3"/>}
   </svg>
-  <div style={{display:'flex',gap:8,margin:'8px 0'}}>{trace?<><button type="button" disabled={trace.length<3} onClick={addTrace}>Finish outline</button><button type="button" onClick={()=>setTrace(trace.slice(0,-1))} disabled={!trace.length}>Undo point</button><button type="button" onClick={()=>{setTrace(null);setRetrace(null);}}>Cancel trace</button></>:<button type="button" disabled={busy||disabled||added||!!crop} onClick={()=>{setRetrace(null);setTrace([]);}}>Trace area</button>}</div>
-  {!trace&&<div style={{display:'flex',gap:8,margin:'8px 0'}}>{crop?<><button type="button" disabled={busy||crop.length!==2} onClick={detectCrop}>Detect inside selection</button><button type="button" disabled={busy} onClick={()=>setCrop(null)}>Cancel selection</button></>:<button type="button" disabled={busy||disabled||added} onClick={()=>setCrop([])}>Select plan area</button>}</div>}
+  <div style={{display:'flex',gap:8,margin:'8px 0'}}>{trace?<><button type="button" disabled={trace.length<3} onClick={addTrace}>Finish outline</button><button type="button" onClick={()=>setTrace(trace.slice(0,-1))} disabled={!trace.length}>Undo point</button><button type="button" onClick={()=>{setTrace(null);setRetrace(null);}}>Cancel trace</button></>:<button type="button" disabled={busy||disabled||added||!!crop||fill} onClick={()=>{setRetrace(null);setTrace([]);}}>Trace area</button>}</div>
+  {!trace&&<div style={{display:'flex',gap:8,margin:'8px 0'}}>{crop?<><button type="button" disabled={busy||crop.length!==2} onClick={detectCrop}>Detect inside selection</button><button type="button" disabled={busy} onClick={()=>setCrop(null)}>Cancel selection</button></>:<button type="button" disabled={busy||disabled||added||fill} onClick={()=>setCrop([])}>Select plan area</button>}</div>}
+  {!trace&&!crop&&<button type="button" disabled={busy||disabled||added} onClick={()=>setFill(v=>!v)}>{fill?'Cancel fill':'Fill enclosed area'}</button>}
+  {fill&&<p>Click a clear space inside an enclosed room. This follows visible linework and does not call AI.</p>}
   {crop&&<p>Click two opposite corners around the rooms. Leave the title block outside.</p>}
   {trace&&<p>Click each corner in order, then finish the outline.</p>}
-  {!!regions.length&&<table style={{width:'100%',textAlign:'left'}}><thead><tr><th>Area</th><th>Zone code</th><th>Area name</th><th/></tr></thead><tbody>{regions.map((r,i)=><tr key={r.id} style={{background:selected===r.id?'#f2eee4':'transparent'}}><td><button type="button" style={{border:'1px solid '+tone(r.id),background:'color-mix(in srgb, '+tone(r.id)+' 18%, white)',padding:'5px 8px'}} onClick={()=>setSelected(r.id)}>Area {i+1}</button></td><td><input aria-label={'Zone code for area '+(i+1)} value={r.code} placeholder="Code" disabled={busy||disabled||added} onChange={e=>patch(r.id,'code',e.target.value.toUpperCase())} style={{width:'100%'}}/></td><td><input aria-label={'Name for area '+(i+1)} value={r.name} placeholder="Unnamed area" disabled={busy||disabled||added} onChange={e=>patch(r.id,'name',e.target.value)} style={{width:'100%'}}/></td><td><button type="button" disabled={busy||disabled||added||!!crop||!!trace} onClick={()=>{setSelected(r.id);setRetrace(r.id);setTrace([]);}}>Retrace</button> <button type="button" disabled={busy||disabled||added||!!trace||!!crop} onClick={()=>setRegions(list=>list.filter(x=>x.id!==r.id))}>Remove</button></td></tr>)}</tbody></table>}
-  {!!regions.length&&<><p>Give each area a unique letter code and a name. Remove an incorrect outline and trace it again.</p><button type="button" disabled={!valid||busy||disabled||added||!!trace||!!crop} onClick={()=>{onLabels(regions.map(({code,name})=>({code,name})));setAdded(true);}}> {added?'Added to draft':'Add reviewed areas to draft'}</button></>}
+  {!!regions.length&&<table style={{width:'100%',textAlign:'left'}}><thead><tr><th>Area</th><th>Zone code</th><th>Area name</th><th/></tr></thead><tbody>{regions.map((r,i)=><tr key={r.id} style={{background:selected===r.id?'#f2eee4':'transparent'}}><td><button type="button" style={{border:'1px solid '+tone(r.id),background:'color-mix(in srgb, '+tone(r.id)+' 18%, white)',padding:'5px 8px'}} onClick={()=>setSelected(r.id)}>Area {i+1}</button></td><td><input aria-label={'Zone code for area '+(i+1)} value={r.code} placeholder="Code" disabled={busy||disabled||added} onChange={e=>patch(r.id,'code',e.target.value.toUpperCase())} style={{width:'100%'}}/></td><td><input aria-label={'Name for area '+(i+1)} value={r.name} placeholder="Unnamed area" disabled={busy||disabled||added} onChange={e=>patch(r.id,'name',e.target.value)} style={{width:'100%'}}/></td><td><button type="button" disabled={busy||disabled||added||!!crop||!!trace||fill} onClick={()=>{setSelected(r.id);setRetrace(r.id);setTrace([]);}}>Retrace</button> <button type="button" disabled={busy||disabled||added||!!trace||!!crop||fill} onClick={()=>setRegions(list=>list.filter(x=>x.id!==r.id))}>Remove</button></td></tr>)}</tbody></table>}
+  {!!regions.length&&<><p>Give each area a unique letter code and a name. Remove an incorrect outline and trace it again.</p><button type="button" disabled={!valid||busy||disabled||added||!!trace||!!crop||fill} onClick={()=>{onLabels(regions.map(({code,name})=>({code,name})));setAdded(true);}}> {added?'Added to draft':'Add reviewed areas to draft'}</button></>}
   </>}
  </section>;
 }
