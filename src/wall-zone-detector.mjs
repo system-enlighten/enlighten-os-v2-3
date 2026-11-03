@@ -71,7 +71,8 @@ function detectZones(o){
  const lab=new Int32Array(w*h), queue=new Int32Array(w*h), zones=[], accepted=new Map();
  let id=0;
  const blocked=i=>wall[i]||wall[i-1]||wall[i+1]||wall[i-w]||wall[i+w];
- for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){
+ for(let y=o.seed?.[1]??y0;y<(o.seed?o.seed[1]+1:y1);y++)for(let x=o.seed?.[0]??x0;x<(o.seed?o.seed[0]+1:x1);x++){
+  if(x<x0||x>=x1||y<y0||y>=y1)continue;
   const start=y*w+x;
   if(lab[start]||blocked(start))continue;
   let n=1,edge=false;
@@ -115,14 +116,14 @@ function runDetect(o){
   const items=o.items.map(it=>({s:it.s,x:it.x*sw,y:it.y*sw,w:it.w*sw,fs:it.fs*sw}))
     .filter(it=>it.x>=roi[0]&&it.x<=roi[2]&&it.y>=roi[1]&&it.y<=roi[3]);
   const labels=clusterLabels(items).filter(l=>l.room);
-  const zones=detectZones({wall,w,h,ppfW:o.ppf*sw,roi,labels,minA:o.minA,maxA:o.maxA});
+  const zones=detectZones({wall,w,h,ppfW:o.ppf*sw,roi,labels,minA:o.minA,maxA:o.maxA,seed:o.seed?.map(v=>Math.floor(v*sw))});
   zones.forEach(z=>z.pts=z.pts.map(p=>[p[0]/sw,p[1]/sw]));
   return {zones,labels,sw};
 }
 
 
 export {detectZones};
-export async function detectWallZones(canvas,page,viewport,bounds=[0,0,1000,1000]){
+export async function detectWallZones(canvas,page,viewport,bounds=[0,0,1000,1000],point){
  const items=page?(await page.getTextContent()).items.filter(it=>it.str?.trim()).map(it=>{
   const [a,b,c,d,e,f]=viewport.transform,[g,h,i,j,k,l]=it.transform;
   const u=a*g+c*h,v=b*g+d*h,tx=a*i+c*j,ty=b*i+d*j,w=it.width*viewport.scale,n=Math.hypot(u,v)||1;
@@ -131,6 +132,6 @@ export async function detectWallZones(canvas,page,viewport,bounds=[0,0,1000,1000
  const roi=bounds.map((p,i)=>p/1000*(i%2?canvas.height:canvas.width));
  // In Floor / Zone there is no calibrated scale. Use a minimum pixel area
  // relative to the selection instead of reporting square footage.
- const {zones}=runDetect({bg:canvas,roi,items,ppf:1,minA:Math.max(60,(roi[2]-roi[0])*(roi[3]-roi[1])*.001),maxA:Infinity});
+ const {zones}=runDetect({bg:canvas,roi,items,ppf:1,minA:Math.max(60,(roi[2]-roi[0])*(roi[3]-roi[1])*.001),maxA:Infinity,seed:point?[point.x*canvas.width/1000,point.y*canvas.height/1000]:undefined});
  return zones.map(z=>({code:'',name:z.label?.name||'',points:z.pts.map(([x,y])=>({x:x/canvas.width*1000,y:y/canvas.height*1000}))}));
 }
