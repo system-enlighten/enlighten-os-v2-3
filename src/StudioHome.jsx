@@ -18,7 +18,7 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  useEffect(()=>{let live=true;loadWork().then(r=>{if(live){setRows(Array.isArray(r)?r:[]);setReady(true);}}).catch(e=>{if(live)setError(e.message);});request('getStudioDay',{},'POST').then(r=>{if(live)setLog(r);}).catch(e=>{if(live)setError(e.message);});return()=>{live=false;};},[request,loadWork]);
  const save=async(action)=>{if(busy)return;setBusy(true);setError('');try{setLog(await request('saveStudioDay',{action,note,start,end},'POST'));if(action==='entry'){setNote('');setStart('');setEnd('');}}catch(e){setError(e.message);}finally{setBusy(false);}};
  const [timerBusy,setTimerBusy]=useState(''),[timerError,setTimerError]=useState(''),[clock,setClock]=useState(Date.now());
- const [taskQuery,setTaskQuery]=useState(''),[taskLimit,setTaskLimit]=useState(20);
+ const [taskLimit,setTaskLimit]=useState(20);
  useEffect(()=>{const tick=setInterval(()=>setClock(Date.now()),1000);return()=>clearInterval(tick);},[]);
  const timerAction=async(row)=>{
   if(timerBusy)return;
@@ -46,7 +46,7 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  const openMine=rows.filter(r=>own(r)&&!done(r)).sort((a,b)=>Number(running(b))-Number(running(a)));
  const todayMine=openMine.filter(r=>r.plan?.plannedStart&&day(new Date(r.plan.plannedStart))===today);
  const homeTasks=todayMine.length?openMine.filter(r=>running(r)||todayMine.includes(r)):openMine.filter(r=>running(r)||!r.plan?.plannedStart);
- const filteredMine=homeTasks.filter(r=>[title(r),projectName(r),r.task?.floor,r.task?.area].filter(Boolean).join(' ').toLowerCase().includes(taskQuery.trim().toLowerCase()));
+ const filteredMine=homeTasks;
  const elapsed=r=>{const startAt=Date.parse(r.startAt),seconds=Math.floor((Number(r.totalMinutes)||0)*60+(running(r)&&Number.isFinite(startAt)?Math.max(0,clock-startAt)/1000:0));return [Math.floor(seconds/3600),Math.floor(seconds/60)%60,seconds%60].map(v=>String(v).padStart(2,'0')).join(':');};
  const ownSchedule=rows.filter(r=>(admin||own(r))&&!done(r)&&r.plan?.plannedStart&&day(new Date(r.plan.plannedStart))===today).map(r=>({time:stamp(r.plan.plannedStart),end:r.plan.plannedEnd?stamp(r.plan.plannedEnd):'',title:title(r)}));
  const panel={background:'#fff',border:'1px solid '+T.line,padding:16,minWidth:0};
@@ -54,8 +54,10 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  <header className="studio-home-intro">
   <div><p className="studio-home-kicker">enLIGHTen / Studio desk</p><h1>{admin?'Studio overview':'My work'}</h1><p>{new Intl.DateTimeFormat('en-IN',{timeZone:tz,dateStyle:'full'}).format(new Date())}</p></div>
   <section aria-label="Attendance" className="studio-home-attendance">
-   <div><p className="studio-home-kicker">Attendance</p><strong>{!log?'Attendance unavailable':log.checkOut?'Checked out':log.checkIn?'Checked in':'Ready to check in'}</strong>{log?.checkIn&&<small>{stamp(log.checkIn)}{log.checkOut?' – '+stamp(log.checkOut):' · IST'}</small>}</div>
-   <button type="button" className="studio-home-check" disabled={!log||busy||!!log.checkOut} onClick={()=>save(log.checkIn?'out':'in')}>{busy?'Saving…':log?.checkOut?'Day closed':log?.checkIn?'Check out':'Check in'}</button>
+   <div><p className="studio-home-kicker">Attendance</p><strong>{!log?'Attendance unavailable':log.checkOut?'Checked out':log.breakStart?'On break':log.checkIn?'Checked in':'Ready to check in'}</strong>{log?.checkIn&&<small>{stamp(log.checkIn)}{log.checkOut?' – '+stamp(log.checkOut):' · IST'}</small>}</div>
+   <div style={{display:'grid',gap:6}}>
+    {log?.checkIn&&!log.checkOut&&<button type="button" style={buttonStyle} disabled={busy} onClick={()=>save(log.breakStart?'resume':'break')}>{log.breakStart?'Resume work':'Pause for break'}</button>}
+   <button type="button" className="studio-home-check" disabled={!log||busy||!!log.checkOut} onClick={()=>save(log.checkIn?'out':'in')}>{busy?'Saving…':log?.checkOut?'Day closed':log?.checkIn?'Check out':'Check in'}</button></div>
   </section>
   <div className="studio-home-utilities">{assistant}<button type="button" style={buttonStyle} aria-expanded={assigned} onClick={()=>setAssigned(!assigned)}>Assigned requests</button></div>
  </header>
@@ -72,7 +74,6 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  <section className="studio-home-card" aria-label="My open tasks" style={{marginTop:14}}>
  <h2>{todayMine.length?"Today’s assigned work":"Unscheduled work"} · {homeTasks.length}</h2><p>{todayMine.length?"Work scheduled for today.":"No scheduled work today. Start logging from an unscheduled task."}</p>
  {timerError&&<p role="alert" style={{color:T.redline}}>{timerError}</p>}
- {homeTasks.length>0&&<label>Find a task <input type="search" value={taskQuery} onChange={e=>{setTaskQuery(e.target.value);setTaskLimit(20);}}/></label>}
  {!filteredMine.length&&<p>{!ready?'Loading your tasks…':homeTasks.length?'No matching tasks.':'No tasks to show.'}</p>}
  {filteredMine.slice(0,taskLimit).map(r=><div key={r.designTaskId} style={{borderTop:'1px solid '+T.line,padding:'8px 0',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,flexWrap:'wrap'}}><div><strong>{title(r)}</strong><p>{[projectName(r),r.task?.floor,r.task?.area,r.status].filter(Boolean).join(' · ')}</p></div><div style={{display:'flex',gap:10,alignItems:'center'}}><span aria-label="Time logged" style={{fontVariantNumeric:'tabular-nums'}}>{elapsed(r)}</span><button type="button" style={buttonStyle} disabled={!!timerBusy||String(user?.appAccess).toLowerCase()==='viewer'} onClick={()=>timerAction(r)}>{timerBusy===r.designTaskId?'Updating…':running(r)?'Pause logging':/paused/i.test(r.status||'')?'Resume logging':'Start logging'}</button></div></div>)}
  {filteredMine.length>taskLimit&&<button type="button" style={buttonStyle} onClick={()=>setTaskLimit(n=>n+20)}>Show more tasks</button>}
