@@ -48,16 +48,20 @@ function pump(){
   });
  }
 }
-export function DashboardUploadProgress({generation}){
+export function DashboardUploadProgress({generation,theme,font,mono,buttonStyle}){
  const [allJobs,setJobs]=useState(()=>[...queue]);
  useEffect(()=>{listeners.add(setJobs);return()=>listeners.delete(setJobs);},[]);
  const jobs=allJobs.filter(j=>j.generation===generation);
  if(!jobs.length)return null;
  const done=jobs.filter(j=>j.finished).length;
- return <details open style={{position:'fixed',right:12,bottom:12,zIndex:1200,width:'min(340px,90vw)',background:'#FAF9F5',border:'1px solid #D2CDC1',padding:10,fontSize:13,boxShadow:'0 2px 10px #0002'}}>
- <summary>Drawing uploads · {done}/{jobs.length} complete</summary>
- <p style={{margin:'6px 0'}}>You can keep working. Leave this tab open.</p>
- <div style={{maxHeight:'24vh',overflow:'auto'}}>{jobs.map(j=><div key={j.entry.id} style={{padding:'4px 0',overflowWrap:'anywhere'}}><strong>{j.file.name}</strong> · {j.status} {j.failed&&<button type="button" onClick={()=>{j.failed=false;j.status='Waiting';publish();pump();}}>Retry</button>}</div>)}</div>
- {done>0&&<button type="button" onClick={()=>{for(let i=queue.length-1;i>=0;i--)if(queue[i].finished)queue.splice(i,1);publish();}}>Clear completed</button>}
- </details>;
+ return <details open style={{position:'fixed',right:12,bottom:12,zIndex:1200,width:'min(340px, calc(100vw - 24px))',boxSizing:'border-box',background:theme.paper,color:theme.ink,border:'1px solid '+theme.line,fontFamily:font,fontSize:12,lineHeight:1.45,boxShadow:'0 2px 10px #0002'}}>
+ <summary style={{cursor:'pointer',background:theme.navy,color:'#fff',padding:'10px 12px',fontFamily:mono,fontWeight:700}}> Drawing uploads · {done}/{jobs.length} complete</summary>
+ <div style={{padding:'8px 12px'}}>
+ <p style={{margin:'0 0 6px',color:theme.inkDim}}>You can keep working. Leave this tab open.</p>
+ <div style={{maxHeight:'24vh',overflow:'auto'}}>{jobs.map(j=><div key={j.entry.id} style={{padding:'6px 0',overflowWrap:'anywhere',borderTop:'1px solid '+theme.line}}>
+ <strong style={{display:'block',fontWeight:600}}>{j.file.name}</strong><span style={{color:j.failed?theme.redline:j.finished?theme.green:theme.inkDim}}>{j.status}</span>
+ {j.failed&&<button type="button" style={{...buttonStyle,marginLeft:8}} onClick={()=>{j.failed=false;j.status='Waiting';publish();pump();}}>Retry</button>}
+ </div>)}</div>
+ {done>0&&<button type="button" style={{...buttonStyle,marginTop:6}} onClick={()=>{for(let i=queue.length-1;i>=0;i--)if(queue[i].finished)queue.splice(i,1);publish();}}>Clear completed</button>}
+ </div></details>;
 }
