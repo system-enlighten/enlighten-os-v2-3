@@ -9,13 +9,14 @@ export function metricDay(value,timeZone=WIH_METRICS_TIMEZONE){
 }
 const shift=(day,days)=>new Date(Date.parse(day+'T12:00:00Z')+days*DAY).toISOString().slice(0,10);
 const monday=day=>{const weekday=new Date(day+'T12:00:00Z').getUTCDay();return shift(day,-((weekday+6)%7));};
-export function buildWihMetrics(tasks,now=Date.now()){
+export function buildWihMetrics(tasks,now=Date.now(),period="week"){
  const today=metricDay(new Date(now)),start30=shift(today,-29),weekStart=monday(today),seen=new Set();
  const rows=(tasks||[]).filter(t=>{const id=String(t.designTaskId||t.id||'');if(!id||seen.has(id))return false;seen.add(id);return !/^Skipped:/i.test(String(t.task?.remarks||''))&&!/^(cancelled|canceled|skipped)$/i.test(String(t.status||''));}).map(t=>{
   const done=/^(completed|done)$/i.test(String(t.status||'').trim()),tz=t.plan?.timeZone||WIH_METRICS_TIMEZONE,completed=done?metricDay(t.task?.completedAt||t.completedAt||t.stopAt,tz):'',studioCompleted=done?metricDay(t.task?.completedAt||t.completedAt||t.stopAt):'',due=metricDay(String(t.plan?.internalDueDate||'').slice(0,10));
   return {done,completed,studioCompleted,due,today:metricDay(new Date(now),tz),outcome:!done||!completed||!due?'unrated':completed<=due?'onTime':'delayed'};
  });
- const recent=rows.filter(t=>t.done&&t.studioCompleted>=start30&&t.studioCompleted<=today),onTime=recent.filter(t=>t.outcome==='onTime').length,delayed=recent.filter(t=>t.outcome==='delayed').length,unrated=recent.length-onTime-delayed;
- const weeks=Array.from({length:6},(_,i)=>{const start=shift(weekStart,(i-5)*7),end=shift(start,6),list=rows.filter(t=>t.done&&t.studioCompleted>=start&&t.studioCompleted<=end&&t.studioCompleted<=today);return {start,end,total:list.length,onTime:list.filter(t=>t.outcome==='onTime').length,delayed:list.filter(t=>t.outcome==='delayed').length,unrated:list.filter(t=>t.outcome==='unrated').length};});
+ const windowStart=period==="month"?today.slice(0,7)+"-01":start30;
+ const recent=rows.filter(t=>t.done&&t.studioCompleted>=windowStart&&t.studioCompleted<=today),onTime=recent.filter(t=>t.outcome==='onTime').length,delayed=recent.filter(t=>t.outcome==='delayed').length,unrated=recent.length-onTime-delayed;
+ const weeks=Array.from({length:6},(_,i)=>{const monthStart=offset=>new Date(Date.UTC(+today.slice(0,4),+today.slice(5,7)-1+offset,1)).toISOString().slice(0,10);const start=period==="month"?monthStart(i-5):shift(weekStart,(i-5)*7),end=period==="month"?shift(monthStart(i-4),-1):shift(start,6),list=rows.filter(t=>t.done&&t.studioCompleted>=start&&t.studioCompleted<=end&&t.studioCompleted<=today);return {start,end,total:list.length,onTime:list.filter(t=>t.outcome==='onTime').length,delayed:list.filter(t=>t.outcome==='delayed').length,unrated:list.filter(t=>t.outcome==='unrated').length};});
  return {today,start30,weekStart,open:rows.filter(t=>!t.done).length,dueToday:rows.filter(t=>!t.done&&t.due&&t.due===t.today).length,overdue:rows.filter(t=>!t.done&&t.due&&t.due<t.today).length,completedThisWeek:weeks[5].total,onTime,delayed,unrated,rate:onTime+delayed?Math.round(100*onTime/(onTime+delayed)):null,weeks,missingCompletionDate:rows.filter(t=>t.done&&!t.studioCompleted).length};
 }
