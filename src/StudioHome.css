@@ -1,0 +1,26 @@
+.studio-home{--stone:#e5ddd0;--ink:#132237;--paper:#faf8f2;max-width:1480px;margin:auto;color:var(--ink);font-size:13px}
+.studio-home h1,.studio-home h2,.studio-home p{margin:0}
+.studio-home h1{font-size:clamp(24px,3vw,40px);letter-spacing:-.04em;margin:5px 0 9px}
+.studio-home h2{font-size:18px;letter-spacing:-.02em}
+.studio-home p{line-height:1.5}
+.studio-home-intro{display:grid;grid-template-columns:1fr minmax(230px,1.1fr) 1fr;align-items:center;gap:20px;padding:22px 0;border-top:2px solid var(--ink);border-bottom:1px solid var(--stone)}
+.studio-home-kicker{font:600 10px/1.5 'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.13em;color:#6d604c}
+.studio-home-attendance{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px;background:linear-gradient(115deg,#fbf7ec,#f3e8d0);border:1px solid #ddcfb6}
+.studio-home-attendance strong,.studio-home-attendance small{display:block;margin-top:4px}
+.studio-home-check{font:600 13px Inter,system-ui,sans-serif;background:var(--ink);color:white;border:1px solid var(--ink);padding:10px 14px;white-space:nowrap;cursor:pointer}
+.studio-home-check:disabled{opacity:.6;cursor:default}
+.studio-home-utilities,.studio-home-period{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px}
+.studio-home-band{display:flex;align-items:end;justify-content:space-between;gap:12px;margin:24px 0 10px}
+.studio-home-band h2{margin:3px 0}
+.studio-home-period button{padding:7px 11px;background:var(--paper);color:var(--ink);border:1px solid var(--stone);cursor:pointer}
+.studio-home-period button[aria-pressed=true]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.studio-home-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.studio-home-card{padding:16px;background:var(--paper);border:1px solid var(--stone);min-width:0}
+.studio-home-card h2{margin-bottom:10px}
+.studio-home-card p,.studio-home-card button{margin-top:6px}
+.studio-home-metrics{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.studio-home-log{border-top:1px solid var(--stone);margin-top:14px;padding-top:10px}
+.studio-home-log summary{cursor:pointer;font-weight:600}
+.studio-home-log input{border:1px solid var(--stone);background:#fff;padding:5px;font:inherit}
+@media(max-width:1050px){.studio-home-intro{grid-template-columns:repeat(2,minmax(0,1fr))}.studio-home-utilities{grid-column:1/-1;justify-content:flex-start}}
+@media(max-width:760px){.studio-home-intro,.studio-home-grid{grid-template-columns:1fr}}
