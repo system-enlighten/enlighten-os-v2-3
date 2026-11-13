@@ -1,9 +1,38 @@
 import React,{useRef,useState} from 'react';
 import {dashboardReceivedPlan,completeDashboardReceivedUpload} from './dashboard-received-upload.js';
-export default function DashboardReceivedUpload({projectId,selections,onClear,onBusy,onSaved,services,today,buttonStyle,inputStyle,font}){
- const [file,setFile]=useState(null),[date,setDate]=useState(today),[busy,setBusy]=useState(false),[phase,setPhase]=useState(''),[error,setError]=useState('');const input=useRef(null),entry=useRef(null),lock=useRef(false);
- const started=!!entry.current;
- const cancel=()=>{if(busy)return;entry.current=null;onBusy(false);setFile(null);setError('');setPhase('');if(input.current)input.current.value='';onClear();};
- const submit=async()=>{if(lock.current)return;setError('');try{if(!entry.current){if(date>today)throw Error('Received date cannot be in the future.');entry.current={id:'DRW-UPL-'+(globalThis.crypto?.randomUUID?.()||Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)),plan:dashboardReceivedPlan(projectId,selections,file,date)};}lock.current=true;setBusy(true);onBusy(true);await completeDashboardReceivedUpload(entry.current,file,services,setPhase);window.dispatchEvent(new CustomEvent('enlighten-received-saved',{detail:{projectId}}));try{await onSaved();}catch{setPhase('Drawing saved. Refresh the project to load the latest register.');}entry.current=null;setFile(null);if(input.current)input.current.value='';setPhase('Drawing uploaded, registered and tagged.');onClear();}catch(e){if(entry.current&&!entry.current.saved&&/session.*expired|invalid or expired/i.test(e.message)){entry.current.session=null;entry.current.completion=null;entry.current.transferStarted=false;entry.current.directFailed=false;}setError(e.message||'Could not finish this upload.');setPhase('');}finally{lock.current=false;setBusy(false);onBusy(!!entry.current);}};
- return <section aria-label="Upload selected dashboard drawings" style={{padding:12,margin:'8px 0',border:'1px solid #D2CDC1',background:'#FAF9F5',fontFamily:font,fontSize:12}}><p style={{margin:'0 0 10px',lineHeight:1.5}}>Select the checkboxes for every area and drawing type contained in this file. Uploading will register it in Received and classify those areas automatically.</p><div style={{display:'flex',gap:12,alignItems:'center',flexWrap:'wrap'}}><strong>{selections.length} selected</strong><label>Received date <input type="date" aria-label="Dashboard drawing received date" disabled={busy||started} value={date} max={today} onChange={e=>setDate(e.target.value)} style={{...inputStyle,width:155,marginLeft:6}}/></label><button type="button" style={buttonStyle} disabled={busy||started} onClick={()=>input.current?.click()}>Select drawing</button><input type="file" ref={input} aria-label="Select dashboard received drawing" disabled={busy||started} style={{display:'none'}} onChange={e=>{setFile(e.target.files?.[0]||null);setError('');}}/><span style={{maxWidth:280,overflowWrap:'anywhere'}}>{file?.name||'No file selected'}</span><button type="button" style={buttonStyle} disabled={busy||!file||!selections.length} onClick={submit}>{busy?'Uploading…':error&&started?'Retry upload / registration':'Upload drawing'}</button><button type="button" style={buttonStyle} disabled={busy} onClick={cancel}>{started?'Close upload (saved records are retained)':'Cancel selection'}</button></div>{!!selections.length&&<details style={{marginTop:9}}><summary>Selected areas and types</summary><ul style={{paddingLeft:20,maxHeight:140,overflow:'auto'}}>{selections.map(s=><li key={JSON.stringify(s)}>{s.floor} · {s.area} · {s.drawingType}</li>)}</ul></details>}{phase&&<p role="status" style={{margin:'10px 0 0'}}>{phase}</p>}{error&&<p role="alert" style={{margin:'10px 0 0',color:'#9B3D30',lineHeight:1.5}}>{error} Keep this project open and retry with the same file. If the file is already registered, retry finishes its remaining tags without uploading it again.</p>}</section>;
+export default function DashboardReceivedUpload({projectId,selections,files,zones,onClear,onBusy,onSaved,services,today,buttonStyle,inputStyle,font}){
+ const options=[...new Map(zones.map(z=>[JSON.stringify([z.floor,z.area||z.room]),{floor:z.floor,area:z.area||z.room,drawingType:selections[0].drawingType}])).values()];
+ const [tags,setTags]=useState(()=>files.map(()=>selections));
+ const [date,setDate]=useState(today),[busy,setBusy]=useState(false),[phase,setPhase]=useState(''),[errors,setErrors]=useState({}),[done,setDone]=useState([]);
+ const jobs=useRef([]),lock=useRef(false);
+ const submit=async()=>{
+  if(lock.current)return;lock.current=true;setBusy(true);onBusy(true);
+  const failed={},completed=[...done];let changed=false;
+  try{
+   for(const [i,file] of files.entries()){
+    if(completed.includes(i))continue;
+    try{
+     const entry=jobs.current[i]??=( {id:'DRW-UPL-'+crypto.randomUUID(),plan:dashboardReceivedPlan(projectId,tags[i],file,date)} );
+     await completeDashboardReceivedUpload(entry,file,services,msg=>setPhase(file.name+' · '+msg));
+     completed.push(i);changed=true;setDone([...completed]);
+    }catch(e){
+     const job=jobs.current[i];
+     if(job&&!job.saved&&/session.*expired|invalid or expired/i.test(e.message)){job.session=null;job.completion=null;job.transferStarted=false;job.directFailed=false;}
+     failed[i]=e.message;
+    }
+   }
+   if(changed){window.dispatchEvent(new CustomEvent('enlighten-received-saved',{detail:{projectId}}));await onSaved();}
+   if(completed.length===files.length)onClear();
+  }finally{setErrors(failed);setPhase('');lock.current=false;setBusy(false);onBusy(false);}
+ };
+ return <div style={{position:'fixed',inset:0,zIndex:15000,background:'rgba(8,25,45,.45)',display:'grid',placeItems:'center',padding:16}}><section role="dialog" aria-modal="true" aria-label="Upload received drawings" style={{width:'min(680px,100%)',maxHeight:'90vh',overflow:'auto',background:'#FAF9F5',padding:18,fontFamily:font,fontSize:13,boxSizing:'border-box'}}>
+ <h3>Upload received drawings · {selections[0].drawingType}</h3>
+ <label>Received date <input type="date" value={date} max={today} disabled={busy||jobs.current.some(Boolean)} onChange={e=>setDate(e.target.value)} style={{...inputStyle,width:150}}/></label>
+ {files.map((file,i)=><fieldset key={i} style={{margin:'12px 0',minWidth:0,overflowWrap:'anywhere'}} disabled={busy||!!jobs.current[i]}><legend>{file.name}{done.includes(i)?' · Uploaded':''}</legend><div style={{maxHeight:150,overflow:'auto'}}>{options.map(z=>{
+  const matches=v=>v.floor===z.floor&&v.area===z.area;
+  return <label key={JSON.stringify(z)} style={{display:'block',padding:4}}><input type="checkbox" checked={tags[i].some(matches)} onChange={e=>{const checked=e.target.checked;setTags(list=>list.map((row,n)=>n!==i?row:checked?[...row,z]:row.filter(v=>!matches(v))));}}/> {z.floor} · {z.area}</label>;
+ })}</div>{errors[i]&&<p role="alert">{errors[i]}</p>}</fieldset>)}
+ {phase&&<p role="status">{phase}</p>}
+ <div style={{position:'sticky',bottom:0,background:'#FAF9F5',padding:8,display:'flex',gap:8}}><button type="button" style={buttonStyle} disabled={busy} onClick={onClear}>{done.length?'Close':'Cancel'}</button><button type="button" style={buttonStyle} disabled={busy||!date||date>today||tags.some(row=>!row.length)} onClick={submit}>{busy?'Uploading…':Object.keys(errors).length?'Retry remaining files':files.length===1?'Upload drawing':'Upload '+files.length+' drawings'}</button></div>
+ </section></div>;
 }

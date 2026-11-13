@@ -5531,9 +5531,11 @@ function DrawingControlDashboard({state,persist,projectId,deferLoad=false,headin
   const project=(state.projects||[]).find(p=>String(p.id)===String(projectId));
   const [payload,setPayload]=useState(null),[wih,setWih]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[revision,setRevision]=useState(0);
   const sectionRef=useRef(null),[ready,setReady]=useState(!deferLoad),[showHours,setShowHours]=useState(false);
+  const receivedPicker=useRef(null),receivedTarget=useRef(null);
+  const [receivedFiles,setReceivedFiles]=useState([]);
   const receivedPanelRef=useRef(null);
   const [receivedSelection,setReceivedSelection]=useState([]),[receivedMode,setReceivedMode]=useState(false),[receivedBusy,setReceivedBusy]=useState(false),[receivedNotice,setReceivedNotice]=useState('');
-  useEffect(()=>{if(receivedMode)receivedPanelRef.current?.scrollIntoView({behavior:'smooth',block:'start'});},[receivedMode]);
+
   const canReceive=state.currentUser?.appAccess?.toLowerCase()!=='viewer'&&!!projectRole(state,projectId)&&!projectIsCompleted(project);
   useEffect(()=>setShowHours(false),[project?.id]);
   const layoutRef=useRef(null),[fullTableWidth,setFullTableWidth]=useState(0);
@@ -5570,7 +5572,7 @@ function DrawingControlDashboard({state,persist,projectId,deferLoad=false,headin
   const totalHours=logs.reduce((sum,r)=>sum+r.duration,0),personHours=Object.entries(logs.reduce((sum,r)=>{sum[r.person]=(sum[r.person]||0)+r.duration;return sum;},{})).sort((a,b)=>b[1]-a[1]);
   const workColumns=SHEET_DASHBOARD_WORK.filter(def=>!def.scopeKey||sheetDashboardFlag(project.scope?.[def.scopeKey]));
   const receivedCols=[['Layout','layoutReceived','Layout'],['FC','fcReceived','False Ceiling'],['Detail','detailReceived','Detail'],['3D','3dReceived','3D']];
-  const toggleReceived=(z,drawingType)=>{if(receivedBusy)return;setReceivedMode(true);setReceivedNotice('');const item={floor:z.floor,area:z.area||z.room,drawingType},key=dashboardReceivedKey(item.floor,item.area,item.drawingType);setReceivedSelection(list=>list.some(v=>dashboardReceivedKey(v.floor,v.area,v.drawingType)===key)?list.filter(v=>dashboardReceivedKey(v.floor,v.area,v.drawingType)!==key):[...list,item]);};
+  const toggleReceived=(z,drawingType)=>{if(receivedBusy||receivedMode)return;receivedTarget.current={floor:z.floor,area:z.area||z.room,drawingType};receivedPicker.current?.click();};
   const cell={padding:'2px 5px',border:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:10,verticalAlign:'middle',height:20,lineHeight:1.2,whiteSpace:'normal',overflowWrap:'anywhere'};
   const headerDivider='2px solid #B8B5AC';
   const head={...cell,background:'#D2CDC1',color:'#1C1C19',fontFamily:FONT_MONO,fontSize:9,borderBottom:`2px solid ${T.ink}`,fontWeight:700,textAlign:'center',whiteSpace:'normal',height:62,...(showHours?{overflowWrap:'normal',wordBreak:'normal',hyphens:'none'}:{})};
@@ -5591,7 +5593,8 @@ function DrawingControlDashboard({state,persist,projectId,deferLoad=false,headin
       <div style={{minWidth:0,background:'#fff'}}>
         <table style={{width:'100%',borderCollapse:'collapse',marginBottom:8}}><tbody>{[[`Project ${project.no||project.projectNo||''}:`,project.name],['Start Date:',formatProjectDate(project.startDate)],['Time in hours:',loading?'Loading…':totalHours.toFixed(1)]].map(([label,value])=><tr key={label}><td style={{...cell,fontFamily:FONT_BODY,fontWeight:700,width:220}}>{label}</td><td style={{...cell,fontFamily:FONT_BODY}}>{label==='Time in hours:'?<div style={{display:'flex',gap:12,alignItems:'center',flexWrap:'wrap'}}><span>{value}</span><button type="button" aria-label={`Hours by person for ${project.name}`} aria-expanded={showHours} aria-controls={`project-hours-${project.id}`} style={{...smallBtn}} onClick={()=>setShowHours(open=>!open)}>{showHours?'Hide hours':hoursScope==='own'?'My hours':'Hours by person'}</button></div>:value}</td></tr>)}</tbody></table>
 
-        {receivedMode&&canReceive&&<div ref={receivedPanelRef} style={{scrollMarginTop:24}}><DashboardReceivedUpload projectId={project.id} selections={receivedSelection} today={todayISO()} font={FONT_BODY} buttonStyle={smallBtn} inputStyle={inputStyle} onBusy={setReceivedBusy} onClear={()=>{setReceivedSelection([]);setReceivedMode(false);}} services={{request:uploadApiRequest,transfer:transferDrawingToDrive,classify:projectApi.classifyDrawing,typeKey:drawingTypeKey}} onSaved={async()=>{setRevision(n=>n+1);setReceivedNotice('Drawing uploaded and entered in the register. Dashboard and linked work are refreshing.');if(persist)try{const workspace=await projectApi.getProjectWorkspace();await persist(latest=>({...latest,intakes:workspaceIntakes(workspace)}));}catch{setReceivedNotice('Drawing saved. Refresh Received / Sent or Classify to update the local list.');}}}/></div>}
+        <input type="file" multiple hidden ref={receivedPicker} aria-label="Select received drawings" onChange={e=>{const files=Array.from(e.target.files||[]);e.target.value='';if(!files.length||!receivedTarget.current)return;setReceivedNotice('');setReceivedSelection([receivedTarget.current]);setReceivedFiles(files);setReceivedMode(true);}}/>
+        {receivedMode&&canReceive&&<div ref={receivedPanelRef} style={{scrollMarginTop:24}}><DashboardReceivedUpload projectId={project.id} selections={receivedSelection} files={receivedFiles} zones={zones} today={todayISO()} font={FONT_BODY} buttonStyle={smallBtn} inputStyle={inputStyle} onBusy={setReceivedBusy} onClear={()=>{setReceivedSelection([]);setReceivedFiles([]);setReceivedMode(false);}} services={{request:uploadApiRequest,transfer:transferDrawingToDrive,classify:projectApi.classifyDrawing,typeKey:drawingTypeKey}} onSaved={async()=>{setRevision(n=>n+1);setReceivedNotice('Drawing uploaded and entered in the register. Dashboard and linked work are refreshing.');if(persist)try{const workspace=await projectApi.getProjectWorkspace();await persist(latest=>({...latest,intakes:workspaceIntakes(workspace)}));}catch{setReceivedNotice('Drawing saved. Refresh Received / Sent or Classify to update the local list.');}}}/></div>}
         {receivedNotice&&<p role="status" style={{fontFamily:FONT_BODY,fontSize:12,color:T.green}}>{receivedNotice}</p>}
         <div role={showHours?'region':undefined} aria-label={showHours?`Scrollable design table for ${project.name}`:undefined} tabIndex={showHours?0:undefined} style={{width:'100%',minWidth:0,overflowX:showHours?'auto':'visible',border:`1px solid ${T.line}`,boxSizing:'border-box'}}>
           <table aria-label="Project design matrix" style={{borderCollapse:'collapse',tableLayout:'fixed',width:'100%',...(showHours?{minWidth:Math.max(fullTableWidth,568+112*workColumns.length)}:{})}}>
@@ -5646,6 +5649,7 @@ function DesignWorkspaceView({state,persist,workflowTarget}){
 
 function DesignFlowView({state,persist,onOpenWorkflow}){
   const [editId,setEditId]=useState(''),[projectDraft,setProjectDraft]=useState({}),[saving,setSaving]=useState(false),[error,setError]=useState('');
+  const [statusProject,setStatusProject]=useState('');
   const seen=new Set();
   const projects=orderedProjects(state.projects).filter(p=>{
     if(p.completed||p.status==='Completed'||p.projectControl?.projectStatus==='Completed')return false;
@@ -5664,7 +5668,8 @@ function DesignFlowView({state,persist,onOpenWorkflow}){
   return <div>
     <header style={{marginBottom:14}}><h2 style={{fontFamily:FONT_DISPLAY,fontSize:26,margin:'0 0 12px'}}>System Design</h2><section aria-label="System Design values" style={{borderLeft:`3px solid ${T.blue}`,padding:'2px 0 2px 14px',maxWidth:1100}}><div style={{fontFamily:FONT_MONO,fontSize:10,fontWeight:700,letterSpacing:'.06em',color:T.blue,marginBottom:7}}>VALUES</div><p style={{fontFamily:FONT_BODY,fontSize:13,lineHeight:1.65,color:T.ink,margin:'0 0 12px',fontStyle:'italic'}}>Construction is not a one-day thing.<br/>It’s a process. It’s a year-long relationship. Sometimes even more.<br/>First of all, you should know what you’re doing; only then will you be able to drive on the right road.</p><p style={{fontFamily:FONT_BODY,fontSize:13,lineHeight:1.65,color:T.ink,margin:'0 0 6px',fontStyle:'italic'}}>Lighting is what is going to define the mood of the space.</p><div style={{fontFamily:FONT_BODY,fontSize:13,fontWeight:600,color:T.blue}}>Energetic&nbsp; | &nbsp;Relax&nbsp; | &nbsp;Focus</div></section></header>
 
-    {projects.map((p,index)=><section key={p.id} aria-label={`Design dashboard ${p.name}`} style={{paddingBottom:18,marginBottom:18,borderBottom:`2px solid ${T.line}`}}>
+    <label style={{display:'flex',alignItems:'center',gap:10,margin:'0 0 12px',fontFamily:FONT_BODY,fontSize:13}}>Project <select value={projects.some(p=>String(p.id)===statusProject)?statusProject:''} onChange={e=>setStatusProject(e.target.value)} style={{...inputStyle,width:'min(420px,80%)'}}><option value="">All projects</option>{projects.map(p=><option key={p.id} value={p.id}>{p.name}{p.no?' · '+p.no:''}</option>)}</select></label>
+    {projects.filter(p=>!projects.some(v=>String(v.id)===statusProject)||String(p.id)===statusProject).map((p,index)=><section key={p.id} aria-label={`Design dashboard ${p.name}`} style={{paddingBottom:18,marginBottom:18,borderBottom:`2px solid ${T.line}`}}>
       <DrawingControlDashboard state={state} persist={persist} projectId={p.id} deferLoad={index>0} heading={p.name} onOpenWorkflow={onOpenWorkflow} onEdit={canEditProject(p.id)?()=>openEdit(p):undefined}/>
     </section>)}
     {projects.length>0&&<footer aria-label="Design dashboard status legend">
