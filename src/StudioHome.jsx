@@ -22,13 +22,23 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  const [timerBusy,setTimerBusy]=useState(''),[timerError,setTimerError]=useState(''),[clock,setClock]=useState(Date.now());
  const [taskLimit,setTaskLimit]=useState(20);
  useEffect(()=>{const tick=setInterval(()=>setClock(Date.now()),1000);return()=>clearInterval(tick);},[]);
- const timerAction=async(row)=>{
+ const [newTask,setNewTask]=useState(null),[creating,setCreating]=useState(false),[createNote,setCreateNote]=useState('');
+ const createTask=async e=>{
+  e.preventDefault();if(creating||!newTask?.projectId||!newTask.title.trim())return;
+  setCreating(true);setCreateNote('');
+  try{await request('assistantWork',{command:'create',title:newTask.title,projectId:newTask.projectId,narration:newTask.narration,requestId:newTask.id},'POST');setNewTask(null);setCreateNote('Task created.');}
+  catch(e){setCreateNote(e.message);return;}
+  finally{setCreating(false);}
+  try{setRows(await loadWork());}catch{setCreateNote('Task saved. Reload Home to see it.');}
+ };
+ const [recentProject,setRecentProject]=useState("");
+ const timerAction=async(row,stop=false)=>{
   if(timerBusy)return;
   setTimerBusy(row.designTaskId);setTimerError('');
   const action=running(row)?'pauseTask':/paused/i.test(row.status||'')?'resumeTask':'startTask';
-  try{await request(action,{designTaskId:row.designTaskId},'POST');}
+  try{if(stop||row.projectId==='__admin_work__')await request('assistantWork',{command:stop?'stop':{pauseTask:'pause',resumeTask:'resume',startTask:'start'}[action],id:row.designTaskId},'POST');else await request(action,{designTaskId:row.designTaskId},'POST');}
   catch(e){setTimerError(e.message);setTimerBusy('');return;}
-  setRows(list=>list.map(r=>r.designTaskId===row.designTaskId?{...r,status:action==='pauseTask'?'Paused':'In Progress',startAt:action==='pauseTask'?'':new Date().toISOString(),totalMinutes:Number(r.totalMinutes||0)+(action==='pauseTask'&&r.startAt?Math.max(0,Math.round((Date.now()-Date.parse(r.startAt))/60000)):0)}:r));
+  setRows(list=>list.map(r=>r.designTaskId===row.designTaskId?{...r,status:stop?'Ready':action==='pauseTask'?'Paused':'In Progress',startAt:stop||action==='pauseTask'?'':new Date().toISOString(),totalMinutes:Number(r.totalMinutes||0)+(action==='pauseTask'&&r.startAt?Math.max(0,Math.round((Date.now()-Date.parse(r.startAt))/60000)):0)}:r));
   try{const updated=await loadWork();if(Array.isArray(updated))setRows(updated);}catch{setTimerError('Timer updated. Refresh Home to check the latest saved totals.');}finally{setTimerBusy('');}
  };
  const own=r=>String(r.assigneeUserId||'')===String(user?.userId);
@@ -36,8 +46,10 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  const chooseAssignee=async row=>{setAssignment({row,people:[],id:''});setAssignmentBusy(true);setError('');try{const people=await request('reportingAssignment',{designTaskId:row.designTaskId,action:'options'},'POST');setAssignment({row,people,id:''});}catch(e){setError(e.message);}finally{setAssignmentBusy(false);}};
  useEffect(()=>{let active=true;const update=()=>loadWork().then(r=>{if(active&&Array.isArray(r))setRows(r);}).catch(e=>{if(active)setError(e.message);});window.addEventListener("enlighten-assistant-work",update);return()=>{active=false;window.removeEventListener("enlighten-assistant-work",update);};},[loadWork]);
  const assign=async()=>{setAssignmentBusy(true);setError('');try{await request('reportingAssignment',{designTaskId:assignment.row.designTaskId,action:'assign',assigneeUserId:assignment.id},'POST');setAssignment(null);setRows(await loadWork());}catch(e){setError(e.message);}finally{setAssignmentBusy(false);}};
- const projectName=r=>(state.projects||[]).find(p=>String(p.id)===String(r.projectId))?.name||'Project';
+ const projectName=r=>r.projectId==='__admin_work__'?'Admin / Owner work':(state.projects||[]).find(p=>String(p.id)===String(r.projectId))?.name||'Project';
  const openMine=rows.filter(r=>own(r)&&!done(r)).sort((a,b)=>Number(running(b))-Number(running(a)));
+ const recent=openMine.filter(r=>r.task?.taskCategory==='Admin / Owner'||r.task?.startedAt||r.startAt||r.stopAt).sort((a,b)=>String(b.stopAt||b.startAt||b.task?.updatedAt||'').localeCompare(String(a.stopAt||a.startAt||a.task?.updatedAt||'')));
+ const recentProjects=[...new Map(recent.map(r=>[String(r.projectId),projectName(r)])).entries()];
  const todayMine=openMine.filter(r=>r.plan?.plannedStart&&day(new Date(r.plan.plannedStart))===today);
  const homeTasks=todayMine.length?openMine.filter(r=>running(r)||todayMine.includes(r)):openMine.filter(r=>running(r)||!r.plan?.plannedStart);
  const filteredMine=homeTasks;
@@ -66,10 +78,12 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  {thread.canComment&&<><label style={{display:'block'}}>Ask a question or leave a comment<textarea style={{display:'block',width:'100%',boxSizing:'border-box'}} value={comment} maxLength={2000} onChange={e=>setComment(e.target.value)}/></label><button type="button" style={buttonStyle} disabled={threadBusy||!comment.trim()} onClick={()=>changeThread(thread.row,'comment')}>Post comment</button>{' '}</>}
  <button type="button" style={buttonStyle} disabled={threadBusy} onClick={()=>setThread(null)}>Close</button></section></div>}
  <section className="studio-home-card" aria-label="My open tasks" style={{marginTop:14}}>
- <h2>{todayMine.length?"Today’s assigned work":"Unscheduled work"} · {homeTasks.length}</h2><p>{todayMine.length?"Work scheduled for today.":"No scheduled work today."}</p>
+ <h2>{todayMine.length?"Today’s assigned work":"Unscheduled work"} · {homeTasks.length}</h2><div style={{display:'flex',gap:12,alignItems:'center',flexWrap:'wrap'}}><p>{todayMine.length?"Work scheduled for today.":"No scheduled work today."}</p>{/^(admin|user)$/i.test(user?.appAccess)&&<button type="button" style={buttonStyle} onClick={()=>{setCreateNote('');setNewTask({id:crypto.randomUUID(),title:'',projectId:'',narration:''});}}>+ Create task</button>}</div>
+ {newTask&&<div className="task-discussion-overlay"><section className="task-discussion-dialog" role="dialog" aria-modal="true" aria-label="Create project task" onKeyDown={e=>{if(e.key==='Escape'&&!creating)setNewTask(null);}}><h2>Create task</h2><p>Assigned to you</p><form onSubmit={createTask}><label style={{width:'100%'}}>Project <select required value={newTask.projectId} onChange={e=>setNewTask({...newTask,projectId:e.target.value})}><option value="">Select a project</option>{(state.projects||[]).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label><button type="button" style={buttonStyle} disabled={creating} onClick={()=>navigate('project')}>Open Projects to add one</button><textarea autoFocus aria-label="Task name" placeholder="e.g. Work on enLIGHTen OS" maxLength={120} value={newTask.title} onChange={e=>setNewTask({...newTask,title:e.target.value})}/><textarea aria-label="Narration" placeholder="Narration (optional): What did you work on?" maxLength={2000} value={newTask.narration} onChange={e=>setNewTask({...newTask,narration:e.target.value})}/>{createNote&&<p role="alert">{createNote}</p>}<div style={{display:'flex',gap:8}}><button type="button" style={buttonStyle} disabled={creating} onClick={()=>setNewTask(null)}>Cancel</button><button style={buttonStyle} disabled={creating||!newTask.projectId||!newTask.title.trim()}>{creating?'Saving…':'Create task'}</button></div></form></section></div>}
+ {!newTask&&createNote&&<p role="status">{createNote}</p>}
  {timerError&&<p role="alert" style={{color:T.redline}}>{timerError}</p>}
  {!filteredMine.length&&<p>{!ready?'Loading your tasks…':homeTasks.length?'No matching tasks.':'No tasks to show.'}</p>}
- {filteredMine.slice(0,taskLimit).map(r=><div key={r.designTaskId} className="studio-home-task-row"><div><strong>{title(r)}</strong><p>{[projectName(r),r.task?.floor,r.task?.area,r.status].filter(Boolean).join(' · ')}</p></div><div style={{display:'flex',gap:10,alignItems:'center'}}><span aria-label="Time logged" style={{fontVariantNumeric:'tabular-nums'}}>{elapsed(r)}</span><button type="button" style={buttonStyle} disabled={!!timerBusy||String(user?.appAccess).toLowerCase()==='viewer'} onClick={()=>timerAction(r)}>{timerBusy===r.designTaskId?'Updating…':running(r)?'Pause logging':/paused/i.test(r.status||'')?'Resume logging':'Start logging'}</button></div></div>)}
+ {filteredMine.slice(0,taskLimit).map(r=><div key={r.designTaskId} className="studio-home-task-row"><div><strong>{title(r)}</strong><p>{[projectName(r),r.task?.floor,r.task?.area,r.status].filter(Boolean).join(' · ')}</p>{r.task?.taskCategory==='Admin / Owner'&&r.task?.remarks&&<p style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{r.task.remarks}</p>}</div><div style={{display:'flex',gap:10,alignItems:'center'}}><span aria-label="Time logged" style={{fontVariantNumeric:'tabular-nums'}}>{elapsed(r)}</span><button type="button" style={buttonStyle} disabled={!!timerBusy||String(user?.appAccess).toLowerCase()==='viewer'} onClick={()=>timerAction(r)}>{timerBusy===r.designTaskId?'Updating…':running(r)?'Pause logging':/paused/i.test(r.status||'')?'Resume logging':'Start logging'}</button></div></div>)}
  {filteredMine.length>taskLimit&&<button type="button" style={buttonStyle} onClick={()=>setTaskLimit(n=>n+20)}>Show more tasks</button>}
  </section>
  <div className="studio-home-band"><div><p className="studio-home-kicker">01 / Performance</p><h2>Work overview</h2><p>{ready?(admin?'Studio tasks':'My tasks'):'Loading work…'}</p></div><div className="studio-home-period" role="group" aria-label="Chart period">{[['week','Weekly'],['month','Monthly']].map(([id,label])=><button type="button" aria-pressed={period===id} key={id} onClick={()=>setPeriod(id)}>{label}</button>)}</div></div>
@@ -77,5 +91,8 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  <div className="studio-home-band"><div><p className="studio-home-kicker">02 / Daily plan</p><h2>Today’s work</h2></div></div><div className="studio-home-grid"><section className="studio-home-card"><h2>In progress</h2>{work.filter(r=>running(r)&&!done(r)).length?<ul>{work.filter(r=>running(r)&&!done(r)).map(r=><li key={r.designTaskId}>{title(r)} · {r.assigneeName||user?.name}</li>)}</ul>:<p>No work in progress.</p>}<button type="button" style={buttonStyle} onClick={()=>navigate('timesheet')}>Open Tasks</button></section>
  <section className="studio-home-card"><h2>Today’s schedule</h2>{ownSchedule.length?<ol>{ownSchedule.map((r,i)=><li key={i}>{r.time}{r.end?' – '+r.end:''} · {r.title}</li>)}</ol>:<p>No scheduled work today.</p>}
  <details className="studio-home-log"><summary>Log unrecorded time</summary>{(log?.entries||[]).map((r,i)=><p key={i}>{r.start} – {r.end} · {r.note}</p>)}<div style={{display:'flex',gap:8,flexWrap:'wrap'}}><label>From <input type="time" value={start} onChange={e=>setStart(e.target.value)}/></label><label>To <input type="time" value={end} onChange={e=>setEnd(e.target.value)}/></label></div><label style={{display:'block',margin:'8px 0'}}>Activity <input value={note} maxLength={250} onChange={e=>setNote(e.target.value)}/></label><button type="button" style={buttonStyle} disabled={busy||!log?.checkIn||!start||!end||!note.trim()} onClick={()=>save('entry')}>Log time</button></details></section>
- </div><TaskDiscussion request={request} buttonStyle={buttonStyle}/></main>;
+ </div><section className="studio-home-card" style={{marginTop:20}}><h2>Recent project tasks</h2><label>Project <select value={recentProject} onChange={e=>setRecentProject(e.target.value)}><option value="">All projects</option>{recentProjects.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label>
+ {!recent.length&&<p>{ready?'No recent tasks to resume.':'Loading recent tasks…'}</p>}
+ {recent.filter(r=>!recentProject||String(r.projectId)===recentProject).slice(0,12).map(r=><div className="studio-home-task-row" key={r.designTaskId}><div><strong>{title(r)}</strong><p>{projectName(r)} · {r.status}</p>{r.task?.taskCategory==='Admin / Owner'&&r.task?.remarks&&<p>{r.task.remarks}</p>}</div><div><span>{elapsed(r)} </span><button type="button" style={buttonStyle} disabled={!!timerBusy||String(user?.appAccess).toLowerCase()==='viewer'} onClick={()=>timerAction(r,running(r))}>{running(r)?'Stop and save time':/paused/i.test(r.status||'')?'Resume logging':'Start again'}</button></div></div>)}</section>
+ <TaskDiscussion request={request} buttonStyle={buttonStyle}/></main>;
 }

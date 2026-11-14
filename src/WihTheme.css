@@ -3,3 +3,31 @@
 
 .wih-task-table .wih-row-icon, .wih-task-table .wih-row-icon:hover {border:0 !important;background:transparent !important;box-shadow:none !important;}
 .wih-task-table .wih-row-icon:focus-visible {outline:2px solid currentColor;outline-offset:1px;}
+
+/* Tasks: drawing-register typography and materials. */
+.wih-workspace,.wih-meetings-footer{--register-ink:#172b3e;--register-muted:#4d6069;--register-rule:#d7cebc;--register-paper:#fcfaf5;--register-font:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-family:var(--register-font);color:var(--register-ink)}
+.wih-register-head{border-top:2px solid var(--register-ink);padding:20px 0 10px}
+.wih-register-kicker{margin:0 0 6px;color:#675c48;font:600 11px/1.3 var(--register-font);letter-spacing:.15em;text-transform:uppercase}
+.wih-register-head h2{font:600 clamp(30px,4vw,42px)/1.06 var(--register-font)!important;letter-spacing:-.04em}
+.wih-workspace .wih-intro{font:400 13px/1.55 var(--register-font)!important;color:var(--register-muted)!important;max-width:72ch;margin-top:8px!important}
+.wih-workspace [role=tablist]{background:transparent!important;border-bottom:1px solid var(--register-rule)!important;margin-bottom:14px!important}
+.wih-workspace [role=tab]{font:600 13px/1.2 var(--register-font)!important}
+.wih-workspace [role=tab][aria-selected=true]{border-bottom-color:#a18655!important}
+.wih-quiet-filters{padding:8px 0;border-bottom-color:var(--register-rule);margin-bottom:8px}
+.wih-filter-label,.wih-person-filter label{font:650 11px var(--register-font);letter-spacing:.08em;text-transform:uppercase;color:var(--register-muted)}
+.wih-status-filters button,.wih-person-filter select{font:550 13px var(--register-font);color:var(--register-muted)}
+.wih-status-filters button.is-active{background:#eae4d8;color:var(--register-ink);border-bottom-color:#93784b}
+.wih-status-filters button>span{color:var(--register-muted);font:500 11px var(--register-font);font-variant-numeric:tabular-nums}
+.wih-register-group{display:inline-flex;align-items:center;gap:8px;margin:4px 0 10px;font:550 13px var(--register-font);color:var(--register-ink)}
+.wih-register-group input{accent-color:var(--register-ink);margin:0}
+.wih-workspace .wih-sync-toolbar>button,.wih-meetings-footer>button{font:550 12px var(--register-font)!important;color:var(--register-muted)!important}
+.wih-task-table{border:1px solid var(--register-rule)!important;border-radius:0;overflow-x:auto!important;background:var(--register-paper)!important}
+.wih-task-table table{font-family:var(--register-font)!important}
+.wih-task-table th{background:#eae4d8!important;color:var(--register-ink);font-size:11px!important;font-weight:650!important;letter-spacing:.045em;text-transform:uppercase}
+.wih-task-table td{font-size:13px!important;line-height:1.4;color:var(--register-muted);font-variant-numeric:tabular-nums}
+.wih-task-table td:nth-child(2) strong{color:var(--register-ink);font-weight:650}
+.wih-task-table tbody tr:hover{background:#f3eee3}
+.wih-task-table button:not(.wih-row-icon){font:550 12px var(--register-font)!important;border-radius:0;background:#f5f0e5!important;color:var(--register-ink)!important;border-color:var(--register-rule)!important}
+.wih-task-table .wih-row-icon{padding:0!important;color:revert!important}
+.wih-task-table .wih-row-icon{color:var(--wih-icon-color,#4d6069)!important}
+.wih-meetings-footer{border-top-color:var(--register-rule)}
