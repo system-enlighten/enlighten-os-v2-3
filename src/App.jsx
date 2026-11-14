@@ -1,4 +1,4 @@
-import {departmentFor,DepartmentPicker,DepartmentWorkspace} from './Departments.jsx';
+import {departments as workspaceDepartments,departmentFor,DepartmentPicker,DepartmentWorkspace} from './Departments.jsx';
 import PerformanceAttendance from './PerformanceAttendance.jsx';
 import InternalAreas from './InternalAreas.jsx';
 import {DiscussionDialog} from './TaskDiscussion.jsx';
@@ -6903,7 +6903,7 @@ function SettingsView({ state, persist }) {
   useEffect(()=>{ setDesignations(state.designationMaster || []); },[state.designationMaster]);
 
 
-  const activeDepartments = departments.filter(x=>x.active!==false && String(x.active).toLowerCase()!=="false");
+  const workspaceOptions=Object.values(workspaceDepartments).map(([name])=>name);
   const activeDesignations = designations.filter(x=>x.active!==false && String(x.active).toLowerCase()!=="false");
 
   const saveMaster = async (kind, item) => {
@@ -6954,8 +6954,9 @@ function SettingsView({ state, persist }) {
   return <div>
     <ProjectRoleManager state={state}/>
     <div style={{marginBottom:20}}><h2 style={{fontFamily:FONT_DISPLAY,fontSize:24,margin:"0 0 5px"}}>Team Master</h2><div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim}}>Enter each employee once. The Gmail ID is the login identity. Set <b>App Access = Admin</b> for administrators; User = project-wise Admin/User permissions assigned above + own WIH editing; Viewer = assigned projects and own WIH view only. App Access Admin is the system administrator; Project Admin is assigned separately for each project. Active team members automatically become selectable in Responsible Person / Assignee dropdowns.</div></div>
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:20}}>
-      {[["Department Master",departments,newDepartment,setNewDepartment,"department"],["Designation / Role Master",designations,newDesignation,setNewDesignation,"designation"]].map(([title,items,newValue,setNewValue,kind])=>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,300px),1fr))",gap:16,marginBottom:20}}>
+      <section style={{background:"#fff",border:`1px solid ${T.line}`,padding:14}}><h3>Workspace departments</h3><p style={{fontSize:12}}>Choose a department when editing an employee. Existing assignments stay in place until changed.</p><ul>{workspaceOptions.map(name=><li key={name}>{name}</li>)}</ul></section>
+      {[["Designation / Role Master",designations,newDesignation,setNewDesignation,"designation"]].map(([title,items,newValue,setNewValue,kind])=>
         <div key={kind} style={{background:"#fff",border:`1px solid ${T.line}`,padding:14}}>
           <div style={{fontFamily:FONT_DISPLAY,fontSize:17,marginBottom:4}}>{title}</div>
           <div style={{fontFamily:FONT_BODY,fontSize:11.5,color:T.inkDim,marginBottom:10}}>Add once. EDIT renames it everywhere in Team Master. INACTIVE keeps old history but removes it from new selections.</div>
@@ -6975,7 +6976,7 @@ function SettingsView({ state, persist }) {
         <Field label="Employee ID"><input style={inputStyle} value={form.userId||""} disabled={!!editingId} onChange={e=>set("userId",e.target.value)} placeholder="Auto if blank"/></Field>
         <Field label="Name *"><input style={inputStyle} value={form.name||""} onChange={e=>set("name",e.target.value)} placeholder="Team member name"/></Field>
         <Field label="Designation / Role"><select style={inputStyle} value={form.role||""} onChange={e=>set("role",e.target.value)}><option value="">Select designation / role</option>{activeDesignations.map(r=><option key={r.masterId||r.name} value={r.name}>{r.name}</option>)}</select></Field>
-        <Field label="Department"><select style={inputStyle} value={form.department||""} onChange={e=>set("department",e.target.value)}><option value="">Select department</option>{activeDepartments.map(d=><option key={d.masterId||d.name} value={d.name}>{d.name}</option>)}</select></Field>
+        <Field label="Department"><select style={inputStyle} value={form.department||""} onChange={e=>set("department",e.target.value)}><option value="">Select department</option>{workspaceOptions.map(name=><option key={name} value={name}>{name}</option>)}{form.department&&!workspaceOptions.includes(form.department)&&<option value={form.department}>{form.department} (existing assignment)</option>}</select></Field>
         <Field label="Mobile"><input style={inputStyle} value={form.mobile||""} onChange={e=>set("mobile",e.target.value)} placeholder="Mobile number"/></Field>
         <Field label="Gmail ID (Login Email)"><input type="email" style={inputStyle} value={form.email||""} onChange={e=>set("email",e.target.value)} placeholder="name@gmail.com"/></Field>
         <Field label="Google Drive Email"><input style={inputStyle} value={form.driveEmail||""} onChange={e=>set("driveEmail",e.target.value)} placeholder="Drive sharing email"/></Field>
