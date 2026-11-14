@@ -6904,6 +6904,14 @@ function SettingsView({ state, persist }) {
 
 
   const workspaceOptions=departments.filter(d=>d.active!==false&&String(d.active).toLowerCase()!=="false").map(d=>d.name);
+  const [deletingDepartment,setDeletingDepartment]=useState('');
+  const deleteDepartment=async item=>{
+   if(deletingDepartment||!window.confirm('Delete “'+item.name+'” from Department Master?'))return;
+   setDeletingDepartment(item.masterId);
+   try{const result=await apiRequest('deleteDepartment',{masterId:item.masterId},'POST');setDepartments(result.departments);await persist({...state,departmentMaster:result.departments});setMessage('Department deleted.');}
+   catch(e){setMessage(e.message||'Could not delete department.');}
+   finally{setDeletingDepartment('');}
+  };
   const activeDesignations = designations.filter(x=>x.active!==false && String(x.active).toLowerCase()!=="false");
 
   const saveMaster = async (kind, item) => {
@@ -6961,10 +6969,11 @@ function SettingsView({ state, persist }) {
           <div style={{fontFamily:FONT_BODY,fontSize:11.5,color:T.inkDim,marginBottom:10}}>Add once. EDIT renames it everywhere in Team Master. INACTIVE keeps old history but removes it from new selections.</div>
           <div style={{display:"flex",gap:7,marginBottom:10}}><input style={inputStyle} value={newValue} onChange={e=>setNewValue(e.target.value)} placeholder={`Add ${kind==="department"?"department":"designation / role"}`}/><button style={smallBtn} onClick={()=>addMaster(kind)}>+ ADD</button></div>
           <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:230,overflowY:"auto"}}>
-            {items.map(item=>{const active=item.active!==false&&String(item.active).toLowerCase()!=="false";return <div key={item.masterId||item.name} style={{display:"grid",gridTemplateColumns:"1fr auto auto",gap:6,alignItems:"center",border:`1px solid ${T.line}`,padding:"7px 8px"}}>
+            {items.map(item=>{const active=item.active!==false&&String(item.active).toLowerCase()!=="false";return <div key={item.masterId||item.name} style={{display:"grid",gridTemplateColumns:kind==="department"?"minmax(0,1fr) auto auto auto":"minmax(0,1fr) auto auto",gap:6,alignItems:"center",border:`1px solid ${T.line}`,padding:"7px 8px"}}>
               <span style={{fontFamily:FONT_BODY,fontSize:12,fontWeight:600}}>{item.name}</span>
               <button style={smallBtn} onClick={()=>renameMaster(kind,item)}>EDIT</button>
-              <button style={{...smallBtn,color:active?T.redline:T.green}} onClick={()=>toggleMaster(kind,item)}>{active?"INACTIVATE":"ACTIVATE"}</button>
+              <button style={{...smallBtn,color:active?T.redline:T.green}} onClick={()=>toggleMaster(kind,item)}>{active?"INACTIVATE":"ACTIVATE"}</button> 
+              {kind==="department"&&(String(item.masterId).startsWith('WS-')?<small title="Built-in department">Default</small>:<button type="button" style={{...smallBtn,color:T.redline}} disabled={!!deletingDepartment} onClick={()=>deleteDepartment(item)}>{deletingDepartment===item.masterId?'Deleting…':'Delete'}</button>)}
             </div>})}
           </div>
         </div>)}
