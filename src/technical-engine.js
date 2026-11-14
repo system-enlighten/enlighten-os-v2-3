@@ -6,9 +6,12 @@ export function parseCadOutput(text){
  for(let i=0;i<s.length;i++){const c=s[i];if(c==='"'&&(quote||cell==='')){if(quote&&s[i+1]==='"'){cell+='"';i++;}else quote=!quote;}else if(!quote&&(c==='\t'||c==='\n')){row.push(cell);cell='';if(c==='\n'){grid.push(row);row=[];}}else cell+=c;}
  if(quote)throw Error('A quoted cell is unfinished. Paste the complete CAD rows.');if(cell||row.length){row.push(cell);grid.push(row);}const rows=grid.filter(r=>r.some(v=>key(v)));if(!rows.length)return [];
  if(rows.length>5001)throw Error('Paste up to 5000 Output rows per drawing.');
- const hasHeader=key(rows[0][0]).toUpperCase()==='CN';let columns=hasHeader?rows.shift().map(v=>key(v).toLowerCase().replace(/\s+/g,' ')):null;
+ const cad=rows[0].some(v=>key(v).toUpperCase()==='HANDLE')&&rows[0].some(v=>key(v).toUpperCase()==='CN');
+ const hasHeader=cad||key(rows[0][0]).toUpperCase()==='CN';let columns=hasHeader?rows.shift().map(v=>key(v).toLowerCase().replace(/\s+/g,' ')):null;
  const aliases={'description':['description','floor highlighter [adjustable]','luminaire details'],'colour & cct':['colour & cct','color & cct','colour','color'],'length in metre':['length in metre','length in meter']};
- return rows.map((values,index)=>{let mapped;if(columns){mapped=TECH_COLUMNS.map(name=>{const allowed=aliases[name.toLowerCase()]||[name.toLowerCase()];const at=columns.findIndex(c=>allowed.includes(c));return at<0?'':key(values[at]);});}else{if(![13,14].includes(values.length))throw Error(`Row ${index+1}: expected 13 CAD columns (without metres) or 14 columns from CN through IP. Paste a header row for custom layouts.`);mapped=values.map(key);if(mapped.length===13)mapped.splice(12,0,'');}
+ const cnIndex=columns?.indexOf('cn');
+ if(cad&&typeof arguments[1]?.onSkipped==='function')arguments[1].onSkipped(rows.filter(r=>!/^[A-Za-z]+\d+$/.test(key(r[cnIndex]))).length);
+ return (cad?rows.filter(r=>/^[A-Za-z]+\d+$/.test(key(r[cnIndex]))):rows).map((values,index)=>{let mapped;if(columns){mapped=TECH_COLUMNS.map(name=>{const field=name.toLowerCase();const cadAliases={'fitting type':['housingnumber'],'description':['name','neme','blockname'],'optics':['beamspread'],'height':['height','clearheight','clear height']};const allowed=(cad&&cadAliases[field])||aliases[field]||[field];return allowed.flatMap(c=>columns.map((label,i)=>label===c?key(values[i]):'')).find(v=>v&&v!=='<>')||'';});}else{if(![13,14].includes(values.length))throw Error(`Row ${index+1}: expected 13 CAD columns (without metres) or 14 columns from CN through IP. Paste a header row for custom layouts.`);mapped=values.map(key);if(mapped.length===13)mapped.splice(12,0,'');}
  if(!/^[A-Za-z]+\d+$/.test(mapped[0]))throw Error(`Row ${index+1}: invalid CN “${mapped[0]}”. Expected A1, Z12 or AA1.`);
  if(mapped.some(v=>v.length>4000))throw Error(`Row ${index+1}: a cell is too long.`);mapped[0]=mapped[0].toUpperCase();return mapped;});
 }
