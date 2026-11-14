@@ -11,14 +11,31 @@ export function assistantDraft(kind,words,context){
  if(kind==='email'||kind==='whatsapp')return {body:['Hello,',heading,text,'Thank you.'].filter(Boolean).join('\n\n')};
  return {body:[modes[kind],heading,text].filter(Boolean).join('\n\n')};
 }
-export default function ExecutiveAssistant({workUser,workProjects,workRequest,userId,project,task,onApply,sections=[],onNavigate,theme:T,buttonStyle,inputStyle}){
+export default function ExecutiveAssistant({profileApi,workUser,workProjects,workRequest,userId,project,task,onApply,sections=[],onNavigate,theme:T,buttonStyle,inputStyle}){
  const [open,setOpen]=useState(false),[kind,setKind]=useState('mom'),[words,setWords]=useState(''),[draft,setDraft]=useState(null),[listening,setListening]=useState(false),[message,setMessage]=useState('');
  useEffect(()=>{if(!open||!workRequest||document.getElementById('enlighten-google-login'))return;const script=document.createElement('script');script.id='enlighten-google-login';script.src='https://accounts.google.com/gsi/client';script.async=true;document.head.appendChild(script);},[open,workRequest]);
  const nameKey=userId?'enlighten-assistant-name:'+userId:'';
  const readName=()=>{try{return nameKey?localStorage.getItem(nameKey)||'':'';}catch{return '';}};
  const [name,setName]=useState(readName),[nameDraft,setNameDraft]=useState(readName);
  useEffect(()=>{const sync=()=>{const next=readName();setName(next);setNameDraft(next);};sync();window.addEventListener('enlighten-assistant-name',sync);return()=>window.removeEventListener('enlighten-assistant-name',sync);},[nameKey]);
- const saveName=()=>{try{const next=nameDraft.trim();if(next)localStorage.setItem(nameKey,next);else localStorage.removeItem(nameKey);window.dispatchEvent(new Event('enlighten-assistant-name'));setMessage(next?'Assistant name saved.':'Assistant name reset.');}catch{setMessage('Could not save the name in this browser.');}};
+ const profileRequest=workRequest||profileApi;
+ const [profileBusy,setProfileBusy]=useState(false);
+ useEffect(()=>{if(!nameKey||!profileRequest)return;let live=true;
+  profileRequest('assistantProfile',{action:'read'},'POST').then(async r=>{
+   if(!live)return;
+   const existing=readName();
+   const saved=r.name||(existing?(await profileRequest('assistantProfile',{action:'save',name:existing},'POST')).name:'');
+   if(!live||!saved)return;
+   try{localStorage.setItem(nameKey,saved);}catch{}
+   setName(saved);setNameDraft(saved);
+  }).catch(()=>{});return()=>{live=false;};
+ },[nameKey,profileRequest]);
+ const saveName=async()=>{const next=nameDraft.trim();if(!next||profileBusy)return;setProfileBusy(true);
+  try{const saved=profileRequest?(await profileRequest('assistantProfile',{action:'save',name:next},'POST')).name:next;
+   try{localStorage.setItem(nameKey,saved);}catch{}
+   setName(saved);setNameDraft(saved);setMessage('Assistant name saved.');
+  }catch(e){setMessage(e.message||'Could not save assistant name.');}finally{setProfileBusy(false);}
+ };
  const recentKey=userId?'enlighten-assistant-recents:'+userId:'';
  const [recents,setRecents]=useState([]),[interim,setInterim]=useState(''),[recentId,setRecentId]=useState(null);
  const readRecents=()=>{try{const values=JSON.parse(localStorage.getItem(recentKey)||'[]');return Array.isArray(values)?values:[];}catch{return [];}};
@@ -46,7 +63,7 @@ export default function ExecutiveAssistant({workUser,workProjects,workRequest,us
  };
  const close=()=>{ref.current?.abort();window.speechSynthesis?.cancel();setOpen(false);};
  return <><button type="button" style={buttonStyle} onClick={()=>{setOpen(true);setMessage('');}}>{name?"Talk to "+name:"Talk to assistant"}</button>{open&&<div style={{position:'fixed',inset:0,zIndex:16000,background:'#08192d77',display:'grid',placeItems:'center',padding:16}}><section ref={dialog} role="dialog" aria-modal="true" aria-label="Executive assistant" onKeyDown={e=>{if(e.key==='Escape')close();}} style={{width:'min(620px,100%)',maxHeight:'90vh',overflow:'auto',background:T.paper,padding:18,boxSizing:'border-box'}}>
- <h2>{name||'Executive assistant'}</h2>{nameKey&&!name&&<div style={{marginBottom:12}}><label>Assistant name <input style={inputStyle} maxLength={32} placeholder="e.g. Susie" value={nameDraft} onChange={e=>setNameDraft(e.target.value)}/></label><button type="button" style={buttonStyle} disabled={!nameDraft.trim()} onClick={saveName}>Save name</button></div>}{(project||task)&&<p>{[project,task].filter(Boolean).join(' · ')}</p>}<p>Dictate or type your notes, then review the draft. Voice input uses your browser’s speech service.</p>
+ <h2>{name||'Executive assistant'}</h2><details style={{margin:'8px 0 14px'}}><summary style={{cursor:'pointer',fontWeight:600}}>Learn more</summary><p>Your assistant helps with tasks, time, and project communication.</p><ul><li><strong>Tasks and timesheets:</strong> Find or create work, start, pause, resume, or stop a timer, and sync saved sessions to Google Calendar from Home.</li><li><strong>Meetings and site visits:</strong> Draft agendas, prepare visit briefs, and capture meeting minutes for review. Direct scheduling from this dialog is planned.</li><li><strong>Communication:</strong> Draft and edit email and WhatsApp follow-ups. Sending from this dialog is planned.</li><li><strong>Workspace:</strong> Open available sections and save drafts to Recents.</li></ul></details>{nameKey&&!name&&<div style={{marginBottom:12}}><label>Assistant name <input style={inputStyle} maxLength={32} placeholder="e.g. Susie" value={nameDraft} onChange={e=>setNameDraft(e.target.value)}/></label><button type="button" style={buttonStyle} disabled={profileBusy||!nameDraft.trim()} onClick={saveName}>Save name</button></div>}{(project||task)&&<p>{[project,task].filter(Boolean).join(' · ')}</p>}<p>Dictate or type your notes, then review the draft. Voice input uses your browser’s speech service.</p>
  <label>Draft type <select autoFocus style={inputStyle} value={kind} onChange={e=>{setKind(e.target.value);setDraft(null);}}>{Object.entries(modes).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label>
  {Recognition?<button type="button" aria-pressed={listening} aria-label={listening?'Stop voice input':'Start voice input'} title={listening?'Stop listening':'Start voice input'} style={{width:46,height:46,margin:'10px 0',border:0,borderRadius:'50%',background:listening?T.redline:T.navy,color:'#fff',display:'inline-grid',placeItems:'center',cursor:'pointer'}} onClick={start}>{listening?<span aria-hidden="true">■</span>:<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 11v2m4-5v8m5-12v16m5-12v8m4-5v2"/></svg>}</button>:<p>Voice input is unavailable in this browser. Type below.</p>}
  <label style={{display:'block'}}>Transcript<textarea style={{...inputStyle,minHeight:90}} value={words} onChange={e=>setWords(e.target.value)}/></label>{listening&&<p role="status">{interim||"Listening…"}</p>}
