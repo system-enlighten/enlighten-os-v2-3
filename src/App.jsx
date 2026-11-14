@@ -1,3 +1,4 @@
+import InternalAreas from './InternalAreas.jsx';
 import {DiscussionDialog} from './TaskDiscussion.jsx';
 import {Pin as WihPin, Flag as WihFlag, MessageSquare as WihComment} from 'lucide-react';
 import ExecutiveAssistant from './ExecutiveAssistant.jsx';
@@ -7099,10 +7100,10 @@ function StudioApp() {
           {allowedNav.some(n=>n.id==="scheduleSpec") && view === "scheduleSpec" && <ScheduleSpecSheetView state={state}/>}
           {view === "performance" && <PerformanceView state={state}/>}
           {view === "feedback" && <FeedbackView state={state} request={apiRequest} initialSection={feedbackContext}/>}
-          {view === "timesheet" && <><TimesheetView state={state} persist={persist} /><section className="wih-meetings-footer" style={{marginTop:20}}><button style={smallBtn} onClick={()=>setShowWihMeetings(v=>!v)}>{showWihMeetings?"Hide meetings":"Upcoming & past meetings"}</button>{showWihMeetings&&<MeetingsView state={state} persist={persist}/>}</section></>}
+          {view === "timesheet" && <><TimesheetView state={state} persist={persist} /><details><summary>Internal work</summary><InternalAreas request={apiRequest} buttonStyle={smallBtn} inputStyle={inputStyle}/></details><section className="wih-meetings-footer" style={{marginTop:20}}><button style={smallBtn} onClick={()=>setShowWihMeetings(v=>!v)}>{showWihMeetings?"Hide meetings":"Upcoming & past meetings"}</button>{showWihMeetings&&<MeetingsView state={state} persist={persist}/>}</section></>}
           {allowedNav.some(n=>n.id==="site") && view === "site" && <ProjectPunchInsView state={state}/>}
           {allowedNav.some(n=>n.id==="diary") && view === "diary" && <DiaryView state={state} persist={persist} onOpenWorkflow={(projectId,visitPlanId)=>{setDiaryWorkflowTarget({projectId,visitPlanId,token:Date.now()});setView("design");}}/>}
-          {allowedNav.some(n=>n.id==="settings") && view === "settings" && (wihSystemAccount(currentUser)&&isAdmin?<SettingsView state={state} persist={persist}/>:<ProjectTeamsTasksView/>)}
+          {allowedNav.some(n=>n.id==="settings") && view === "settings" && <>{isAdmin&&<InternalAreas manage request={apiRequest} buttonStyle={smallBtn} inputStyle={inputStyle}/>} {wihSystemAccount(currentUser)&&isAdmin?<SettingsView state={state} persist={persist}/>:<ProjectTeamsTasksView/>}</>}
         </div>
       </div>
     </div>
