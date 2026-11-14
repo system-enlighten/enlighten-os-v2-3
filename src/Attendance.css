@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif&display=swap");
 .attendance{--att-ink:#12283b;--att-muted:#4c6070;--att-edge:#d8e0e5;color:var(--att-ink);display:grid;gap:16px;max-width:1400px;margin:auto}
 .attendance h1,.attendance h2,.attendance h3,.attendance p{margin:0}
 .attendance h1{font-size:clamp(1.8rem,4vw,2.65rem);letter-spacing:-.04em}
@@ -45,12 +45,12 @@
  --att-muted:#4e5e63;
  --att-edge:#aeb9b7;
  --att-grid:#d7dcd5;
- font-family:Inter,system-ui,sans-serif;
+ font-family:"Instrument Sans",system-ui,sans-serif;
  font-size:.9rem;
  gap:18px;
 }
-.attendance h1,.attendance h2,.attendance h3{font-family:"Space Grotesk",Inter,system-ui,sans-serif}
-.attendance h1{font-weight:600;letter-spacing:-.055em;font-size:clamp(2.55rem,5vw,4.25rem);line-height:1}
+.attendance h1,.attendance h2,.attendance h3{font-family:"Instrument Sans",system-ui,sans-serif}
+.attendance h1{font-family:"Instrument Serif",Georgia,serif;font-weight:400;letter-spacing:-.02em;font-size:clamp(2.65rem,4.5vw,3.9rem);line-height:1.04}
 .attendance h2{letter-spacing:-.025em}
 .attendance-header{
  background:transparent;color:var(--att-ink);border:0;border-top:3px solid var(--att-ink);
@@ -66,7 +66,11 @@
 .attendance nav{gap:0;padding:0}
 .attendance nav button{
  background:transparent;border:0;border-bottom:3px solid transparent;border-radius:0;
- padding:9px 14px;font-weight:550;
+ padding:9px 14px;font-family:"Instrument Sans",system-ui,sans-serif;
+ font-size:.88rem;font-weight:500;letter-spacing:.015em;color:var(--att-muted);
+}
+.attendance nav button:disabled{
+ opacity:1;cursor:wait;
 }
 .attendance nav button[aria-pressed=true]{
  background:transparent;color:var(--att-ink);border-color:#20595f;
@@ -82,7 +86,7 @@
 .attendance-drawing time{color:var(--att-muted)}
 .attendance-metrics{gap:1px;background:var(--att-grid);border:1px solid var(--att-grid);grid-template-columns:repeat(auto-fit,minmax(min(100%,125px),1fr))}
 .attendance-metrics>div{border:0;border-radius:0;background:#f5f6ef;padding:11px 12px}
-.attendance-metrics strong{font-family:"Space Grotesk",Inter,system-ui,sans-serif;font-size:1.12rem;font-variant-numeric:tabular-nums}
+.attendance-metrics strong{font-family:"Instrument Sans",system-ui,sans-serif;font-size:1.12rem;font-variant-numeric:tabular-nums}
 .attendance-track{
  height:29px;border-radius:0;border-block:1px solid var(--att-edge);
  background:repeating-linear-gradient(90deg,transparent 0,transparent calc(10% - 1px),var(--att-grid) calc(10% - 1px),var(--att-grid) 10%);
