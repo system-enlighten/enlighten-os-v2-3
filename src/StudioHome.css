@@ -45,9 +45,24 @@
 .studio-home-agenda article small{color:#635845;font-weight:600}
 .studio-home-agenda-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
 .studio-home-agenda-actions:not(:empty){margin-top:5px}
-.studio-team-availability{margin-top:12px;padding:12px;border:1px solid #ddcfb6;background:#faf8f2}
+.studio-team-availability{
+ position:fixed;right:max(16px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));
+ width:min(330px,calc(100% - 32px));z-index:40;
+ background:#faf8f2;color:#132237;border:1px solid #607489;border-radius:8px;
+ box-shadow:0 8px 24px #13223729;overflow:hidden;
+ font:13px/1.45 Inter,system-ui,sans-serif;
+}
+.studio-availability-toggle{
+ display:flex;width:100%;align-items:center;gap:10px;padding:12px 14px;
+ border:0;background:#132237;color:white;text-align:left;font:inherit;font-weight:600;cursor:pointer;
+}
+.studio-availability-toggle small{margin-left:auto;color:#c3d9e8;font-weight:400}
+.studio-availability-toggle span:last-child{ margin-left:auto;font-size:16px;line-height:1}
+.studio-availability-toggle small+span:last-child{margin-left:0}
+.studio-availability-toggle:focus-visible{outline:2px solid #a9d7ed;outline-offset:-4px}
+.studio-availability-panel{padding:12px;max-height:min(420px,calc(100dvh - 76px));overflow:auto;overscroll-behavior:contain}
+.studio-availability-panel p{margin:0}
 .studio-team-availability-header{display:flex;justify-content:space-between;align-items:start;gap:8px;flex-wrap:wrap}
-.studio-home .studio-team-availability h2{font-size:14px;margin-bottom:4px}
 .studio-availability-groups{display:grid;gap:5px;margin-top:8px}
 .studio-availability-groups details{border-top:1px solid #e5ddd0;padding-top:5px}
 .studio-availability-groups summary{cursor:pointer;font-weight:600}
@@ -61,3 +76,9 @@
 .manual-work-fields label{display:grid;gap:4px;min-width:0}
 .manual-work-fields input,.manual-work-fields select{width:100%;min-width:0}
 .manual-work-fields label small{display:inline}
+.studio-home-attendance.studio-home-site-card{
+ padding:10px 16px;background:#eee4cf;gap:8px 14px;flex-wrap:wrap;
+}
+.studio-home-site-card>div{flex:1 1 155px;min-width:0;overflow-wrap:anywhere}
+.studio-home-site-card .studio-home-check{margin-left:auto}
+.studio-availability-groups li .studio-availability-active-work{color:#244b64;margin-top:2px}
