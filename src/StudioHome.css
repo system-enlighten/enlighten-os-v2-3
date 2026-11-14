@@ -26,3 +26,5 @@
 @media(max-width:760px){.studio-home-intro,.studio-home-grid{grid-template-columns:1fr}}
 
 .studio-home-task-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-top:10px;padding:12px 14px;border:1px solid #d8cdb9;background:#efe8da;}
+
+.studio-create-task{width:min(580px,100%);overflow-x:hidden;font:400 14px/1.45 Inter,system-ui,sans-serif}.studio-create-task form{display:grid;justify-items:stretch}.studio-create-task label{display:grid;gap:4px;font-weight:600;min-width:0}.studio-create-task :is(input,select,textarea){display:block;box-sizing:border-box;width:100%;min-width:0;max-width:100%;padding:9px 10px;border:1px solid #cfc4af;background:#fffdf8;color:#172b3e;font:inherit;font-weight:400}.studio-create-task footer{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;padding:10px 0}.studio-create-task h3{border-top:1px solid #d8cdb9;padding-top:12px;}
