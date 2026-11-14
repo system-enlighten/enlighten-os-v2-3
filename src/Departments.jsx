@@ -28,5 +28,5 @@ export function DepartmentWorkspace({id,name=departments[id][0],user,request,but
 }
 
 export function DepartmentHeading({name,onChoose}){
- return onChoose?<button type="button" onClick={onChoose} aria-label={name+' — choose a department'} style={{border:0,padding:0,background:'transparent',color:'inherit',font:'inherit',fontWeight:650,textAlign:'left',cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6}}>{name}<span aria-hidden="true">⌄</span></button>:<strong>{name}</strong>;
+ return onChoose?<button type="button" onClick={onChoose} aria-label={name+' — choose a department'} style={{border:0,padding:0,background:'transparent',color:'inherit',font:'inherit',fontWeight:650,textAlign:'left',cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6}}>{name}</button>:<strong>{name}</strong>;
 }
