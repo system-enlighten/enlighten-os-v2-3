@@ -6903,7 +6903,7 @@ function SettingsView({ state, persist }) {
   useEffect(()=>{ setDesignations(state.designationMaster || []); },[state.designationMaster]);
 
 
-  const workspaceOptions=Object.values(workspaceDepartments).map(([name])=>name);
+  const workspaceOptions=departments.filter(d=>d.active!==false&&String(d.active).toLowerCase()!=="false").map(d=>d.name);
   const activeDesignations = designations.filter(x=>x.active!==false && String(x.active).toLowerCase()!=="false");
 
   const saveMaster = async (kind, item) => {
@@ -6955,8 +6955,7 @@ function SettingsView({ state, persist }) {
     <ProjectRoleManager state={state}/>
     <div style={{marginBottom:20}}><h2 style={{fontFamily:FONT_DISPLAY,fontSize:24,margin:"0 0 5px"}}>Team Master</h2><div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim}}>Enter each employee once. The Gmail ID is the login identity. Set <b>App Access = Admin</b> for administrators; User = project-wise Admin/User permissions assigned above + own WIH editing; Viewer = assigned projects and own WIH view only. App Access Admin is the system administrator; Project Admin is assigned separately for each project. Active team members automatically become selectable in Responsible Person / Assignee dropdowns.</div></div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,300px),1fr))",gap:16,marginBottom:20}}>
-      <section style={{background:"#fff",border:`1px solid ${T.line}`,padding:14}}><h3>Workspace departments</h3><p style={{fontSize:12}}>Choose a department when editing an employee. Existing assignments stay in place until changed.</p><ul>{workspaceOptions.map(name=><li key={name}>{name}</li>)}</ul></section>
-      {[["Designation / Role Master",designations,newDesignation,setNewDesignation,"designation"]].map(([title,items,newValue,setNewValue,kind])=>
+      {[["Department Master",departments,newDepartment,setNewDepartment,"department"],["Designation / Role Master",designations,newDesignation,setNewDesignation,"designation"]].map(([title,items,newValue,setNewValue,kind])=>
         <div key={kind} style={{background:"#fff",border:`1px solid ${T.line}`,padding:14}}>
           <div style={{fontFamily:FONT_DISPLAY,fontSize:17,marginBottom:4}}>{title}</div>
           <div style={{fontFamily:FONT_BODY,fontSize:11.5,color:T.inkDim,marginBottom:10}}>Add once. EDIT renames it everywhere in Team Master. INACTIVE keeps old history but removes it from new selections.</div>
@@ -7062,9 +7061,13 @@ function StudioApp() {
   if(currentUser?.appAccess==='Contractor')return <ContractorDrawingPortal user={currentUser}/>;
   const isAdmin=currentUser?.appAccess?.toLowerCase()==="admin";
   const superAdmin=isAdmin&&wihSystemAccount(currentUser);
-  const workspace=superAdmin?department:departmentFor(currentUser?.department);
-  if(superAdmin&&!workspace)return <DepartmentPicker choose={id=>{setView('home');setDepartment(id);}}/>;
-  if(workspace!=='studio')return <DepartmentWorkspace key={workspace} id={workspace} user={currentUser} request={apiRequest} buttonStyle={smallBtn} inputStyle={inputStyle} switchDepartment={superAdmin?()=>setDepartment(''):null}/>;
+  const savedDepartments=state.departmentMaster||[];
+  const directory=Object.fromEntries(Object.entries(workspaceDepartments).map(([id,[name,items]])=>[id,[savedDepartments.find(d=>d.masterId==='WS-'+id)?.name||name,items]]));
+  const activeDirectory=Object.fromEntries(Object.entries(directory).filter(([id])=>{const a=savedDepartments.find(d=>d.masterId==='WS-'+id)?.active;return a!==false&&String(a).toLowerCase()!=='false';}));
+  const assignedDepartment=savedDepartments.find(d=>d.name===currentUser?.department&&String(d.masterId).startsWith('WS-'));
+  const workspace=superAdmin?department:assignedDepartment?assignedDepartment.masterId.slice(3):departmentFor(currentUser?.department);
+  if(superAdmin&&!workspace)return <DepartmentPicker directory={activeDirectory} choose={id=>{setView('home');setDepartment(id);}}/>;
+  if(workspace!=='studio')return <DepartmentWorkspace key={workspace} id={workspace} name={directory[workspace][0]} user={currentUser} request={apiRequest} buttonStyle={smallBtn} inputStyle={inputStyle} switchDepartment={superAdmin?()=>setDepartment(''):null}/>;
   const allowedNav=projectNavigationItems(currentUser);
   const pendingCount = state.intakes.filter((i) => !i.classified).length;
   const viewLabel = view==='home'?'Home':NAV.find((n) => n.id === view)?.label;
@@ -7078,7 +7081,7 @@ function StudioApp() {
         <div style={{ padding: "0 20px 20px", borderBottom: `1px solid ${T.cyan}22`, marginBottom: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Building2 size={18} color={T.cyan} />
-            <DepartmentHeading name={workspaceDepartments[workspace][0]} onChoose={superAdmin?()=>setDepartment(''):null}/>
+            <DepartmentHeading name={directory[workspace][0]} onChoose={superAdmin?()=>setDepartment(''):null}/>
           </div>
           <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.cyan, opacity: 0.7, marginTop: 4 }}>lighting design · intake → task → timesheet</div>
         </div>
