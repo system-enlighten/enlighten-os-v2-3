@@ -1,6 +1,7 @@
+import TeamAvailability from './TeamAvailability.jsx';
 import './DepartmentDirectory.css';
 import React,{useEffect,useState} from 'react';
-import PerformanceAttendance from './PerformanceAttendance.jsx';
+import PerformanceAttendance,{MissedCheckoutNotice} from './PerformanceAttendance.jsx';
 export const departments={
  studio:['Studio · Operations',[]],
  sales:['Business Development & Sales',['CRM','Design Sales']],
@@ -17,13 +18,14 @@ export function DepartmentPicker({choose,directory=departments}){
 export function DepartmentWorkspace({id,name=departments[id][0],user,request,buttonStyle,inputStyle,switchDepartment,PerformanceView,performanceState}){
  const [attendanceDay,setAttendanceDay]=useState('');
  const [page,setPage]=useState('Home'),[log,setLog]=useState(null),[team,setTeam]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(false);
- const load=async(action)=>{setBusy(true);setError('');try{const result=await request(action?'saveStudioDay':'getStudioDay',action?{action}:{},'POST');setLog(action?{...result,missedDay:log?.missedDay}:result);}catch(e){setError(e.message);}finally{setBusy(false);}};
+ const load=async(action)=>{setBusy(true);setError('');try{const result=await request(action?'saveStudioDay':'getStudioDay',action?{action}:{},'POST');setLog(action?{...result,missedDay:log?.missedDay}:result);if(action)window.dispatchEvent(new Event('enlighten-attendance-change'));}catch(e){setError(e.message);}finally{setBusy(false);}};
  useEffect(()=>{if(page==='Home')load();},[id,page]);
  useEffect(()=>{if(page==='Team & Tasks')request('departmentTeam',{department:id},'POST').then(setTeam).catch(e=>setError(e.message));},[page,id]);
  const fmt=s=>new Date(s).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit'});
  return <div style={{display:'flex',flexWrap:'wrap',minHeight:560,background:'#f4f0e6',fontFamily:'Inter,system-ui,sans-serif'}}><aside style={{background:'#102235',color:'#fff',padding:20,minWidth:190}}><DepartmentHeading name={name} onChoose={switchDepartment}/><nav style={{display:'grid',gap:8,marginTop:16}}>{['Home','Attendance','Team & Tasks','Performance',...departments[id][1]].map(x=><button key={x} style={buttonStyle} aria-current={page===x?'page':undefined} onClick={()=>{setError('');setAttendanceDay('');setPage(x);}}>{x}</button>)}</nav></aside><main className="studio-home" style={{flex:'1 1 420px',minWidth:0,padding:24}}>{page!=='Attendance'&&<h1>{page==='Home'?name:page}</h1>}{error&&<p role="alert">{error}</p>}
  {page==='Home'&&<section className="studio-home-attendance"><div><strong>Attendance</strong><p>{!log?'Loading attendance…':log.checkOut?'Checked out':log.breakStart?'On break':log.checkIn?'Checked in':'Ready to check in'}</p>{log?.checkIn&&<p>{fmt(log.checkIn)}{log.checkOut?' – '+fmt(log.checkOut):''} · IST</p>}</div><div>{log?.checkIn&&!log.checkOut&&<button style={buttonStyle} disabled={busy} onClick={()=>load(log.breakStart?'resume':'break')}>{log.breakStart?'Resume work':'Pause for break'}</button>} <button style={buttonStyle} disabled={!log||busy||!!log.checkOut} onClick={()=>load(log.checkIn?'out':'in')}>{log?.checkOut?'Day closed':log?.checkIn?'Check out':'Check in'}</button></div></section>}
- {page==='Home'&&log?.missedDay&&<p role="status">You missed checkout on {log.missedDay}. <button style={buttonStyle} onClick={()=>{setAttendanceDay(log.missedDay);setPage('Attendance');}}>Enter checkout time</button></p>}
+ {page==='Home'&&<MissedCheckoutNotice day={log?.missedDay} onReview={day=>{setAttendanceDay(day);setPage('Attendance');}} buttonStyle={buttonStyle}/>}
+ {page==='Home'&&<TeamAvailability request={request} department={id} buttonStyle={buttonStyle}/>}
  {page==='Attendance'&&<PerformanceAttendance initialDay={attendanceDay} request={request} user={user}/>}
  {page==='Performance'&&<PerformanceView state={performanceState}/> }
  {page==='Team & Tasks'&&<section className="studio-home-card">{!team&&!error&&<p>Loading department team…</p>}{team&&<><h2>People</h2>{team.people.length?team.people.map(p=><p key={p.id}>{p.name} · {p.role||'Team member'}</p>):<p>No employees assigned to this department.</p>}<h2>Tasks</h2>{team.tasks.length?team.tasks.map(t=><p key={t.id}>{t.title} · {t.status}</p>):<p>No tasks to show.</p>}</>}</section>}

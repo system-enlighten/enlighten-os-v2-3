@@ -1,3 +1,6 @@
+import ManualWorkFields,{emptyWork,manualWorkLabel} from './ManualWorkFields.jsx';
+import TeamAvailability from './TeamAvailability.jsx';
+import {MissedCheckoutNotice} from './PerformanceAttendance.jsx';
 import HomeAgenda from './HomeAgenda.jsx';
 const internalAreas={'__internal_os__':'Enlighten OS Development','__internal_center__':'Narayana Experience Center','__internal_ops__':'Studio Operations'};
 import TaskDiscussion from './TaskDiscussion.jsx';
@@ -15,6 +18,7 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  const areaNames=areaRows?Object.fromEntries(areaRows.map(a=>[a.id,a.name])):internalAreas;
 
  const [rows,setRows]=useState([]),[log,setLog]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[note,setNote]=useState(''),[start,setStart]=useState(''),[end,setEnd]=useState(''),[ready,setReady]=useState(false);
+ const [manualWork,setManualWork]=useState(emptyWork),[manualOpen,setManualOpen]=useState(false);
  const [period,setPeriod]=useState('week'),[assignment,setAssignment]=useState(null),[assignmentBusy,setAssignmentBusy]=useState(false),[assigned,setAssigned]=useState(false),[thread,setThread]=useState(null),[comment,setComment]=useState(''),[threadBusy,setThreadBusy]=useState(false),[threadError,setThreadError]=useState('');
  const changeThread=async(row,action)=>{
   setThreadBusy(true);setThreadError('');
@@ -24,7 +28,7 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  };
  const today=day(new Date()),admin=String(user?.appAccess).toLowerCase()==='admin';
  useEffect(()=>{let live=true;loadWork().then(r=>{if(live){setRows(Array.isArray(r)?r:[]);setReady(true);}}).catch(e=>{if(live)setError(e.message);});request('getStudioDay',{},'POST').then(r=>{if(live)setLog(r);}).catch(e=>{if(live)setError(e.message);});return()=>{live=false;};},[request,loadWork]);
- const save=async(action)=>{if(busy)return;setBusy(true);setError('');try{setLog({...await request('saveStudioDay',{action,note,start,end},'POST'),missedDay:log?.missedDay});if(action==='break'){try{const updated=await loadWork();if(Array.isArray(updated))setRows(updated);}catch{setError('Break saved. Refresh Home to update the task display.');}}if(action==='entry'){setNote('');setStart('');setEnd('');}}catch(e){setError(e.message);}finally{setBusy(false);}};
+ const save=async(action)=>{if(busy)return;setBusy(true);setError('');try{setLog({...await request('saveStudioDay',{action,note,start,end,...(action==='entry'?manualWork:{})},'POST'),missedDay:log?.missedDay});window.dispatchEvent(new Event('enlighten-attendance-change'));if(action==='break'){try{const updated=await loadWork();if(Array.isArray(updated))setRows(updated);}catch{setError('Break saved. Refresh Home to update the task display.');}}if(action==='entry'){setNote('');setStart('');setEnd('');setManualWork(emptyWork);}}catch(e){setError(e.message);}finally{setBusy(false);}};
  const [timerBusy,setTimerBusy]=useState(''),[timerError,setTimerError]=useState(''),[clock,setClock]=useState(Date.now());
  const [taskLimit,setTaskLimit]=useState(20);
  useEffect(()=>{const tick=setInterval(()=>setClock(Date.now()),1000);return()=>clearInterval(tick);},[]);
@@ -63,15 +67,17 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  return <main className="studio-home">
  <header className="studio-home-intro">
   <div><p className="studio-home-kicker">enLIGHTen / Studio desk</p><h1>{admin?'Studio overview':'My work'}</h1><p>{new Intl.DateTimeFormat('en-IN',{timeZone:tz,dateStyle:'full'}).format(new Date())}</p></div>
-  <section aria-label="Attendance" className="studio-home-attendance">
+  <div className="studio-home-attendance-stack"><section aria-label="Attendance" className="studio-home-attendance">
    <div><p className="studio-home-kicker">Attendance</p><strong>{!log?'Attendance unavailable':log.checkOut?'Checked out':log.breakStart?'On break':log.checkIn?'Checked in':'Ready to check in'}</strong>{log?.checkIn&&<small>{stamp(log.checkIn)}{log.checkOut?' – '+stamp(log.checkOut):' · IST'}</small>}</div>
    <div style={{display:'grid',gap:6}}>
     {log?.checkIn&&!log.checkOut&&<button type="button" style={buttonStyle} disabled={busy} onClick={()=>save(log.breakStart?'resume':'break')}>{log.breakStart?'Resume work':'Pause for break'}</button>}
    <button type="button" className="studio-home-check" disabled={!log||busy||!!log.checkOut} onClick={()=>save(log.checkIn?'out':'in')}>{busy?'Saving…':log?.checkOut?'Day closed':log?.checkIn?'Check out':'Check in'}</button></div>
   </section>
-  {log?.missedDay&&<div role="status"><strong>You missed checkout on {log.missedDay}. </strong><button style={buttonStyle} onClick={()=>onMissedCheckout(log.missedDay)}>Enter checkout time</button></div>}
-  <div className="studio-home-utilities">{assistant}<button type="button" style={buttonStyle} aria-expanded={assigned} onClick={()=>setAssigned(!assigned)}>Assigned requests</button></div>
+  <MissedCheckoutNotice day={log?.missedDay} onReview={onMissedCheckout} buttonStyle={buttonStyle}/>
  <HomeAgenda request={request} day={today} readOnly={String(user?.appAccess).toLowerCase()==="viewer"} buttonStyle={buttonStyle}/>
+  <TeamAvailability request={request} department="studio" buttonStyle={buttonStyle}/>
+  </div>
+  <div className="studio-home-utilities">{assistant}<button type="button" style={buttonStyle} aria-expanded={assigned} onClick={()=>setAssigned(!assigned)}>Assigned requests</button></div>
  </header>
  {error&&<p role="alert" style={{color:T.redline}}>{error}</p>}
  {assigned&&<section className="studio-home-card"> {assigned&&<><h2>{admin?'Assigned work · accessible team':'My assigned work'}</h2>{!work.some(r=>!done(r)&&(admin||own(r)))&&<p>No assigned work to review.</p>}{work.filter(r=>!done(r)&&(admin||own(r))).map(r=><div key={r.designTaskId} style={{padding:'8px 0',borderTop:'1px solid '+T.line}}><strong>{title(r)}</strong> · {(state.projects||[]).find(p=>String(p.id)===String(r.projectId))?.name||'Project'} · {r.assigneeName} <button type="button" style={buttonStyle} disabled={threadBusy} onClick={()=>changeThread(r,'read')}>Comments{own(r)?' / accept':''}</button> <button type="button" style={buttonStyle} disabled={assignmentBusy} onClick={()=>chooseAssignee(r)}>Assign work</button></div>)}</>}
@@ -104,6 +110,6 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  <WihMetrics tasks={work} now={clock} period={period} loading={!ready}/>
  <div className="studio-home-band"><div><p className="studio-home-kicker">02 / Daily plan</p><h2>Today’s work</h2></div></div><div className="studio-home-grid"><section className="studio-home-card"><h2>In progress</h2>{work.filter(r=>running(r)&&!done(r)).length?<ul>{work.filter(r=>running(r)&&!done(r)).map(r=><li key={r.designTaskId}>{title(r)} · {r.assigneeName||user?.name}</li>)}</ul>:<p>No work in progress.</p>}<button type="button" style={buttonStyle} onClick={()=>navigate('timesheet')}>Open Tasks</button></section>
  <section className="studio-home-card"><h2>Today’s schedule</h2>{ownSchedule.length?<ol>{ownSchedule.map((r,i)=><li key={i}>{r.time}{r.end?' – '+r.end:''} · {r.title}</li>)}</ol>:<p>No scheduled work today.</p>}
- <details className="studio-home-log"><summary>Log unrecorded time</summary>{(log?.entries||[]).map((r,i)=><p key={i}>{r.start} – {r.end} · {r.note}</p>)}<div style={{display:'flex',gap:8,flexWrap:'wrap'}}><label>From <input type="time" value={start} onChange={e=>setStart(e.target.value)}/></label><label>To <input type="time" value={end} onChange={e=>setEnd(e.target.value)}/></label></div><label style={{display:'block',margin:'8px 0'}}>Activity <input value={note} maxLength={250} onChange={e=>setNote(e.target.value)}/></label><button type="button" style={buttonStyle} disabled={busy||!log?.checkIn||!start||!end||!note.trim()} onClick={()=>save('entry')}>Log time</button></details></section>
+ <details className="studio-home-log" onToggle={e=>setManualOpen(e.currentTarget.open)}><summary>Log unrecorded time</summary>{(log?.entries||[]).map((r,i)=><p key={i}>{r.start} – {r.end} · {manualWorkLabel(r)}</p>)}<div style={{display:'flex',gap:8,flexWrap:'wrap'}}><label>From <input type="time" value={start} onChange={e=>setStart(e.target.value)}/></label><label>To <input type="time" value={end} onChange={e=>setEnd(e.target.value)}/></label></div>{manualOpen&&<ManualWorkFields request={request} value={manualWork} onChange={setManualWork}/>}<label style={{display:'block',margin:'8px 0'}}>Activity <input value={note} maxLength={250} onChange={e=>setNote(e.target.value)}/></label><button type="button" style={buttonStyle} disabled={busy||!log?.checkIn||!start||!end||!manualWork.projectId||!manualWork.task.trim()||!note.trim()} onClick={()=>save('entry')}>Log time</button></details></section>
  </div><TaskDiscussion request={request} buttonStyle={buttonStyle}/></main>;
 }
