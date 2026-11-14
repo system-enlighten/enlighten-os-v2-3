@@ -24,3 +24,5 @@
 .studio-home-log input{border:1px solid var(--stone);background:#fff;padding:5px;font:inherit}
 @media(max-width:1050px){.studio-home-intro{grid-template-columns:repeat(2,minmax(0,1fr))}.studio-home-utilities{grid-column:1/-1;justify-content:flex-start}}
 @media(max-width:760px){.studio-home-intro,.studio-home-grid{grid-template-columns:1fr}}
+
+.studio-home-task-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-top:10px;padding:12px 14px;border:1px solid #d8cdb9;background:#efe8da;}
