@@ -1,4 +1,4 @@
-import {departments as workspaceDepartments,departmentFor,DepartmentPicker,DepartmentWorkspace} from './Departments.jsx';
+import {departments as workspaceDepartments,departmentFor,DepartmentPicker,DepartmentWorkspace,DepartmentHeading} from './Departments.jsx';
 import PerformanceAttendance from './PerformanceAttendance.jsx';
 import InternalAreas from './InternalAreas.jsx';
 import {DiscussionDialog} from './TaskDiscussion.jsx';
@@ -7078,11 +7078,11 @@ function StudioApp() {
         <div style={{ padding: "0 20px 20px", borderBottom: `1px solid ${T.cyan}22`, marginBottom: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Building2 size={18} color={T.cyan} />
-            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 14, letterSpacing: "0.02em" }}>Studio Tracker</div>
+            <DepartmentHeading name={workspaceDepartments[workspace][0]} onChoose={superAdmin?()=>setDepartment(''):null}/>
           </div>
           <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.cyan, opacity: 0.7, marginTop: 4 }}>lighting design · intake → task → timesheet</div>
         </div>
-        <div style={{padding:"0 20px 12px"}}><button type="button" style={smallBtn} aria-current={view==='home'?'page':undefined} onClick={()=>setView('home')}>Home</button></div>{superAdmin&&<button type="button" style={{...smallBtn,margin:'0 20px 12px'}} onClick={()=>setDepartment('')}>Switch department</button>}<SidebarNavigation items={allowedNav} view={view} onChange={next=>{if(next==='feedback')setFeedbackContext(viewLabel);setView(next)}} pendingCount={pendingCount}/>
+        <div style={{padding:"0 20px 12px"}}><button type="button" style={smallBtn} aria-current={view==='home'?'page':undefined} onClick={()=>setView('home')}>Home</button></div><SidebarNavigation items={allowedNav} view={view} onChange={next=>{if(next==='feedback')setFeedbackContext(viewLabel);setView(next)}} pendingCount={pendingCount}/>
         <div style={{ padding: "20px", marginTop: 20, fontFamily: FONT_MONO, fontSize: 10, color: T.cyan, opacity: 0.7 }}>
           <div style={{ marginBottom: 6 }}>{currentUser?.appAccess} · {currentUser?.name || ""}</div>
           <div style={{ opacity: 0.7, wordBreak: "break-all" }}>{currentUser?.email || ""}</div>
