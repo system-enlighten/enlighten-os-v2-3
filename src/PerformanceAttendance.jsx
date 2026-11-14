@@ -1,29 +1,59 @@
 import React,{useEffect,useState} from 'react';
+import './Attendance.css';
 const tz='Asia/Kolkata',today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 const stamp=x=>x?new Date(x).toLocaleTimeString('en-IN',{timeZone:tz,hour:'numeric',minute:'2-digit'}):'—';
 const dur=ms=>{const m=Math.floor(Math.max(0,ms)/60000);return Math.floor(m/60)+' h '+m%60+' min';};
 function totals(d){
- const points=[d.lo,d.hi,...[...d.breaks,...d.tracked,...d.entries].flatMap(x=>[x.start,x.end])].filter(x=>x>=d.lo&&x<=d.hi).sort((a,b)=>a-b),out={breaks:0,tracked:0,entries:0,gap:0,gaps:[]};
+ const points=[d.lo,d.hi,...[...d.breaks,...d.tracked,...d.entries].flatMap(x=>[x.start,x.end])].filter(x=>x>=d.lo&&x<=d.hi).sort((a,b)=>a-b),out={breaks:0,tracked:0,entries:0,gap:0,gaps:[],segments:[]};
  if(d.lo==null)return out;
  for(let i=1;i<points.length;i++){
   const a=points[i-1],b=points[i];if(b<=a)continue;
-  const k=['breaks','tracked','entries'].find(k=>d[k].some(x=>x.start<b&&x.end>a))||'gap';out[k]+=b-a;
+  const k=['breaks','tracked','entries'].find(k=>d[k].some(x=>x.start<b&&x.end>a))||'gap';out[k]+=b-a;out.segments.push({kind:k,start:a,end:b});
   if(k==='gap'){const last=out.gaps.at(-1);if(last?.end===a)last.end=b;else out.gaps.push({start:a,end:b});}
  }
  return out;
 }
-export default function PerformanceAttendance({request,user,buttonStyle,inputStyle}){
- const [day,setDay]=useState(today),[uid,setUid]=useState(''),[data,setData]=useState(null),[people,setPeople]=useState([]),[busy,setBusy]=useState(false),[error,setError]=useState(''),[start,setStart]=useState(''),[end,setEnd]=useState(''),[note,setNote]=useState(''),[reason,setReason]=useState('');
- const load=async(action='read')=>{setBusy(true);setError('');if(action==='read')setData(null);try{const d=await request('attendanceDay',{action,day,userId:uid,start,end,note,reason},'POST');setData(d);setPeople(d.people);if(action==='entry'){setStart('');setEnd('');setNote('');}if(action==='reopen')setReason('');}catch(e){setError(e.message);}finally{setBusy(false);}};
- useEffect(()=>{if(day)load();},[day,uid]);
+const categories={breaks:'Break',tracked:'Tracked work',entries:'Manual work',gap:'Untracked'};
+const dateLabel=d=>new Date(d+'T12:00:00+05:30').toLocaleDateString('en-IN',{timeZone:tz,day:'numeric',month:'short',year:'numeric'});
+export default function PerformanceAttendance({request,user,initialDay,siteRecords}){
+ const [tab,setTab]=useState('Day'),[day,setDay]=useState(initialDay||today),[uid,setUid]=useState(''),[data,setData]=useState(null),[people,setPeople]=useState([]);
+ const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[start,setStart]=useState(''),[end,setEnd]=useState(''),[note,setNote]=useState(''),[reason,setReason]=useState(''),[checkout,setCheckout]=useState('');
+ const [leave,setLeave]=useState([]),[from,setFrom]=useState(''),[to,setTo]=useState(''),[leaveReason,setLeaveReason]=useState('');
+ const role=String(user?.appAccess).toLowerCase();
+ const load=async(action='read',extra={})=>{
+  setBusy(true);setError('');setNotice('');
+  try{
+   const result=await request('attendanceDay',{action,day,userId:uid,...extra},'POST');
+   if(action.startsWith('leave')){setLeave(result);if(action==='leaveApply'){setFrom('');setTo('');setLeaveReason('');setNotice('Leave request submitted.');}if(action==='leaveReview')setNotice('Leave request updated.');}
+   else{setData(result);setPeople(result.people);if(action==='confirmCheckout'){setCheckout('');setNotice('Checkout saved.');}if(action==='entry'){setStart('');setEnd('');setNote('');setNotice('Work time saved.');}if(action==='reopen')setReason('');}
+  }catch(e){setError(e.message);}finally{setBusy(false);}
+ };
+ useEffect(()=>{if(tab==='Apply leave')load('leaveList');else if(tab!=='Site punch-ins'&&day){setData(null);setCheckout('');load();}},[tab,day,uid]);
  const t=data&&totals(data);
- return <section className="studio-home-card"><h2>Attendance</h2><div style={{display:'flex',gap:12,flexWrap:'wrap'}}><label>Date <input type="date" style={inputStyle} max={today()} value={day} disabled={busy} onChange={e=>setDay(e.target.value)}/></label>{people.length>0&&<label>Employee <select style={inputStyle} disabled={busy} value={uid} onChange={e=>setUid(e.target.value)}><option value="">My attendance</option>{people.filter(x=>x.id!==String(user?.userId)).map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label>}<button style={buttonStyle} disabled={busy||!day} onClick={()=>load()}>Refresh</button></div>
- {busy&&<p role="status">Updating attendance…</p>}{error&&<p role="alert">{error}</p>}
- {data&&<><p>Check-in: <strong>{stamp(data.checkIn)}</strong> · Check-out: <strong>{stamp(data.checkOut)}</strong> · IST</p>{data.lo==null?<p>No check-in recorded for this day.</p>:<div className="studio-home-grid">
- <section className="studio-home-card"><h3>Daily totals</h3><p>On duty: {dur(t.tracked+t.entries+t.gap)}</p><p>Breaks: {dur(t.breaks)}</p><p>Tracked work: {dur(t.tracked)}</p><p>Manual work: {dur(t.entries)}</p><p>Untracked: {dur(t.gap)}</p><h4>Untracked gaps</h4>{t.gaps.map(x=><p key={x.start}>{stamp(x.start)} – {stamp(x.end)} · {dur(x.end-x.start)}</p>)}</section>
- <section className="studio-home-card"><h3>Recorded work and breaks</h3>{[...data.tracked,...data.entries,...data.breaks.map(x=>({...x,title:'Break'}))].sort((a,b)=>a.start-b.start).map((x,i)=><p key={i}><strong>{x.title||x.note}</strong> · {stamp(x.start)} – {stamp(x.end)} · {dur(x.end-x.start)}{x.running?' · Running':''}</p>)}
- {String(user?.appAccess).toLowerCase()!=='viewer'&&<form onSubmit={e=>{e.preventDefault();if(!busy)load('entry');}}><h4>Log untracked time</h4><label>From <input required type="time" style={inputStyle} value={start} onChange={e=>setStart(e.target.value)}/></label><label>To <input required type="time" style={inputStyle} value={end} onChange={e=>setEnd(e.target.value)}/></label><label>Activity <input required maxLength={250} style={inputStyle} value={note} onChange={e=>setNote(e.target.value)}/></label><button style={buttonStyle} disabled={busy||!note.trim()}>Save time</button></form>}</section></div>}
- {data.admin&&data.checkOut&&<form onSubmit={e=>{e.preventDefault();if(!busy&&reason.trim())load('reopen');}}><h3>Correct a mistaken checkout</h3><label>Reason <input required maxLength={250} style={inputStyle} value={reason} onChange={e=>setReason(e.target.value)}/></label><button style={buttonStyle} disabled={busy||!reason.trim()}>Reopen day</button></form>}
- {data.history.length>0&&<section><h3>Correction history</h3>{data.history.map((x,i)=><p key={i}>{x.by} reopened the day at {stamp(x.at)} · Previous checkout: {stamp(x.previous)} · {x.reason}</p>)}</section>}</>}
- </section>;
+ const openDay=d=>{setDay(d);setTab('Day');};
+ const submit=(action,fields)=>e=>{e.preventDefault();if(!busy)load(action,fields);};
+ const lastDay=data?.recent.find(r=>r.day<today());
+ return <main className="attendance"><header className="attendance-header"><div><h1>Attendance</h1><p>Daily time, punch records and leave</p></div><span>IST · Asia/Kolkata</span></header>
+ <nav aria-label="Attendance views">{['Day','Punch records','Apply leave',...(siteRecords?['Site punch-ins']:[])].map(x=><button key={x} disabled={busy} aria-pressed={tab===x} onClick={()=>setTab(x)}>{x}</button>)}</nav>
+ {error&&<p className="attendance-error" role="alert">{error}</p>}{notice&&<p role="status">{notice}</p>}{busy&&<p role="status">Updating attendance…</p>}
+ {tab==='Site punch-ins'&&siteRecords}
+ {tab==='Apply leave'&&<div className="attendance-columns"><section className="attendance-panel"><h2>Apply leave</h2>{role==='viewer'?<p>Leave requests are available to employee accounts.</p>:<form onSubmit={submit('leaveApply',{from,to,reason:leaveReason})}><div className="attendance-fields"><label>From<input required type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label><label>To<input required type="date" min={from} value={to} onChange={e=>setTo(e.target.value)}/></label></div><label>Reason<textarea required maxLength={250} value={leaveReason} onChange={e=>setLeaveReason(e.target.value)}/></label><button className="attendance-primary" disabled={busy}>Submit request</button></form>}</section><section className="attendance-panel"><h2>{role==='admin'?'Leave requests':'My requests'}</h2>{leave.length===0&&<p>No requests yet.</p>}{leave.map(r=><article className="attendance-row" key={r.id}><div><strong>{dateLabel(r.from)} – {dateLabel(r.to)}</strong><p>{role==='admin'&&r.employee+' · '}{r.reason}</p><small>{r.status}</small></div>{role==='admin'&&r.status==='Pending'&&<div className="attendance-fields">{['Approved','Declined'].map(status=><button key={status} disabled={busy} onClick={()=>load('leaveReview',{id:r.id,status})}>{status==='Approved'?'Approve':'Decline'}</button>)}</div>}</article>)}</section></div>}
+ {['Day','Punch records'].includes(tab)&&<>
+ <div className="attendance-filters">{tab==='Day'&&<label>Date<input required type="date" max={today()} value={day} disabled={busy} onChange={e=>e.target.value&&setDay(e.target.value)}/></label>}{people.length>0&&<label>Employee<select value={uid} disabled={busy} onChange={e=>setUid(e.target.value)}><option value="">My attendance</option>{people.filter(x=>x.id!==String(user?.userId)).map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label>}{lastDay&&<button disabled={busy} onClick={()=>openDay(lastDay.day)}>Last attendance day · {dateLabel(lastDay.day)}</button>}</div>
+ {data?.missedDay&&!(tab==='Day'&&data.pending)&&<aside className="attendance-warning" role="status"><strong>Checkout needs confirmation</strong><button onClick={()=>openDay(data.missedDay)}>Review {dateLabel(data.missedDay)}</button></aside>}
+ {tab==='Punch records'&&data&&<section className="attendance-panel"><h2>Recent punch records</h2>{!data.recent.length&&<p>No punch records yet.</p>}{data.recent.map(r=><article className="attendance-row" key={r.day}><div><strong>{dateLabel(r.day)}</strong><p>In {stamp(r.checkIn)} · Out {r.pending?'Needs confirmation':stamp(r.checkOut)}</p></div><button onClick={()=>openDay(r.day)}>View day</button></article>)}</section>}
+ {tab==='Day'&&data&&<>
+ {data.pending&&<aside className="attendance-warning" role="status"><div><strong>Missed checkout · {dateLabel(day)}</strong><p>Enter the time you left. Totals currently run through the last recorded activity.</p></div>{role!=='viewer'&&<form className="attendance-fields" onSubmit={submit('confirmCheckout',{end:checkout})}><label>Actual checkout<input type="time" required value={checkout} onChange={e=>setCheckout(e.target.value)}/></label><button className="attendance-primary" disabled={busy}>Confirm checkout</button></form>}</aside>}
+ {data.lo==null?<section className="attendance-panel">No check-in recorded for this day.</section>:<>
+ <div className="attendance-metrics">{[['Check-in',stamp(data.checkIn)],['Checkout',data.pending?'Pending':stamp(data.checkOut)],['On duty',dur(t.tracked+t.entries+t.gap)],...Object.entries(categories).map(([k,label])=>[label,dur(t[k])])].map(([label,value])=><div key={label}><small>{label}</small><strong>{value}</strong></div>)}</div>
+ <section className="attendance-panel"><h2>Day timeline</h2>{t.segments.length>0?<><div className="attendance-track" aria-hidden="true">{t.segments.map(x=><span key={x.start} data-kind={x.kind} style={{flexGrow:x.end-x.start}} title={categories[x.kind]+': '+stamp(x.start)+' – '+stamp(x.end)}/>)}</div><div className="attendance-axis"><span>{stamp(data.lo)}</span><span>{stamp(data.hi)}</span></div><div className="attendance-legend">{Object.entries(categories).map(([k,label])=><span key={k}><i data-kind={k}/>{label}</span>)}</div></>:<p>No elapsed time to show.</p>}</section>
+ <div className="attendance-columns"><section className="attendance-panel"><h2>Recorded work and breaks</h2>{[...data.tracked,...data.entries,...data.breaks.map(x=>({...x,title:'Break'}))].sort((a,b)=>a.start-b.start).map((x,i)=><article className="attendance-row" key={i}><strong>{x.title||x.note}</strong><span>{stamp(x.start)} – {stamp(x.end)} · {dur(x.end-x.start)}</span></article>)}{!data.tracked.length&&!data.entries.length&&!data.breaks.length&&<p>No work or breaks recorded.</p>}</section>
+ <section className="attendance-panel"><h2>Untracked time</h2>{t.gaps.map(x=><article className="attendance-row" key={x.start}><span>{stamp(x.start)} – {stamp(x.end)}</span><strong>{dur(x.end-x.start)}</strong></article>)}{!t.gaps.length&&<p>No untracked gaps.</p>}
+ {!data.pending&&role!=='viewer'&&<form onSubmit={submit('entry',{start,end,note})}><h3>Log work</h3><div className="attendance-fields"><label>From<input required type="time" value={start} onChange={e=>setStart(e.target.value)}/></label><label>To<input required type="time" value={end} onChange={e=>setEnd(e.target.value)}/></label></div><label>Activity<input required maxLength={250} value={note} onChange={e=>setNote(e.target.value)}/></label><button className="attendance-primary" disabled={busy}>Save time</button></form>}</section></div>
+ </>}
+ {data.admin&&data.checkOut&&<section className="attendance-panel"><h2>Correct a mistaken checkout</h2><form className="attendance-fields" onSubmit={submit('reopen',{reason})}><label>Reason<input required maxLength={250} value={reason} onChange={e=>setReason(e.target.value)}/></label><button disabled={busy}>Reopen day</button></form></section>}
+ {data.history.length>0&&<section className="attendance-panel"><h2>Correction history</h2>{data.history.map((x,i)=><p key={i}>{x.by} · {x.action==='checkout'?'Confirmed checkout at '+stamp(x.checkout):'Reopened day · Previous checkout '+stamp(x.previous)} · {x.reason}</p>)}</section>}
+ </>}
+ </>}
+ </main>;
 }

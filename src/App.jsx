@@ -7010,8 +7010,8 @@ const NAV = [
   { id: "timesheet", label: "Tasks", icon: Clock, group: "WORK IN HAND" },
   { id: "technicalTable", label: "Technical Table", icon: FileText, group: "WORK IN HAND" },
   { id: "scheduleSpec", label: "Schedule / Spec Sheet", icon: FileText, group: "WORK IN HAND" },
-  { id: "site", label: "Site Punch-in", icon: MapPin, group: "SITE PUNCH-IN" },
-  { id: "diary", label: "Diary", icon: FileText, group: "SITE PUNCH-IN" },
+  { id: "site", label: "Attendance", icon: Clock, group: "ATTENDANCE" },
+  { id: "diary", label: "Diary", icon: FileText, group: "ATTENDANCE" },
   { id: "settings", label: "Team & Tasks", icon: Settings2, group: "ADMIN" },
   { id: "performance", label: "Performance", icon: Clock, group: "ADMIN" },
   { id: "feedback", label: "Feedback", icon: FileText, group: "ADMIN" },
@@ -7039,6 +7039,7 @@ function StudioApp() {
   const [department,setDepartment]=useState('');
   const { state, loading, saveErr, backendErr, currentUser, persist } = useStudioState();
   const [view, setView] = useState(window.location.hash==="#email-intake" ? "drawingRegister" : "home");
+  const [attendanceDay,setAttendanceDay]=useState('');
   const [showWihMeetings,setShowWihMeetings]=useState(false);
   const [feedbackContext,setFeedbackContext]=useState("General");
   const [diaryWorkflowTarget,setDiaryWorkflowTarget]=useState(null);
@@ -7077,7 +7078,7 @@ function StudioApp() {
   const personalWorkspace=currentUser?.departmentKey|| (assignedDepartment?assignedDepartment.masterId.slice(3):departmentFor(currentUser?.department));
   const workspace=superAdmin?department:(Object.hasOwn(directory,personalWorkspace)?personalWorkspace:'studio');
   if(superAdmin&&!workspace)return <DepartmentPicker directory={activeDirectory} choose={id=>{setView('home');setDepartment(id);}}/>;
-  if(workspace!=='studio')return <DepartmentWorkspace key={workspace} id={workspace} name={directory[workspace][0]} user={currentUser} request={apiRequest} buttonStyle={smallBtn} inputStyle={inputStyle} switchDepartment={superAdmin?()=>setDepartment(''):null}/>;
+  if(workspace!=='studio')return <DepartmentWorkspace PerformanceView={PerformanceView} performanceState={state} key={workspace} id={workspace} name={directory[workspace][0]} user={currentUser} request={apiRequest} buttonStyle={smallBtn} inputStyle={inputStyle} switchDepartment={superAdmin?()=>setDepartment(''):null}/>;
   const allowedNav=projectNavigationItems(currentUser);
   const pendingCount = state.intakes.filter((i) => !i.classified).length;
   const viewLabel = view==='home'?'Home':NAV.find((n) => n.id === view)?.label;
@@ -7095,7 +7096,7 @@ function StudioApp() {
           </div>
           <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.cyan, opacity: 0.7, marginTop: 4 }}>lighting design · intake → task → timesheet</div>
         </div>
-        <div style={{padding:"0 20px 12px"}}><button type="button" style={smallBtn} aria-current={view==='home'?'page':undefined} onClick={()=>setView('home')}>Home</button></div><SidebarNavigation items={allowedNav} view={view} onChange={next=>{if(next==='feedback')setFeedbackContext(viewLabel);setView(next)}} pendingCount={pendingCount}/>
+        <div style={{padding:"0 20px 12px"}}><button type="button" style={smallBtn} aria-current={view==='home'?'page':undefined} onClick={()=>setView('home')}>Home</button></div><SidebarNavigation items={allowedNav} view={view} onChange={next=>{if(next==='feedback')setFeedbackContext(viewLabel);if(next==='site')setAttendanceDay('');setView(next)}} pendingCount={pendingCount}/>
         <div style={{ padding: "20px", marginTop: 20, fontFamily: FONT_MONO, fontSize: 10, color: T.cyan, opacity: 0.7 }}>
           <div style={{ marginBottom: 6 }}>{currentUser?.appAccess} · {currentUser?.name || ""}</div>
           <div style={{ opacity: 0.7, wordBreak: "break-all" }}>{currentUser?.email || ""}</div>
@@ -7105,7 +7106,7 @@ function StudioApp() {
 
       {/* Main canvas */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <TitleBlock view={viewLabel} sub={view === "timesheet" ? `${state.tasks.length} tasks` : view === "classify" ? `${pendingCount} pending` : view === "project" ? "Onboarding · Scope · Team" : view === "design" ? "Dashboard · Line of Work" : view === "meetings" ? `${(state.meetings || []).length} meetings` : view === "executionMain" ? "Milestones · MOM" : view === "site" ? `${(state.siteVisits || []).length} site visits` : undefined} />
+        <TitleBlock view={viewLabel} sub={view === "timesheet" ? `${state.tasks.length} tasks` : view === "classify" ? `${pendingCount} pending` : view === "project" ? "Onboarding · Scope · Team" : view === "design" ? "Dashboard · Line of Work" : view === "meetings" ? `${(state.meetings || []).length} meetings` : view === "executionMain" ? "Milestones · MOM" : undefined} />
         {view!=='upload'&&(state.pendingReceivedUploads||[]).length>0&&<div role="status" style={{padding:'8px 24px',fontFamily:FONT_BODY,fontSize:12,background:T.amberBg,color:T.ink}}>{state.pendingReceivedUploads.length} drawing upload(s) pending. <button type="button" style={smallBtn} onClick={()=>setView('drawingRegister')}>View uploads</button></div>}
         {saveErr && (
           <div style={{ background: T.redlineBg, color: T.redline, fontFamily: FONT_MONO, fontSize: 12, padding: "8px 24px", display: "flex", alignItems: "center", gap: 6 }}>
@@ -7119,7 +7120,7 @@ function StudioApp() {
         )}
         <div style={{ padding: "28px 32px", overflowY: "auto" }}>
           
-          {view==='home'&&<StudioHome assistant={<ExecutiveAssistant profileApi={apiRequest} workUser={currentUser} workProjects={state.projects||[]} workRequest={apiRequest} userId={currentUser?.userId} sections={allowedNav} onNavigate={setView} theme={T} buttonStyle={smallBtn} inputStyle={inputStyle}/>} state={state} user={currentUser} request={apiRequest} loadWork={loadStudioHomeWork} navigate={setView} theme={T} buttonStyle={smallBtn}/>}
+          {view==='home'&&<StudioHome assistant={<ExecutiveAssistant profileApi={apiRequest} workUser={currentUser} workProjects={state.projects||[]} workRequest={apiRequest} userId={currentUser?.userId} sections={allowedNav} onNavigate={setView} theme={T} buttonStyle={smallBtn} inputStyle={inputStyle}/>} state={state} user={currentUser} request={apiRequest} loadWork={loadStudioHomeWork} navigate={setView} onMissedCheckout={day=>{setAttendanceDay(day);setView('site');}} theme={T} buttonStyle={smallBtn}/>}
           {view === "project" && (isAdmin?<ProjectView state={state} persist={persist} />:<ProjectPermissionsView state={state} persist={persist}/>)}
           {isAdmin && view === "designLineOfWork" && <DesignLineOfWorkView state={state} persist={persist} />}
           {allowedNav.some(n=>n.id==="design") && view === "design" && <DesignWorkspaceView key={diaryWorkflowTarget?.token||'dashboard'} state={state} persist={persist} workflowTarget={diaryWorkflowTarget}/>}
@@ -7128,10 +7129,10 @@ function StudioApp() {
           {allowedNav.some(n=>n.id==="drive") && view === "drive" && <DriveWorkspaceView state={state} persist={persist}/>}
           {view === "technicalTable" && <TechnicalTableView state={state}/> }
           {allowedNav.some(n=>n.id==="scheduleSpec") && view === "scheduleSpec" && <ScheduleSpecSheetView state={state}/>}
-          {view === "performance" && <PerformanceTabs state={state} user={currentUser}/>}
+          {view === "performance" && <PerformanceView state={state}/>}
           {view === "feedback" && <FeedbackView state={state} request={apiRequest} initialSection={feedbackContext}/>}
           {view === "timesheet" && <><TimesheetView state={state} persist={persist} /><details><summary>Internal work</summary><InternalAreas request={apiRequest} buttonStyle={smallBtn} inputStyle={inputStyle}/></details><section className="wih-meetings-footer" style={{marginTop:20}}><button style={smallBtn} onClick={()=>setShowWihMeetings(v=>!v)}>{showWihMeetings?"Hide meetings":"Upcoming & past meetings"}</button>{showWihMeetings&&<MeetingsView state={state} persist={persist}/>}</section></>}
-          {allowedNav.some(n=>n.id==="site") && view === "site" && <ProjectPunchInsView state={state}/>}
+          {allowedNav.some(n=>n.id==="site") && view === "site" && <PerformanceAttendance key={attendanceDay} initialDay={attendanceDay} request={apiRequest} user={currentUser} siteRecords={<ProjectPunchInsView state={state}/>}/>}
           {allowedNav.some(n=>n.id==="diary") && view === "diary" && <DiaryView state={state} persist={persist} onOpenWorkflow={(projectId,visitPlanId)=>{setDiaryWorkflowTarget({projectId,visitPlanId,token:Date.now()});setView("design");}}/>}
           {allowedNav.some(n=>n.id==="settings") && view === "settings" && <>{isAdmin&&<InternalAreas manage request={apiRequest} buttonStyle={smallBtn} inputStyle={inputStyle}/>} {wihSystemAccount(currentUser)&&isAdmin?<SettingsView state={state} persist={persist}/>:<ProjectTeamsTasksView/>}</>}
         </div>
@@ -7391,7 +7392,4 @@ export default function App(){
   </main>;
 }
 
-function PerformanceTabs({state,user}){
- const [tab,setTab]=useState('performance');
- return <><nav aria-label="Performance views" className="studio-home-period" style={{display:'flex',gap:8,marginBottom:16}}><button type="button" aria-pressed={tab==='performance'} onClick={()=>setTab('performance')}>Performance</button><button type="button" aria-pressed={tab==='attendance'} onClick={()=>setTab('attendance')}>Attendance</button></nav>{tab==='attendance'?<PerformanceAttendance request={apiRequest} user={user} buttonStyle={smallBtn} inputStyle={inputStyle}/>:<PerformanceView state={state}/>}</>;
-}
+

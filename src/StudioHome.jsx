@@ -9,7 +9,7 @@ const stamp=t=>new Date(t).toLocaleTimeString('en-IN',{timeZone:tz,hour:'numeric
 const done=r=>/^(completed|done)$/i.test(r.status||r.task?.status||'');
 const running=r=>/in.?progress|running/i.test(r.status||r.task?.status||'');
 const title=r=>r.task?.taskType||r.title||'Work item';
-export default function StudioHome({state,user,request,loadWork,navigate,theme:T,buttonStyle,assistant}){
+export default function StudioHome({state,user,request,loadWork,navigate,theme:T,buttonStyle,assistant,onMissedCheckout}){
  const [areaRows,setAreaRows]=useState(null),[areaError,setAreaError]=useState('');
  useEffect(()=>{let live=true;request('internalAreas',{action:'list'},'POST').then(r=>{if(live)setAreaRows(r.areas);}).catch(e=>{if(live)setAreaError(e.message);});return()=>{live=false;};},[request]);
  const areaNames=areaRows?Object.fromEntries(areaRows.map(a=>[a.id,a.name])):internalAreas;
@@ -24,7 +24,7 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  };
  const today=day(new Date()),admin=String(user?.appAccess).toLowerCase()==='admin';
  useEffect(()=>{let live=true;loadWork().then(r=>{if(live){setRows(Array.isArray(r)?r:[]);setReady(true);}}).catch(e=>{if(live)setError(e.message);});request('getStudioDay',{},'POST').then(r=>{if(live)setLog(r);}).catch(e=>{if(live)setError(e.message);});return()=>{live=false;};},[request,loadWork]);
- const save=async(action)=>{if(busy)return;setBusy(true);setError('');try{setLog(await request('saveStudioDay',{action,note,start,end},'POST'));if(action==='break'){try{const updated=await loadWork();if(Array.isArray(updated))setRows(updated);}catch{setError('Break saved. Refresh Home to update the task display.');}}if(action==='entry'){setNote('');setStart('');setEnd('');}}catch(e){setError(e.message);}finally{setBusy(false);}};
+ const save=async(action)=>{if(busy)return;setBusy(true);setError('');try{setLog({...await request('saveStudioDay',{action,note,start,end},'POST'),missedDay:log?.missedDay});if(action==='break'){try{const updated=await loadWork();if(Array.isArray(updated))setRows(updated);}catch{setError('Break saved. Refresh Home to update the task display.');}}if(action==='entry'){setNote('');setStart('');setEnd('');}}catch(e){setError(e.message);}finally{setBusy(false);}};
  const [timerBusy,setTimerBusy]=useState(''),[timerError,setTimerError]=useState(''),[clock,setClock]=useState(Date.now());
  const [taskLimit,setTaskLimit]=useState(20);
  useEffect(()=>{const tick=setInterval(()=>setClock(Date.now()),1000);return()=>clearInterval(tick);},[]);
@@ -69,6 +69,7 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
     {log?.checkIn&&!log.checkOut&&<button type="button" style={buttonStyle} disabled={busy} onClick={()=>save(log.breakStart?'resume':'break')}>{log.breakStart?'Resume work':'Pause for break'}</button>}
    <button type="button" className="studio-home-check" disabled={!log||busy||!!log.checkOut} onClick={()=>save(log.checkIn?'out':'in')}>{busy?'Saving…':log?.checkOut?'Day closed':log?.checkIn?'Check out':'Check in'}</button></div>
   </section>
+  {log?.missedDay&&<div role="status"><strong>You missed checkout on {log.missedDay}. </strong><button style={buttonStyle} onClick={()=>onMissedCheckout(log.missedDay)}>Enter checkout time</button></div>}
   <div className="studio-home-utilities">{assistant}<button type="button" style={buttonStyle} aria-expanded={assigned} onClick={()=>setAssigned(!assigned)}>Assigned requests</button></div>
  <HomeAgenda request={request} day={today} readOnly={String(user?.appAccess).toLowerCase()==="viewer"} buttonStyle={buttonStyle}/>
  </header>
