@@ -1,3 +1,4 @@
+import TaskDiscussion from './TaskDiscussion.jsx';
 import WihMetrics from './WihMetrics.jsx';
 import './StudioHome.css';
 import React,{useEffect,useState} from 'react';
@@ -76,5 +77,5 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  <div className="studio-home-band"><div><p className="studio-home-kicker">02 / Daily plan</p><h2>Today’s work</h2></div></div><div className="studio-home-grid"><section className="studio-home-card"><h2>In progress</h2>{work.filter(r=>running(r)&&!done(r)).length?<ul>{work.filter(r=>running(r)&&!done(r)).map(r=><li key={r.designTaskId}>{title(r)} · {r.assigneeName||user?.name}</li>)}</ul>:<p>No work in progress.</p>}<button type="button" style={buttonStyle} onClick={()=>navigate('timesheet')}>Open Tasks</button></section>
  <section className="studio-home-card"><h2>Today’s schedule</h2>{ownSchedule.length?<ol>{ownSchedule.map((r,i)=><li key={i}>{r.time}{r.end?' – '+r.end:''} · {r.title}</li>)}</ol>:<p>No scheduled work today.</p>}
  <details className="studio-home-log"><summary>Log unrecorded time</summary>{(log?.entries||[]).map((r,i)=><p key={i}>{r.start} – {r.end} · {r.note}</p>)}<div style={{display:'flex',gap:8,flexWrap:'wrap'}}><label>From <input type="time" value={start} onChange={e=>setStart(e.target.value)}/></label><label>To <input type="time" value={end} onChange={e=>setEnd(e.target.value)}/></label></div><label style={{display:'block',margin:'8px 0'}}>Activity <input value={note} maxLength={250} onChange={e=>setNote(e.target.value)}/></label><button type="button" style={buttonStyle} disabled={busy||!log?.checkIn||!start||!end||!note.trim()} onClick={()=>save('entry')}>Log time</button></details></section>
- </div></main>;
+ </div><TaskDiscussion request={request} buttonStyle={buttonStyle}/></main>;
 }
