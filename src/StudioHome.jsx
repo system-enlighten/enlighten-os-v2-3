@@ -1,3 +1,4 @@
+import HomeAgenda from './HomeAgenda.jsx';
 const internalAreas={'__internal_os__':'Enlighten OS Development','__internal_center__':'Narayana Experience Center','__internal_ops__':'Studio Operations'};
 import TaskDiscussion from './TaskDiscussion.jsx';
 import WihMetrics from './WihMetrics.jsx';
@@ -69,6 +70,7 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
    <button type="button" className="studio-home-check" disabled={!log||busy||!!log.checkOut} onClick={()=>save(log.checkIn?'out':'in')}>{busy?'Saving…':log?.checkOut?'Day closed':log?.checkIn?'Check out':'Check in'}</button></div>
   </section>
   <div className="studio-home-utilities">{assistant}<button type="button" style={buttonStyle} aria-expanded={assigned} onClick={()=>setAssigned(!assigned)}>Assigned requests</button></div>
+ <HomeAgenda request={request} day={today} readOnly={String(user?.appAccess).toLowerCase()==="viewer"} buttonStyle={buttonStyle}/>
  </header>
  {error&&<p role="alert" style={{color:T.redline}}>{error}</p>}
  {assigned&&<section className="studio-home-card"> {assigned&&<><h2>{admin?'Assigned work · accessible team':'My assigned work'}</h2>{!work.some(r=>!done(r)&&(admin||own(r)))&&<p>No assigned work to review.</p>}{work.filter(r=>!done(r)&&(admin||own(r))).map(r=><div key={r.designTaskId} style={{padding:'8px 0',borderTop:'1px solid '+T.line}}><strong>{title(r)}</strong> · {(state.projects||[]).find(p=>String(p.id)===String(r.projectId))?.name||'Project'} · {r.assigneeName} <button type="button" style={buttonStyle} disabled={threadBusy} onClick={()=>changeThread(r,'read')}>Comments{own(r)?' / accept':''}</button> <button type="button" style={buttonStyle} disabled={assignmentBusy} onClick={()=>chooseAssignee(r)}>Assign work</button></div>)}</>}
