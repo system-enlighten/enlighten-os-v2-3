@@ -31,3 +31,14 @@
 .wih-task-table .wih-row-icon{padding:0!important;color:revert!important}
 .wih-task-table .wih-row-icon{color:var(--wih-icon-color,#4d6069)!important}
 .wih-meetings-footer{border-top-color:var(--register-rule)}
+
+.wih-register-head{width:100%;box-sizing:border-box;padding:12px 0 8px}
+.wih-register-head h2{font-size:clamp(25px,3vw,34px)!important}
+.wih-workspace .wih-intro{max-width:110ch;margin:5px 0 0!important;font-size:12px!important}
+.wih-intro>span{display:block}
+.wih-register-controls{display:flex;align-items:center;gap:4px 12px;flex-wrap:wrap;padding:4px 0 6px;border-bottom:1px solid var(--register-rule);margin-bottom:7px}
+.wih-register-controls .wih-quiet-filters{flex:1 1 470px;margin:0;padding:0;border:0;gap:4px 12px}
+.wih-register-controls .wih-sync-toolbar{display:flex;align-items:center;gap:6px;margin:0!important}
+.wih-register-controls .wih-register-group{margin:0;font-size:11px}
+.wih-register-controls .wih-status-filters button,.wih-register-controls .wih-person-filter select{font-size:12px}
+.wih-register-controls .wih-status-filters button{padding:4px 7px}
