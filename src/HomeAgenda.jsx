@@ -24,15 +24,26 @@ export function editableTime(value){
 
 function nextStep(item){
  if(item.startAt)return ['end',item.site?'Check out from site':'End meeting'];
- if(item.site&&!item.departedAt)return ['depart','Leave for site'];
+ if(item.site&&!item.departedAt&&!item.directCheckIn)return ['depart','Leave for site'];
  return ['start',item.site?'Check in at site':'Start meeting'];
+}
+
+function captureSiteLocation(){
+ return new Promise((resolve,reject)=>{
+  if(!navigator.geolocation){reject(new Error('Location access is unavailable in this browser.'));return;}
+  navigator.geolocation.getCurrentPosition(
+   ({coords})=>resolve({latitude:Number(coords.latitude.toFixed(6)),longitude:Number(coords.longitude.toFixed(6)),accuracy:Math.round(coords.accuracy)}),
+   error=>reject(new Error(error.code===1?'Allow location access in your browser and try again.':'Could not get your current location. Try again.')),
+   {enableHighAccuracy:true,timeout:15000,maximumAge:0}
+  );
+ });
 }
 
 export default function HomeAgenda({request,buttonStyle,readOnly,day}){
  const [items,setItems]=useState([]),[error,setError]=useState(''),[busy,setBusy]=useState(false);
  const update=async(action='list',item)=>{
   setBusy(true);setError('');
-  try{setItems(await request('homeAgenda',{action,id:item?.id,projectId:item?.projectId},'POST'));}
+  try{const location=item?.site&&['start','end'].includes(action)?await captureSiteLocation():undefined;setItems(await request('homeAgenda',{action,id:item?.id,projectId:item?.projectId,location},'POST'));}
   catch(e){setError(e.message);}
   finally{setBusy(false);}
  };
