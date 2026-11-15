@@ -4025,6 +4025,9 @@ function TechnicalTableView({state}){
 function wihSystemAccount(user){return String(user?.email||'').trim().toLowerCase()==='system.enlighten@gmail.com';}
 function wihProjectRole(user,id){if(wihSystemAccount(user)&&String(user?.appAccess).toLowerCase()==='admin')return 'Admin';const role=user?.projectRoles?.[String(id)]||'';return String(user?.appAccess).toLowerCase()==='viewer'?(role?'User':''):role;}
 function wihCanSeeTask(user,row){const role=wihProjectRole(user,row.projectId||row.task?.projectId);return !!role&&(role==='Admin'||!!user?.userId&&String(row.assigneeUserId)===String(user.userId));}
+const registerTabsStyle={display:'flex',alignItems:'center',borderBottom:`1px solid ${T.line}`,marginBottom:18,overflowX:'auto',background:'#fff'};
+const registerTabStyle=active=>({padding:'11px 16px',border:0,borderBottom:`3px solid ${active?T.cyan:'transparent'}`,background:active?T.navy:'transparent',color:active?'#fff':T.inkDim,cursor:'pointer',fontFamily:FONT_BODY,fontSize:12,fontWeight:active?700:500,whiteSpace:'nowrap'});
+
 function TimesheetView({ state, persist }) {
   const [groupWork,setGroupWork]=useState(false),[taskThread,setTaskThread]=useState(null),[taskComment,setTaskComment]=useState(''),[threadPending,setThreadPending]=useState(false),[threadNotice,setThreadNotice]=useState('');
   const markKey='enlighten-wih-marks:'+String(state.currentUser?.userId||'');
@@ -4099,7 +4102,7 @@ function TimesheetView({ state, persist }) {
   };
   const refreshAndRecover=async(force=false)=>{
     const diagnostics=await refresh(force);if(!wihMounted.current||wihRecovery.current||!Array.isArray(diagnostics?.repairCandidates))return;
-    const generation=AUTH_SESSION_GENERATION,cacheKey=WIH_CACHE_KEY+':reconciled',ttl=10*60*1000;let known={};
+    const generation=AUTH_SESSION_GENERATION,cacheKey=WIH_CACHE_KEY+':drawing-batches',ttl=10*60*1000;let known={};
     try{known=JSON.parse(localStorage.getItem(cacheKey)||'{}')||{};}catch{}
     const candidates=diagnostics.repairCandidates.filter(c=>c?.projectId&&typeof c.revision==='string'&&(force||!known[c.projectId]||known[c.projectId].revision!==c.revision||Date.now()-Number(known[c.projectId].at||0)>ttl));
     if(!candidates.length)return;wihRecovery.current=true;setReconciling(true);setReconcileError('');let successful=0,failed=false;
@@ -4125,6 +4128,7 @@ function TimesheetView({ state, persist }) {
     projectName:(state.projects||[]).find(p=>String(p.id)===String(r.projectId))?.name||r.task?.projectName||"",
     floor:r.task?.floor||"",
     area:r.task?.area||"",
+    batchCoverage:(()=>{try{return JSON.parse(r.task?.workflowCoverage||"[]");}catch{return [];}})(),
     drawingType:r.task?.dependencyDrawingType||"",
     designNo:r.task?.designNo||"",
     assignee:r.assigneeName||r.task?.assigneeName||"",
@@ -4179,7 +4183,7 @@ function TimesheetView({ state, persist }) {
   };
   return <div className="wih-workspace">
     {assign&&<div style={{position:'fixed',inset:0,zIndex:1000,background:'#0c1c3466',display:'grid',placeItems:'center',padding:16}}><section role="dialog" aria-modal="true" aria-labelledby="wih-assign-title" onKeyDown={e=>{if(e.key==='Escape'&&!assign.busy)setAssign(null);}} style={{background:T.paper||'#fff',border:'1px solid '+T.line,padding:24,width:'min(100%,440px)'}}><h3 id="wih-assign-title">Assign task</h3><p>{assign.task.projectName} · {assign.task.title}</p><label>Project team <select value={assign.id} disabled={assign.busy} onChange={e=>setAssign({...assign,id:e.target.value})}><option value="">{assign.busy?'Please wait…':assign.options.length?'Choose a team member':'No eligible team members'}</option>{assign.options.map(m=><option key={m.userId} value={m.userId}>{m.name}</option>)}</select></label>{assign.error&&<p role="alert">{assign.error}</p>}<div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:18}}><button autoFocus type="button" style={smallBtn} disabled={assign.busy} onClick={()=>setAssign(null)}>Cancel</button><button type="button" style={smallBtn} disabled={!assign.id||assign.busy} onClick={saveAssign}>Assign task</button></div></section></div>}
-    <div role="tablist" aria-label="Task sections" style={{display:'flex',borderBottom:`1px solid ${T.line}`,marginBottom:18,background:'#fff'}}>{[['todo','To-do'],['calendar','Calendar'],['internal','Internal work']].map(([id,label])=><button key={id} role="tab" aria-selected={workTab===id} type="button" onClick={()=>{setWorkTab(id);setPlanningTask(null);}} style={{padding:'11px 16px',border:0,borderBottom:`3px solid ${workTab===id?T.cyan:'transparent'}`,background:workTab===id?T.navy:'transparent',color:workTab===id?'#fff':T.inkDim,fontFamily:FONT_BODY,fontSize:12,fontWeight:workTab===id?700:500,cursor:'pointer'}}>{label}</button>)}</div>
+    <div className="register-tabs" role="tablist" aria-label="Task sections" style={registerTabsStyle}>{[['todo','To-do'],['calendar','Calendar'],['internal','Internal work']].map(([id,label])=><button key={id} role="tab" aria-selected={workTab===id} type="button" onClick={()=>{setWorkTab(id);setPlanningTask(null);}} style={registerTabStyle(workTab===id)}>{label}</button>)}</div>
     {workTab==='internal'?<InternalAreas request={apiRequest} buttonStyle={smallBtn} inputStyle={inputStyle}/>:<>
     <header className="wih-register-head">
       <h2>Tasks</h2>
@@ -4203,7 +4207,7 @@ function TimesheetView({ state, persist }) {
       });
       return [...groups].map(([key,list],index,entries)=><React.Fragment key={key}>{(index===0||priorityRank(entries[index-1][1][0])!==priorityRank(list[0]))&&(priorityRank(list[0])!==2||index>0)&&<tr><th colSpan={11} style={{textAlign:'left',padding:'6px 10px',background:T.paperDim,fontSize:11,color:T.inkDim}}>{['Pinned','High priority','Normal priority','Low priority'][priorityRank(list[0])]}</th></tr>}{groupWork&&<tr><th colSpan={11} style={{textAlign:'left',padding:8,background:T.paperDim}}>{[list[0].projectName,list[0].floor,list[0].drawingType,list[0].task?.parentTask||list[0].title].filter(Boolean).join(' · ')} ({list.length})</th></tr>}{list.map(t=>{
        const editable=canWork&&(assignProject(t.projectId)||t.assigneeUserId===state.currentUser?.userId),cell={padding:'8px 10px',fontSize:12,borderBottom:`1px solid ${T.line}`,verticalAlign:'middle'},marks=taskMarks[t.designTaskId]||{},project=(state.projects||[]).find(p=>String(p.id)===String(t.projectId));
-       return <tr key={t.designTaskId}><td style={cell}><div style={{display:'flex',alignItems:'center',gap:1,whiteSpace:'nowrap'}}><input type="checkbox" checked={isDone(t.status)} style={{accentColor:T.blue,width:15,height:15,margin:"0 2px 0 0"}} disabled={!run(t)||isDone(t.status)} aria-label={'Complete '+t.title} onChange={()=>setCompleteEditor({task:t,file:null,...workDrawingDetails(t),actualHours:t.hours||'',notes:''})}/><button type="button" className="wih-row-icon" style={{...icon,'--wih-icon-color':marks.pinned?'#a13427':icon.color}} title={marks.pinned?'Unpin':'Pin'} aria-label={marks.pinned?'Unpin task':'Pin task'} aria-pressed={!!marks.pinned} onClick={()=>markTask(t.designTaskId,{pinned:!marks.pinned})}><WihPin size={15} aria-hidden="true" fill={marks.pinned?'currentColor':'none'}/></button><button type="button" className="wih-row-icon" style={{...icon,'--wih-icon-color':marks.priority==='high'?'#a13427':marks.priority==='low'?'#41765a':icon.color}} title={marks.priority==='high'?'High priority · click for low':marks.priority==='low'?'Low priority · click to clear':'Set high priority'} aria-label={(marks.priority||'Normal')+' priority for '+t.title+'. '+(marks.priority==='high'?'Set low':marks.priority==='low'?'Clear priority':'Set high')} onClick={()=>markTask(t.designTaskId,{priority:marks.priority==='high'?'low':marks.priority==='low'?'':'high'})}><WihFlag size={16} aria-hidden="true" fill={marks.priority?'currentColor':'none'}/></button><button type="button" title="Comments" aria-label="Task comments" className="wih-row-icon" style={{...icon,'--wih-icon-color':taskThread?.task?.designTaskId===t.designTaskId?T.blue:icon.color}} disabled={threadPending} onClick={()=>threadAction(t,'read')}><WihComment size={16} aria-hidden="true" fill={taskThread?.task?.designTaskId===t.designTaskId?T.cyan:"none"}/></button></div></td><td style={cell}><strong>{t.title}</strong></td><td style={cell}>{t.projectName}</td><td style={cell}>{project?.city||project?.projectControl?.city||'—'}</td><td style={cell}>{[t.floor,t.area].filter(Boolean).join(' · ')||'—'}</td><td style={cell}>{t.drawingType||'—'}</td><td style={cell}>{t.task?.taskCategory||t.task?.taskType||'—'}</td><td style={cell}>{t.plan?.internalDueDate?<><div>{formatProjectDate(t.plan.internalDueDate)}</div>{wihUrgency(t,clock).urgent&&<div style={{fontSize:11,color:T.redline,fontWeight:600,marginTop:3}} className="wih-urgent-label">Urgent</div>}</>:editable&&!isDone(t.status)?<button style={smallBtn} onClick={()=>{setTatError('');setTatEditor({task:t,days:3});}}>Enter TAT</button>:<span style={{color:T.inkDim}}>TAT not entered</span>}</td><td style={cell}><WihDashboardStatus task={t}/></td><td style={cell}>{t.assigneeUserId?(t.assignee||'Assigned'):assignProject(t.projectId)&&!isDone(t.status)?<button type="button" style={smallBtn} onClick={()=>openAssign(t)}>Assign</button>:'Not assigned'}</td><td style={cell}><div className="wih-estimated-hours">{Number(t.task?.estimatedHours)>0?`${Number(t.task.estimatedHours)} h estimated`:'Estimate —'}</div>{run(t)&&!isDone(t.status)&&<button type="button" style={{...smallBtn,marginRight:6}} disabled={!!busyId} onClick={()=>action(t,/in.?progress|running/i.test(t.status)?'pause':/paused/i.test(t.status)?'resume':'start')}>{String(busyId)===String(t.designTaskId)?'Updating…':/in.?progress|running/i.test(t.status)?'Pause logging':/paused/i.test(t.status)?'Resume logging':'Start logging'}</button>}</td></tr>;
+       return <tr key={t.designTaskId}><td style={cell}><div style={{display:'flex',alignItems:'center',gap:1,whiteSpace:'nowrap'}}><input type="checkbox" checked={isDone(t.status)} style={{accentColor:T.blue,width:15,height:15,margin:"0 2px 0 0"}} disabled={!run(t)||isDone(t.status)} aria-label={'Complete '+t.title} onChange={()=>setCompleteEditor({task:t,file:null,...workDrawingDetails(t),actualHours:t.hours||'',notes:''})}/><button type="button" className="wih-row-icon" style={{...icon,'--wih-icon-color':marks.pinned?'#a13427':icon.color}} title={marks.pinned?'Unpin':'Pin'} aria-label={marks.pinned?'Unpin task':'Pin task'} aria-pressed={!!marks.pinned} onClick={()=>markTask(t.designTaskId,{pinned:!marks.pinned})}><WihPin size={15} aria-hidden="true" fill={marks.pinned?'currentColor':'none'}/></button><button type="button" className="wih-row-icon" style={{...icon,'--wih-icon-color':marks.priority==='high'?'#a13427':marks.priority==='low'?'#41765a':icon.color}} title={marks.priority==='high'?'High priority · click for low':marks.priority==='low'?'Low priority · click to clear':'Set high priority'} aria-label={(marks.priority||'Normal')+' priority for '+t.title+'. '+(marks.priority==='high'?'Set low':marks.priority==='low'?'Clear priority':'Set high')} onClick={()=>markTask(t.designTaskId,{priority:marks.priority==='high'?'low':marks.priority==='low'?'':'high'})}><WihFlag size={16} aria-hidden="true" fill={marks.priority?'currentColor':'none'}/></button><button type="button" title="Comments" aria-label="Task comments" className="wih-row-icon" style={{...icon,'--wih-icon-color':taskThread?.task?.designTaskId===t.designTaskId?T.blue:icon.color}} disabled={threadPending} onClick={()=>threadAction(t,'read')}><WihComment size={16} aria-hidden="true" fill={taskThread?.task?.designTaskId===t.designTaskId?T.cyan:"none"}/></button></div></td><td style={cell}><strong>{t.title}</strong></td><td style={cell}>{t.projectName}</td><td style={cell}>{project?.city||project?.projectControl?.city||'—'}</td><td style={cell}>{t.batchCoverage?.length>1?<details><summary>{t.batchCoverage.length} areas</summary>{t.batchCoverage.map(z=><div key={JSON.stringify([z.floor,z.area])}>{z.floor} · {z.area}</div>)}</details>:[t.floor||t.batchCoverage?.[0]?.floor,t.area||t.batchCoverage?.[0]?.area].filter(Boolean).join(' · ')||'—'}</td><td style={cell}>{t.drawingType||'—'}</td><td style={cell}>{t.task?.taskCategory||t.task?.taskType||'—'}</td><td style={cell}>{t.plan?.internalDueDate?<><div>{formatProjectDate(t.plan.internalDueDate)}</div>{wihUrgency(t,clock).urgent&&<div style={{fontSize:11,color:T.redline,fontWeight:600,marginTop:3}} className="wih-urgent-label">Urgent</div>}</>:editable&&!isDone(t.status)?<button style={smallBtn} onClick={()=>{setTatError('');setTatEditor({task:t,days:3});}}>Enter TAT</button>:<span style={{color:T.inkDim}}>TAT not entered</span>}</td><td style={cell}><WihDashboardStatus task={t}/></td><td style={cell}>{t.assigneeUserId?(t.assignee||'Assigned'):assignProject(t.projectId)&&!isDone(t.status)?<button type="button" style={smallBtn} onClick={()=>openAssign(t)}>Assign</button>:'Not assigned'}</td><td style={cell}><div className="wih-estimated-hours">{Number(t.task?.estimatedHours)>0?`${Number(t.task.estimatedHours)} h estimated`:'Estimate —'}</div>{run(t)&&!isDone(t.status)&&<button type="button" style={{...smallBtn,marginRight:6}} disabled={!!busyId} onClick={()=>action(t,/in.?progress|running/i.test(t.status)?'pause':/paused/i.test(t.status)?'resume':'start')}>{String(busyId)===String(t.designTaskId)?'Updating…':/in.?progress|running/i.test(t.status)?'Pause logging':/paused/i.test(t.status)?'Resume logging':'Start logging'}</button>}</td></tr>;
       })}</React.Fragment>);
     })()}</tbody></table></div></>}
     {taskThread&&<DiscussionDialog task={taskThread.task} data={taskThread} error={threadNotice} busy={threadPending} text={taskComment} setText={setTaskComment} showPriority onPost={priority=>threadAction(taskThread.task,'comment',priority)} onClose={()=>setTaskThread(null)} buttonStyle={smallBtn}/>}
@@ -5679,7 +5683,11 @@ function DrawingControlDashboard({state,persist,projectId,deferLoad=false,headin
   };
   const outputCandidates=(def,z)=>{
     const dbRow=(payload?.rows||[]).find(r=>eq(r.floor,z.floor)&&eq(r.area,z.area||z.room));
-    return (liveWork(def,z,dbRow).records||[]).filter(t=>t.floor&&t.area&&t.taskCategory!=='Meeting'&&!/completed|^done$|blocked/i.test(t.actualStatus||t.status||'')&&wihCanSeeTask(state.currentUser,t));
+    return (liveWork(def,z,dbRow).records||[]).filter(t=>t.taskCategory!=='Meeting'&&!/completed|^done$|blocked/i.test(t.actualStatus||t.status||'')&&wihCanSeeTask(state.currentUser,t));
+  };
+  const outputCoverage=task=>{
+    if(task.floor&&task.area)return task.floor+' · '+task.area;
+    try{return JSON.parse(task.workflowCoverage||'[]').map(area=>area.floor+' · '+area.area).join('; ');}catch{return '';}
   };
   const openOutput=(def,z)=>{
     const candidates=zones.flatMap(zone=>outputCandidates(def,zone));
@@ -5712,7 +5720,7 @@ function DrawingControlDashboard({state,persist,projectId,deferLoad=false,headin
           <div className="dashboard-output-list">
             {output.tasks.map(task=>{const id=String(task.designTaskId);return <label key={id} className="dashboard-output-row">
               <input type="checkbox" checked={output.ids.includes(id)} onChange={e=>setOutput(x=>({...x,ids:e.target.checked?[...x.ids,id]:x.ids.filter(v=>v!==id)}))}/>
-              <span className="dashboard-output-floor">{task.floor}</span><strong>{task.area}</strong><span className="dashboard-output-task">{task.taskType}</span>
+              <span className="dashboard-output-floor">{task.floor||"All"}</span><strong>{task.area||outputCoverage(task)}</strong><span className="dashboard-output-task">{task.taskType}</span>
             </label>;})}
           </div>
         </fieldset>
@@ -6457,13 +6465,9 @@ function ProjectView({ state, persist }) {
       <ProjectOnboarding key={showNewProject ? "new" : "browse"} initialMode={showNewProject ? "new" : "browse"} state={state} persist={persist} selectedId={selectedId} projectEditor={showExistingProjects?(projectEditor||<p style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>Select a project to open its complete details.</p>):null} setSelectedId={(id)=>{setSelectedId(id);setShowNewProject(false);setTab("list");if(showExistingProjects){const chosen=state.projects.find(p=>p.id===id);if(chosen)openProjectEditor(chosen);}}}/>
     </div>}
 
-    <div style={{display:"flex",alignItems:"center",gap:0,borderBottom:`1px solid ${T.line}`,marginBottom:18,overflowX:"auto",background:"#fff"}}>
+    <div className="register-tabs" role="tablist" aria-label="Project sections" style={registerTabsStyle}>
       {[["list","Project & Scope"],["floor","Floor / Zone"],["delegation","Delegation"],["team","Directory"]].map(([id,label])=>
-        <button type="button" key={id} onClick={(e)=>{e.preventDefault();e.stopPropagation();setTab(id);}} style={{
-          padding:"11px 16px",border:"none",borderBottom:`3px solid ${tab===id?T.cyan:"transparent"}`,
-          background:tab===id?T.navy:"transparent",color:tab===id?"#fff":T.inkDim,cursor:"pointer",
-          fontFamily:FONT_BODY,fontSize:12,fontWeight:tab===id?700:500,whiteSpace:"nowrap"
-        }}>{label}</button>
+        <button type="button" role="tab" aria-selected={tab===id} key={id} onClick={(e)=>{e.preventDefault();e.stopPropagation();setTab(id);}} style={registerTabStyle(tab===id)}>{label}</button>
       )}
     </div>
 
@@ -6479,14 +6483,13 @@ function ProjectView({ state, persist }) {
 
       <div style={{overflowX:"auto",border:`1px solid ${T.line}`,background:"#fff"}}>
         <div style={{width:ongoingGridWidth,minWidth:"100%"}}>
-          <div style={{
+          <div className="project-register-table-header" style={{
             display:"grid",
             gridTemplateColumns:ongoingGridColumns,
-            background:"#D2CDC1",color:"#1C1C19",borderBottom:`2px solid ${T.ink}`,
-            fontFamily:FONT_MONO,fontSize:8,fontWeight:700
+            borderBottom:`2px solid ${T.ink}`
           }}>
             {["S. No","Current Project","Client","Architect",...scopeFields.map(([label])=>label),"Completed"].map((h,i)=>
-              <div key={i} style={{padding:"9px 6px",borderRight:`1px solid ${T.line}`,textAlign:i>=4?"center":"left",display:"flex",alignItems:"center",justifyContent:i>=4?"center":"flex-start",background:"#D2CDC1",boxSizing:"border-box"}}>
+              <div key={i} style={{padding:"9px 6px",borderRight:`1px solid ${T.line}`,textAlign:i>=4?"center":"left",display:"flex",alignItems:"center",justifyContent:i>=4?"center":"flex-start",overflowWrap:"anywhere",boxSizing:"border-box"}}>
                 {h}
               </div>
             )}
@@ -6498,7 +6501,7 @@ function ProjectView({ state, persist }) {
             return <div key={p.id} onClick={()=>setSelectedId(p.id)} style={{
               display:"grid",gridTemplateColumns:ongoingGridColumns,
               borderBottom:`1px solid ${T.line}`,background:selected?"#F3F1EA":"#fff",cursor:"pointer",
-              fontFamily:FONT_BODY,fontSize:10
+              fontFamily:FONT_BODY,fontSize:13
             }}>
               <div style={{padding:8,borderRight:`1px solid ${T.line}`,fontFamily:FONT_MONO}}>{sc.serial||p.no||pi+1}</div>
               <div style={{padding:8,borderRight:`1px solid ${T.line}`,fontWeight:700,display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}>

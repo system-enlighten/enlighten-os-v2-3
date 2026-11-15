@@ -12,7 +12,7 @@
 .wih-workspace .wih-intro{font:400 13px/1.55 var(--register-font)!important;color:var(--register-muted)!important;max-width:72ch;margin-top:8px!important}
 .wih-workspace [role=tablist]{background:transparent!important;border-bottom:1px solid var(--register-rule)!important;margin-bottom:14px!important}
 .wih-workspace [role=tab]{font:600 13px/1.2 var(--register-font)!important}
-.wih-workspace [role=tab][aria-selected=true]{border-bottom-color:#a18655!important}
+.wih-workspace [role=tablist]:not(.register-tabs) [role=tab][aria-selected=true]{border-bottom-color:#a18655!important}
 .wih-quiet-filters{padding:8px 0;border-bottom-color:var(--register-rule);margin-bottom:8px}
 .wih-filter-label,.wih-person-filter label{font:650 11px var(--register-font);letter-spacing:.08em;text-transform:uppercase;color:var(--register-muted)}
 .wih-status-filters button,.wih-person-filter select{font:550 13px var(--register-font);color:var(--register-muted)}
@@ -57,3 +57,13 @@
 .wih-estimated-hours{font-size:11px;margin-bottom:4px;color:var(--register-muted)}
 .wih-calendar-deadline{display:grid;gap:2px;background:#f4e8d3;border-left:3px solid #93784b;padding:7px;margin-bottom:6px;font-size:11px}
 .wih-calendar-deadline small{font-weight:650;color:#67512d}
+
+.wih-workspace .register-tabs[role=tablist]{background:#fff!important;margin-bottom:18px!important}
+.wih-workspace .register-tabs[role=tablist] [role=tab]{font-family:Inter,system-ui,sans-serif!important;font-size:12px!important}
+.project-register-table-header,.wih-workspace .wih-task-table thead th{
+ background:#d2cdc1!important;color:#1c1c19!important;
+ font-family:"IBM Plex Mono",monospace!important;font-size:11px!important;
+ font-weight:700!important;letter-spacing:normal;text-transform:none;
+ border-bottom:2px solid #132237!important;
+}
+.wih-workspace .wih-task-table thead th{padding:9px 8px!important;border-right:1px solid #d7cebc}
