@@ -6501,7 +6501,7 @@ function ProjectView({ state, persist }) {
             return <div key={p.id} onClick={()=>setSelectedId(p.id)} style={{
               display:"grid",gridTemplateColumns:ongoingGridColumns,
               borderBottom:`1px solid ${T.line}`,background:selected?"#F3F1EA":"#fff",cursor:"pointer",
-              fontFamily:FONT_BODY,fontSize:13
+              fontFamily:FONT_BODY,fontSize:10
             }}>
               <div style={{padding:8,borderRight:`1px solid ${T.line}`,fontFamily:FONT_MONO}}>{sc.serial||p.no||pi+1}</div>
               <div style={{padding:8,borderRight:`1px solid ${T.line}`,fontWeight:700,display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}>
