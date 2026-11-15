@@ -6182,33 +6182,8 @@ function ProjectView({ state, persist }) {
   };
 
   useEffect(() => {
-    if (!project) return;
-    const sc = scopeFor(project);
-    setEditProjectId(project.id);
-    setEditDraft({
-      no: project.no || "",
-      name: project.name || "",
-      client: project.client || sc.client || "",
-      architect: project.architect || sc.architect || "",
-      address: project.address || "",
-      type: project.type || "Residence",
-      startDate: project.startDate || "",
-      plannedCompletionDate: project.plannedCompletionDate || project.endDate || "",
-      projectStatus: project.projectStatus || project.status || "Ongoing",
-      contacts: {
-        ...(project.contacts || {}),
-        Owner: {
-          ...(project.contacts?.Owner || {}),
-          name: project.contacts?.Owner?.name || project.client || ""
-        },
-        Architect: {
-          ...(project.contacts?.Architect || {}),
-          name: project.contacts?.Architect?.name || project.architect || ""
-        }
-      }
-    });
-    setIsProjectEditorOpen(false);
-  }, [project?.id]);
+    if (editProjectId !== project?.id) setIsProjectEditorOpen(false);
+  }, [project?.id, editProjectId]);
 
   const toggleScope = (p,key,e) => {
     if (e) e.stopPropagation();
@@ -6283,6 +6258,7 @@ function ProjectView({ state, persist }) {
       client: p.client || sc.client || p.contacts?.Owner?.name || "",
       architect: p.architect || sc.architect || p.contacts?.Architect?.name || "",
       address: p.address || "",
+      city: p.city || "",
       type: p.type || "Residence",
       startDate: p.startDate || "",
       plannedCompletionDate: p.plannedCompletionDate || p.endDate || "",
@@ -6333,6 +6309,7 @@ function ProjectView({ state, persist }) {
       architect: architectName,
       contacts: cleanContacts,
       address: editDraft.address,
+      city: (editDraft.city || "").trim(),
       type: editDraft.type,
       startDate: editDraft.startDate,
       plannedCompletionDate: editDraft.plannedCompletionDate,
@@ -6400,7 +6377,7 @@ function ProjectView({ state, persist }) {
   };
   const active=(board?.rooms||[]).flatMap(r=>executionFor(r).filter(x=>x.status==="Ready"||x.status==="In Progress"));
 
-  const projectEditor = project && editDraft && isProjectEditorOpen && <div ref={projectEditorRef} tabIndex={-1} role="region" aria-label="Edit selected project" style={{scrollMarginTop:24,outline:"none",marginTop:16,border:`2px solid ${T.navy}`,background:"#fff",padding:16}}>
+  const projectEditor = project && project.id===editProjectId && editDraft && isProjectEditorOpen && <div ref={projectEditorRef} tabIndex={-1} role="region" aria-label="Edit selected project" style={{scrollMarginTop:24,outline:"none",marginTop:16,border:`2px solid ${T.navy}`,background:"#fff",padding:16}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:14}}>
           <div>
             <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.cyan}}>Project Details · Editable (Client & Architect read-only) / Contacts · Editable</div>
@@ -6414,7 +6391,7 @@ function ProjectView({ state, persist }) {
         <section aria-label="Editable project details" style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:12}}>
           {[
             ["Project No.","no"],["Project Name","name"],["Client","client"],["Architect","architect"],
-            ["Address","address"],["Project Type","type"],["Start Date","startDate"],
+            ["Address","address"],["City","city"],["Project Type","type"],["Start Date","startDate"],
             ["Planned Completion","plannedCompletionDate"],["Project Status","projectStatus"]
           ].map(([label,key])=>{
             const locked=key==="client"||key==="architect";

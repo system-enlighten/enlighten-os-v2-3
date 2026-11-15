@@ -45,7 +45,7 @@
 
 .wih-workspace .wih-register-head{padding:10px 0 48px}
 .wih-workspace .wih-register-head h2{margin:0}
-.wih-workspace .wih-register-head .wih-intro{margin:3px 0 0!important;line-height:1.4!important}
+.wih-workspace .wih-register-head .wih-intro{margin:9px 0 0!important;line-height:1.4!important;font-style:italic!important}
 .wih-register-controls .wih-filter-label{display:none}
 .wih-register-controls .wih-status-filters button{font-weight:500}
 .wih-register-controls .wih-status-filters button.is-active{
