@@ -12,6 +12,14 @@ const stamp=t=>new Date(t).toLocaleTimeString('en-IN',{timeZone:tz,hour:'numeric
 const done=r=>/^(completed|done)$/i.test(r.status||r.task?.status||'');
 const running=r=>/in.?progress|running/i.test(r.status||r.task?.status||'');
 const title=r=>r.task?.taskType||r.title||'Work item';
+const shiftDay=(value,days)=>{
+ const date=new Date(value+'T12:00:00Z');
+ date.setUTCDate(date.getUTCDate()+days);
+ return date.toISOString().slice(0,10);
+};
+const firstDay=value=>shiftDay(value,-((new Date(value+'T12:00:00Z').getUTCDay()+6)%7));
+const calendarLabel=(value,options)=>new Date(value+'T12:00:00Z').toLocaleDateString('en-IN',{timeZone:'UTC',...options});
+
 export default function StudioHome({state,user,request,loadWork,navigate,theme:T,buttonStyle,assistant,onMissedCheckout}){
  const [areaRows,setAreaRows]=useState(null),[areaError,setAreaError]=useState('');
  useEffect(()=>{let live=true;request('internalAreas',{action:'list'},'POST').then(r=>{if(live)setAreaRows(r.areas);}).catch(e=>{if(live)setAreaError(e.message);});return()=>{live=false;};},[request]);
@@ -30,6 +38,7 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  useEffect(()=>{let live=true;loadWork().then(r=>{if(live){setRows(Array.isArray(r)?r:[]);setReady(true);}}).catch(e=>{if(live)setError(e.message);});request('getStudioDay',{},'POST').then(r=>{if(live)setLog(r);}).catch(e=>{if(live)setError(e.message);});return()=>{live=false;};},[request,loadWork]);
  const save=async(action)=>{if(busy)return;setBusy(true);setError('');try{setLog({...await request('saveStudioDay',{action,note,start,end,...(action==='entry'?manualWork:{})},'POST'),missedDay:log?.missedDay});window.dispatchEvent(new Event('enlighten-attendance-change'));if(action==='break'){try{const updated=await loadWork();if(Array.isArray(updated))setRows(updated);}catch{setError('Break saved. Refresh Home to update the task display.');}}if(action==='entry'){setNote('');setStart('');setEnd('');setManualWork(emptyWork);}}catch(e){setError(e.message);}finally{setBusy(false);}};
  const [timerBusy,setTimerBusy]=useState(''),[timerError,setTimerError]=useState(''),[clock,setClock]=useState(Date.now());
+ const [weekOffset,setWeekOffset]=useState(0),[selectedDay,setSelectedDay]=useState('');
  const [taskLimit,setTaskLimit]=useState(20);
  useEffect(()=>{const tick=setInterval(()=>setClock(Date.now()),1000);return()=>clearInterval(tick);},[]);
  const [newTask,setNewTask]=useState(null),[creating,setCreating]=useState(false),[createNote,setCreateNote]=useState('');
@@ -59,13 +68,20 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  const openMine=rows.filter(r=>own(r)&&!done(r)).sort((a,b)=>Number(running(b))-Number(running(a)));
  const recent=rows.filter(r=>own(r)&&!running(r)&&!/paused/i.test(r.status||'')&&(r.task?.startedAt||r.startAt||r.stopAt)).sort((a,b)=>String(b.task?.completedAt||b.stopAt||b.startAt||'').localeCompare(String(a.task?.completedAt||a.stopAt||a.startAt||'')));
  const isWaiting=r=>!running(r)&&/blocked|on hold|waiting/i.test(r.status||r.task?.status||'');
- const scheduled=openMine.filter(r=>!isWaiting(r)&&r.plan?.plannedStart&&day(new Date(r.plan.plannedStart))===today);
- const unscheduled=openMine.filter(r=>!isWaiting(r)&&(!r.plan?.plannedStart||running(r)||/paused/i.test(r.status||''))&&!scheduled.includes(r));
- const pending=openMine.filter(r=>!scheduled.includes(r)&&!unscheduled.includes(r));
+ const weekStart=shiftDay(firstDay(today),weekOffset*7);
+ const weekDays=Array.from({length:7},(_,index)=>shiftDay(weekStart,index));
+ const activeDay=weekDays.includes(selectedDay)?selectedDay:weekDays.includes(today)?today:weekStart;
+ const scheduledByDay=new Map(weekDays.map(date=>[date,[]]));
+ for(const row of openMine){
+  if(row.plan?.plannedStart&&Number.isFinite(Date.parse(row.plan.plannedStart)))scheduledByDay.get(day(new Date(row.plan.plannedStart)))?.push(row);
+ }
+ for(const tasks of scheduledByDay.values())tasks.sort((a,b)=>Date.parse(a.plan.plannedStart)-Date.parse(b.plan.plannedStart));
+ const unscheduled=openMine.filter(r=>!isWaiting(r)&&!r.plan?.plannedStart);
+ const pending=openMine.filter(r=>isWaiting(r)||r.plan?.plannedStart&&day(new Date(r.plan.plannedStart))<today&&!running(r));
  const elapsed=r=>{const startAt=Date.parse(r.startAt),seconds=Math.floor((Number(r.totalMinutes)||0)*60+(running(r)&&Number.isFinite(startAt)?Math.max(0,clock-startAt)/1000:0));return [Math.floor(seconds/3600),Math.floor(seconds/60)%60,seconds%60].map(v=>String(v).padStart(2,'0')).join(':');};
  const ownSchedule=rows.filter(r=>(admin||own(r))&&!done(r)&&r.plan?.plannedStart&&day(new Date(r.plan.plannedStart))===today).map(r=>({time:stamp(r.plan.plannedStart),end:r.plan.plannedEnd?stamp(r.plan.plannedEnd):'',title:title(r)}));
  const panel={background:'#fff',border:'1px solid '+T.line,padding:16,minWidth:0};
- const taskRow=r=><div key={r.designTaskId} className="studio-home-task-row"><div><strong>{title(r)}</strong><p>{[projectName(r),r.task?.floor,r.task?.area,r.status].filter(Boolean).join(' · ')}</p>{['Admin / Owner','Meeting / Discussion'].includes(r.task?.taskCategory)&&r.task?.remarks&&<p style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{r.task.remarks}</p>}</div><div className="studio-home-task-controls"><span aria-label="Time logged" style={{fontVariantNumeric:'tabular-nums'}}>{elapsed(r)}</span><button type="button" style={buttonStyle} disabled={busy||!!timerBusy||!!log?.breakStart&&!running(r)||String(user?.appAccess).toLowerCase()==='viewer'} onClick={()=>timerAction(r)}>{timerBusy===r.designTaskId?'Updating…':running(r)?'Pause logging':/paused/i.test(r.status||'')?'Resume logging':'Start logging'}</button></div></div>;
+ const taskRow=r=><div key={r.designTaskId} className="studio-home-task-row"><div><strong>{title(r)}</strong><p>{[projectName(r),r.task?.floor,r.task?.area,r.status].filter(Boolean).join(' · ')}</p>{['Admin / Owner','Meeting / Discussion'].includes(r.task?.taskCategory)&&r.task?.remarks&&<p style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{r.task.remarks}</p>}</div><div className="studio-home-task-controls"><span aria-label="Time logged" style={{fontVariantNumeric:'tabular-nums'}}>{elapsed(r)}</span><button type="button" style={buttonStyle} disabled={isWaiting(r)||busy||!!timerBusy||!!log?.breakStart&&!running(r)||String(user?.appAccess).toLowerCase()==='viewer'} onClick={()=>timerAction(r)}>{timerBusy===r.designTaskId?'Updating…':running(r)?'Pause logging':/paused/i.test(r.status||'')?'Resume logging':'Start logging'}</button></div></div>;
  return <main className="studio-home">
  <header className="studio-home-intro">
   <div><p className="studio-home-kicker">enLIGHTen / Studio desk</p><h1>{admin?'Studio overview':'My work'}</h1><p>{new Intl.DateTimeFormat('en-IN',{timeZone:tz,dateStyle:'full'}).format(new Date())}</p></div>
@@ -105,8 +121,24 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  {!newTask&&createNote&&<p role="status">{createNote}</p>}
  {timerError&&<p role="alert" style={{color:T.redline}}>{timerError}</p>}
  {!ready&&<p>Loading your tasks…</p>}
- {[['Scheduled today',scheduled],['Unscheduled work',unscheduled]].map(([label,list])=><section className="studio-home-task-group" key={label}><h3>{label} · {list.length}</h3>{list.length?list.slice(0,taskLimit).map(taskRow):ready&&<p>No tasks.</p>}</section>)}
- {(scheduled.length>taskLimit||unscheduled.length>taskLimit)&&<button type="button" style={buttonStyle} onClick={()=>setTaskLimit(n=>n+20)}>Show more tasks</button>}
+ <section className="studio-home-task-group" aria-label="Weekly task calendar">
+ <div className="studio-home-task-board-heading"><h3>{calendarLabel(weekStart,{day:'numeric',month:'short'})} – {calendarLabel(weekDays[6],{day:'numeric',month:'short',year:'numeric'})}</h3><div className="studio-home-task-controls">
+ <button type="button" style={buttonStyle} aria-label="Previous week" onClick={()=>setWeekOffset(n=>n-1)}>‹</button>
+ <button type="button" style={buttonStyle} onClick={()=>{setWeekOffset(0);setSelectedDay(today);}}>This week</button>
+ <button type="button" style={buttonStyle} aria-label="Next week" onClick={()=>setWeekOffset(n=>n+1)}>›</button></div></div>
+ <div className="studio-week-calendar">{weekDays.map(date=>{
+  const tasks=scheduledByDay.get(date);
+  return <button type="button" className="studio-week-day" key={date} aria-pressed={activeDay===date} aria-current={date===today?'date':undefined} onClick={()=>setSelectedDay(date)}>
+   <span>{calendarLabel(date,{weekday:'short'})}</span><strong>{Number(date.slice(-2))}</strong><small>{tasks.length} {tasks.length===1?'task':'tasks'}</small>
+  </button>;
+ })}</div>
+ <h3>{calendarLabel(activeDay,{weekday:'long',day:'numeric',month:'short'})}</h3>
+ {scheduledByDay.get(activeDay).length?scheduledByDay.get(activeDay).map(taskRow):ready&&<p>No scheduled tasks.</p>}
+ </section>
+ <details className="studio-home-task-group studio-unscheduled"><summary>Unscheduled work · {unscheduled.length}</summary>
+ {unscheduled.length?unscheduled.slice(0,taskLimit).map(taskRow):ready&&<p>No unscheduled tasks.</p>}
+ {unscheduled.length>taskLimit&&<button type="button" style={buttonStyle} onClick={()=>setTaskLimit(n=>n+20)}>Show more tasks</button>}
+ </details>
  </section>
  <section className="studio-home-card" aria-label="Pending tasks"><h2>Pending tasks · {pending.length}</h2>
  {!ready?<p>Loading your tasks…</p>:!pending.length?<p>No pending tasks.</p>:pending.slice(0,taskLimit).map(r=><div className="studio-home-task-row" key={r.designTaskId}><div><strong>{title(r)}</strong><p>{[projectName(r),r.status,r.plan?.plannedStart&&day(new Date(r.plan.plannedStart))].filter(Boolean).join(' · ')}</p></div></div>)}

@@ -5611,6 +5611,8 @@ function DrawingControlDashboard({state,persist,projectId,deferLoad=false,headin
   const project=(state.projects||[]).find(p=>String(p.id)===String(projectId));
   const [payload,setPayload]=useState(null),[wih,setWih]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[revision,setRevision]=useState(0);
   const sectionRef=useRef(null),[ready,setReady]=useState(!deferLoad),[showHours,setShowHours]=useState(false);
+  const [output,setOutput]=useState(null),[outputBusy,setOutputBusy]=useState(false),[outputError,setOutputError]=useState(''),[outputNotice,setOutputNotice]=useState('');
+  const outputJob=useRef({});
   const receivedPicker=useRef(null),receivedTarget=useRef(null);
   const [receivedFiles,setReceivedFiles]=useState([]);
   const receivedPanelRef=useRef(null);
@@ -5660,13 +5662,49 @@ function DrawingControlDashboard({state,persist,projectId,deferLoad=false,headin
   const liveWork=(def,z,dbRow)=>{
     let records=tasks.filter(t=>def.match.test(String(t.parentTask||t.taskType||''))&&sheetDashboardCovers(t,z,parents));
     const children=records.filter(t=>t.parentDesignTaskId);if(children.length)records=children;
-    if(records.length)return {status:sheetDashboardStatus(records),date:records.map(t=>t.completedAt||'').filter(Boolean).sort().pop(),title:records.map(t=>[t.designNo,t.taskType,t.actualStatus||t.status].filter(Boolean).join(' · ')).join('\n')};
+    if(records.length)return {records,status:sheetDashboardStatus(records),date:records.map(t=>t.completedAt||'').filter(Boolean).sort().pop(),title:records.map(t=>[t.designNo,t.taskType,t.actualStatus||t.status].filter(Boolean).join(' · ')).join('\n')};
     const key=def.legacy;
     if(key&&(dbRow?.[key+'TaskId']||dbRow?.[key+'DesignNo']))return {status:sheetDashboardStatus([{status:dbRow[key+'Status']}]),date:'',title:dbRow[key+'DesignNo']||''};
     return {status:'',date:'',title:''};
   };
+  const outputCandidates=(def,z)=>{
+    const dbRow=(payload?.rows||[]).find(r=>eq(r.floor,z.floor)&&eq(r.area,z.area||z.room));
+    return (liveWork(def,z,dbRow).records||[]).filter(t=>t.floor&&t.area&&t.taskCategory!=='Meeting'&&!/completed|^done$|blocked/i.test(t.actualStatus||t.status||'')&&wihCanSeeTask(state.currentUser,t));
+  };
+  const openOutput=(def,z)=>{
+    const candidates=zones.flatMap(zone=>outputCandidates(def,zone));
+    const tasks=[...new Map(candidates.map(task=>[String(task.designTaskId),task])).values()];
+    setOutputError('');setOutputNotice('');outputJob.current={};
+    setOutput({label:def.label,tasks,ids:outputCandidates(def,z).map(t=>String(t.designTaskId)),file:null});
+  };
+  const saveOutput=async event=>{
+    event.preventDefault();
+    if(!output?.file||!output.ids.length||outputBusy)return;
+    setOutputBusy(true);setOutputError('');
+    try{
+      const anchor=outputJob.current.saved?.linkedEntityId||output.ids[0];
+      const upload=await uploadProjectDrawingJob(output.file,project.id,'Output',outputJob.current,undefined,anchor);
+      const result=await apiRequest('completeDashboardWork',{projectId:project.id,taskIds:output.ids,completionFileId:upload.fileId},'POST');
+      setOutput(null);setOutputNotice(`Drawing uploaded. ${result.completed} task(s) completed.`);setRevision(r=>r+1);
+    }catch(e){
+      if(/expired|invalid.*session/i.test(e.message||''))outputJob.current.failedExpired=true;
+      setOutputError(e.message);
+    }finally{setOutputBusy(false);}
+  };
   return <div ref={sectionRef}>
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap',marginBottom:6}}><div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>{heading?<h2 style={{fontFamily:FONT_DISPLAY,margin:0,fontSize:22,color:T.ink}}>{heading}</h2>:<span/>}{onOpenWorkflow&&<button type="button" aria-label={`Line of Work for ${project.name}`} style={smallBtn} onClick={()=>onOpenWorkflow(project.id)}>Line of Work</button>}</div><div style={{display:'flex',gap:8,alignItems:'center'}}><button type="button" disabled={loading} style={{...smallBtn,padding:'5px 8px',fontSize:10}} onClick={()=>setRevision(x=>x+1)}>Refresh Dashboard</button>{onEdit&&<button type="button" onClick={onEdit} style={{...smallBtn,background:'#fff',padding:'5px 8px',fontSize:10}}>EDIT PROJECT</button>}</div></div>
+    {outputNotice&&<p role="status">{outputNotice}</p>}
+    {output&&<div className="task-discussion-overlay"><section className="task-discussion-dialog" role="dialog" aria-modal="true" aria-label="Upload and complete drawing tasks" onKeyDown={e=>{if(e.key==='Escape'&&!outputBusy)setOutput(null);}}>
+      <h2>{output.label} · Upload drawing</h2>
+      <form onSubmit={saveOutput}>
+        <fieldset disabled={outputBusy||!!outputJob.current.saved}><legend>Areas and tasks covered by this drawing</legend>
+          {output.tasks.map(task=>{const id=String(task.designTaskId);return <label key={id} style={{display:'block',padding:'4px 0'}}><input type="checkbox" checked={output.ids.includes(id)} onChange={e=>setOutput(x=>({...x,ids:e.target.checked?[...x.ids,id]:x.ids.filter(v=>v!==id)}))}/> {task.floor} · {task.area} · {task.taskType}</label>;})}
+        </fieldset>
+        <label>Drawing <input autoFocus type="file" required disabled={outputBusy||!!outputJob.current.saved} onChange={e=>setOutput(x=>({...x,file:e.target.files?.[0]||null}))}/></label>
+        {outputError&&<p role="alert">{outputError}</p>}
+        <div style={{display:'flex',gap:8,marginTop:12}}><button type="button" style={smallBtn} disabled={outputBusy} onClick={()=>setOutput(null)}>Close</button><button type="submit" style={smallBtn} disabled={outputBusy||!output.file||!output.ids.length||output.ids.length>50}>{outputBusy?'Saving…':'Upload and complete'}</button></div>
+      </form>
+    </section></div>}
     {error&&<p role="alert" style={{color:T.redline}}>{error}</p>}
     {loading&&<p role="status" style={{fontFamily:FONT_BODY,fontSize:11,fontWeight:400,lineHeight:1.4,color:'#77776F',margin:'3px 0 8px'}}>{ready?'Loading project drawings and WIH status…':'Details load as this project comes into view…'}</p>}
     <div ref={layoutRef} style={{display:'grid',gridTemplateColumns:showHours?'minmax(0,1fr) 330px':'minmax(0,1fr)',gap:showHours?16:0,alignItems:'start',width:'100%',minWidth:0}}>
@@ -5684,7 +5722,7 @@ function DrawingControlDashboard({state,persist,projectId,deferLoad=false,headin
               const room=project.designExecutionBoard?.rooms?.find(r=>eq(r.flr||r.floor,z.floor)&&eq(r.area,area));
               return <tr key={JSON.stringify([z.floor,area])} style={{background:bg,borderTop:boundary?`2px solid ${T.line}`:undefined}}><td style={identity}>{z.floor}</td><td style={identity}>{cn}</td><td style={identity}>{area}</td>
               {receivedCols.map(([label,key,drawingType])=>{const received=sheetDashboardFlag(dbRow?.[key]),selected=receivedSelection.some(v=>dashboardReceivedKey(v.floor,v.area,v.drawingType)===dashboardReceivedKey(z.floor,area,drawingType));return <td key={key} style={{...cell,textAlign:'center',background:receivedMode&&selected?'#E4EEF5':undefined}}>{payload?<label style={{display:'inline-flex',alignItems:'center',gap:3}}><input type="checkbox" aria-label={`${z.floor} ${area} ${label} ${receivedMode?'select for upload':'received — select to upload'}`} title={received?'Drawing already received; select to upload another revision':'Select this area/type for upload'} checked={receivedMode?selected:received} disabled={!canReceive||receivedBusy} onChange={()=>toggleReceived(z,drawingType)} style={{accentColor:T.blue,opacity:1,width:12,height:12,margin:0,maxWidth:'100%'}}/>{receivedMode&&received&&<span title="Previously received" aria-label="Previously received" style={{fontSize:9,color:T.green}}>●</span>}</label>:'—'}</td>;})}
-              {workColumns.map(def=>{const result=liveWork(def,z,dbRow);return displayStatus(result.status,result.date,result.title,def.label);})}
+              {workColumns.map(def=>{const result=liveWork(def,z,dbRow);if(canReceive&&outputCandidates(def,z).length){const tone=sheetDashboardTone(result.status);return <td key={def.label} style={{...cell,background:tone.bg,color:tone.fg}}><button type="button" title="Upload drawing and complete work" aria-label={`Upload ${def.label} for ${z.floor} ${area}`} onClick={()=>openOutput(def,z)} style={{font:'inherit',color:'inherit',border:0,background:'transparent',padding:0,textAlign:'left',width:'100%',textDecoration:'underline',cursor:'pointer'}}>{result.status}</button></td>;}return displayStatus(result.status,result.date,result.title,def.label);})}
 </tr>;
             })}{!zones.length&&!loading&&<tr><td colSpan={3+receivedCols.length+workColumns.length} style={{...cell,padding:18}}>No floor/area rows for this project. Add them in Floor & Zone.</td></tr>}</tbody>
           </table>
