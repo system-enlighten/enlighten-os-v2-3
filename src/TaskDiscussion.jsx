@@ -9,7 +9,7 @@ export function MentionInput({text,setText,people=[]}){
  return <div style={{width:'100%',minWidth:0}}><textarea ref={ref} aria-label="Write a post" placeholder="Share an update or type @ to tag a teammate…" maxLength={2000} value={text} onClick={e=>{setCaret(e.currentTarget.selectionStart);setClosed(false);setActive(0);}} onChange={e=>{setText(e.target.value);setCaret(e.target.selectionStart);setClosed(false);setActive(0);}} onKeyDown={e=>{if(!choices.length)return;if(e.key==='Escape'){e.stopPropagation();setClosed(true);}if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();setActive(i=>(i+(e.key==='ArrowDown'?1:-1)+choices.length)%choices.length);}if(e.key==='Enter'||e.key==='Tab'&&!e.shiftKey){e.preventDefault();select(choices[active]||choices[0]);}}}/>
  {choices.length>0&&<ul aria-label="Mention a teammate" style={{listStyle:'none',margin:0,padding:4,border:'1px solid #d8cdb9',background:'#fffdf8'}}>{choices.map((p,i)=><li key={p.id}><button type="button" style={{width:'100%',textAlign:'left',padding:7,border:0,background:i===active?'#eae4d8':'transparent'}} onMouseDown={e=>e.preventDefault()} onClick={()=>select(p)}>{p.name}{p.assigned?' · Assigned':''}</button></li>)}</ul>}</div>;
 }
-function Post({p,children}){return <article className="task-post"><span className="task-post-avatar" aria-hidden="true">{(p.author||'?').slice(0,1).toUpperCase()}</span><div><strong>{p.author||'Team member'}</strong> <time dateTime={p.at}>{date(p.at)}</time>{children}{p.priority&&<strong style={{color:"#a13427",display:"block"}}>⚑ High priority</strong>}<p>{String(p.text||'').split(/(@\[[^\]]+\])/).map((part,i)=>part.startsWith('@[')&&part.endsWith(']')?<strong key={i} style={{color:'#24558a'}}>{'@'+part.slice(2,-1)}</strong>:part)}</p></div></article>;}
+function Post({p,children}){return <article className="task-post"><span className="task-post-avatar" aria-hidden="true">{(p.author||'?').slice(0,1).toUpperCase()}</span><div><strong>{p.author||'Team member'}</strong> <time dateTime={p.at}>{date(p.at)}</time>{children}{p.priority&&<strong style={{color:"#a13427",display:"block"}}>⚑ {p.priorityLabel||'High priority'}</strong>}<p>{String(p.text||'').split(/(@\[[^\]]+\])/).map((part,i)=>part.startsWith('@[')&&part.endsWith(']')?<strong key={i} style={{color:'#24558a'}}>{'@'+part.slice(2,-1)}</strong>:part)}</p></div></article>;}
 export function DiscussionDialog({task,data,error,busy,text,setText,onPost,onClose,buttonStyle,showPriority}){
  const [priority,setPriority]=useState(false);
  return <div className="task-discussion-overlay"><section className="task-discussion-dialog" role="dialog" aria-modal="true" aria-label="Task discussion" onKeyDown={e=>{if(e.key==='Escape'&&!busy)onClose();}}><header><div><small>Task discussion</small><h2>{task.title}</h2>{task.projectName&&<span>{task.projectName}</span>}</div><button autoFocus type="button" style={buttonStyle} disabled={busy} onClick={onClose}>Close</button></header>
@@ -18,13 +18,42 @@ export function DiscussionDialog({task,data,error,busy,text,setText,onPost,onClo
  {!busy&&!error&&!data?.comments?.length&&<p>No updates yet.</p>}{[...(data?.comments||[])].reverse().map(p=><Post key={p.id} p={p}/>)}
  </section></div>;
 }
-export default function TaskDiscussion({request,buttonStyle}){
- const [posts,setPosts]=useState(null),[task,setTask]=useState(null),[data,setData]=useState(null),[error,setError]=useState(''),[threadError,setThreadError]=useState(''),[text,setText]=useState(''),[busy,setBusy]=useState(false);
- const load=async()=>{setError('');try{setPosts(await request('assignedWorkThread',{action:'feed'},'POST'));}catch(e){setError(e.message);}};
- useEffect(()=>{load();},[request]);
- const open=async(p,action='read')=>{setBusy(true);setThreadError('');if(action==='read'){setTask(p);setData(null);setText('');}
- try{setData(await request('assignedWorkThread',{designTaskId:p.designTaskId,projectId:p.projectId,threadKey:p.threadKey,priority:p.priority,title:p.title,action:p.threadKey?'workflow-'+action:action,comment:action==='comment'?text:''},'POST'));if(action==='comment'){setText('');load();}}catch(e){setThreadError(e.message);}finally{setBusy(false);}};
- return <section className="studio-home-card task-discussion-feed" aria-label="Task discussions"><header><h2>Task discussions</h2><button type="button" style={buttonStyle} onClick={load}>Refresh</button></header>
- {error?<p role="alert">{error}</p>:!posts?<p role="status">Loading discussions…</p>:!posts.length?<p>No task updates yet. Open a task’s comment icon to post one.</p>:posts.map(p=><Post key={p.id} p={p}><button type="button" className="task-post-link" disabled={busy} onClick={()=>open(p)}>{p.title}{p.projectName?' · '+p.projectName:''}</button></Post>)}
- {task&&<DiscussionDialog task={task} data={data} error={threadError} busy={busy} text={text} setText={setText} onClose={()=>setTask(null)} onPost={priority=>open({...task,priority},'comment')} showPriority={!!task.threadKey} buttonStyle={buttonStyle}/>}</section>;
+export default function TaskDiscussion({request,buttonStyle,studioPosts,openStudio,projectId,includeTasks,flaggedOnly,refresh}){
+ const [posts,setPosts]=useState(null),[task,setTask]=useState(null),[data,setData]=useState(null),[error,setError]=useState(''),[threadError,setThreadError]=useState(''),[text,setText]=useState(''),[busy,setBusy]=useState(false),[more,setMore]=useState(false),[loading,setLoading]=useState(false);
+ const revision=useRef(0),offset=useRef(0);
+ const load=async(append=false)=>{
+  const version=++revision.current;
+  setError('');setLoading(true);
+  if(!append){offset.current=0;setPosts(null);}
+  try{
+   const result=await request('assignedWorkThread',{action:'feed',projectId,offset:offset.current},'POST');
+   if(version!==revision.current)return;
+   offset.current+=result.length;setMore(result.length===50);
+   setPosts(previous=>append?[...previous,...result]:result);
+  }catch(e){if(version===revision.current)setError(e.message);}
+  finally{if(version===revision.current)setLoading(false);}
+ };
+ useEffect(()=>{if(includeTasks)load();return()=>{revision.current++;};},[request,projectId,includeTasks,refresh]);
+ const open=async(p,action='read')=>{
+  setBusy(true);setThreadError('');
+  if(action==='read'){setTask(p);setData(null);setText('');}
+  try{
+   setData(await request('assignedWorkThread',{designTaskId:p.designTaskId,projectId:p.projectId,threadKey:p.threadKey,priority:p.priority,title:p.title,action:p.threadKey?'workflow-'+action:action,comment:action==='comment'?text:''},'POST'));
+   if(action==='comment'){setText('');load();}
+  }catch(e){setThreadError(e.message);}
+  finally{setBusy(false);}
+ };
+ const entries=[...studioPosts,...(includeTasks?posts||[]:[])].filter(p=>!flaggedOnly||p.priority)
+  .sort((a,b)=>Number(!!b.priority)-Number(!!a.priority)||(Date.parse(b.at)||0)-(Date.parse(a.at)||0));
+ return <section className="studio-threads-timeline" aria-label="Conversation feed">
+  {error&&<p role="alert">{error}</p>}
+  {entries.map(p=><div key={(p.studio?'studio:':p.threadKey?'workflow:':'task:')+p.id} className={p.priority?'studio-thread-pinned':undefined}>
+   {p.priority&&<small className="studio-thread-pin">Pinned</small>}
+   <Post p={p}><button type="button" className="task-post-link" disabled={busy} onClick={()=>p.studio?openStudio(p.id):open(p)}>{p.title}{p.projectName?' · '+p.projectName:''}</button></Post>
+  </div>)}
+  {includeTasks&&loading&&<p role="status">Loading task discussions…</p>}
+  {!entries.length&&!loading&&!error&&<p>No conversations match these filters.</p>}
+  {includeTasks&&more&&<button type="button" style={buttonStyle} disabled={loading} onClick={()=>load(true)}>Load more task discussions</button>}
+  {task&&<DiscussionDialog task={task} data={data} error={threadError} busy={busy} text={text} setText={setText} onClose={()=>setTask(null)} onPost={priority=>open({...task,priority},'comment')} showPriority buttonStyle={buttonStyle}/>}
+ </section>;
 }
