@@ -53,7 +53,7 @@ export default function TeamAvailability({request,department,buttonStyle}){
   {state?.people.length>0&&<div className="studio-availability-groups">{statuses.map(status=>{
    const members=state.people.filter(person=>person.status===status);
    return <details key={status} open={status!=='Offline'}><summary><span data-availability={status}/>{status} · {members.length}</summary>
-    {members.length?<ul>{members.map(person=><li key={person.id}>{person.name}{person.note&&<small>{person.note}</small>}{person.activeWork?.map(task=><small className="studio-availability-active-work" key={task.id}><strong>Logging</strong> · {task.title}{task.project&&' · '+task.project}</small>)}</li>)}</ul>:<p>No teammates</p>}
+    {members.length?<ul>{members.map(person=><li key={person.id}>{person.name}{person.department&&<small>{person.department}</small>}{person.note&&<small>{person.note}</small>}{person.activeWork?.map(task=><small className="studio-availability-active-work" key={task.id}><strong>Logging</strong> · {task.title}{task.project&&' · '+task.project}</small>)}</li>)}</ul>:<p>No teammates</p>}
    </details>;
   })}</div>}
   </div>

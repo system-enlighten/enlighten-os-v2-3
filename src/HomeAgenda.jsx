@@ -44,8 +44,9 @@ export default function HomeAgenda({request,buttonStyle,readOnly,day}){
      <p className="studio-home-kicker">Site visit</p>
      <strong>{item.projectName||item.title}</strong>
      <small>{schedule}{item.endAt?' · Checked out':''}</small>
+     <small>{item.assignee||'Unassigned'}</small>
     </div>
-    {!readOnly&&!item.endAt&&<button type="button" className="studio-home-check" disabled={busy||!today} onClick={()=>update(action,item)}>{label}</button>}
+    {!readOnly&&item.canAct&&!item.endAt&&<button type="button" className="studio-home-check" disabled={busy||!today} onClick={()=>update(action,item)}>{label}</button>}
    </div>;
    return <article key={key}>
     <small>Meeting · {schedule}</small>
