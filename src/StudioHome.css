@@ -82,3 +82,14 @@
 .studio-home-site-card>div{flex:1 1 155px;min-width:0;overflow-wrap:anywhere}
 .studio-home-site-card .studio-home-check{margin-left:auto}
 .studio-availability-groups li .studio-availability-active-work{color:#244b64;margin-top:2px}
+.studio-site-assignment{color:#5c503a;font-size:12px;font-weight:600;overflow-wrap:anywhere}
+.studio-home-task-board{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start;margin-top:14px}
+.studio-home-task-board>.studio-home-card{min-width:0;padding:12px}
+.studio-home-task-board-heading,.studio-home-task-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.studio-home-task-board-heading{justify-content:space-between}
+.studio-home-task-group{margin-top:10px}
+.studio-home-task-group h3{font-size:13px;margin:0 0 4px}
+.studio-home-task-board .studio-home-task-row{gap:5px 10px;margin-top:5px;padding:6px 9px;overflow-wrap:anywhere}
+.studio-home-task-board .studio-home-task-row p{font-size:12px}
+.studio-home-task-controls{font-variant-numeric:tabular-nums}
+@media(max-width:900px){.studio-home-task-board{grid-template-columns:1fr}}

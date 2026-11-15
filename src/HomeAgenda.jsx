@@ -41,12 +41,13 @@ export default function HomeAgenda({request,buttonStyle,readOnly,day}){
    const key=item.projectId+':'+item.id;
    if(item.site)return <div className="studio-home-attendance studio-home-site-card" key={key}>
     <div>
-     <p className="studio-home-kicker">Site visit</p>
+     <p className="studio-home-kicker">Site visit{item.assignee?' / '+item.assignee:''}</p>
      <strong>{item.projectName||item.title}</strong>
      <small>{schedule}{item.endAt?' · Checked out':''}</small>
-     <small>{item.assignee||'Unassigned'}</small>
     </div>
-    {!readOnly&&item.canAct&&!item.endAt&&<button type="button" className="studio-home-check" disabled={busy||!today} onClick={()=>update(action,item)}>{label}</button>}
+    {!readOnly&&item.canAct===true&&today&&!item.endAt
+     ?<button type="button" className="studio-home-check" disabled={busy} onClick={()=>update(action,item)}>{label}</button>
+     :!item.endAt&&<span className="studio-site-assignment">{item.assignee?'Scheduled for '+item.assignee:'Visit lead not assigned'}</span>}
    </div>;
    return <article key={key}>
     <small>Meeting · {schedule}</small>
