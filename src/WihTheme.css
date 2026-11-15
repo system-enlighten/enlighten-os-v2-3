@@ -74,4 +74,4 @@
 .wih-complete-check{width:18px;height:18px;margin:0;accent-color:#235377}
 .wih-complete-check:focus-visible{outline:2px solid #235377;outline-offset:2px}
 .wih-workspace .wih-task-table thead th:last-child,.wih-action-cell{text-align:center!important}
-.wih-task-table .wih-action-cell .wih-logging-button{font-size:10px!important;padding:5px 7px!important;margin:0!important;white-space:nowrap}
+.wih-task-table button.wih-compact-button{font-size:10px!important;padding:5px 7px!important;margin:0!important;white-space:nowrap}
