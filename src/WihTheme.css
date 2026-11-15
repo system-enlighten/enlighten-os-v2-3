@@ -42,3 +42,18 @@
 .wih-register-controls .wih-register-group{margin:0;font-size:11px}
 .wih-register-controls .wih-status-filters button,.wih-register-controls .wih-person-filter select{font-size:12px}
 .wih-register-controls .wih-status-filters button{padding:4px 7px}
+
+.wih-workspace .wih-register-head{padding:10px 0 5px}
+.wih-workspace .wih-register-head h2{margin:0}
+.wih-workspace .wih-register-head .wih-intro{margin:3px 0 0!important;line-height:1.4!important}
+.wih-register-controls .wih-filter-label{display:none}
+.wih-register-controls .wih-status-filters button{font-weight:500}
+.wih-register-controls .wih-status-filters button.is-active{
+ color:var(--register-ink);background:transparent;border-bottom-color:#93784b;font-weight:650;
+}
+.wih-workspace .wih-task-table thead th{
+ background:#20374b!important;color:#f8f5ed!important;border-bottom:1px solid #172b3e!important;
+}
+.wih-estimated-hours{font-size:11px;margin-bottom:4px;color:var(--register-muted)}
+.wih-calendar-deadline{display:grid;gap:2px;background:#f4e8d3;border-left:3px solid #93784b;padding:7px;margin-bottom:6px;font-size:11px}
+.wih-calendar-deadline small{font-weight:650;color:#67512d}

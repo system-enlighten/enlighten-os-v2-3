@@ -18,7 +18,7 @@ export function DiscussionDialog({task,data,error,busy,text,setText,onPost,onClo
  {!busy&&!error&&!data?.comments?.length&&<p>No updates yet.</p>}{[...(data?.comments||[])].reverse().map(p=><Post key={p.id} p={p}/>)}
  </section></div>;
 }
-export default function TaskDiscussion({request,buttonStyle,studioPosts,openStudio,projectId,includeTasks,flaggedOnly,refresh}){
+export default function TaskDiscussion({request,buttonStyle,studioPosts=[],openStudio,projectId,includeTasks,flaggedOnly,refresh,recent=false}){
  const [posts,setPosts]=useState(null),[task,setTask]=useState(null),[data,setData]=useState(null),[error,setError]=useState(''),[threadError,setThreadError]=useState(''),[text,setText]=useState(''),[busy,setBusy]=useState(false),[more,setMore]=useState(false),[loading,setLoading]=useState(false);
  const revision=useRef(0),offset=useRef(0);
  const load=async(append=false)=>{
@@ -26,14 +26,14 @@ export default function TaskDiscussion({request,buttonStyle,studioPosts,openStud
   setError('');setLoading(true);
   if(!append){offset.current=0;setPosts(null);}
   try{
-   const result=await request('assignedWorkThread',{action:'feed',projectId,offset:offset.current},'POST');
+   const result=await request('assignedWorkThread',{action:'feed',projectId,offset:offset.current,recent},'POST');
    if(version!==revision.current)return;
    offset.current+=result.length;setMore(result.length===50);
    setPosts(previous=>append?[...previous,...result]:result);
   }catch(e){if(version===revision.current)setError(e.message);}
   finally{if(version===revision.current)setLoading(false);}
  };
- useEffect(()=>{if(includeTasks)load();return()=>{revision.current++;};},[request,projectId,includeTasks,refresh]);
+ useEffect(()=>{if(includeTasks)load();return()=>{revision.current++;};},[request,projectId,includeTasks,refresh,recent]);
  const open=async(p,action='read')=>{
   setBusy(true);setThreadError('');
   if(action==='read'){setTask(p);setData(null);setText('');}
@@ -44,16 +44,17 @@ export default function TaskDiscussion({request,buttonStyle,studioPosts,openStud
   finally{setBusy(false);}
  };
  const entries=[...studioPosts,...(includeTasks?posts||[]:[])].filter(p=>!flaggedOnly||p.priority)
-  .sort((a,b)=>Number(!!b.priority)-Number(!!a.priority)||(Date.parse(b.at)||0)-(Date.parse(a.at)||0));
- return <section className="studio-threads-timeline" aria-label="Conversation feed">
+  .sort((a,b)=>(recent?0:Number(!!b.priority)-Number(!!a.priority))||(Date.parse(b.at)||0)-(Date.parse(a.at)||0));
+ return <section className={recent?"studio-home-card task-discussion-feed":"studio-threads-timeline"} aria-label={recent?"Recent task discussions":"Conversation feed"}>
+  {recent&&<header><h2>Recent task discussions</h2><button type="button" style={buttonStyle} disabled={loading} onClick={()=>load()}>Refresh</button></header>}
   {error&&<p role="alert">{error}</p>}
-  {entries.map(p=><div key={(p.studio?'studio:':p.threadKey?'workflow:':'task:')+p.id} className={p.priority?'studio-thread-pinned':undefined}>
-   {p.priority&&<small className="studio-thread-pin">Pinned</small>}
+  {(recent?entries.slice(0,5):entries).map(p=><div key={(p.studio?'studio:':p.threadKey?'workflow:':'task:')+p.id} className={p.priority?'studio-thread-pinned':undefined}>
+   {p.priority&&!recent&&<small className="studio-thread-pin">Pinned</small>}
    <Post p={p}><button type="button" className="task-post-link" disabled={busy} onClick={()=>p.studio?openStudio(p.id):open(p)}>{p.title}{p.projectName?' · '+p.projectName:''}</button></Post>
   </div>)}
   {includeTasks&&loading&&<p role="status">Loading task discussions…</p>}
   {!entries.length&&!loading&&!error&&<p>No conversations match these filters.</p>}
-  {includeTasks&&more&&<button type="button" style={buttonStyle} disabled={loading} onClick={()=>load(true)}>Load more task discussions</button>}
+  {includeTasks&&!recent&&more&&<button type="button" style={buttonStyle} disabled={loading} onClick={()=>load(true)}>Load more task discussions</button>}
   {task&&<DiscussionDialog task={task} data={data} error={threadError} busy={busy} text={text} setText={setText} onClose={()=>setTask(null)} onPost={priority=>open({...task,priority},'comment')} showPriority buttonStyle={buttonStyle}/>}
  </section>;
 }
