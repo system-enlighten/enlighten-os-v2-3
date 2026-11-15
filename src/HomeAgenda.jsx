@@ -2,7 +2,7 @@ import React,{useEffect,useState} from 'react';
 
 const time=value=>new Date(value).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit'});
 const date=value=>new Date(value+'T12:00:00+05:30').toLocaleDateString('en-IN',{timeZone:'Asia/Kolkata',day:'numeric',month:'short'});
-function scheduledTime(value){
+export function scheduledTime(value){
  const text=String(value??'').trim();
  if(!text)return '';
  if(/^\d{4}-\d{2}-\d{2}T/.test(text)){
@@ -12,6 +12,14 @@ function scheduledTime(value){
   return new Date(timestamp+330*60000).toLocaleTimeString('en-IN',{timeZone:'UTC',hour:'numeric',minute:'2-digit'});
  }
  return /^\d{1,2}:\d{2}(?::\d{2})?(?:\s*[ap]m)?$/i.test(text)?text:'';
+}
+
+export function editableTime(value){
+ const text=scheduledTime(value);
+ const match=text.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*([ap]m)?$/i);
+ if(!match)return '';
+ const hours=match[3]?Number(match[1])%12+(match[3].toLowerCase()==='pm'?12:0):Number(match[1]);
+ return String(hours).padStart(2,'0')+':'+match[2];
 }
 
 function nextStep(item){
@@ -45,6 +53,7 @@ export default function HomeAgenda({request,buttonStyle,readOnly,day}){
      <p className="studio-home-kicker">Site visit</p>
      <strong className="studio-site-address" title={address}>{address}</strong>
      <small>{schedule}{item.endAt?' · Checked out':''}</small>
+
     </div>
     {!readOnly&&item.canAct===true&&today&&!item.endAt
      ?<button type="button" className="studio-home-check" disabled={busy} onClick={()=>update(action,item)}>{label}</button>
