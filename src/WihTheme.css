@@ -43,7 +43,7 @@
 .wih-register-controls .wih-status-filters button,.wih-register-controls .wih-person-filter select{font-size:12px}
 .wih-register-controls .wih-status-filters button{padding:4px 7px}
 
-.wih-workspace .wih-register-head{padding:10px 0 16px}
+.wih-workspace .wih-register-head{padding:10px 0 48px}
 .wih-workspace .wih-register-head h2{margin:0}
 .wih-workspace .wih-register-head .wih-intro{margin:3px 0 0!important;line-height:1.4!important}
 .wih-register-controls .wih-filter-label{display:none}
@@ -67,3 +67,7 @@
  border-bottom:2px solid #132237!important;
 }
 .wih-workspace .wih-task-table thead th{padding:9px 8px!important;border-right:1px solid #d7cebc}
+.wih-task-marks{display:inline-flex;vertical-align:middle;gap:3px;margin-left:5px}
+.wih-subtype{display:inline-flex;align-items:center;gap:5px}
+.wih-complete-check{width:18px;height:18px;margin:0;accent-color:#235377;outline:1px solid #728392;outline-offset:1px;border-radius:2px}
+.wih-complete-check:disabled{outline-color:#aab3b9}
