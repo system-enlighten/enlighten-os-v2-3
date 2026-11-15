@@ -2632,13 +2632,39 @@ const canonicalDrawingType = (v) => {
 --------------------------------------------------------------- */
 const ENLIGHTEN_API_URL = "/api";
 
-const WORKFLOW_WORKSPACE_CACHE=new Map();let WORKFLOW_WORKSPACE_REVISION=0;
-function clearWorkflowWorkspaceCache(){WORKFLOW_WORKSPACE_REVISION++;WORKFLOW_WORKSPACE_CACHE.clear();}
+const WORKFLOW_WORKSPACE_CACHE=new Map();
+function clearWorkflowWorkspaceCache(){WORKFLOW_WORKSPACE_CACHE.clear();}
 function cachedWorkflowWorkspace(projectId){return WORKFLOW_WORKSPACE_CACHE.get(AUTH_SESSION_GENERATION+':'+projectId)?.data;}
-function loadWorkflowWorkspace(projectId){const key=AUTH_SESSION_GENERATION+':'+projectId,existing=WORKFLOW_WORKSPACE_CACHE.get(key);if(existing?.promise)return existing.promise;if(existing?.data&&Date.now()-existing.at<15000)return Promise.resolve(existing.data);const revision=WORKFLOW_WORKSPACE_REVISION,generation=AUTH_SESSION_GENERATION,entry={...existing};entry.promise=apiRequest('getWorkflowWorkspace',{projectId},'GET',90000).then(data=>{if(revision!==WORKFLOW_WORKSPACE_REVISION||generation!==AUTH_SESSION_GENERATION)throw Error('Project data changed while refreshing. Reopen the project to load the latest values.');entry.data=data;entry.at=Date.now();return data;}).finally(()=>{entry.promise=null;});WORKFLOW_WORKSPACE_CACHE.set(key,entry);return entry.promise;}
+const workflowWrites=new Set([
+  'saveLineOfWork','updateWorkflowSchedule','queueWorkflowTask','saveProjectOnboarding',
+  'saveWorkflowDelegation','saveDelegationRules','deleteDelegationRule','saveProjectContacts',
+  'saveFloorZones','deleteFloorZones','updateProject','completeProject',
+  'saveExecutionVisits','recordExecutionVisit','deleteExecutionVisit','saveProjectMeeting','deleteProjectMeeting',
+  'receiveDrawing','receiveAndClassifyDrawing','classifyReceivedDrawing','finishReceivedUpload',
+  'finishPastWorkUpload','editReceivedDrawing','trashProjectDrawing','organizeProjectReceived',
+  'saveProjectCloseout','updateProjectCloseout','saveCloseout','archiveProject'
+]);
+
+function loadWorkflowWorkspace(projectId,retries=2){
+  const generation=AUTH_SESSION_GENERATION,key=generation+':'+projectId;
+  const existing=WORKFLOW_WORKSPACE_CACHE.get(key);
+  if(existing?.promise)return existing.promise;
+  if(existing?.data&&Date.now()-existing.at<15000)return Promise.resolve(existing.data);
+  const entry={};
+  WORKFLOW_WORKSPACE_CACHE.set(key,entry);
+  entry.promise=apiRequest('getWorkflowWorkspace',{projectId},'GET',90000).then(data=>{
+    if(generation!==AUTH_SESSION_GENERATION)throw Error('Your session changed. Open the project again.');
+    if(WORKFLOW_WORKSPACE_CACHE.get(key)!==entry){
+      if(retries>0)return loadWorkflowWorkspace(projectId,retries-1);
+      throw Error('The project is still being updated. Try refreshing it again.');
+    }
+    entry.data=data;entry.at=Date.now();return data;
+  }).finally(()=>{entry.promise=null;});
+  return entry.promise;
+}
 
 async function apiRequest(action, payload = {}, method = "POST", timeoutMs=0) {
-  const changesWorkflow=method==='POST'&&!/^(get|list|auth|begin|upload)/.test(action);if(changesWorkflow)clearWorkflowWorkspaceCache();
+  const changesWorkflow=method==='POST'&&workflowWrites.has(action);
   let response,raw;
   const controller=timeoutMs?new AbortController():null;
   const timeout=controller?setTimeout(()=>controller.abort(),timeoutMs):null;
