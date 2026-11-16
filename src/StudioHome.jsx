@@ -103,12 +103,13 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  }
  const agendaByDay=new Map();
  for(const item of agendaItems){
-  if(item.endAt)continue;
+  if(item.endAt||item.site&&item.isAssignedToMe!==true)continue;
   if(!agendaByDay.has(item.day))agendaByDay.set(item.day,[]);
   agendaByDay.get(item.day).push(item);
  }
  const dailyAgenda=agendaByDay.get(activeDay)||[];
  const dailyDeadlines=deadlinesByDay.get(activeDay)||[];
+ const overdueDeadlines=activeDay===today?[...deadlinesByDay].filter(([date])=>date<today).sort(([a],[b])=>a.localeCompare(b)).flatMap(([,tasks])=>tasks):[];
  const tomorrowDeadlines=activeDay===today?deadlinesByDay.get(shiftDay(today,1))||[]:[];
  const isInternal=r=>{
   const id=taskProjectId(r);
@@ -183,6 +184,9 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
    <div><strong>{item.title||item.projectName}</strong>
    <p>{[item.site?'Site visit':'Meeting',[scheduledTime(item.time),scheduledTime(item.endTime)].filter(Boolean).join(' – '),item.projectName!==item.title&&item.title&&item.projectName].filter(Boolean).join(' · ')}</p></div>
   </div>)}
+ </section>}
+ {overdueDeadlines.length>0&&<section aria-label="Overdue tasks"><h3>Overdue · {overdueDeadlines.length}</h3>
+  {overdueDeadlines.map(row=><div key={row.designTaskId}><small>Due {calendarLabel(deadlineDate(row),{day:'numeric',month:'short',year:'numeric'})}</small>{taskRow(row)}</div>)}
  </section>}
  {tomorrowDeadlines.length>0&&<section aria-label="Due tomorrow"><h3>Due tomorrow · {tomorrowDeadlines.length}</h3>{tomorrowDeadlines.map(taskRow)}</section>}
  </section>
