@@ -40,7 +40,7 @@ export function ActiveTimeReport({request,projects,employee}){
  useEffect(()=>{let live=true;setLoading(true);setError('');request('listActiveTime',{},'POST').then(data=>{if(live)setRows(Array.isArray(data)?data:[]);}).catch(e=>{if(live)setError(e.message);}).finally(()=>{if(live)setLoading(false);});return()=>{live=false;};},[request,revision]);
  const visible=rows.filter(r=>employee==='all'||String(r.userId)===String(employee));
  const duration=s=>s<60? s+' sec':Math.floor(s/3600)+' h '+Math.floor(s%3600/60)+' min';
- return <section aria-label="Active time in enLIGHTen OS" style={{margin:'0 0 24px',padding:12,border:'1px solid #d2cdc1'}}>
+ return <section className="studio-active-time" aria-label="Active time in enLIGHTen OS" style={{margin:'0 0 24px',padding:12,border:'1px solid #d2cdc1'}}>
  <h3>Active time in enLIGHTen OS</h3><p>Last 30 days · Counts time in the focused app tab while you’re active. Pauses after one minute without interaction. WIH task timers are reported separately.</p>
  <button type="button" disabled={loading} onClick={()=>setRevision(n=>n+1)}>Refresh active time</button>
  {error&&<p role="alert">{error}</p>}{loading&&<p role="status">Loading activity…</p>}

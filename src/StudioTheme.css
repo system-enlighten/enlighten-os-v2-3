@@ -108,3 +108,75 @@
  border-color:#8fd6e8!important;
  color:#fff!important;
 }
+
+.studio-app-content :is(.studio-home h1,h1.studio-page-heading,.studio-project-heading){
+ font-family:var(--studio-heading-font)!important;
+ font-size:clamp(1.85rem,3vw,2.5rem)!important;
+ letter-spacing:-.04em!important;
+ color:var(--studio-ink);
+}
+.studio-app-content .studio-page-heading{margin:0 0 12px}
+.studio-app-content .studio-project-heading{font-size:clamp(1.35rem,2vw,1.7rem)!important;margin:0}
+.studio-dashboard-intro{margin:18px 0 16px}
+.studio-dashboard-project{margin-top:18px}
+.studio-design-matrix :is(th,td){font-size:11px!important}
+.studio-design-matrix th{hyphens:none}
+.studio-app-content :is(.attendance-header,.wih-register-head){border-top:2px solid var(--studio-ink)}
+.studio-app-content .attendance{font-size:.82rem}
+.studio-app-content .attendance-metrics strong{font:600 .98rem var(--studio-body-font)}
+.studio-app-content .attendance-metrics>div{background:#faf8f2}
+.studio-app-content .attendance-metrics>div:nth-child(3){background:#e7ede8}
+.studio-app-content .attendance-log-row small{font-size:.75rem}
+
+.studio-app-content .wih-register-controls{background:#faf8f2;border:1px solid var(--studio-rule);padding:8px}
+.studio-app-content .wih-register-controls .wih-status-filters button{
+ border:1px solid var(--studio-rule);
+ padding:6px 10px;
+ color:var(--studio-ink);
+}
+.studio-app-content .wih-register-controls .wih-status-filters button.is-active{
+ color:#fff;background:var(--studio-ink);border-color:var(--studio-ink)
+}
+.studio-app-content .wih-register-controls .wih-status-filters button.is-active span{color:inherit}
+.studio-app-content .project-diary-timeline .diary-timeline-event>footer button,
+.studio-app-content :is(.feedback-media-sections button,.feedback-media-sections .feedback-upload-button){
+ padding:8px 12px;
+ border:1px solid #526577;
+ background:#fff;
+ color:var(--studio-ink);
+ cursor:pointer;
+}
+.studio-app-content .project-diary-timeline .diary-timeline-event>footer button:first-child,
+.studio-app-content .feedback-media-sections button:not(:disabled):first-child{
+ background:var(--studio-ink);color:#fff;
+}
+.studio-app-content .diary-timeline-event{padding:16px 20px}
+.studio-app-content .diary-timeline-event>footer{gap:8px}
+.studio-app-content .diary-event-sections:empty{display:none}
+.studio-app-content .diary-meeting-status{color:#34534c;background:#e7ede8}
+.studio-app-content .feedback-media-sections>section{background:#eee9dd;border-top:2px solid var(--studio-ink)}
+.studio-app-content .feedback-media-sections .feedback-upload-button{display:inline-flex}
+.studio-app-content :is(.studio-sheet-panel,.studio-home-card)>h2{letter-spacing:-.025em!important}
+.studio-performance{font-size:.82rem;line-height:1.5}
+.studio-performance>section{background:var(--studio-surface);border-top:2px solid var(--studio-ink)!important}
+.studio-performance>section h3{margin-top:0}
+.studio-performance th{font-family:"IBM Plex Mono",monospace}
+.studio-performance tbody tr:nth-child(even){background:#f1eee5}
+.studio-app-content .studio-active-time button{padding:6px 10px;background:#fff;color:var(--studio-ink);border:1px solid #526577;cursor:pointer}
+
+.studio-worksheet-tabs{display:flex;flex-wrap:wrap;gap:1px;margin-bottom:16px;border-bottom:1px solid var(--studio-rule)}
+.studio-worksheet-tabs button{font:600 .85rem var(--studio-body-font);padding:10px 16px;background:white;color:var(--studio-ink);border:0;border-bottom:3px solid transparent;cursor:pointer}
+.studio-worksheet-tabs button[aria-pressed=true]{background:var(--studio-ink);border-bottom-color:#8fd6e8;color:white}
+.studio-worksheet-project{margin:0 0 14px}
+.studio-app-content :is(.studio-technical-worksheet,.studio-lumina-worksheet) th{
+ background:#baf42c!important;color:#10170a;text-align:center!important;font-size:12px!important;
+ border-color:#a3af89!important;vertical-align:middle!important;
+}
+.studio-app-content .studio-lumina-worksheet th{background:#f5ed57!important}
+.studio-app-content :is(.studio-technical-worksheet,.studio-lumina-worksheet) td{
+ background:#fff;color:var(--studio-ink);
+ vertical-align:middle!important;
+}
+.studio-app-content .studio-lumina-worksheet td{text-align:center;font-family:"IBM Plex Mono",monospace}
+.studio-app-content .studio-lumina-worksheet td:first-child{background:#e5e3db;font-weight:600}
+.studio-lumina-worksheet img{display:block;max-width:120px;max-height:105px;margin:auto;object-fit:contain}

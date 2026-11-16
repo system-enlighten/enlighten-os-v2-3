@@ -25,3 +25,11 @@ DEPLOY THE FRONTEND FROM GITHUB
 Use the complete ZIP for a project backup. Its deployable frontend is under
 System 224.0/Frontend. The existing Apps Script deployment and Vercel environment
 variables can be reused for this frontend update.
+
+LUMINAIRE SCHEDULE AND SPEC SHEET
+
+Deploy the updated Apps Script Code.gs from the complete ZIP to enable the
+separate workbook views. Use the existing Apps Script deployment and settings.
+The Schedule view uses a Luminaire Schedule or Schedule sheet, or a sheet
+with LUMINAIRE SCHEDULE in cell A1. Spec Sheet uses a named specification
+sheet when available and falls back to Technical Table.
