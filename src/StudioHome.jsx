@@ -1,4 +1,3 @@
-import BriefingTimer from './BriefingTimer.jsx';
 import TaskDiscussion from './TaskDiscussion.jsx';
 import ManualWorkFields,{emptyWork,manualWorkLabel} from './ManualWorkFields.jsx';
 import TeamAvailability from './TeamAvailability.jsx';
@@ -109,7 +108,7 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  {thread.canComment&&<><label style={{display:'block'}}>Ask a question or leave a comment<textarea style={{display:'block',width:'100%',boxSizing:'border-box'}} value={comment} maxLength={2000} onChange={e=>setComment(e.target.value)}/></label><button type="button" style={buttonStyle} disabled={threadBusy||!comment.trim()} onClick={()=>changeThread(thread.row,'comment')}>Post comment</button>{' '}</>}
  <button type="button" style={buttonStyle} disabled={threadBusy} onClick={()=>setThread(null)}>Close</button></section></div>}
  <div className="studio-home-task-board"><section className="studio-home-card" aria-label="My open tasks">
- <div className="studio-home-task-board-heading"><h2>My tasks</h2>{/^(admin|user)$/i.test(user?.appAccess)&&<div className="studio-home-task-controls"><button type="button" style={buttonStyle} onClick={()=>{setCreateNote('');setNewTask({id:crypto.randomUUID(),title:'',projectId:'',narration:'',type:'client',activity:'Work'});}}>+ Create task</button><BriefingTimer request={request} buttonStyle={buttonStyle} onTimerChange={()=>{loadWork().then(setRows).catch(e=>setError(e.message));}}/></div>}</div>
+ <div className="studio-home-task-board-heading"><h2>My tasks</h2>{/^(admin|user)$/i.test(user?.appAccess)&&<button type="button" style={buttonStyle} onClick={()=>{setCreateNote('');setNewTask({id:crypto.randomUUID(),title:'',projectId:'',narration:'',type:'client',activity:'Work'});}}>+ Create task</button>}</div>
  {newTask&&<div className="task-discussion-overlay"><section className="task-discussion-dialog studio-create-task" role="dialog" aria-modal="true" aria-labelledby="studio-create-title" onKeyDown={e=>{if(e.key==='Escape'&&!creating)setNewTask(null);}}><header><div><small>Work in Hand</small><h2 id="studio-create-title">Create task</h2><p>Assigned to you</p></div></header>
  <form onSubmit={createTask}>
  <label>Work type<select autoFocus value={newTask.type} onChange={e=>setNewTask({...newTask,type:e.target.value,projectId:''})}><option value="client">Client project</option><option value="internal">Admin / Internal work</option></select></label>

@@ -75,3 +75,10 @@
 .wih-complete-check:focus-visible{outline:2px solid #235377;outline-offset:2px}
 .wih-workspace .wih-task-table thead th:last-child,.wih-action-cell{text-align:center!important}
 .wih-task-table button.wih-compact-button{font-size:10px!important;padding:5px 7px!important;margin:0!important;white-space:nowrap}
+
+.wih-task-table tbody .wih-project-band th{
+ background:#e9e2d3!important;color:#172b3e!important;text-align:left;
+ border-top:2px solid #172b3e!important;border-left:4px solid #987f51;
+}
+.wih-project-band span{font:650 13px/1.35 Inter,system-ui,sans-serif;text-transform:none;letter-spacing:0}
+.wih-project-band small{margin-left:12px;color:#5c503a;font:500 10px/1.35 "IBM Plex Mono",monospace;text-transform:none}
