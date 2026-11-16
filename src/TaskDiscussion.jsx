@@ -10,6 +10,20 @@ export function MentionInput({text,setText,people=[]}){
  {choices.length>0&&<ul aria-label="Mention a teammate" style={{listStyle:'none',margin:0,padding:4,border:'1px solid #d8cdb9',background:'#fffdf8'}}>{choices.map((p,i)=><li key={p.id}><button type="button" style={{width:'100%',textAlign:'left',padding:7,border:0,background:i===active?'#eae4d8':'transparent'}} onMouseDown={e=>e.preventDefault()} onClick={()=>select(p)}>{p.name}{p.assigned?' · Assigned':''}</button></li>)}</ul>}</div>;
 }
 function Post({p,children}){return <article className="task-post"><span className="task-post-avatar" aria-hidden="true">{(p.author||'?').slice(0,1).toUpperCase()}</span><div><strong>{p.author||'Team member'}</strong> <time dateTime={p.at}>{date(p.at)}</time>{children}{p.priority&&<strong style={{color:"#a13427",display:"block"}}>⚑ {p.priorityLabel||'High priority'}</strong>}<p>{String(p.text||'').split(/(@\[[^\]]+\])/).map((part,i)=>part.startsWith('@[')&&part.endsWith(']')?<strong key={i} style={{color:'#24558a'}}>{'@'+part.slice(2,-1)}</strong>:part)}</p></div></article>;}
+function RecentDiscussion({post,onOpen,disabled}){
+ const author=post.author||'Team member';
+ return <button type="button" className="recent-discussion" disabled={disabled} onClick={onOpen}>
+  <span className="task-post-avatar" aria-hidden="true">{author.charAt(0).toUpperCase()}</span>
+  <span className="recent-discussion-copy">
+   {post.projectName&&<span className="recent-discussion-project">{post.projectName}</span>}
+   <strong>{post.title||'Task discussion'}</strong>
+   {post.priority&&<span className="recent-discussion-priority">{post.priorityLabel||'High priority'}</span>}
+   <span className="recent-discussion-preview">{String(post.text||'').replace(/@\[([^\]]+)\]/g,'@$1')}</span>
+   <span className="recent-discussion-meta">{author}{post.at&&<> · <time dateTime={post.at}>{date(post.at)}</time></>}</span>
+  </span>
+  <span className="recent-discussion-action">Open discussion <span aria-hidden="true">↗</span></span>
+ </button>;
+}
 export function DiscussionDialog({task,data,error,busy,text,setText,onPost,onClose,buttonStyle,showPriority}){
  const [priority,setPriority]=useState(false);
  return <div className="task-discussion-overlay"><section className="task-discussion-dialog" role="dialog" aria-modal="true" aria-label="Task discussion" onKeyDown={e=>{if(e.key==='Escape'&&!busy)onClose();}}><header><div><small>Task discussion</small><h2>{task.title}</h2>{task.projectName&&<span>{task.projectName}</span>}</div><button autoFocus type="button" style={buttonStyle} disabled={busy} onClick={onClose}>Close</button></header>
@@ -48,12 +62,20 @@ export default function TaskDiscussion({request,buttonStyle,studioPosts=[],openS
  return <section className={recent?"studio-home-card task-discussion-feed":"studio-threads-timeline"} aria-label={recent?"Recent task discussions":"Conversation feed"}>
   {recent&&<header><h2>Recent task discussions</h2><button type="button" style={buttonStyle} disabled={loading} onClick={()=>load()}>Refresh</button></header>}
   {error&&<p role="alert">{error}</p>}
-  {(recent?entries.slice(0,5):entries).map(p=><div key={(p.studio?'studio:':p.threadKey?'workflow:':'task:')+p.id} className={p.priority?'studio-thread-pinned':undefined}>
-   {p.priority&&!recent&&<small className="studio-thread-pin">Pinned</small>}
-   <Post p={p}><button type="button" className="task-post-link" disabled={busy} onClick={()=>p.studio?openStudio(p.id):open(p)}>{p.title}{p.projectName?' · '+p.projectName:''}</button></Post>
-  </div>)}
+  <div className={recent?'recent-discussion-list':undefined}>
+   {(recent?entries.slice(0,5):entries).map(p=>{
+    const key=(p.studio?'studio:':p.threadKey?'workflow:':'task:')+p.id;
+    const onOpen=()=>p.studio?openStudio(p.id):open(p);
+    return recent?<RecentDiscussion key={key} post={p} onOpen={onOpen} disabled={busy}/>:(
+     <div key={key} className={p.priority?'studio-thread-pinned':undefined}>
+      {p.priority&&<small className="studio-thread-pin">Pinned</small>}
+      <Post p={p}><button type="button" className="task-post-link" disabled={busy} onClick={onOpen}>{p.title}{p.projectName?' · '+p.projectName:''}</button></Post>
+     </div>
+    );
+   })}
+  </div>
   {includeTasks&&loading&&<p role="status">Loading task discussions…</p>}
-  {!entries.length&&!loading&&!error&&<p>No conversations match these filters.</p>}
+  {!entries.length&&!loading&&!error&&<p>{recent?'No recent task discussions yet.':'No conversations match these filters.'}</p>}
   {includeTasks&&!recent&&more&&<button type="button" style={buttonStyle} disabled={loading} onClick={()=>load(true)}>Load more task discussions</button>}
   {task&&<DiscussionDialog task={task} data={data} error={threadError} busy={busy} text={text} setText={setText} onClose={()=>setTask(null)} onPost={priority=>open({...task,priority},'comment')} showPriority buttonStyle={buttonStyle}/>}
  </section>;

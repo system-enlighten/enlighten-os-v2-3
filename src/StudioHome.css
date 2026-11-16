@@ -123,3 +123,44 @@
  .studio-home-attendance{flex-wrap:wrap;padding:12px}
  .studio-team-availability{width:min(330px,calc(100% - 24px));right:max(12px,env(safe-area-inset-right))}
 }
+
+.studio-home-task-board{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px}
+.studio-home-task-board>.studio-home-card{padding:16px;background:#faf8f2;border-top:2px solid #25364a}
+.studio-home-task-board .studio-home-task-row,
+.studio-home-pending-task>summary{background:#fcfbf7;border-color:#ded8ca}
+.studio-home-pending-project h3{background:#ebe6da;color:#172638;border-left:2px solid #25364a}
+.studio-home-admin-scroll{block-size:auto;max-block-size:13.5rem;overflow-y:auto}
+.studio-week-calendar{gap:0;border:1px solid #d8cdb9}
+.studio-week-day{border:0;border-right:1px solid #d8cdb9;padding-block:8px}
+.studio-week-day:last-child{border-right:0}
+.studio-week-day[aria-current=date]{box-shadow:inset 0 -3px #78968d}
+.studio-home-deadline{
+ display:inline-block;margin:2px 0 2px 8px;padding:3px 6px;
+ background:#e7ede8;color:#28483e;font-size:11px;font-weight:600;
+ font-variant-numeric:tabular-nums;
+}
+.studio-home-deadline.is-overdue{background:#f1e2d8;color:#783b28}
+.studio-home .wih-metrics{font-family:inherit;color:#384956}
+.studio-home .wih-metric-cards{background:#faf8f2;padding-block:12px}
+.studio-home .wih-metric-cards>div:first-child{padding-left:16px}
+.studio-home .wih-metric-cards span,
+.studio-home .wih-metric-graphs header>span,
+.studio-home .wih-weekly-legend,
+.studio-home .wih-reliability-legend small,
+.studio-home .wih-metric-notes{color:#52636b}
+.studio-home .wih-metric-graphs>article{border-radius:0;background:#faf8f2;border-color:#ded8ca}
+.studio-home .wih-metric-graphs h3{color:#172638;font-size:14px;font-weight:600}
+.studio-home .wih-metrics i{border-radius:0}
+.studio-home .wih-metrics .unrated{background:#a4ada7}
+.studio-home .wih-reliability{justify-content:flex-start;flex-wrap:wrap;gap:14px 24px;margin-block:20px}
+.studio-delivery-rate{flex:1 1 120px;min-width:0}
+.studio-delivery-rate strong{display:block;color:#172638;font-size:30px;font-weight:600}
+.studio-delivery-rate span{font-size:11px}
+.studio-delivery-track{height:6px;background:#e5e0d5;margin-top:10px}
+.studio-delivery-track:has(>div){background:#c89980}
+.studio-delivery-track>div{height:100%;background:#73968c}
+@media(max-width:900px){.studio-home-task-board{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:480px){
+ .studio-home-task-board>.studio-home-card{padding:10px}
+ .studio-home-deadline{display:table;margin:4px 0}
+}

@@ -124,7 +124,10 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  const panel={background:'#fff',border:'1px solid '+T.line,padding:16,minWidth:0};
  const loggingButton=r=><button type="button" style={buttonStyle} title={!own(r)?'Only the assigned team member can log time':undefined} disabled={!own(r)||isWaiting(r)||busy||!!timerBusy||!!log?.breakStart&&!running(r)||String(user?.appAccess).toLowerCase()==='viewer'} onClick={()=>timerAction(r)}>{timerBusy===r.designTaskId?'Updating…':running(r)?'Pause logging':/paused/i.test(r.status||'')?'Resume logging':'Start logging'}</button>;
  const pendingRow=(r,label,showProject=true)=><div className="studio-home-task-row" key={r.designTaskId}><div><strong>{label}</strong><p>{[showProject&&projectName(r),r.assigneeName||'Unassigned',r.status,r.plan?.plannedStart&&day(new Date(r.plan.plannedStart))].filter(Boolean).join(' · ')}</p></div>{loggingButton(r)}</div>;
- const taskRow=r=><div key={r.designTaskId} className="studio-home-task-row"><div><strong>{title(r)}</strong><p>{[projectName(r),isInternal(r)&&(r.assigneeName||'Unassigned'),r.task?.floor,r.task?.area,r.status].filter(Boolean).join(' · ')}</p>{['Admin / Owner','Meeting / Discussion'].includes(r.task?.taskCategory)&&r.task?.remarks&&<p style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{r.task.remarks}</p>}</div><div className="studio-home-task-controls"><span aria-label="Time logged" style={{fontVariantNumeric:'tabular-nums'}}>{elapsed(r)}</span>{loggingButton(r)}</div></div>;
+ const taskRow=r=>{
+  const due=deadlineDate(r);
+  return <div key={r.designTaskId} className="studio-home-task-row"><div><strong>{title(r)}</strong>{due&&<time dateTime={due} className={'studio-home-deadline'+(due<today?' is-overdue':'')}>Due {calendarLabel(due,{weekday:'short',day:'numeric',month:'short',year:'numeric'})}</time>}<p>{[projectName(r),isInternal(r)&&(r.assigneeName||'Unassigned'),r.task?.floor,r.task?.area,r.status].filter(Boolean).join(' · ')}</p>{['Admin / Owner','Meeting / Discussion'].includes(r.task?.taskCategory)&&r.task?.remarks&&<p style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{r.task.remarks}</p>}</div><div className="studio-home-task-controls"><span aria-label="Time logged" style={{fontVariantNumeric:'tabular-nums'}}>{elapsed(r)}</span>{loggingButton(r)}</div></div>;
+ };
  return <main className="studio-home">
  <header className="studio-home-intro">
   <div><p className="studio-home-kicker">enLIGHTen / Studio desk</p><h1>{admin?'Studio overview':'My work'}</h1><p>{new Intl.DateTimeFormat('en-IN',{timeZone:tz,dateStyle:'full'}).format(new Date())}</p></div>
@@ -186,7 +189,7 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
   </div>)}
  </section>}
  {overdueDeadlines.length>0&&<section aria-label="Overdue tasks"><h3>Overdue · {overdueDeadlines.length}</h3>
-  {overdueDeadlines.map(row=><div key={row.designTaskId}><small>Due {calendarLabel(deadlineDate(row),{day:'numeric',month:'short',year:'numeric'})}</small>{taskRow(row)}</div>)}
+  {overdueDeadlines.map(taskRow)}
  </section>}
  {tomorrowDeadlines.length>0&&<section aria-label="Due tomorrow"><h3>Due tomorrow · {tomorrowDeadlines.length}</h3>{tomorrowDeadlines.map(taskRow)}</section>}
  </section>
@@ -209,9 +212,9 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
    </section>)}
   </div>}
  </section></div>
- <div className="studio-home-band"><div><p className="studio-home-kicker">01 / Performance</p><h2>Work overview</h2><p>{ready?(admin?'Studio tasks':'My tasks'):'Loading work…'}</p></div><div className="studio-home-period" role="group" aria-label="Chart period">{[['week','Weekly'],['month','Monthly']].map(([id,label])=><button type="button" aria-pressed={period===id} key={id} onClick={()=>setPeriod(id)}>{label}</button>)}</div></div>
- <WihMetrics tasks={work} now={clock} period={period} loading={!ready}/>
- <div className="studio-home-band"><div><p className="studio-home-kicker">02 / Daily plan</p><h2>Today’s work</h2></div></div><div className="studio-home-grid"><section className="studio-home-card"><h2>In progress</h2>{work.filter(r=>running(r)&&!done(r)).length?<ul>{work.filter(r=>running(r)&&!done(r)).map(r=><li key={r.designTaskId}>{title(r)} · {r.assigneeName||user?.name}</li>)}</ul>:<p>No work in progress.</p>}<button type="button" style={buttonStyle} onClick={()=>navigate('timesheet')}>Open Tasks</button></section>
+ <div className="studio-home-band"><div><h2>Work overview</h2><p>{ready?(admin?'Studio tasks':'My tasks'):'Loading work…'}</p></div><div className="studio-home-period" role="group" aria-label="Chart period">{[['week','Weekly'],['month','Monthly']].map(([id,label])=><button type="button" aria-pressed={period===id} key={id} onClick={()=>setPeriod(id)}>{label}</button>)}</div></div>
+ <WihMetrics compact tasks={work} now={clock} period={period} loading={!ready}/>
+ <div className="studio-home-band"><div><h2>Today’s work</h2></div></div><div className="studio-home-grid"><section className="studio-home-card"><h2>In progress</h2>{work.filter(r=>running(r)&&!done(r)).length?<ul>{work.filter(r=>running(r)&&!done(r)).map(r=><li key={r.designTaskId}>{title(r)} · {r.assigneeName||user?.name}</li>)}</ul>:<p>No work in progress.</p>}<button type="button" style={buttonStyle} onClick={()=>navigate('timesheet')}>Open Tasks</button></section>
  <section className="studio-home-card"><h2>Today’s schedule</h2>{ownSchedule.length?<ol>{ownSchedule.map((r,i)=><li key={i}>{r.time}{r.end?' – '+r.end:''} · {r.title}</li>)}</ol>:<p>No scheduled work today.</p>}
  <details className="studio-home-log" onToggle={e=>setManualOpen(e.currentTarget.open)}><summary>Log unrecorded time</summary>{(log?.entries||[]).map((r,i)=><p key={i}>{r.start} – {r.end} · {manualWorkLabel(r)}</p>)}<div style={{display:'flex',gap:8,flexWrap:'wrap'}}><label>From <input type="time" value={start} onChange={e=>setStart(e.target.value)}/></label><label>To <input type="time" value={end} onChange={e=>setEnd(e.target.value)}/></label></div>{manualOpen&&<ManualWorkFields request={request} value={manualWork} onChange={setManualWork}/>}<label style={{display:'block',margin:'8px 0'}}>Activity <input value={note} maxLength={250} onChange={e=>setNote(e.target.value)}/></label><button type="button" style={buttonStyle} disabled={busy||!log?.checkIn||!start||!end||!manualWork.projectId||!manualWork.task.trim()||!note.trim()} onClick={()=>save('entry')}>Log time</button></details></section>
  </div><TaskDiscussion request={request} buttonStyle={buttonStyle} includeTasks recent/></main>;
