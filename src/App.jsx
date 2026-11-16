@@ -1,5 +1,6 @@
 import { projectCardFloor } from './projectCardFloor.mjs';
 import {scheduledTime,editableTime} from './HomeAgenda.jsx';
+import "./StudioTheme.css";
 import './DashboardOutputUpload.css';
 import {departments as workspaceDepartments,departmentFor,DepartmentPicker,DepartmentWorkspace,DepartmentHeading} from './Departments.jsx';
 import PerformanceAttendance from './PerformanceAttendance.jsx';
@@ -673,8 +674,8 @@ const T = {
   navy2: "#122A4D",
   blue: "#1D4E89",
   cyan: "#8FD6E8",
-  paper: "#F6F3EA",
-  paperDim: "#EDE8DA",
+  paper: "#F4F1E8",
+  paperDim: "#EBE6DA",
   ink: "#16202C",
   inkDim: "#5B6472",
   amber: "#C97A1F",
@@ -683,7 +684,7 @@ const T = {
   greenBg: "#E4F0E9",
   redline: "#B34328",
   redlineBg: "#F8E6DF",
-  line: "#D8D0BC",
+  line: "#D8D0C2",
 };
 
 
