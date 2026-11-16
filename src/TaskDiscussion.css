@@ -40,9 +40,11 @@
 .recent-discussion:disabled{cursor:wait}
 .recent-discussion .task-post-avatar{width:36px;height:36px;background:#e7ede8;color:#28483e}
 .recent-discussion-copy{display:grid;gap:4px;overflow-wrap:anywhere}
-.recent-discussion-project,.recent-discussion-meta{font-size:12px;color:#52636b}
+.recent-discussion-project{font-size:12px;color:#52636b}
+.recent-discussion-meta{font-size:11px;color:#626b68;font-weight:400}
 .recent-discussion-priority{color:#783b28;font-size:12px;font-weight:600}
 .recent-discussion-preview{
+ margin-block:6px;
  display:-webkit-box;
  -webkit-box-orient:vertical;
  -webkit-line-clamp:2;
