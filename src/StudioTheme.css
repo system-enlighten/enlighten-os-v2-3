@@ -93,3 +93,18 @@
 .studio-app-content :is(.feedback-view,.project-diary-timeline) button:not(:disabled):hover{
  box-shadow:inset 0 -2px var(--studio-accent);
 }
+
+.studio-app-sidebar .studio-home-shortcut{
+ width:100%;
+ text-align:left;
+ background:transparent!important;
+ color:#dbe6f1!important;
+ border:1px solid #2b4154!important;
+ padding:8px 12px!important;
+ letter-spacing:.04em;
+}
+.studio-app-sidebar .studio-home-shortcut[aria-current=page]{
+ background:#1a2f45!important;
+ border-color:#8fd6e8!important;
+ color:#fff!important;
+}

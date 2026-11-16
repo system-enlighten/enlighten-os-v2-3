@@ -657,7 +657,6 @@ raw strings "true" or "false" for these fields.
 */
 
 import './LandingPage.css';
-import './ArchitectureTheme.css';
 import QRCode from 'qrcode';
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
@@ -3135,7 +3134,7 @@ function TitleBlock({ view, sub }) {
   const label = { fontFamily: FONT_MONO, fontSize: 10, letterSpacing: "0.12em", color: T.cyan, textTransform: "uppercase", opacity: 0.75 };
   const val = { fontFamily: FONT_DISPLAY, fontSize: 14, color: "#fff", marginTop: 3 };
   return (
-    <div className="studio-title-block" style={{ display: "flex", background: T.navy, borderBottom: `1px solid ${T.cyan}33`, flexWrap: "wrap" }}>
+    <div style={{ display: "flex", background: T.navy, borderBottom: `1px solid ${T.cyan}33`, flexWrap: "wrap" }}>
       <div style={cell}>
         <div style={label}>Sheet</div>
         <div style={val}>{view}</div>
@@ -3188,7 +3187,7 @@ function Btn({ children, onClick, variant = "primary", style, disabled, type = "
     dark: { background: "#E6EEF4", color: T.blue },
   };
   return (
-    <button type={type} disabled={disabled} onClick={onClick} className={`studio-btn studio-btn--${variant}`} style={{ ...base, ...variants[variant], ...style }}
+    <button type={type} disabled={disabled} onClick={onClick} style={{ ...base, ...variants[variant], ...style }}
       onMouseEnter={(e) => !disabled && (e.currentTarget.style.opacity = "0.85")}
       onMouseLeave={(e) => !disabled && (e.currentTarget.style.opacity = "1")}>
       {children}
@@ -7322,7 +7321,7 @@ function SidebarNavigation({items,view,onChange,pendingCount}){
   const groups=[...new Set(items.map(n=>n.group))];
   return <nav aria-label="Main navigation">{groups.map(group=>{
     const id='nav-'+group.replace(/[^a-z0-9]/gi,'-');
-    return <section key={group}><div className="studio-nav-group" style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 20px 8px',fontFamily:FONT_MONO,fontSize:9,letterSpacing:'.1em',color:T.cyan,background:'transparent',border:0,textAlign:'left'}}><span>{group}{group==='RECEIVED / SENT'&&pendingCount>0?` (${pendingCount})`:''}</span></div><div id={id}>{items.filter(n=>n.group===group).map(n=>{const Icon=n.icon,active=view===n.id;return <button key={n.id} type="button" className="studio-nav-item" aria-current={active?'page':undefined} onClick={()=>onChange(n.id)} style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'11px 20px',background:active?T.navy2:'transparent',border:0,borderLeft:`3px solid ${active?T.cyan:'transparent'}`,color:active?'#fff':'#B7C4D6',cursor:'pointer',fontFamily:FONT_BODY,fontSize:13,textAlign:'left'}}><Icon size={15}/><span style={{flex:1}}>{n.label}</span>{n.id==='classify'&&pendingCount>0&&<span style={{background:T.amber,color:'#fff',fontSize:10,padding:'1px 6px',borderRadius:10}}>{pendingCount}</span>}{active&&<ChevronRight size={13}/>}</button>;})}</div></section>;
+    return <section key={group}><div style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 20px 8px',fontFamily:FONT_MONO,fontSize:9,letterSpacing:'.1em',color:T.cyan,background:'transparent',border:0,textAlign:'left'}}><span>{group}{group==='RECEIVED / SENT'&&pendingCount>0?` (${pendingCount})`:''}</span></div><div id={id}>{items.filter(n=>n.group===group).map(n=>{const Icon=n.icon,active=view===n.id;return <button key={n.id} type="button" aria-current={active?'page':undefined} onClick={()=>onChange(n.id)} style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'11px 20px',background:active?T.navy2:'transparent',border:0,borderLeft:`3px solid ${active?T.cyan:'transparent'}`,color:active?'#fff':'#B7C4D6',cursor:'pointer',fontFamily:FONT_BODY,fontSize:13,textAlign:'left'}}><Icon size={15}/><span style={{flex:1}}>{n.label}</span>{n.id==='classify'&&pendingCount>0&&<span style={{background:T.amber,color:'#fff',fontSize:10,padding:'1px 6px',borderRadius:10}}>{pendingCount}</span>}{active&&<ChevronRight size={13}/>}</button>;})}</div></section>;
   })}</nav>;
 }
 
@@ -7400,7 +7399,7 @@ function StudioApp() {
           </div>
           <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.cyan, opacity: 0.7, marginTop: 4 }}>lighting design · intake → task → timesheet</div>
         </div>
-        <div style={{padding:"0 20px 12px"}}><button type="button" style={smallBtn} aria-current={view==='home'?'page':undefined} onClick={()=>{setMobileNavOpen(false);setView('home');}}>Home</button></div><SidebarNavigation items={allowedNav} view={view} onChange={next=>{if(next==='feedback')setFeedbackContext(viewLabel);if(next==='site')setAttendanceDay('');setMobileNavOpen(false);setView(next)}} pendingCount={pendingCount}/>
+        <div style={{padding:"0 20px 12px"}}><button type="button" className="studio-home-shortcut" style={smallBtn} aria-current={view==='home'?'page':undefined} onClick={()=>{setMobileNavOpen(false);setView('home');}}>Home</button></div><SidebarNavigation items={allowedNav} view={view} onChange={next=>{if(next==='feedback')setFeedbackContext(viewLabel);if(next==='site')setAttendanceDay('');setMobileNavOpen(false);setView(next)}} pendingCount={pendingCount}/>
         <div style={{ padding: "20px", marginTop: 20, fontFamily: FONT_MONO, fontSize: 10, color: T.cyan, opacity: 0.7 }}>
           <div style={{ marginBottom: 6 }}>{currentUser?.appAccess} · {currentUser?.name || ""}</div>
           <div style={{ opacity: 0.7, wordBreak: "break-all" }}>{currentUser?.email || ""}</div>
