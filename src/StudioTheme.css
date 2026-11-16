@@ -51,7 +51,6 @@
  color:var(--studio-ink);
 }
 .studio-app-content .studio-journal{background:var(--studio-paper)}
-.studio-app-content .journal-sunset-rule{height:2px;background:var(--studio-ink)}
 .studio-app-content :is(.studio-sheet-panel,.feedback-compose,.feedback-report,.diary-timeline-event){
  background:var(--studio-surface);
  border-color:var(--studio-rule);
@@ -109,14 +108,26 @@
  color:#fff!important;
 }
 
-.studio-app-content :is(.studio-home h1,h1.studio-page-heading,.studio-project-heading){
+.studio-app-content :is(.studio-home h1,h1.studio-page-heading,.studio-project-heading,.journal-masthead h1){
  font-family:var(--studio-heading-font)!important;
  font-size:clamp(1.85rem,3vw,2.5rem)!important;
  letter-spacing:-.04em!important;
  color:var(--studio-ink);
 }
 .studio-app-content .studio-page-heading{margin:0 0 12px}
-.studio-app-content .studio-project-heading{font-size:clamp(1.35rem,2vw,1.7rem)!important;margin:0}
+.studio-app-content :is(.studio-home h1,h1.studio-page-heading,.journal-masthead h1){
+ font-size:calc(clamp(1.85rem,3vw,2.5rem) - 2pt)!important;
+}
+.studio-app-content h2.studio-project-heading{font-size:1.2rem!important;margin:0}
+.studio-app-content .studio-journal{max-width:1480px;margin-inline:auto;padding:0}
+.studio-app-content .journal-masthead{
+ padding:22px 0;
+ border-top:2px solid var(--studio-ink);
+ border-bottom:1px solid var(--studio-rule);
+}
+.studio-app-content .journal-masthead h1{margin:5px 0 9px}
+.studio-app-content .journal-masthead>p{margin:0}
+.studio-app-content .journal-edition{flex-wrap:wrap;gap:4px 15px}
 .studio-dashboard-intro{margin:18px 0 16px}
 .studio-dashboard-project{margin-top:18px}
 .studio-design-matrix :is(th,td){font-size:11px!important}
