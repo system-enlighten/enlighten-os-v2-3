@@ -1,0 +1,300 @@
+/* ==========================================================================
+   enLIGHTen OS — Architecture theme (drawing-sheet system)
+   One shared layer for every signed-in page. Loaded last (see App.jsx) so it
+   wins ties against StudioTheme / StudioHome / WihTheme and page-level CSS.
+
+   Language: vellum paper, ink line-work, hairline rules, square corners,
+   monospaced annotations, a drawing title block, a numbered sheet index and a
+   faint construction grid. Colour is used sparingly, like a marked-up drawing.
+   ========================================================================== */
+
+.studio-app-shell{
+  /* tokens */
+  --arch-ink:#14202e;
+  --arch-ink-soft:#4a5866;
+  --arch-ink-faint:#7b8794;
+  --arch-paper:#f3f0e8;        /* vellum */
+  --arch-surface:#fbfaf6;      /* sheet */
+  --arch-tint:#ece7da;         /* schedule header / hover */
+  --arch-rule:#d9d3c4;         /* hairline */
+  --arch-rule-strong:#b9b2a0;  /* control outline */
+  --arch-blueprint:#1d4e89;    /* primary line colour */
+  --arch-accent:#356c63;       /* focus / selection */
+  --arch-redline:#b34328;      /* revision mark / urgent */
+  --arch-index:#0f1c2b;        /* sheet-index sidebar */
+  --arch-index-line:#27394d;
+  --arch-mono:"IBM Plex Mono","Courier New",monospace;
+  --arch-display:"Space Grotesk",Inter,system-ui,sans-serif;
+  --arch-body:Inter,system-ui,sans-serif;
+  --arch-grid-minor:24px;
+  --arch-grid-major:120px;
+
+  /* keep legacy tokens in step so older rules inherit the new palette */
+  --studio-ink:var(--arch-ink);
+  --studio-paper:var(--arch-paper);
+  --studio-surface:var(--arch-surface);
+  --studio-rule:var(--arch-rule);
+  --studio-accent:var(--arch-accent);
+
+  border-radius:0!important;
+  border:1px solid var(--arch-ink)!important;
+  font-feature-settings:"tnum" 1,"cv11" 1;
+}
+.studio-app-shell ::selection{background:#cfe0dc;color:var(--arch-ink)}
+
+/* ---------- 1. Sheet index (sidebar) ------------------------------------ */
+.studio-app-shell .studio-app-sidebar{
+  background:var(--arch-index)!important;
+  border-right:2px solid var(--arch-ink);
+  padding-top:0!important;
+}
+.studio-app-sidebar>div:first-child{
+  border-bottom:1px solid var(--arch-index-line)!important;
+  padding-top:22px!important;
+}
+.studio-app-sidebar>div:first-child [style*="IBM Plex Mono"]{
+  opacity:.6!important;letter-spacing:.08em;text-transform:uppercase;font-size:9px!important;
+}
+.studio-app-sidebar nav{counter-reset:sheet}
+.studio-app-sidebar .studio-nav-group{
+  padding:18px 20px 7px!important;color:#7f93a8!important;
+  letter-spacing:.16em!important;font-size:9px!important;
+  border-top:1px solid var(--arch-index-line);margin-top:6px;
+}
+.studio-app-sidebar nav section:first-child .studio-nav-group{border-top:0;margin-top:0}
+.studio-app-sidebar .studio-nav-item{
+  counter-increment:sheet;gap:10px!important;padding:9px 20px!important;
+  border-left:2px solid transparent!important;font:500 12.5px/1.3 var(--arch-body)!important;
+  letter-spacing:.005em;transition:background .12s,color .12s;
+}
+.studio-app-sidebar .studio-nav-item::before{
+  content:counter(sheet,decimal-leading-zero);
+  font:500 10px var(--arch-mono);color:#6f849b;min-width:18px;
+}
+.studio-app-sidebar .studio-nav-item>svg:first-child{display:none}
+.studio-app-sidebar .studio-nav-item:hover{background:#16283b!important;color:#fff!important}
+.studio-app-sidebar .studio-nav-item[aria-current=page]{
+  background:#1a2f45!important;border-left-color:#8fd6e8!important;color:#fff!important;
+}
+.studio-app-sidebar .studio-nav-item[aria-current=page]::before{color:#8fd6e8}
+.studio-app-sidebar .studio-nav-item:focus-visible{outline:2px solid #8fd6e8;outline-offset:-2px}
+.studio-app-sidebar>div:not(:first-child)>button{ /* Home shortcut */
+  width:100%;text-align:left;background:transparent!important;color:#dbe6f1!important;
+  border:1px solid var(--arch-index-line)!important;padding:8px 12px!important;
+  letter-spacing:.04em;
+}
+.studio-app-sidebar>div:not(:first-child)>button[aria-current=page]{
+  background:#1a2f45!important;border-color:#8fd6e8!important;color:#fff!important;
+}
+.studio-app-sidebar>div:last-child{border-top:1px solid var(--arch-index-line);line-height:1.6}
+
+/* ---------- 2. Title block --------------------------------------------- */
+.studio-app-shell .studio-title-block{
+  background:var(--arch-surface)!important;
+  border-bottom:2px solid var(--arch-ink)!important;
+  align-items:stretch;
+}
+.studio-title-block>div{
+  border-right:1px solid var(--arch-ink)!important;padding:9px 18px 10px!important;min-width:120px;
+}
+.studio-title-block>div:last-child{border-right:0!important}
+.studio-title-block>div>div:first-child{
+  color:var(--arch-ink-faint)!important;opacity:1!important;font-size:9px!important;letter-spacing:.16em!important;
+}
+.studio-title-block>div>div:last-child{
+  color:var(--arch-ink)!important;font:600 14px/1.25 var(--arch-display)!important;margin-top:4px!important;
+}
+
+/* status / warning strips under the title block */
+.studio-app-shell [role=status][style*="padding"]{
+  border-bottom:1px solid var(--arch-rule);border-left:3px solid var(--arch-redline);
+  background:var(--arch-surface)!important;color:var(--arch-ink)!important;
+}
+
+/* ---------- 3. Canvas: vellum + construction grid ---------------------- */
+.studio-app-shell .studio-app-content{
+  background-color:var(--arch-paper);
+  background-image:
+    linear-gradient(to right,rgba(20,32,46,.07) 1px,transparent 1px),
+    linear-gradient(to bottom,rgba(20,32,46,.07) 1px,transparent 1px),
+    linear-gradient(to right,rgba(20,32,46,.025) 1px,transparent 1px),
+    linear-gradient(to bottom,rgba(20,32,46,.025) 1px,transparent 1px);
+  background-size:var(--arch-grid-major) var(--arch-grid-major),var(--arch-grid-major) var(--arch-grid-major),var(--arch-grid-minor) var(--arch-grid-minor),var(--arch-grid-minor) var(--arch-grid-minor);
+  background-attachment:local;
+  font-family:var(--arch-body);
+  scrollbar-width:thin;scrollbar-color:var(--arch-rule-strong) transparent;
+}
+
+/* ---------- 4. Typography ---------------------------------------------- */
+.studio-app-content :is(h1,h2,h3,h4,h5,h6){color:var(--arch-ink)}
+.studio-app-content h1{
+  padding-bottom:.55rem;margin-bottom:1rem!important;
+  border-bottom:1px solid var(--arch-ink);
+  box-shadow:0 3px 0 -2px var(--arch-paper),0 4px 0 -2px var(--arch-ink); /* double rule */
+}
+.studio-app-content h2{
+  padding-bottom:.4rem;border-bottom:1px solid var(--arch-rule);
+}
+.studio-app-content h3{font-size:1rem!important}
+.studio-app-content h4,
+.studio-app-content :is(label,legend,summary)>:is(span,small):first-child:not(:only-child){
+  font-family:var(--arch-mono)!important;
+}
+.studio-app-content h4{
+  font-size:.7rem!important;font-weight:500!important;letter-spacing:.12em!important;
+  text-transform:uppercase;color:var(--arch-ink-soft);
+}
+.studio-app-content :is(small,.studio-home-kicker){font-family:var(--arch-mono)}
+.studio-app-content a{color:var(--arch-blueprint);text-underline-offset:3px;text-decoration-color:#9db6d1}
+.studio-app-content a:hover{color:var(--arch-ink);text-decoration-color:var(--arch-ink)}
+.studio-app-content hr{border:0;border-top:1px solid var(--arch-rule);margin:18px 0}
+
+/* ---------- 5. Panels / cards ------------------------------------------ */
+.studio-app-content :is(
+  .studio-home-card,.studio-sheet-panel,.attendance-panel,.feedback-compose,.feedback-report,
+  .diary-timeline-event,.studio-drive,.studio-threads>*,.workflow-final-execution,.technical-module,
+  .project-drive-projects,.project-drive-folders,.project-drive-files,.project-drive-file-details,
+  .dashboard-output-list,.standards-catalogue
+){
+  background:var(--arch-surface)!important;
+  border:1px solid var(--arch-rule)!important;
+  border-top:2px solid var(--arch-ink)!important;
+  border-radius:0!important;box-shadow:none!important;
+}
+/* inner rows / agenda items: hairline only, no heavy top rule */
+.studio-app-content :is(.studio-home-task-row,.studio-home-agenda article,.studio-home-pending-task>summary,.dashboard-output-row){
+  background:var(--arch-surface)!important;border:1px solid var(--arch-rule)!important;
+  border-left:3px solid var(--arch-ink-faint)!important;border-radius:0!important;
+}
+.studio-app-content .studio-home-task-row:hover,
+.studio-app-content .dashboard-output-row:hover{border-left-color:var(--arch-blueprint)!important;background:#fff!important}
+.studio-app-content .studio-home-intro{border-top:2px solid var(--arch-ink);border-bottom:1px solid var(--arch-ink)}
+.studio-app-content .studio-home-attendance{background:var(--arch-surface);border:1px solid var(--arch-rule);border-left:3px solid var(--arch-accent)}
+.studio-app-content .studio-home-pending-project h3{background:var(--arch-ink);font-family:var(--arch-mono)!important;letter-spacing:.06em;text-transform:uppercase;font-size:11px!important}
+.studio-app-content .studio-checkout-notice{border-left-color:var(--arch-redline);background:var(--arch-surface);color:var(--arch-ink)}
+
+/* inline-styled white/paper cards from legacy views */
+.studio-app-content :is(div,section,article)[style*="background: rgb(255, 255, 255)"][style*="border"],
+.studio-app-content :is(div,section,article)[style*="background: rgb(250, 248, 242)"][style*="border"]{
+  border-radius:0!important;
+}
+
+/* ---------- 6. Tables = drawing schedules ------------------------------ */
+.studio-app-content table{border-collapse:collapse;width:100%}
+.studio-app-content :is(.wih-task-table,.technical-table-wrap,.register-table,.project-drive-scroll){
+  border:1px solid var(--arch-ink)!important;border-radius:0!important;background:var(--arch-surface);
+}
+.studio-app-content table th{
+  background:var(--arch-tint)!important;color:var(--arch-ink)!important;
+  font:600 10px/1.3 var(--arch-mono)!important;letter-spacing:.1em!important;text-transform:uppercase;
+  text-align:left;padding:9px 12px!important;
+  border-bottom:1.5px solid var(--arch-ink)!important;border-right:1px solid var(--arch-rule)!important;
+  white-space:nowrap;
+}
+.studio-app-content table th:last-child{border-right:0!important}
+.studio-app-content table td{
+  padding:9px 12px!important;border-bottom:1px solid var(--arch-rule)!important;
+  color:var(--arch-ink);font-size:12.5px!important;vertical-align:top;
+}
+.studio-app-content table tbody tr:nth-child(even) td{background:rgba(236,231,218,.28)}
+.studio-app-content table tbody tr:hover td{background:#f4efe1!important}
+.studio-app-content table tbody tr:last-child td{border-bottom:0!important}
+.studio-app-content .wih-task-title{font-size:12.5px;color:var(--arch-ink);font-weight:600}
+
+/* WIH quiet filters → same tab language as everywhere else */
+.studio-app-content .wih-quiet-filters{border-bottom:1px solid var(--arch-ink);font-family:var(--arch-body)}
+.studio-app-content .wih-status-filters button{
+  font:500 10.5px var(--arch-mono)!important;letter-spacing:.06em;text-transform:uppercase;color:var(--arch-ink-soft);
+  border-bottom:2px solid transparent;padding:8px 10px;
+}
+.studio-app-content .wih-status-filters button.is-active{color:var(--arch-ink);border-bottom-color:var(--arch-ink);background:transparent}
+.studio-app-content .wih-status-filters button:hover{background:var(--arch-tint);color:var(--arch-ink)}
+.studio-app-content .wih-filter-label,.studio-app-content .wih-person-filter label{font:500 9px var(--arch-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--arch-ink-faint)}
+.studio-app-content .wih-intro{color:var(--arch-ink-soft)!important;font-size:12px!important}
+.studio-app-content .wih-urgent-label{color:var(--arch-redline)!important}
+
+/* ---------- 7. Buttons -------------------------------------------------- */
+.studio-app-content :is(.studio-btn,button[style*="rgb(29, 78, 137)"]:not([style*="color: rgb(255, 255, 255)"]),.studio-home-check,.studio-home-period button){
+  font:600 10.5px/1.2 var(--arch-mono)!important;letter-spacing:.05em;
+  border:1px solid var(--arch-ink)!important;border-radius:0!important;
+  background:var(--arch-surface);color:var(--arch-ink)!important;
+  padding:7px 11px;box-shadow:none;transition:background .12s,color .12s,box-shadow .12s;
+}
+.studio-app-content :is(.studio-btn,button[style*="rgb(29, 78, 137)"]:not([style*="color: rgb(255, 255, 255)"])):not(:disabled):hover{
+  background:var(--arch-ink)!important;color:var(--arch-surface)!important;opacity:1!important;
+}
+.studio-app-content :is(.studio-btn--primary,.studio-home-check,.studio-home-period button[aria-pressed=true],button[aria-pressed=true]){
+  background:var(--arch-ink)!important;color:var(--arch-surface)!important;border-color:var(--arch-ink)!important;
+}
+.studio-app-content .studio-btn--primary:not(:disabled):hover{background:var(--arch-blueprint)!important;border-color:var(--arch-blueprint)!important}
+.studio-app-content .studio-btn--dark{background:var(--arch-tint)!important}
+.studio-app-content :is(button,[role=button]):disabled{opacity:.45;cursor:not-allowed}
+.studio-app-content :is(button,input,select,textarea,summary,a):focus-visible{
+  outline:2px solid var(--arch-accent);outline-offset:2px;
+}
+
+/* ---------- 8. Form controls ------------------------------------------- */
+.studio-app-content :is(input:not([type=checkbox],[type=radio],[type=range],[type=file]),select,textarea){
+  background:#fff;color:var(--arch-ink);font:13px/1.4 var(--arch-body);
+  border:1px solid var(--arch-rule-strong)!important;border-bottom:1px solid var(--arch-ink-soft)!important;
+  border-radius:0!important;padding:8px 10px;
+}
+.studio-app-content :is(input,select,textarea):hover{border-color:var(--arch-ink-soft)!important}
+.studio-app-content :is(input,select,textarea):focus{border-color:var(--arch-accent)!important;outline:2px solid var(--arch-accent);outline-offset:0}
+.studio-app-content :is(input,select,textarea)::placeholder{color:var(--arch-ink-faint)}
+.studio-app-content label{font-family:var(--arch-body)}
+.studio-app-content :is(input[type=checkbox],input[type=radio]){accent-color:var(--arch-ink);width:14px;height:14px}
+.studio-app-content select{
+  appearance:none;-webkit-appearance:none;padding-right:28px;
+  background-image:linear-gradient(45deg,transparent 50%,var(--arch-ink) 50%),linear-gradient(135deg,var(--arch-ink) 50%,transparent 50%);
+  background-position:calc(100% - 15px) 55%,calc(100% - 10px) 55%;background-size:5px 5px;background-repeat:no-repeat;
+}
+
+/* ---------- 9. Chips, pills, badges: square, mono ---------------------- */
+.studio-app-content :is(div,span,button,section,article,li,img,label)[style*="border-radius"]:not([style*="border-radius: 50%"]):not([style*="border-radius:50%"]){
+  border-radius:0!important;
+}
+.studio-app-content :is(span,div)[style*="border-radius"][style*="padding"]:not([style*="50%"]){
+  font-family:var(--arch-mono);letter-spacing:.03em;
+}
+.studio-app-sidebar span[style*="border-radius"]{border-radius:0!important}
+
+/* ---------- 10. Dialogs ------------------------------------------------- */
+.studio-app-shell :is(.task-discussion-dialog,.dashboard-output-dialog,.studio-create-task),
+.studio-app-shell [role=dialog]:not([style*="fixed"]),
+.studio-app-shell [role=dialog][style*="fixed"]>:is(div,section){
+  background:var(--arch-surface)!important;color:var(--arch-ink);
+  border:1px solid var(--arch-ink)!important;border-top:3px solid var(--arch-ink)!important;
+  border-radius:0!important;box-shadow:8px 8px 0 rgba(20,32,46,.14)!important;
+}
+.task-discussion-overlay,
+.studio-app-shell [role=dialog][style*="fixed"]{background:rgba(15,28,43,.5)!important}
+
+/* ---------- 11. Floating team availability ------------------------------ */
+.studio-team-availability{
+  border:1px solid var(--arch-ink)!important;border-radius:0!important;
+  box-shadow:6px 6px 0 rgba(20,32,46,.14)!important;background:var(--arch-surface)!important;
+}
+.studio-availability-toggle{background:var(--arch-index)!important;font-family:var(--arch-mono)!important;letter-spacing:.05em;font-size:11px!important}
+
+/* ---------- 12. Timeline / workflow / diary line-work ------------------- */
+.studio-app-content .diary-timeline-rail{border-left:2px solid var(--arch-ink)}
+.studio-app-content .workflow-progress-rail{background:var(--arch-rule)!important;height:2px!important}
+.studio-app-content :is(.workflow-road-segment,.workflow-road-marker){border-radius:0!important}
+.studio-app-content .journal-sunset-rule{height:2px;background:var(--arch-ink)}
+
+/* ---------- 13. Small screens ------------------------------------------ */
+@media(max-width:760px){
+  .studio-app-shell{border-left:0!important;border-right:0!important}
+  .studio-app-shell .studio-app-content{background-size:96px 96px,96px 96px,24px 24px,24px 24px}
+  .studio-mobile-menu{
+    background:var(--arch-index)!important;border-bottom:2px solid var(--arch-ink)!important;
+    font:500 11px var(--arch-mono)!important;letter-spacing:.08em;text-transform:uppercase;
+  }
+  .studio-title-block>div{min-width:0;flex:1 1 45%;border-bottom:1px solid var(--arch-ink)}
+}
+
+@media print{
+  .studio-app-sidebar,.studio-mobile-menu,.studio-team-availability{display:none!important}
+  .studio-app-shell .studio-app-content{background-image:none}
+}
