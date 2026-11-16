@@ -5807,25 +5807,40 @@ function DrawingControlDashboard({state,persist,projectId,deferLoad=false,headin
     const dbRow=(payload?.rows||[]).find(r=>eq(r.floor,z.floor)&&eq(r.area,z.area||z.room));
     return (liveWork(def,z,dbRow).records||[]).filter(t=>t.taskCategory!=='Meeting'&&!/completed|^done$|blocked/i.test(t.actualStatus||t.status||'')&&wihCanSeeTask(state.currentUser,t));
   };
-  const outputCoverage=task=>{
-    if(task.floor&&task.area)return task.floor+' · '+task.area;
-    try{return JSON.parse(task.workflowCoverage||'[]').map(area=>area.floor+' · '+area.area).join('; ');}catch{return '';}
-  };
   const openOutput=(def,z)=>{
-    const candidates=zones.flatMap(zone=>outputCandidates(def,zone));
-    const tasks=[...new Map(candidates.map(task=>[String(task.designTaskId),task])).values()];
+    const areas=zones.flatMap((zone,index)=>{
+      const taskIds=[...new Set(outputCandidates(def,zone).map(task=>String(task.designTaskId)))];
+      return taskIds.length?[{id:index,floor:zone.floor,area:zone.area||zone.room,taskIds}]:[];
+    });
     setOutputError('');setOutputNotice('');outputJob.current={};
-    setOutput({label:def.label,tasks,ids:outputCandidates(def,z).map(t=>String(t.designTaskId)),file:null});
+    setOutput({label:def.label,areas,ids:areas.filter(area=>eq(area.floor,z.floor)&&eq(area.area,z.area||z.room)).map(area=>area.id),file:null});
+  };
+  const outputFloors=new Map();
+  for(const area of output?.areas||[]){
+    if(!outputFloors.has(area.floor))outputFloors.set(area.floor,[]);
+    outputFloors.get(area.floor).push(area);
+  }
+  const selectedAreas=output?.areas.filter(area=>output.ids.includes(area.id))||[];
+  const selectedTaskIds=[...new Set(selectedAreas.flatMap(area=>area.taskIds))];
+  const outputCheckbox=(areas,label)=>{
+    const ids=areas.map(area=>area.id);
+    const all=ids.every(id=>output.ids.includes(id));
+    const some=ids.some(id=>output.ids.includes(id));
+    return <input type="checkbox" aria-label={label} checked={all} ref={input=>{if(input)input.indeterminate=some&&!all;}}
+      onChange={event=>{
+        const checked=event.target.checked;
+        setOutput(current=>({...current,ids:checked?[...new Set([...current.ids,...ids])]:current.ids.filter(id=>!ids.includes(id))}));
+      }}/>;
   };
   const saveOutput=async event=>{
     event.preventDefault();
-    if(!output?.file||!output.ids.length||outputBusy)return;
+    if(!output?.file||!selectedTaskIds.length||selectedTaskIds.length>50||outputBusy)return;
     setOutputBusy(true);setOutputError('');
     try{
-      const anchor=outputJob.current.saved?.linkedEntityId||output.ids[0];
+      const anchor=outputJob.current.saved?.linkedEntityId||selectedTaskIds[0];
       const upload=await uploadProjectDrawingJob(output.file,project.id,'Output',outputJob.current,undefined,anchor);
-      const result=await apiRequest('completeDashboardWork',{projectId:project.id,taskIds:output.ids,completionFileId:upload.fileId},'POST');
-      setOutput(null);setOutputNotice(`Drawing uploaded. ${result.completed} task(s) completed.`);setRevision(r=>r+1);
+      const result=await apiRequest('completeDashboardWork',{projectId:project.id,taskIds:selectedTaskIds,coverage:selectedAreas.map(({floor,area})=>({floor,area})),completionFileId:upload.fileId},'POST');
+      setOutput(null);setOutputNotice(`Drawing uploaded.${result.completed?` ${result.completed} task(s) completed.`:''}${result.completed<selectedTaskIds.length?' Tasks with partial zone coverage remain open.':''}`);setRevision(r=>r+1);
     }catch(e){
       if(/expired|invalid.*session/i.test(e.message||''))outputJob.current.failedExpired=true;
       setOutputError(e.message);
@@ -5838,18 +5853,22 @@ function DrawingControlDashboard({state,persist,projectId,deferLoad=false,headin
       <header className="dashboard-output-header"><div><p>{project.name}</p><h2>Upload drawing · {output.label}</h2></div><button type="button" className="dashboard-output-close" aria-label="Close upload" disabled={outputBusy} onClick={()=>setOutput(null)}>×</button></header>
       <form onSubmit={saveOutput}>
         <fieldset disabled={outputBusy||!!outputJob.current.saved}>
-          <legend>Areas covered <span>{output.ids.length} selected</span></legend>
+          <legend>Zones covered <span>{output.ids.length} selected</span></legend>
+          <label className="dashboard-output-select">{outputCheckbox(output.areas,'Select all zones')} Select all zones</label>
           <div className="dashboard-output-list">
-            {output.tasks.map(task=>{const id=String(task.designTaskId);return <label key={id} className="dashboard-output-row">
-              <input type="checkbox" checked={output.ids.includes(id)} onChange={e=>setOutput(x=>({...x,ids:e.target.checked?[...x.ids,id]:x.ids.filter(v=>v!==id)}))}/>
-              <span className="dashboard-output-floor">{task.floor||"All"}</span><strong>{task.area||outputCoverage(task)}</strong><span className="dashboard-output-task">{task.taskType}</span>
-            </label>;})}
+            {[...outputFloors].map(([floor,areas])=><div key={floor}>
+              <label className="dashboard-output-select">{outputCheckbox(areas,'Select all zones on '+floor)} {floor}</label>
+              {areas.map(area=><label key={area.id} className="dashboard-output-row dashboard-output-zone">
+                {outputCheckbox([area],floor+' · '+area.area)}<strong>{area.area}</strong>
+              </label>)}
+            </div>)}
           </div>
         </fieldset>
         <footer className="dashboard-output-footer">
           <label>Drawing file<input autoFocus type="file" required disabled={outputBusy||!!outputJob.current.saved} onChange={e=>setOutput(x=>({...x,file:e.target.files?.[0]||null}))}/></label>
           {outputError&&<p role="alert">{outputError}</p>}
-          <div className="dashboard-output-actions"><button type="submit" disabled={outputBusy||!output.file||!output.ids.length||output.ids.length>50}>{outputBusy?'Saving…':'Upload and complete'}</button></div>
+          {selectedTaskIds.length>50&&<p role="status">Select zones linked to up to 50 tasks per upload.</p>}
+          <div className="dashboard-output-actions"><button type="submit" disabled={outputBusy||!output.file||!selectedTaskIds.length||selectedTaskIds.length>50}>{outputBusy?'Saving…':'Upload drawing'}</button></div>
         </footer>
       </form>
     </section></div>}
