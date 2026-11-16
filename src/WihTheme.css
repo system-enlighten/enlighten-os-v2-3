@@ -43,7 +43,7 @@
 .wih-register-controls .wih-status-filters button,.wih-register-controls .wih-person-filter select{font-size:12px}
 .wih-register-controls .wih-status-filters button{padding:4px 7px}
 
-.wih-workspace .wih-register-head,.studio-technical-heading{padding:10px 0 48px}
+.wih-workspace .wih-register-head,.studio-technical-heading,.studio-drive-heading{padding:10px 0 48px}
 .wih-workspace .wih-register-head h2{margin:0}
 .wih-workspace .wih-register-head .wih-intro{margin:9px 0 0!important;line-height:1.4!important;font-style:italic!important}
 .wih-register-controls .wih-filter-label{display:none}
