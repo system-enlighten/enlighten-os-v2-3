@@ -1,3 +1,4 @@
+import BriefingTimer from './BriefingTimer.jsx';
 import TaskDiscussion from './TaskDiscussion.jsx';
 import ManualWorkFields,{emptyWork,manualWorkLabel} from './ManualWorkFields.jsx';
 import TeamAvailability from './TeamAvailability.jsx';
@@ -77,7 +78,7 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  }
  for(const tasks of scheduledByDay.values())tasks.sort((a,b)=>Date.parse(a.plan.plannedStart)-Date.parse(b.plan.plannedStart));
  const unscheduled=openMine.filter(r=>!isWaiting(r)&&!r.plan?.plannedStart);
- const pending=openMine.filter(r=>isWaiting(r)||r.plan?.plannedStart&&day(new Date(r.plan.plannedStart))<today&&!running(r));
+ const pending=work.filter(r=>!done(r));
  const elapsed=r=>{const startAt=Date.parse(r.startAt),seconds=Math.floor((Number(r.totalMinutes)||0)*60+(running(r)&&Number.isFinite(startAt)?Math.max(0,clock-startAt)/1000:0));return [Math.floor(seconds/3600),Math.floor(seconds/60)%60,seconds%60].map(v=>String(v).padStart(2,'0')).join(':');};
  const ownSchedule=rows.filter(r=>(admin||own(r))&&!done(r)&&r.plan?.plannedStart&&day(new Date(r.plan.plannedStart))===today).map(r=>({time:stamp(r.plan.plannedStart),end:r.plan.plannedEnd?stamp(r.plan.plannedEnd):'',title:title(r)}));
  const panel={background:'#fff',border:'1px solid '+T.line,padding:16,minWidth:0};
@@ -108,7 +109,7 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  {thread.canComment&&<><label style={{display:'block'}}>Ask a question or leave a comment<textarea style={{display:'block',width:'100%',boxSizing:'border-box'}} value={comment} maxLength={2000} onChange={e=>setComment(e.target.value)}/></label><button type="button" style={buttonStyle} disabled={threadBusy||!comment.trim()} onClick={()=>changeThread(thread.row,'comment')}>Post comment</button>{' '}</>}
  <button type="button" style={buttonStyle} disabled={threadBusy} onClick={()=>setThread(null)}>Close</button></section></div>}
  <div className="studio-home-task-board"><section className="studio-home-card" aria-label="My open tasks">
- <div className="studio-home-task-board-heading"><h2>My tasks</h2>{/^(admin|user)$/i.test(user?.appAccess)&&<button type="button" style={buttonStyle} onClick={()=>{setCreateNote('');setNewTask({id:crypto.randomUUID(),title:'',projectId:'',narration:'',type:'client',activity:'Work'});}}>+ Create task</button>}</div>
+ <div className="studio-home-task-board-heading"><h2>My tasks</h2>{/^(admin|user)$/i.test(user?.appAccess)&&<div className="studio-home-task-controls"><button type="button" style={buttonStyle} onClick={()=>{setCreateNote('');setNewTask({id:crypto.randomUUID(),title:'',projectId:'',narration:'',type:'client',activity:'Work'});}}>+ Create task</button><BriefingTimer request={request} buttonStyle={buttonStyle} onTimerChange={()=>loadWork().then(setRows).catch(e=>setError(e.message))}/></div>}</div>
  {newTask&&<div className="task-discussion-overlay"><section className="task-discussion-dialog studio-create-task" role="dialog" aria-modal="true" aria-labelledby="studio-create-title" onKeyDown={e=>{if(e.key==='Escape'&&!creating)setNewTask(null);}}><header><div><small>Work in Hand</small><h2 id="studio-create-title">Create task</h2><p>Assigned to you</p></div></header>
  <form onSubmit={createTask}>
  <label>Work type<select autoFocus value={newTask.type} onChange={e=>setNewTask({...newTask,type:e.target.value,projectId:''})}><option value="client">Client project</option><option value="internal">Admin / Internal work</option></select></label>
@@ -140,8 +141,8 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  {unscheduled.length>taskLimit&&<button type="button" style={buttonStyle} onClick={()=>setTaskLimit(n=>n+20)}>Show more tasks</button>}
  </details>
  </section>
- <section className="studio-home-card" aria-label="Pending tasks"><h2>Pending tasks · {pending.length}</h2>
- {!ready?<p>Loading your tasks…</p>:!pending.length?<p>No pending tasks.</p>:pending.slice(0,taskLimit).map(r=><div className="studio-home-task-row" key={r.designTaskId}><div><strong>{title(r)}</strong><p>{[projectName(r),r.status,r.plan?.plannedStart&&day(new Date(r.plan.plannedStart))].filter(Boolean).join(' · ')}</p></div></div>)}
+ <section className="studio-home-card" aria-label="Pending tasks"><h2>Pending tasks{ready?' · '+pending.length:''}</h2>
+ {!ready?<p>Loading your tasks…</p>:!pending.length?<p>No pending tasks.</p>:pending.slice(0,taskLimit).map(r=><div className="studio-home-task-row" key={r.designTaskId}><div><strong>{title(r)}</strong><p>{[projectName(r),r.assigneeName||'Unassigned',r.status,r.plan?.plannedStart&&day(new Date(r.plan.plannedStart))].filter(Boolean).join(' · ')}</p></div></div>)}
  {pending.length>taskLimit&&<button type="button" style={buttonStyle} onClick={()=>setTaskLimit(n=>n+20)}>Show more pending tasks</button>}
  </section></div>
  <div className="studio-home-band"><div><p className="studio-home-kicker">01 / Performance</p><h2>Work overview</h2><p>{ready?(admin?'Studio tasks':'My tasks'):'Loading work…'}</p></div><div className="studio-home-period" role="group" aria-label="Chart period">{[['week','Weekly'],['month','Monthly']].map(([id,label])=><button type="button" aria-pressed={period===id} key={id} onClick={()=>setPeriod(id)}>{label}</button>)}</div></div>
