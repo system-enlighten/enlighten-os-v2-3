@@ -675,6 +675,7 @@ const T = {
   blue: "#1D4E89",
   cyan: "#8FD6E8",
   paper: "#F4F1E8",
+  surface: "#FAF8F2",
   paperDim: "#EBE6DA",
   ink: "#16202C",
   inkDim: "#5B6472",
@@ -7263,8 +7264,8 @@ function SettingsView({ state, persist }) {
     <div style={{marginBottom:20}}><h2 style={{fontFamily:FONT_DISPLAY,fontSize:24,margin:"0 0 5px"}}>Team Master</h2><div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim}}>Enter each employee once. The Gmail ID is the login identity. Set <b>App Access = Admin</b> for administrators; User = project-wise Admin/User permissions assigned above + own WIH editing; Viewer = assigned projects and own WIH view only. App Access Admin is the system administrator; Project Admin is assigned separately for each project. Active team members automatically become selectable in Responsible Person / Assignee dropdowns.</div></div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,300px),1fr))",gap:16,marginBottom:20}}>
       {[["Department Master",departments,newDepartment,setNewDepartment,"department"],["Designation / Role Master",designations,newDesignation,setNewDesignation,"designation"]].map(([title,items,newValue,setNewValue,kind])=>
-        <div key={kind} style={{background:"#fff",border:`1px solid ${T.line}`,padding:14}}>
-          <div style={{fontFamily:FONT_DISPLAY,fontSize:17,marginBottom:4}}>{title}</div>
+        <div className="studio-sheet-panel" key={kind} style={{background:T.surface,border:`1px solid ${T.line}`,padding:14}}>
+          <h3 style={{margin:"0 0 4px"}}>{title}</h3>
           <div style={{fontFamily:FONT_BODY,fontSize:11.5,color:T.inkDim,marginBottom:10}}>Add once. EDIT renames it everywhere in Team Master. INACTIVE keeps old history but removes it from new selections.</div>
           <div style={{display:"flex",gap:7,marginBottom:10}}><input style={inputStyle} value={newValue} onChange={e=>setNewValue(e.target.value)} placeholder={`Add ${kind==="department"?"department":"designation / role"}`}/><button style={smallBtn} onClick={()=>addMaster(kind)}>+ ADD</button></div>
           <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:230,overflowY:"auto"}}>
@@ -7491,7 +7492,7 @@ function ProjectRoleManager({state}){
   };
   const filtered=projects.filter(p=>`${p.no||''} ${p.name||''}`.toLowerCase().includes(search.toLowerCase()));
   const assigned=Object.values(draft).filter(Boolean),adminCount=assigned.filter(r=>r==='Admin').length;
-  return <section style={{border:`1px solid ${T.line}`,background:'#fff',padding:18,marginBottom:24,fontFamily:FONT_BODY,fontSize:13}}>
+  return <section className="studio-sheet-panel" style={{border:`1px solid ${T.line}`,background:T.surface,padding:18,marginBottom:24,fontFamily:FONT_BODY,fontSize:13}}>
     <h2 style={{fontFamily:FONT_DISPLAY,marginTop:0}}>People & Project Access</h2>
     <p style={{color:T.inkDim,lineHeight:1.5}}>Open a person’s record, then assign their projects and choose Admin or User for each one.</p>
     <Field label="Person"><select aria-label="Access person" disabled={busy} value={userId} onChange={e=>{setUserId(e.target.value);setSearch('');setFeedback({});}} style={inputStyle}><option value="">Select a person…</option>{members.map(m=><option key={m.userId} value={m.userId}>{m.name} · {m.userId}{m.active===false||String(m.active).toLowerCase()==='false'?' · Inactive':''}</option>)}</select></Field>
