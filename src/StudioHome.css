@@ -103,3 +103,10 @@
 .studio-week-day[aria-pressed=true]{background:#132237;color:white;border-color:#132237}
 .studio-unscheduled{border-top:1px solid #d8cdb9;padding-top:8px}
 .studio-unscheduled summary{font-weight:600;cursor:pointer}
+
+.studio-home-list-scroll{overflow-y:auto;scrollbar-gutter:stable}
+.studio-home-admin-scroll{max-height:10rem}
+.studio-home-pending-scroll{max-height:29rem}
+.studio-home-pending-project + .studio-home-pending-project{margin-top:12px}
+.studio-home-pending-project h3{margin:0;padding:7px 9px;background:#0d1c30;color:#fff;font-size:13px}
+.studio-home-pending-task > summary{cursor:pointer;margin-top:5px;padding:7px 9px;border:1px solid #d8cdb9;background:#efe8da;font-weight:600}

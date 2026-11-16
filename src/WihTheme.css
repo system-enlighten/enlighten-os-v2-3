@@ -105,3 +105,7 @@
 
 .wih-project-cards .wih-ceiling-floor{align-items:flex-start}
 .wih-project-cards .wih-ceiling-floor details{flex:1;min-width:0;width:auto}
+
+.wih-task-floor-group{background:#efe8da}
+.wih-task-floor-group td{padding:8px 10px;font-size:12px;border-bottom:1px solid #d8cdb9}
+.wih-task-floor-group .wih-project-toggle{padding:0;font-size:inherit;text-align:left}

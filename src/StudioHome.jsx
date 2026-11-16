@@ -1,4 +1,3 @@
-import { projectCardFloor } from './projectCardFloor.mjs';
 import BriefingTimer from './BriefingTimer.jsx';
 import TaskDiscussion from './TaskDiscussion.jsx';
 import ManualWorkFields,{emptyWork,manualWorkLabel} from './ManualWorkFields.jsx';
@@ -14,21 +13,18 @@ const stamp=t=>new Date(t).toLocaleTimeString('en-IN',{timeZone:tz,hour:'numeric
 const done=r=>/^(completed|done)$/i.test(r.status||r.task?.status||'');
 const running=r=>/in.?progress|running/i.test(r.status||r.task?.status||'');
 const title=r=>r.task?.taskType||r.title||'Work item';
-function groupPendingTasks(rows,isInternal){
- const groups=new Map();
+function groupPendingTasks(rows){
+ const projects=new Map();
  for(const row of rows){
-  const task=row.task||{};
-  let coverage=[];
-  try{const value=JSON.parse(task.workflowCoverage||'[]');if(Array.isArray(value))coverage=value;}catch{}
-  const floors=isInternal(row)?[]:[...new Set([task.floor||row.floor,...coverage.map(area=>area?.floor)].map(projectCardFloor).filter(Boolean))];
+  const projectId=row.projectId||row.task?.projectId||'';
   const name=title(row).trim().replace(/^Bathroom Elevation Drawings$/i,'Bathroom Elevation');
-  for(const floor of floors.length?floors:['']){
-   const key=JSON.stringify(floor?[row.projectId,name.toLowerCase(),floor]:[row.designTaskId]);
-   if(!groups.has(key))groups.set(key,{key,name,floor,rows:[]});
-   groups.get(key).rows.push(row);
-  }
+  const key=name.toLowerCase();
+  if(!projects.has(projectId))projects.set(projectId,new Map());
+  const tasks=projects.get(projectId);
+  if(!tasks.has(key))tasks.set(key,{key,name,rows:[]});
+  tasks.get(key).rows.push(row);
  }
- return [...groups.values()];
+ return [...projects].map(([id,tasks])=>({id,tasks:[...tasks.values()]}));
 }
 const shiftDay=(value,days)=>{
  const date=new Date(value+'T12:00:00Z');
@@ -57,8 +53,6 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  const save=async(action)=>{if(busy)return;setBusy(true);setError('');try{setLog({...await request('saveStudioDay',{action,note,start,end,...(action==='entry'?manualWork:{})},'POST'),missedDay:log?.missedDay});window.dispatchEvent(new Event('enlighten-attendance-change'));if(action==='break'){try{const updated=await loadWork();if(Array.isArray(updated))setRows(updated);}catch{setError('Break saved. Refresh Home to update the task display.');}}if(action==='entry'){setNote('');setStart('');setEnd('');setManualWork(emptyWork);}}catch(e){setError(e.message);}finally{setBusy(false);}};
  const [timerBusy,setTimerBusy]=useState(''),[timerError,setTimerError]=useState(''),[clock,setClock]=useState(Date.now());
  const [weekOffset,setWeekOffset]=useState(0),[selectedDay,setSelectedDay]=useState('');
- const [taskLimit,setTaskLimit]=useState(20);
- const [pendingExpanded,setPendingExpanded]=useState(false);
  useEffect(()=>{const tick=setInterval(()=>setClock(Date.now()),1000);return()=>clearInterval(tick);},[]);
  const [newTask,setNewTask]=useState(null),[creating,setCreating]=useState(false),[createNote,setCreateNote]=useState('');
  const createTask=async e=>{
@@ -97,7 +91,7 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  for(const tasks of scheduledByDay.values())tasks.sort((a,b)=>Date.parse(a.plan.plannedStart)-Date.parse(b.plan.plannedStart));
  const isInternal=r=>r.projectId==='__admin_work__'||Object.hasOwn(areaNames,r.projectId);
  const unscheduled=openMine.filter(r=>!isWaiting(r)&&!r.plan?.plannedStart&&isInternal(r));
- const pending=groupPendingTasks(work.filter(r=>!done(r)),isInternal);
+ const pending=groupPendingTasks(work.filter(r=>!done(r)));
  const elapsed=r=>{const startAt=Date.parse(r.startAt),seconds=Math.floor((Number(r.totalMinutes)||0)*60+(running(r)&&Number.isFinite(startAt)?Math.max(0,clock-startAt)/1000:0));return [Math.floor(seconds/3600),Math.floor(seconds/60)%60,seconds%60].map(v=>String(v).padStart(2,'0')).join(':');};
  const ownSchedule=rows.filter(r=>(admin||own(r))&&!done(r)&&r.plan?.plannedStart&&day(new Date(r.plan.plannedStart))===today).map(r=>({time:stamp(r.plan.plannedStart),end:r.plan.plannedEnd?stamp(r.plan.plannedEnd):'',title:title(r)}));
  const panel={background:'#fff',border:'1px solid '+T.line,padding:16,minWidth:0};
@@ -157,21 +151,24 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  <h3>{calendarLabel(activeDay,{weekday:'long',day:'numeric',month:'short'})}</h3>
  {scheduledByDay.get(activeDay).length?scheduledByDay.get(activeDay).map(taskRow):ready&&<p>No scheduled tasks.</p>}
  </section>
- <details className="studio-home-task-group studio-unscheduled"><summary>Unscheduled work · {unscheduled.length}</summary>
- {unscheduled.length?unscheduled.slice(0,taskLimit).map(taskRow):ready&&<p>No unscheduled tasks.</p>}
- {unscheduled.length>taskLimit&&<button type="button" style={buttonStyle} onClick={()=>setTaskLimit(n=>n+20)}>Show more tasks</button>}
+ <details className="studio-home-task-group studio-unscheduled"><summary>Admin work · {unscheduled.length}</summary>
+ {unscheduled.length?<div className="studio-home-list-scroll studio-home-admin-scroll" role="region" aria-label="Admin work" tabIndex={0}>{unscheduled.map(taskRow)}</div>:ready&&<p>No admin work.</p>}
  </details>
  </section>
- <section className="studio-home-card" aria-label="Pending tasks"><h2>Pending tasks{ready?' · '+pending.length:''}</h2>
- {!ready?<p>Loading your tasks…</p>:!pending.length?<p>No pending tasks.</p>:(pendingExpanded?pending:pending.slice(0,8)).map(({key,name,floor,rows})=>{
-   const label=floor?floor+' · '+name:name;
-   if(rows.length===1)return <React.Fragment key={key}>{pendingRow(rows[0],label)}</React.Fragment>;
-   return <details key={key} className="studio-home-task-group">
-    <summary>{label} · {projectName(rows[0])} ({rows.length})</summary>
-    {rows.map(r=>pendingRow(r,r.task?.area||r.area||'Floor task',false))}
-   </details>;
- })}
- {pending.length>8&&<button type="button" style={buttonStyle} aria-expanded={pendingExpanded} onClick={()=>setPendingExpanded(open=>!open)}>{pendingExpanded?'Show fewer pending tasks':`Show all ${pending.length} pending tasks`}</button>}
+ <section className="studio-home-card" aria-label="Pending tasks">
+ <h2>Pending tasks{ready?' · '+pending.reduce((count,project)=>count+project.tasks.length,0):''}</h2>
+ {!ready?<p>Loading your tasks…</p>:!pending.length?<p>No pending tasks.</p>:
+  <div className="studio-home-list-scroll studio-home-pending-scroll" role="region" aria-label="Pending tasks by project" tabIndex={0}>
+   {pending.map(({id,tasks})=><section key={id} className="studio-home-pending-project">
+    <h3>{projectName(tasks[0].rows[0])}</h3>
+    {tasks.map(({key,name,rows})=>rows.length===1
+     ? <React.Fragment key={key}>{pendingRow(rows[0],name,false)}</React.Fragment>
+     : <details key={key} className="studio-home-task-group studio-home-pending-task">
+      <summary>{name}</summary>
+      {rows.map(r=>pendingRow(r,[r.task?.floor||r.floor,r.task?.area||r.area].filter(Boolean).join(' · ')||name,false))}
+     </details>)}
+   </section>)}
+  </div>}
  </section></div>
  <div className="studio-home-band"><div><p className="studio-home-kicker">01 / Performance</p><h2>Work overview</h2><p>{ready?(admin?'Studio tasks':'My tasks'):'Loading work…'}</p></div><div className="studio-home-period" role="group" aria-label="Chart period">{[['week','Weekly'],['month','Monthly']].map(([id,label])=><button type="button" aria-pressed={period===id} key={id} onClick={()=>setPeriod(id)}>{label}</button>)}</div></div>
  <WihMetrics tasks={work} now={clock} period={period} loading={!ready}/>
