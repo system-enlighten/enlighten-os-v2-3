@@ -5316,6 +5316,7 @@ function ProjectLineOfWorkView({state,persist,selectedId,showProjectPicker=true,
   const [rows,setRows] = useState(()=>applyWorkflowDelegation(initialWorkspace?.workflow?.length?initialWorkspace.workflow:DESIGN_TASK_FLOW_TEMPLATE.map(r=>({...r})),project?.id,initialWorkspace?.rules||[]));
   const [legacy,setLegacy] = useState([]);
   const [instances,setInstances] = useState([]);
+  const [lightingMilestone,setLightingMilestone]=useState(null);
   const [drawingReceipts,setDrawingReceipts]=useState(null);
   const [activationStates,setActivationStates]=useState({});
   const [editing,setEditing] = useState(false);
@@ -5337,12 +5338,12 @@ function ProjectLineOfWorkView({state,persist,selectedId,showProjectPicker=true,
   };
   useEffect(() => {
     let active = true; revision.current += 1;
-    setEditing(false);setPanel(null);setAreaKey("");setError("");setMessage("");setInstances([]);
+    setEditing(false);setPanel(null);setAreaKey("");setError("");setMessage("");setInstances([]);setLightingMilestone(null);
     if (!project) {setProjectRows([]);return;}
     const cached=cachedWorkflowWorkspace(project.id);setProjectRows(cached?.workflow||project.lineOfWorkResidence||project.lineOfWork||[],cached?.rules||[]);
     setLoading(!cached);
     loadWorkflowWorkspace(project.id).then(delegation=>{if(active)setProjectRows(Array.isArray(delegation.workflow)?delegation.workflow:[],delegation.rules||[]);}).catch(e=>{if(active)setError(`Could not update workflow: ${e.message||e}`);}).finally(()=>{if(active)setLoading(false);});
-    projectApi.getWIH(true,project.id).then(wih=>{if(active)setInstances(Array.isArray(wih)?wih:[]);}).catch(e=>{if(active)setError(`Could not update work status: ${e.message||e}`);});
+    apiRequest("architecturalLightingMilestone",{projectId:project.id,action:"read"}).then(result=>{if(active)setLightingMilestone(result);}).catch(e=>{if(active)setError(e.message);}).then(()=>active?projectApi.getWIH(true,project.id,true):[]).then(wih=>{if(active)setInstances(Array.isArray(wih)?wih:[]);}).catch(e=>{if(active)setError(`Could not update work status: ${e.message||e}`);});
     return () => {active=false;};
   },[project?.id]);
   useEffect(()=>{let active=true;setDrawingReceipts(null);if(!project)return;loadWorkflowWorkspace(project.id).then(data=>{if(active)setDrawingReceipts(Array.isArray(data?.drawings)?data.drawings:[]);}).catch(()=>{if(active)setDrawingReceipts(undefined);});return()=>{active=false;};},[project?.id]);
@@ -5351,7 +5352,8 @@ function ProjectLineOfWorkView({state,persist,selectedId,showProjectPicker=true,
   const members = (state.teamMaster || []).filter(m => m.active !== false && String(m.active)!=="false");
   const people = [...new Set([...members.map(m=>String(m.name||"")),...(state.people||[]).map(String),...rows.map(r=>String(r.responsible||""))].filter(Boolean))];
   const groups = pinWorkflowGroups(orderWorkflowGroups(workflowGroups(rows),orderMode,drawingReceipts,instances),orderMode);
-  const aligned=alignWorkflowVisits(groups,scopedVisitRows(project,designMeetingVisitRows(project,groups,scopedVisitRows(project,visits))));
+  const aligned=alignWorkflowVisits(groups,scopedVisitRows(project,designMeetingVisitRows(project,groups,scopedVisitRows(project,visits)).filter(visit=>visit.stage!=='Execution Phase')));
+  aligned.remaining.push(...scopedVisitRows(project,visits).filter(visit=>visit.stage==='Execution Phase'));
   const zones = project.floorZones || Object.entries(project.zones || {}).map(([zoneCode,z])=>({zoneCode,floor:z.floor,area:z.room}));
   const areas = [...new Map([...zones,...instances.filter(w=>w.task?.area).map(w=>({floor:w.task.floor,area:w.task.area}))].filter(a=>a.floor&&a.area).map(a=>[JSON.stringify([String(a.floor),String(a.area)]),a])).entries()];
   const selectedArea = areas.find(([key])=>key===areaKey)?.[1];
@@ -5390,6 +5392,30 @@ function ProjectLineOfWorkView({state,persist,selectedId,showProjectPicker=true,
   };
   const fieldStyle={...inputStyle,padding:"7px 8px",fontSize:12};
   const activationKey=r=>JSON.stringify([project.id,r.lineWorkId]);
+  const checksFor=sub=>instances.filter(row=>row.task?.parentDesignTaskId&&String(row.task.lineWorkId)===rowId(sub));
+  const checked=sub=>checksFor(sub).length>0&&checksFor(sub).every(row=>/^completed$|^done$/i.test(row.status));
+  const canCheck=sub=>{
+    const open=checksFor(sub).filter(row=>!/^completed$|^done$/i.test(row.status));
+    return sub.taskCategory!=='Meeting'&&String(sub.completionUploadRequired).toLowerCase()==='false'&&open.length>0&&
+      open.every(row=>!/blocked|waiting/i.test(row.status)&&wihCanSeeTask(state.currentUser,row))&&String(state.currentUser?.appAccess).toLowerCase()!=='viewer';
+  };
+  const checkSubtask=async sub=>{
+    const pid=project.id;
+    setBusy(true);setError('');
+    try{
+      await apiRequest('completeWorkflowChecklist',{projectId:pid,taskIds:checksFor(sub).filter(row=>!/^completed$|^done$/i.test(row.status)).map(row=>row.designTaskId)});
+      const [work,milestone]=await Promise.all([projectApi.getWIH(true,pid,true),apiRequest('architecturalLightingMilestone',{projectId:pid,action:'read'})]);
+      if(workflowProjectRef.current===pid){setInstances(work);setLightingMilestone(milestone);}
+    }catch(e){if(workflowProjectRef.current===pid)setError(e.message);}
+    finally{setBusy(false);}
+  };
+  const signLighting=async()=>{
+    const pid=project.id;
+    setBusy(true);setError('');
+    try{const milestone=await apiRequest('architecturalLightingMilestone',{projectId:pid,signOff:true});if(workflowProjectRef.current===pid)setLightingMilestone(milestone);}
+    catch(e){if(workflowProjectRef.current===pid)setError(e.message);}
+    finally{setBusy(false);}
+  };
   const workflowStatus=(task,sub)=>workflowActivationStatus(instances,task,sub,selectedArea,activationStates[activationKey(task)]);
   const cancelEdit=()=>{setRows(savedRows);setOrderMode(savedRows[0]?.workflowOrderMode==='manual'?'manual':'drawing');setEditing(false);setPanel(null);setMessage('');setError('');};
   const addSubtask=g=>{const id=uid(),last=g.rows[g.rows.length-1];setRows(rs=>{const index=rs.findIndex(x=>rowId(x)===rowId(last));return [...rs.slice(0,index+1),{...last,id,lineWorkId:'',subtask:'New subtask'},...rs.slice(index+1)];});setPanel({kind:'subtask',id});};
@@ -5414,16 +5440,21 @@ function ProjectLineOfWorkView({state,persist,selectedId,showProjectPicker=true,
       <div className="workflow-overview-layout"><aside aria-label="Project progress timeline" className="workflow-progress-rail">{(()=>{const stages=groups.map(g=>{const statuses=g.rows.map(r=>workflowWorkStatus(workflowStatus(g.first,r)).label);return {g,done:statuses.every(s=>s==='Completed'),active:statuses.some(s=>['In progress','Approval required'].includes(s))};});let current=stages.findIndex(s=>s.active);if(current<0)current=stages.findIndex(s=>!s.done);if(current<0)current=stages.length-1;return stages.map((stage,i)=><a key={stage.g.key} href={`#workflow-stage-${i}`} aria-label={`${stage.g.first.tasks}: ${stage.done?'completed':stage.active?'in progress':'not started'}`} aria-current={i===current?'step':undefined} title={stage.g.first.tasks} className="workflow-road-segment" style={{background:workflowSunsetSegment(i,stages.length)}}>{i===current&&<span aria-hidden="true" className="workflow-road-marker"/>}</a>);})()}</aside><div className="workflow-stage-comparison">
       {aligned.pairs.map(({group:g,visits:stageVisits},index)=>{const r=g.first,key=rowId(r),concept=workflowStageBand(g)===0;return <React.Fragment key={g.key}>{index===0&&<div className="workflow-comparison-headings"><h3>Design work</h3><h3>Execution and Task</h3></div>}<div className={concept&&!stageVisits.some(visit=>!String(visit.stage||'').startsWith('Design meeting: '))?"workflow-aligned-stage workflow-concept-stage":"workflow-aligned-stage"}><section id={`workflow-stage-${index}`} key={key} style={{border:`1px solid ${T.line}`,marginBottom:12,background:'#fff'}}>
         <div style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',background:'#F3F1EA'}}>
-          {<div style={{display:'flex',gap:4}}><button type="button" title="Move stage up" aria-label={`Move ${r.tasks} earlier`} disabled={busy||loading||!canMoveStage(index,-1)} style={smallBtn} onClick={()=>moveStage(g.key,-1)}>↑</button><button type="button" title="Move stage down" aria-label={`Move ${r.tasks} later`} disabled={busy||loading||!canMoveStage(index,1)} style={smallBtn} onClick={()=>moveStage(g.key,1)}>↓</button></div>}<h3 style={{flex:1,margin:0,color:T.ink,fontFamily:FONT_DISPLAY,fontSize:14,fontWeight:700,display:'flex',alignItems:'center',gap:8}}>{r.tasks}</h3>
+          {<div style={{display:'flex',gap:4}}><button type="button" title="Move stage up" aria-label={`Move ${r.tasks} earlier`} disabled={busy||loading||!canMoveStage(index,-1)} style={smallBtn} onClick={()=>moveStage(g.key,-1)}>↑</button><button type="button" title="Move stage down" aria-label={`Move ${r.tasks} later`} disabled={busy||loading||!canMoveStage(index,1)} style={smallBtn} onClick={()=>moveStage(g.key,1)}>↓</button></div>}<h3 style={{flex:1,margin:0,color:T.ink,fontFamily:FONT_DISPLAY,fontSize:14,fontWeight:700,display:'flex',alignItems:'center',gap:8}}>{r.tasks} <small style={{fontWeight:400}}>{g.rows.filter(checked).length} of {g.rows.length} complete</small></h3>
           <button type="button" disabled={busy||loading} aria-label={`Task details ${r.tasks}`} style={smallBtn} onClick={()=>setPanel({kind:'task',id:key})}>Task details</button>
         </div>
         {<div id={`workflow-subtasks-${key}`} style={{padding:'0 14px 12px'}}>
           <div style={{overflowX:'auto'}}><table id={`workflow-design-table-${project.id}-${key}`} aria-label={`Subtasks for ${r.tasks}`} style={{width:'100%',minWidth:400,tableLayout:'fixed',borderCollapse:'collapse',fontFamily:FONT_BODY}}><colgroup><col style={{width:'76%'}}/><col style={{width:'24%'}}/></colgroup><thead><tr>{['Subtask','Responsible person'].map((h,i)=><th key={h} style={{...thStyle,background:'#fff',color:T.inkDim,textAlign:i===0?'left':'center',fontFamily:FONT_MONO,fontSize:9,borderBottom:`1px solid ${T.line}`}}>{h}</th>)}</tr></thead>
-            <tbody>{g.rows.map((sub,i)=><tr key={rowId(sub)} id={`workflow-design-row-${project.id}-${rowId(sub)}`} style={{height:44}}><td style={{...tdStyle,textAlign:'left',padding:'9px 6px'}}><button type="button" disabled={busy} aria-label={`Details ${sub.subtask}`} title="Open subtask details" onClick={()=>setPanel({kind:'subtask',id:rowId(sub)})} style={{border:0,background:'transparent',padding:0,fontFamily:FONT_BODY,fontSize:12,color:T.ink,textAlign:'left',cursor:'pointer',lineHeight:1.5}}><span style={{color:T.inkDim,marginRight:8,fontSize:11}}>{i+1}.</span>{sub.subtask}</button>{workflowComment('subtask',rowId(sub),sub.subtask)}{sub.taskCategory==='Meeting'&&renderDesignMeetingControls(meetingForDesignSubtask(project,g,sub,stageVisits),sub.meetingMode,loading)}</td><td style={{...tdStyle,textAlign:'center',verticalAlign:'middle',fontSize:12}}><span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8}}><WorkflowStatusDot {...workflowDotStatus(workflowStatus(r,sub),workflowPrerequisite(r,drawingReceipts,zones,selectedArea,instances))}/><span>{sub.responsible||r.responsible||'Unassigned'}</span></span></td></tr>)}</tbody>
+            <tbody>{g.rows.map((sub,i)=><tr key={rowId(sub)} id={`workflow-design-row-${project.id}-${rowId(sub)}`} style={{height:44}}><td style={{...tdStyle,textAlign:'left',padding:'9px 6px'}}><input type="checkbox" aria-label={'Complete '+sub.subtask} title={checked(sub)?'Completed':canCheck(sub)?'Mark complete':'Completion follows the task workflow'} checked={checked(sub)} disabled={busy||checked(sub)||!canCheck(sub)} onChange={()=>checkSubtask(sub)} style={{marginRight:8,verticalAlign:'middle'}}/><button type="button" disabled={busy} aria-label={`Details ${sub.subtask}`} title="Open subtask details" onClick={()=>setPanel({kind:'subtask',id:rowId(sub)})} style={{border:0,background:'transparent',padding:0,fontFamily:FONT_BODY,fontSize:12,color:T.ink,textAlign:'left',cursor:'pointer',lineHeight:1.5}}><span style={{color:T.inkDim,marginRight:8,fontSize:11}}>{i+1}.</span>{sub.subtask}</button>{workflowComment('subtask',rowId(sub),sub.subtask)}{sub.taskCategory==='Meeting'&&renderDesignMeetingControls(meetingForDesignSubtask(project,g,sub,stageVisits),sub.meetingMode,loading)}</td><td style={{...tdStyle,textAlign:'center',verticalAlign:'middle',fontSize:12}}><span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8}}><WorkflowStatusDot {...workflowDotStatus(workflowStatus(r,sub),workflowPrerequisite(r,drawingReceipts,zones,selectedArea,instances))}/><span>{sub.responsible||r.responsible||'Unassigned'}</span></span></td></tr>)}</tbody>
           </table></div>
           {editing&&<button disabled={busy} style={{...smallBtn,marginTop:12}} onClick={()=>addSubtask(g)}>+ Add subtask</button>}
         </div>}
       </section><div className="workflow-execution-column" style={{minWidth:0}}>{renderVisitTable(stageVisits.filter(visit=>!String(visit.stage||'').startsWith('Design meeting: ')))}</div></div></React.Fragment>;})}
+      {groups.some(g=>workflowStageBand(g)===4)&&<section aria-label="Finalise Architectural Lighting milestone" style={{padding:16,border:`1px solid ${T.line}`,background:'#F3F1EA',margin:'12px 0'}}>
+        <h3 style={{margin:'0 0 8px'}}>Finalise Architectural Lighting</h3>
+        <p>{lightingMilestone?.signedAt?`Signed off by ${lightingMilestone.signedBy} · ${formatProjectDate(lightingMilestone.signedAt)}`:lightingMilestone?.ready?'Documentation complete. Ready for sign-off.':'Awaiting completion of Wiring Drawings and Documentation. Installation and execution visits open after sign-off.'}</p>
+        {lightingMilestone?.canSign&&!lightingMilestone.signedAt&&<button type="button" style={smallBtn} disabled={busy||!lightingMilestone.ready} onClick={signLighting}>Sign off milestone</button>}
+      </section>}
       {!!aligned.remaining.length&&<section className="workflow-final-execution" aria-label="Further execution work" style={{minWidth:0,marginTop:8}}><h3 style={{fontFamily:FONT_DISPLAY,fontSize:17}}>Execution and Task</h3>{renderVisitTable(aligned.remaining.filter(row=>!/staging|scene setting/i.test(row.milestone)))}{aligned.remaining.some(row=>/staging|scene setting/i.test(row.milestone))&&<section aria-label="Final staging and scene setting" style={{marginTop:22,border:`2px solid ${T.blue}`,background:'#E8F1F8'}}><h3 style={{margin:0,padding:'12px 14px',background:T.navy,color:'#fff',fontFamily:FONT_DISPLAY,fontSize:16}}>Staging & Scene Setting <span style={{fontFamily:FONT_MONO,fontSize:10,color:T.cyan,marginLeft:12}}>FINAL MILESTONE</span></h3>{renderVisitTable(aligned.remaining.filter(row=>/staging|scene setting/i.test(row.milestone)))}</section>}</section>}
       </div></div></>}</ExecutionVisitPlanner>
       <WorkflowStatusLegend/>
@@ -5686,7 +5717,7 @@ const SHEET_DASHBOARD_WORK = [
   {label:'FC Drawings',match:/false ceiling|fc corrections/i,legacy:'falseCeiling'},
   {label:'3D Renders',match:/night renders|^3d renders$/i,legacy:'renders3d'},
   {label:'Wiring Drawings',match:/lighting layout|wiring drawings|rcp\/flr\/cir/i,legacy:'light'},
-  {label:'Finalise Architectural Lighting',match:/finalise architectural|architectural lighting/i},
+  {label:'Documentation',match:/^documentation$|technical table \/ documentation|execution bundle.*gfc/i,legacy:'documentationBoq'},
   {label:'Bathroom Stone Drawings',scopeKey:'bath_elevation',match:/bathroom|bath elevation/i,legacy:'bathroomElevation'},
   {label:'Facade Elevation Drawings',match:/facade/i,legacy:'facadeElevation'},
   {label:'Furniture Drawings',scopeKey:'wardrobe',match:/furniture|joinery/i,legacy:'furniture'},
