@@ -3,7 +3,7 @@ import TaskDiscussion from './TaskDiscussion.jsx';
 import ManualWorkFields,{emptyWork,manualWorkLabel} from './ManualWorkFields.jsx';
 import TeamAvailability from './TeamAvailability.jsx';
 import {MissedCheckoutNotice} from './PerformanceAttendance.jsx';
-import HomeAgenda from './HomeAgenda.jsx';
+import HomeAgenda,{scheduledTime} from './HomeAgenda.jsx';
 const internalAreas={'__internal_os__':'Enlighten OS Development','__internal_center__':'Narayana Experience Center','__internal_ops__':'Studio Operations'};
 import WihMetrics from './WihMetrics.jsx';
 import './StudioHome.css';
@@ -36,6 +36,7 @@ const firstDay=value=>shiftDay(value,-((new Date(value+'T12:00:00Z').getUTCDay()
 const calendarLabel=(value,options)=>new Date(value+'T12:00:00Z').toLocaleDateString('en-IN',{timeZone:'UTC',...options});
 
 export default function StudioHome({state,user,request,loadWork,navigate,theme:T,buttonStyle,assistant,onMissedCheckout}){
+ const [agendaItems,setAgendaItems]=useState([]);
  const [areaRows,setAreaRows]=useState(null),[areaError,setAreaError]=useState('');
  useEffect(()=>{let live=true;request('internalAreas',{action:'list'},'POST').then(r=>{if(live)setAreaRows(r.areas);}).catch(e=>{if(live)setAreaError(e.message);});return()=>{live=false;};},[request]);
  const areaNames={...internalAreas,...Object.fromEntries((areaRows||[]).map(a=>[a.id,a.name]))};
@@ -88,11 +89,27 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  const weekStart=shiftDay(firstDay(today),weekOffset*7);
  const weekDays=Array.from({length:7},(_,index)=>shiftDay(weekStart,index));
  const activeDay=weekDays.includes(selectedDay)?selectedDay:weekDays.includes(today)?today:weekStart;
- const scheduledByDay=new Map(weekDays.map(date=>[date,[]]));
+ const deadlineDate=row=>{
+  const value=row.plan?.internalDueDate;
+  if(typeof value==='string'&&/^\d{4}-\d{2}-\d{2}(?:$|T)/.test(value))return value.slice(0,10);
+  return '';
+ };
+ const deadlinesByDay=new Map();
  for(const row of openMine){
-  if(row.plan?.plannedStart&&Number.isFinite(Date.parse(row.plan.plannedStart)))scheduledByDay.get(day(new Date(row.plan.plannedStart)))?.push(row);
+  const date=deadlineDate(row);
+  if(!date)continue;
+  if(!deadlinesByDay.has(date))deadlinesByDay.set(date,[]);
+  deadlinesByDay.get(date).push(row);
  }
- for(const tasks of scheduledByDay.values())tasks.sort((a,b)=>Date.parse(a.plan.plannedStart)-Date.parse(b.plan.plannedStart));
+ const agendaByDay=new Map();
+ for(const item of agendaItems){
+  if(item.endAt)continue;
+  if(!agendaByDay.has(item.day))agendaByDay.set(item.day,[]);
+  agendaByDay.get(item.day).push(item);
+ }
+ const dailyAgenda=agendaByDay.get(activeDay)||[];
+ const dailyDeadlines=deadlinesByDay.get(activeDay)||[];
+ const tomorrowDeadlines=activeDay===today?deadlinesByDay.get(shiftDay(today,1))||[]:[];
  const isInternal=r=>{
   const id=taskProjectId(r);
   return id==='__admin_work__'||String(id).startsWith('__internal_')||Object.hasOwn(areaNames,id)||r.task?.taskCategory==='Admin / Owner';
@@ -117,7 +134,7 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
    <button type="button" className="studio-home-check" disabled={!log||busy||!!log.checkOut} onClick={()=>save(log.checkIn?'out':'in')}>{busy?'Saving…':log?.checkOut?'Day closed':log?.checkIn?'Check out':'Check in'}</button></div>
   </section>
   <MissedCheckoutNotice day={log?.missedDay} onReview={onMissedCheckout} buttonStyle={buttonStyle}/>
- <HomeAgenda request={request} day={today} readOnly={String(user?.appAccess).toLowerCase()==="viewer"} buttonStyle={buttonStyle}/>
+ <HomeAgenda onItemsChange={setAgendaItems} request={request} day={today} readOnly={String(user?.appAccess).toLowerCase()==="viewer"} buttonStyle={buttonStyle}/>
   <TeamAvailability request={request} department="studio" buttonStyle={buttonStyle}/>
   </div>
   <div className="studio-home-utilities">{assistant}<button type="button" style={buttonStyle} aria-expanded={assigned} onClick={()=>setAssigned(!assigned)}>Assigned requests</button></div>
@@ -146,19 +163,28 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  {!newTask&&createNote&&<p role="status">{createNote}</p>}
  {timerError&&<p role="alert" style={{color:T.redline}}>{timerError}</p>}
  {!ready&&<p>Loading your tasks…</p>}
- <section className="studio-home-task-group" aria-label="Weekly task calendar">
+ <section className="studio-home-task-group" aria-label="Weekly task deadlines">
  <div className="studio-home-task-board-heading"><h3>{calendarLabel(weekStart,{day:'numeric',month:'short'})} – {calendarLabel(weekDays[6],{day:'numeric',month:'short',year:'numeric'})}</h3><div className="studio-home-task-controls">
  <button type="button" style={buttonStyle} aria-label="Previous week" onClick={()=>setWeekOffset(n=>n-1)}>‹</button>
  <button type="button" style={buttonStyle} onClick={()=>{setWeekOffset(0);setSelectedDay(today);}}>This week</button>
  <button type="button" style={buttonStyle} aria-label="Next week" onClick={()=>setWeekOffset(n=>n+1)}>›</button></div></div>
  <div className="studio-week-calendar">{weekDays.map(date=>{
-  const tasks=scheduledByDay.get(date);
+  const tasks=deadlinesByDay.get(date)||[];
+  const events=agendaByDay.get(date)||[];
   return <button type="button" className="studio-week-day" key={date} aria-pressed={activeDay===date} aria-current={date===today?'date':undefined} onClick={()=>setSelectedDay(date)}>
-   <span>{calendarLabel(date,{weekday:'short'})}</span><strong>{Number(date.slice(-2))}</strong><small>{tasks.length} {tasks.length===1?'task':'tasks'}</small>
+   <span>{calendarLabel(date,{weekday:'short'})}</span><strong>{Number(date.slice(-2))}</strong><small>{tasks.length} {tasks.length===1?'task':'tasks'} due</small>{events.length>0&&<small>{events.length} {events.length===1?'event':'events'}</small>}
   </button>;
  })}</div>
  <h3>{calendarLabel(activeDay,{weekday:'long',day:'numeric',month:'short'})}</h3>
- {scheduledByDay.get(activeDay).length?scheduledByDay.get(activeDay).map(taskRow):ready&&<p>No scheduled tasks.</p>}
+ {dailyDeadlines.length?dailyDeadlines.map(taskRow):ready&&<p>No tasks due on this day.</p>}
+ {dailyAgenda.length>0&&<section aria-label="Scheduled meetings and site visits">
+  <h3>Meetings and site visits</h3>
+  {dailyAgenda.map(item=><div className="studio-home-task-row" key={item.projectId+':'+item.id}>
+   <div><strong>{item.title||item.projectName}</strong>
+   <p>{[item.site?'Site visit':'Meeting',[scheduledTime(item.time),scheduledTime(item.endTime)].filter(Boolean).join(' – '),item.projectName!==item.title&&item.title&&item.projectName].filter(Boolean).join(' · ')}</p></div>
+  </div>)}
+ </section>}
+ {tomorrowDeadlines.length>0&&<section aria-label="Due tomorrow"><h3>Due tomorrow · {tomorrowDeadlines.length}</h3>{tomorrowDeadlines.map(taskRow)}</section>}
  </section>
  {adminWork.length>0&&<section className="studio-home-task-group studio-home-admin" aria-label="Admin work">
  <div className="studio-home-list-scroll studio-home-admin-scroll" role="region" aria-label="Admin tasks" tabIndex={0}>{adminWork.map(taskRow)}</div>

@@ -28,11 +28,11 @@ function nextStep(item){
  return ['start',item.site?'Check in at site':'Start meeting'];
 }
 
-export default function HomeAgenda({request,buttonStyle,readOnly,day}){
+export default function HomeAgenda({request,buttonStyle,readOnly,day,onItemsChange}){
  const [items,setItems]=useState([]),[error,setError]=useState(''),[busy,setBusy]=useState(false);
  const update=async(action='list',item)=>{
   setBusy(true);setError('');
-  try{setItems(await request('homeAgenda',{action,id:item?.id,projectId:item?.projectId},'POST'));}
+  try{const result=await request('homeAgenda',{action,id:item?.id,projectId:item?.projectId},'POST');setItems(result);onItemsChange?.(result);}
   catch(e){setError(e.message);}
   finally{setBusy(false);}
  };

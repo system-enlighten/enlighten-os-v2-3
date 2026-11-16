@@ -2665,7 +2665,36 @@ function loadWorkflowWorkspace(projectId,retries=2){
   return entry.promise;
 }
 
-async function apiRequest(action, payload = {}, method = "POST", timeoutMs=0) {
+const PAGE_READ_CACHE=new Map();
+const PAGE_READS=new Set(['getDesignDashboard','getProjectWorkspace','listMomTasks','listExecutionVisits','listDrawingRegister','listFloorZones']);
+const POST_READS=new Set(['getStudioDay','homeAgenda','departmentTeam']);
+function apiRequest(action,payload={},method='POST',timeoutMs=0){
+  const cacheable=method==='GET'&&(PAGE_READS.has(action)||action==='getWIH'&&payload.fastRead===true&&!payload.includeDiagnostics);
+  if(!cacheable){
+    const writes=method==='POST'&&!POST_READS.has(action)&&!['read','list','feed','review','options'].includes(payload.action);
+    if(writes)PAGE_READ_CACHE.clear();
+    return requestFromServer(action,payload,method,timeoutMs).finally(()=>{
+      if(writes)PAGE_READ_CACHE.clear();
+    });
+  }
+  const key=JSON.stringify([AUTH_SESSION_GENERATION,action,Object.entries(payload).sort()]);
+  const cached=PAGE_READ_CACHE.get(key);
+  if(cached&&(cached.pending||Date.now()-cached.savedAt<45000))return cached.promise;
+  const entry={pending:true,savedAt:0};
+  entry.promise=requestFromServer(action,payload,method,timeoutMs).then(data=>{
+    entry.pending=false;
+    entry.savedAt=Date.now();
+    return data;
+  },error=>{
+    if(PAGE_READ_CACHE.get(key)===entry)PAGE_READ_CACHE.delete(key);
+    throw error;
+  });
+  if(PAGE_READ_CACHE.size>=40)PAGE_READ_CACHE.delete(PAGE_READ_CACHE.keys().next().value);
+  PAGE_READ_CACHE.set(key,entry);
+  return entry.promise;
+}
+
+async function requestFromServer(action, payload = {}, method = "POST", timeoutMs=0) {
   const changesWorkflow=method==='POST'&&workflowWrites.has(action);
   let response,raw;
   const controller=timeoutMs?new AbortController():null;
@@ -2769,7 +2798,7 @@ const projectApi = {
   listDrawingTaskMaster: () => apiRequest("listDrawingTaskMaster", {}, "GET"),
   saveDrawingTaskMaster: templates => apiRequest("saveDrawingTaskMaster", { templates }),
   getDesignDashboard: projectId => apiRequest("getDesignDashboard", { projectId }, "GET"),
-  getWIH: (includeCompleted=true, projectId="") => apiRequest("getWIH", { includeCompleted, ...(projectId?{projectId}:{}) }, "GET"),
+  getWIH: (includeCompleted=true, projectId="", fastRead=false) => apiRequest("getWIH", { includeCompleted, ...(projectId?{projectId}:{}), ...(fastRead?{fastRead}:{}) }, "GET"),
   assignTask: payload => apiRequest("assignDesignTask", payload),
   startTask: designTaskId => apiRequest("startTask", { designTaskId }),
   pauseTask: designTaskId => apiRequest("pauseTask", { designTaskId }),
@@ -5774,7 +5803,7 @@ function DrawingControlDashboard({state,persist,projectId,deferLoad=false,headin
   useEffect(()=>{let live=true;setPayload(null);setWih([]);setLoading(true);setError('');
     if(!project?.id){setLoading(false);return()=>{live=false;};}
     if(!ready)return()=>{live=false;};
-    queueDesignDashboardLoad(()=>{if(!live)return; const dashboard=projectApi.getDesignDashboard(project.id).then(data=>{if(live)setPayload(data);});const work=projectApi.getWIH(true,project.id).then(data=>{if(live)setWih(Array.isArray(data)?data:[]);});return Promise.allSettled([dashboard,work]).then(results=>{const failed=results.find(r=>r.status==='rejected');if(failed)throw failed.reason;});}).catch(e=>{if(live)setError(e.message||'Could not load dashboard data.');}).finally(()=>{if(live)setLoading(false);});
+    queueDesignDashboardLoad(()=>{if(!live)return; const dashboard=projectApi.getDesignDashboard(project.id).then(data=>{if(live)setPayload(data);});const work=projectApi.getWIH(true,project.id,true).then(data=>{if(live)setWih(Array.isArray(data)?data:[]);});return Promise.allSettled([dashboard,work]).then(results=>{const failed=results.find(r=>r.status==='rejected');if(failed)throw failed.reason;});}).catch(e=>{if(live)setError(e.message||'Could not load dashboard data.');}).finally(()=>{if(live)setLoading(false);});
     return()=>{live=false;};
   },[project?.id,revision,ready]);
   if(!project)return <p>No active project available.</p>;
@@ -5843,11 +5872,11 @@ function DrawingControlDashboard({state,persist,projectId,deferLoad=false,headin
       setOutput(null);setOutputNotice(`Drawing uploaded.${result.completed?` ${result.completed} task(s) completed.`:''}${result.completed<selectedTaskIds.length?' Tasks with partial zone coverage remain open.':''}`);setRevision(r=>r+1);
     }catch(e){
       if(/expired|invalid.*session/i.test(e.message||''))outputJob.current.failedExpired=true;
-      setOutputError(e.message);
+      setOutputError(/Start this task first to open its workflow subtasks/i.test(e.message)?'Start this parent task in Tasks to open its workflow subtasks, then complete them before submitting the parent drawing.':e.message);
     }finally{setOutputBusy(false);}
   };
   return <div ref={sectionRef}>
-    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap',marginBottom:6}}><div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>{heading?<h2 style={{fontFamily:FONT_DISPLAY,margin:0,fontSize:22,color:T.ink}}>{heading}</h2>:<span/>}{onOpenWorkflow&&<button type="button" aria-label={`Line of Work for ${project.name}`} style={smallBtn} onClick={()=>onOpenWorkflow(project.id)}>Line of Work</button>}</div><div style={{display:'flex',gap:8,alignItems:'center'}}><button type="button" disabled={loading} style={{...smallBtn,padding:'5px 8px',fontSize:10}} onClick={()=>setRevision(x=>x+1)}>Refresh Dashboard</button>{onEdit&&<button type="button" onClick={onEdit} style={{...smallBtn,background:'#fff',padding:'5px 8px',fontSize:10}}>EDIT PROJECT</button>}</div></div>
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap',marginBottom:6}}><div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>{heading?<h2 style={{fontFamily:FONT_DISPLAY,margin:0,fontSize:22,color:T.ink}}>{heading}</h2>:<span/>}{onOpenWorkflow&&<button type="button" aria-label={`Line of Work for ${project.name}`} style={smallBtn} onClick={()=>onOpenWorkflow(project.id)}>Line of Work</button>}</div><div style={{display:'flex',gap:8,alignItems:'center'}}><button type="button" disabled={loading} style={{...smallBtn,padding:'5px 8px',fontSize:10}} onClick={()=>{PAGE_READ_CACHE.clear();setRevision(x=>x+1);}}>Refresh Dashboard</button>{onEdit&&<button type="button" onClick={onEdit} style={{...smallBtn,background:'#fff',padding:'5px 8px',fontSize:10}}>EDIT PROJECT</button>}</div></div>
     {outputNotice&&<p role="status">{outputNotice}</p>}
     {output&&<div className="task-discussion-overlay"><section className="dashboard-output-dialog" role="dialog" aria-modal="true" aria-label={output.label+' drawing upload'} onKeyDown={e=>{if(e.key==='Escape'&&!outputBusy)setOutput(null);}}>
       <header className="dashboard-output-header"><div><p>{project.name}</p><h2>Upload drawing · {output.label}</h2></div><button type="button" className="dashboard-output-close" aria-label="Close upload" disabled={outputBusy} onClick={()=>setOutput(null)}>×</button></header>
@@ -7502,7 +7531,7 @@ function ProjectGantt({state,projectId}){
 
 let AUTH_ID_TOKEN='';
 let AUTH_SESSION_GENERATION=0;
-function clearStudioCaches(){clearWorkflowWorkspaceCache();try{for(let i=localStorage.length-1;i>=0;i--){const k=localStorage.key(i);if(k&&/enlighten/i.test(k))localStorage.removeItem(k);}}catch(_){}}
+function clearStudioCaches(){PAGE_READ_CACHE.clear();clearWorkflowWorkspaceCache();try{for(let i=localStorage.length-1;i>=0;i--){const k=localStorage.key(i);if(k&&/enlighten/i.test(k))localStorage.removeItem(k);}}catch(_){}}
 export default function App(){
   const [signedIn,setSignedIn]=useState(false);
   const [config,setConfig]=useState(null);
