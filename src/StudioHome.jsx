@@ -97,7 +97,17 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
   const id=taskProjectId(r);
   return id==='__admin_work__'||String(id).startsWith('__internal_')||Object.hasOwn(areaNames,id)||r.task?.taskCategory==='Admin / Owner';
  };
- const adminWork=work.filter(r=>!done(r)&&isInternal(r)).sort((a,b)=>Number(running(b))-Number(running(a)));
+ const isDiscussionArea=name=>String(name||'').trim().toLowerCase()==='discussion';
+ const adminAreas=new Map((areaRows||[])
+  .filter(area=>!isDiscussionArea(area.name))
+  .map(area=>[String(area.id),{...area,tasks:[]}]));
+ const adminWork=work.filter(r=>!done(r)&&isInternal(r)&&!isDiscussionArea(projectName(r)))
+  .sort((a,b)=>Number(running(b))-Number(running(a)));
+ for(const row of adminWork){
+  const id=String(taskProjectId(row)||'');
+  if(!adminAreas.has(id))adminAreas.set(id,{id,name:projectName(row),tasks:[]});
+  adminAreas.get(id).tasks.push(row);
+ }
  const pending=groupPendingTasks(work.filter(r=>!done(r)&&taskProjectId(r)&&!isInternal(r)));
  const elapsed=r=>{const startAt=Date.parse(r.startAt),seconds=Math.floor((Number(r.totalMinutes)||0)*60+(running(r)&&Number.isFinite(startAt)?Math.max(0,clock-startAt)/1000:0));return [Math.floor(seconds/3600),Math.floor(seconds/60)%60,seconds%60].map(v=>String(v).padStart(2,'0')).join(':');};
  const ownSchedule=rows.filter(r=>(admin||own(r))&&!done(r)&&r.plan?.plannedStart&&day(new Date(r.plan.plannedStart))===today).map(r=>({time:stamp(r.plan.plannedStart),end:r.plan.plannedEnd?stamp(r.plan.plannedEnd):'',title:title(r)}));
@@ -159,7 +169,13 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  {scheduledByDay.get(activeDay).length?scheduledByDay.get(activeDay).map(taskRow):ready&&<p>No scheduled tasks.</p>}
  </section>
  <section className="studio-home-task-group studio-home-admin" aria-labelledby="studio-home-admin-heading"><h3 id="studio-home-admin-heading">Admin work · {adminWork.length}</h3>
- {adminWork.length?<div className="studio-home-list-scroll studio-home-admin-scroll" role="region" aria-label="Admin work" tabIndex={0}>{adminWork.map(taskRow)}</div>:ready&&<p>No admin work.</p>}
+ {areaError&&<p role="alert">{areaError}</p>}
+ {adminAreas.size>0?<div className="studio-home-list-scroll studio-home-admin-scroll" role="region" aria-label="Admin work areas" tabIndex={0}>
+  {[...adminAreas.values()].map(area=><section key={area.id} className="studio-home-admin-area">
+   <h4>{area.name}{area.active===false?' · Completed':''}</h4>
+   {area.tasks.length?area.tasks.map(taskRow):<p>No open tasks.</p>}
+  </section>)}
+ </div>:ready&&areaRows&&<p>No internal work areas.</p>}
  </section>
  </section>
  <section className="studio-home-card" aria-label="Pending tasks">
