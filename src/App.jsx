@@ -5858,7 +5858,7 @@ function DrawingControlDashboard({state,persist,projectId,deferLoad=false,headin
       return taskIds.length?[{id:index,floor:zone.floor,area:zone.area||zone.room,taskIds}]:[];
     });
     setOutputError('');setOutputNotice('');outputJob.current={};
-    setOutput({label:def.label,areas,ids:areas.filter(area=>eq(area.floor,z.floor)&&eq(area.area,z.area||z.room)).map(area=>area.id),file:null});
+    setOutput({label:def.label,areas,historical:false,ids:areas.filter(area=>eq(area.floor,z.floor)&&eq(area.area,z.area||z.room)).map(area=>area.id),file:null});
   };
   const outputFloors=new Map();
   for(const area of output?.areas||[]){
@@ -5884,11 +5884,11 @@ function DrawingControlDashboard({state,persist,projectId,deferLoad=false,headin
     try{
       const anchor=outputJob.current.saved?.linkedEntityId||selectedTaskIds[0];
       const upload=await uploadProjectDrawingJob(output.file,project.id,'Output',outputJob.current,undefined,anchor);
-      const result=await apiRequest('completeDashboardWork',{projectId:project.id,taskIds:selectedTaskIds,coverage:selectedAreas.map(({floor,area})=>({floor,area})),completionFileId:upload.fileId},'POST');
+      const result=await apiRequest('completeDashboardWork',{projectId:project.id,taskIds:selectedTaskIds,coverage:selectedAreas.map(({floor,area})=>({floor,area})),historical:output.historical,completionFileId:upload.fileId},'POST');
       setOutput(null);setOutputNotice(`Drawing uploaded.${result.completed?` ${result.completed} task(s) completed.`:''}${result.completed<selectedTaskIds.length?' Tasks with partial zone coverage remain open.':''}`);setRevision(r=>r+1);
     }catch(e){
       if(/expired|invalid.*session/i.test(e.message||''))outputJob.current.failedExpired=true;
-      setOutputError(/Start this task first to open its workflow subtasks/i.test(e.message)?'Start this parent task in Tasks to open its workflow subtasks, then complete them before submitting the parent drawing.':e.message);
+      setOutputError(/Start this task first to open its workflow subtasks/i.test(e.message)?'Start this parent task in Tasks to open its workflow subtasks, then complete them before submitting the parent drawing. For old work, select Historical drawing and retry.':e.message);
     }finally{setOutputBusy(false);}
   };
   return <div ref={sectionRef}>
@@ -5910,6 +5910,10 @@ function DrawingControlDashboard({state,persist,projectId,deferLoad=false,headin
           </div>
         </fieldset>
         <footer className="dashboard-output-footer">
+          <label style={{display:'flex',gap:8,alignItems:'center',marginBottom:10}}>
+            <input type="checkbox" checked={output.historical} disabled={outputBusy} onChange={event=>{const historical=event.target.checked;setOutput(current=>({...current,historical}));}}/>
+            Historical drawing — complete old work without starting a timer
+          </label>
           <label>Drawing file<input autoFocus type="file" required disabled={outputBusy||!!outputJob.current.saved} onChange={e=>setOutput(x=>({...x,file:e.target.files?.[0]||null}))}/></label>
           {outputError&&<p role="alert">{outputError}</p>}
           {selectedTaskIds.length>50&&<p role="status">Select zones linked to up to 50 tasks per upload.</p>}
