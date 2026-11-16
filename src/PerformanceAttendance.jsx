@@ -56,6 +56,17 @@ export default function PerformanceAttendance({request,user,initialDay}){
  {missed&&!(tab==='Day'&&data.pending)&&<aside className="attendance-warning" role="status"><strong>Checkout needs confirmation</strong><button onClick={()=>openDay(missed)}>Review {dateLabel(missed)}</button></aside>}
 
  {tab==='Day'&&data&&<>
+ <section className="attendance-panel attendance-drawing">
+  <h2>Site visits</h2>
+  {!data.siteVisits?.length&&<p>No site visits recorded for this employee on this day.</p>}
+  {data.siteVisits?.map(visit=><article className="attendance-row attendance-site-visit" key={visit.id}>
+   <h3>{visit.projectName}{visit.title?' · '+visit.title:''}</h3>
+   <dl>{[['Left for site',visit.departedAt],['Site check-in',visit.checkInAt,visit.checkInLocation],['Site checkout',visit.checkOutAt,visit.checkOutLocation]].map(([label,at,location],index)=><div key={label}>
+    <dt>{label}</dt><dd>{at?stamp(at):'Not recorded'}</dd>
+    {at&&index>0&&<dd>{location?<a target="_blank" rel="noopener noreferrer" href={`https://www.google.com/maps?q=${location.latitude},${location.longitude}`}>View location{location.accuracy!=null?` (±${location.accuracy} m)`:''}</a>:<small>Location not recorded</small>}</dd>}
+   </div>)}</dl>
+  </article>)}
+ </section>
  {data.pending&&<aside className="attendance-warning" role="status"><div><strong>Missed checkout · {dateLabel(day)}</strong><p>Enter the time you left. Totals currently run through the last recorded activity.</p></div>{role!=='viewer'&&<form className="attendance-fields" onSubmit={submit('confirmCheckout',{end:checkout})}><label>Actual checkout<input type="time" required value={checkout} onChange={e=>setCheckout(e.target.value)}/></label><button className="attendance-primary" disabled={busy}>Confirm checkout</button></form>}</aside>}
  {data.lo==null?<section className="attendance-panel">No check-in recorded for this day.</section>:<>
  <section className="attendance-panel attendance-drawing"><header><h2>Day timeline</h2><time dateTime={day}>{dateLabel(day)}</time></header><div className="attendance-metrics">{[['Check-in',stamp(data.checkIn)],['Checkout',data.pending?'Pending':stamp(data.checkOut)],['On duty',dur(t.tracked+t.entries+t.gap)],...Object.entries(categories).map(([k,label])=>[label,dur(t[k])])].map(([label,value])=><div key={label}><small>{label}</small><strong>{value}</strong></div>)}</div>

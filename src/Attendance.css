@@ -134,3 +134,9 @@
  .attendance-filters>label{flex:1 1 125px}
  .attendance-filters :is(input,select){width:100%;min-width:0}
 }
+
+.attendance-site-visit{display:block}
+.attendance-site-visit dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px;margin:12px 0 0}
+.attendance-site-visit dt{font-weight:600}
+.attendance-site-visit dd{margin:4px 0 0}
+.attendance-site-visit a{color:#1d4e89}

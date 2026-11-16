@@ -28,11 +28,21 @@ function nextStep(item){
  return ['start',item.site?'Check in at site':'Start meeting'];
 }
 
+function captureSiteLocation(){
+ return new Promise((resolve,reject)=>{
+  if(!navigator.geolocation){reject(new Error('Location is unavailable in this browser.'));return;}
+  navigator.geolocation.getCurrentPosition(({coords})=>resolve({
+   latitude:coords.latitude,longitude:coords.longitude,accuracy:coords.accuracy
+  }),()=>reject(new Error('Allow location access and try the site punch again.')),
+  {enableHighAccuracy:true,timeout:15000,maximumAge:0});
+ });
+}
+
 export default function HomeAgenda({request,buttonStyle,readOnly,day,onItemsChange}){
  const [items,setItems]=useState([]),[error,setError]=useState(''),[busy,setBusy]=useState(false);
  const update=async(action='list',item)=>{
   setBusy(true);setError('');
-  try{const result=await request('homeAgenda',{action,id:item?.id,projectId:item?.projectId},'POST');setItems(result);onItemsChange?.(result);if(item?.site&&['start','end'].includes(action))window.dispatchEvent(new Event('enlighten-attendance-change'));}
+  try{const location=item?.site&&['start','end'].includes(action)?await captureSiteLocation():undefined;const result=await request('homeAgenda',{action,id:item?.id,projectId:item?.projectId,location},'POST');setItems(result);onItemsChange?.(result);if(item?.site&&['start','end'].includes(action))window.dispatchEvent(new Event('enlighten-attendance-change'));}
   catch(e){setError(e.message);}
   finally{setBusy(false);}
  };
