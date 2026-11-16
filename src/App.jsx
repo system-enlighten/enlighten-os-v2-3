@@ -2654,7 +2654,7 @@ function loadWorkflowWorkspace(projectId,retries=2){
   if(existing?.data&&Date.now()-existing.at<15000)return Promise.resolve(existing.data);
   const entry={};
   WORKFLOW_WORKSPACE_CACHE.set(key,entry);
-  entry.promise=apiRequest('getWorkflowWorkspace',{projectId},'GET',90000).then(data=>{
+  entry.promise=apiRequest('getWorkflowWorkspace',{projectId},'GET',90000).catch(error=>{if(generation!==AUTH_SESSION_GENERATION||!error.message.includes('connection ended'))throw error;return apiRequest('getWorkflowWorkspace',{projectId},'GET',90000);}).then(data=>{
     if(generation!==AUTH_SESSION_GENERATION)throw Error('Your session changed. Open the project again.');
     if(WORKFLOW_WORKSPACE_CACHE.get(key)!==entry){
       if(retries>0)return loadWorkflowWorkspace(projectId,retries-1);
@@ -5333,7 +5333,8 @@ function ProjectLineOfWorkView({state,persist,selectedId,showProjectPicker=true,
   const rowId = r => String(r.lineWorkId || r.id);
   const setProjectRows = (all,delegationRules=[]) => {
     const workflow = all.filter(r => ["1","2"].includes(String(r.workflowVersion))).map(r => ({...r,id:r.lineWorkId || r.id}));
-    const displayed=applyWorkflowDelegation(workflow.length?workflow:DESIGN_TASK_FLOW_TEMPLATE.map(r=>({...r})),project.id,delegationRules);
+    const displayRows=workflow.length?[...workflow,...(workflow.some(row=>/^documentation$/i.test(row.tasks))?[]:DESIGN_TASK_FLOW_TEMPLATE.filter(row=>row.tasks==='Documentation'))]:DESIGN_TASK_FLOW_TEMPLATE;
+    const displayed=applyWorkflowDelegation(displayRows.map(row=>({...row})),project.id,delegationRules);
     setRows(displayed); setSavedRows(displayed);setOrderMode(displayed[0]?.workflowOrderMode==='manual'?'manual':'drawing'); setLegacy(all.filter(r => !["1","2"].includes(String(r.workflowVersion))));
   };
   useEffect(() => {
@@ -5343,7 +5344,8 @@ function ProjectLineOfWorkView({state,persist,selectedId,showProjectPicker=true,
     const cached=cachedWorkflowWorkspace(project.id);setProjectRows(cached?.workflow||project.lineOfWorkResidence||project.lineOfWork||[],cached?.rules||[]);
     setLoading(!cached);
     loadWorkflowWorkspace(project.id).then(delegation=>{if(active)setProjectRows(Array.isArray(delegation.workflow)?delegation.workflow:[],delegation.rules||[]);}).catch(e=>{if(active)setError(`Could not update workflow: ${e.message||e}`);}).finally(()=>{if(active)setLoading(false);});
-    apiRequest("architecturalLightingMilestone",{projectId:project.id,action:"read"}).then(result=>{if(active)setLightingMilestone(result);}).catch(e=>{if(active)setError(e.message);}).then(()=>active?projectApi.getWIH(true,project.id,true):[]).then(wih=>{if(active)setInstances(Array.isArray(wih)?wih:[]);}).catch(e=>{if(active)setError(`Could not update work status: ${e.message||e}`);});
+    apiRequest("architecturalLightingMilestone",{projectId:project.id,action:"read"}).then(result=>{if(active)setLightingMilestone(result);}).catch(e=>{if(active)setError(e.message);});
+    projectApi.getWIH(true,project.id,true).then(wih=>{if(active)setInstances(Array.isArray(wih)?wih:[]);}).catch(e=>{if(active)setError(`Could not update work status: ${e.message||e}`);});
     return () => {active=false;};
   },[project?.id]);
   useEffect(()=>{let active=true;setDrawingReceipts(null);if(!project)return;loadWorkflowWorkspace(project.id).then(data=>{if(active)setDrawingReceipts(Array.isArray(data?.drawings)?data.drawings:[]);}).catch(()=>{if(active)setDrawingReceipts(undefined);});return()=>{active=false;};},[project?.id]);
