@@ -4093,7 +4093,7 @@ function TimesheetView({ state, persist, calendarOnly=false }) {
   const canWork=canAssign||state.currentUser?.permissions?.wih==="own-edit";
   const [person, setPerson] = useState("All");
   const [taskSection, setTaskSection] = useState("Pending");
-  const WIH_CACHE_KEY = "enlighten_wih_receipt_stages_v2400:"+String(state.currentUser?.userId||state.currentUser?.googleSubject||"anonymous");
+  const WIH_CACHE_KEY = "enlighten_wih_art_scope_v1:"+String(state.currentUser?.userId||state.currentUser?.googleSubject||"anonymous");
   const WIH_CACHE_MS = 30000;
   const readWihCache = () => {
     try {
@@ -4282,16 +4282,25 @@ function TimesheetView({ state, persist, calendarOnly=false }) {
        const groupId=JSON.stringify([key,group.key]);
        const expanded=expandedTaskGroups.has(groupId);
        const grouped=group.tasks.length>1;
+       const eligible=group.tasks.filter(t=>run(t)&&!isDone(t.status));
+       const areas=new Set(group.tasks.flatMap(t=>{
+        const coverage=Array.isArray(t.batchCoverage)?t.batchCoverage.filter(area=>projectCardFloor(area?.floor)===group.floor):[];
+        return coverage.length?coverage.map(area=>area.floorZoneId||area.zoneCode||area.area).filter(Boolean):[t.area||t.designTaskId];
+       })).size;
+       const toggleAreas=()=>setExpandedTaskGroups(previous=>{
+        const next=new Set(previous);
+        if(next.has(groupId))next.delete(groupId);else next.add(groupId);
+        return next;
+       });
        return <React.Fragment key={group.key}>
         {grouped&&<tr className="wih-task-floor-group">
          <td/>
-         <td><button type="button" className="wih-project-toggle" aria-expanded={expanded} onClick={()=>setExpandedTaskGroups(previous=>{
-          const next=new Set(previous);
-          if(next.has(groupId))next.delete(groupId);else next.add(groupId);
-          return next;
-         })}><span aria-hidden="true">{expanded?'▾':'▸'}</span>{group.title}</button></td>
+         <td><strong>{group.floor} · {group.title}</strong></td>
          <td>{list[0].projectName}</td><td/>
-         <td>{group.floor} · {group.tasks.length} tasks</td><td colSpan={7}/>
+         <td><button type="button" className="wih-area-toggle" aria-expanded={expanded} onClick={toggleAreas}><span aria-hidden="true">{expanded?'▾':'▸'}</span> {areas} {areas===1?'area':'areas'}</button></td>
+         <td colSpan={6}/>
+         <td>{eligible.length===1?loggingButton(eligible[0],true):
+          <button type="button" className="wih-compact-button" style={smallBtn} disabled={!eligible.length||!!busyId} onClick={()=>setExpandedTaskGroups(previous=>new Set([...previous,groupId]))}>{eligible.length>1?'Choose area':'Start logging'}</button>}</td>
         </tr>}
         {(!grouped||expanded)&&group.tasks.map(t=>{
        const editable=canWork&&(assignProject(t.projectId)||t.assigneeUserId===state.currentUser?.userId),cell={padding:'8px 10px',fontSize:12,borderBottom:`1px solid ${T.line}`,verticalAlign:'middle'},marks=taskMarks[t.designTaskId]||{},project=(state.projects||[]).find(p=>String(p.id)===String(t.projectId));
