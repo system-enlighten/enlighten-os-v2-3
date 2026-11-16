@@ -1,3 +1,4 @@
+import StudioHeading from './StudioHeading.jsx';
 import ManualWorkFields,{emptyWork,manualWorkLabel} from './ManualWorkFields.jsx';
 import React,{useEffect,useState} from 'react';
 import './Attendance.css';
@@ -46,7 +47,7 @@ export default function PerformanceAttendance({request,user,initialDay}){
  const openDay=d=>{setDay(d);setTab('Day');};
  const submit=(action,fields)=>e=>{e.preventDefault();if(!busy)load(action,fields);};
  const lastDay=data?.recent.find(r=>r.day<today());
- return <main className="attendance"><header className="attendance-header"><h1 className="studio-page-heading">Timeline</h1><div className="attendance-titleblock"><small>Time zone</small><strong>India Standard Time</strong></div></header>
+ return <main className="attendance"><StudioHeading title="Timeline"><div className="attendance-titleblock"><small>Time zone</small><strong>India Standard Time</strong></div></StudioHeading>
  <nav aria-label="Timeline views">{['Day','Apply leave'].map(x=><button key={x} disabled={busy} aria-pressed={tab===x} onClick={()=>setTab(x)}>{x}</button>)}</nav>
  {error&&<p className="attendance-error" role="alert">{error}</p>}{notice&&<p role="status">{notice}</p>}{busy&&<p role="status">Updating attendance…</p>}
  {tab==='Apply leave'&&<div className="attendance-columns"><section className="attendance-panel"><h2>Apply leave</h2>{role==='viewer'?<p>Leave requests are available to employee accounts.</p>:<form onSubmit={submit('leaveApply',{from,to,reason:leaveReason})}><div className="attendance-fields"><label>From<input required type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label><label>To<input required type="date" min={from} value={to} onChange={e=>setTo(e.target.value)}/></label></div><label>Reason<textarea required maxLength={250} value={leaveReason} onChange={e=>setLeaveReason(e.target.value)}/></label><button className="attendance-primary" disabled={busy}>Submit request</button></form>}</section><section className="attendance-panel"><h2>{role==='admin'?'Leave requests':'My requests'}</h2>{leave.length===0&&<p>No requests yet.</p>}{leave.map(r=><article className="attendance-row" key={r.id}><div><strong>{dateLabel(r.from)} – {dateLabel(r.to)}</strong><p>{role==='admin'&&r.employee+' · '}{r.reason}</p><small>{r.status}</small></div>{role==='admin'&&r.status==='Pending'&&<div className="attendance-fields">{['Approved','Declined'].map(status=><button key={status} disabled={busy} onClick={()=>load('leaveReview',{id:r.id,status})}>{status==='Approved'?'Approve':'Decline'}</button>)}</div>}</article>)}</section></div>}

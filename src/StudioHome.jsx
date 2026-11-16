@@ -1,3 +1,4 @@
+import {StudioHeadingText} from './StudioHeading.jsx';
 import BriefingTimer from './BriefingTimer.jsx';
 import TaskDiscussion from './TaskDiscussion.jsx';
 import ManualWorkFields,{emptyWork,manualWorkLabel} from './ManualWorkFields.jsx';
@@ -130,7 +131,7 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  };
  return <main className="studio-home">
  <header className="studio-home-intro">
-  <div><p className="studio-home-kicker">enLIGHTen / Studio desk</p><h1>{admin?'Studio overview':'My work'}</h1><p>{new Intl.DateTimeFormat('en-IN',{timeZone:tz,dateStyle:'full'}).format(new Date())}</p></div>
+  <StudioHeadingText title={admin?'Studio overview':'My work'}/>
   <div className="studio-home-attendance-stack"><section aria-label="Attendance" className="studio-home-attendance">
    <div><p className="studio-home-kicker">Attendance</p><strong>{!log?'Attendance unavailable':log.checkOut?'Checked out':log.breakStart?'On break':log.checkIn?'Checked in':'Ready to check in'}</strong>{log?.checkIn&&<small>{stamp(log.checkIn)}{log.checkOut?' – '+stamp(log.checkOut):' · IST'}</small>}</div>
    <div style={{display:'grid',gap:6}}>

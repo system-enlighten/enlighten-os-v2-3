@@ -129,10 +129,15 @@
 .studio-app-content .journal-masthead>p{margin:0}
 .studio-app-content .journal-edition{flex-wrap:wrap;gap:4px 15px}
 .studio-dashboard-intro{margin:18px 0 16px}
-.studio-dashboard-project{margin-top:18px}
+.studio-dashboard-project{margin-top:72px;padding-bottom:18px;margin-bottom:18px}
+.studio-dashboard-project:has(+.studio-dashboard-project){padding-bottom:90px}
+.studio-dashboard-project + .studio-dashboard-project{margin-top:18px}
+.studio-app-content h1.studio-scope-heading{
+ font-size:calc((clamp(1.85rem,3vw,2.5rem) - 2pt) * .6)!important;
+}
 .studio-design-matrix :is(th,td){font-size:11px!important}
 .studio-design-matrix th{hyphens:none}
-.studio-app-content :is(.attendance-header,.wih-register-head){border-top:2px solid var(--studio-ink)}
+.studio-app-content :is(.attendance-header,.wih-register-head,.studio-technical-heading){border-top:2px solid var(--studio-ink)}
 .studio-app-content .attendance{font-size:.82rem}
 .studio-app-content .attendance-metrics strong{font:600 .98rem var(--studio-body-font)}
 .studio-app-content .attendance-metrics>div{background:#faf8f2}
@@ -191,3 +196,20 @@
 .studio-app-content .studio-lumina-worksheet td{text-align:center;font-family:"IBM Plex Mono",monospace}
 .studio-app-content .studio-lumina-worksheet td:first-child{background:#e5e3db;font-weight:600}
 .studio-lumina-worksheet img{display:block;max-width:120px;max-height:105px;margin:auto;object-fit:contain}
+
+.studio-desk-heading{
+ display:flex;
+ flex-wrap:wrap;
+ align-items:center;
+ justify-content:space-between;
+ gap:14px;
+ padding:22px 0;
+ border-top:2px solid var(--studio-ink);
+ border-bottom:1px solid #e5ddd0;
+ margin-bottom:18px;
+}
+.attendance .studio-desk-heading{margin-bottom:0}
+.studio-app-content .studio-heading-text h1{margin:5px 0 9px}
+.studio-app-content .studio-heading-text p{margin:0;font-size:13px;line-height:1.5;color:var(--studio-ink)}
+.studio-app-content .studio-heading-text .studio-home-kicker{font-size:10px;color:#6d604c}
+.studio-feedback-intro{margin:0 0 18px;font-size:13px}
