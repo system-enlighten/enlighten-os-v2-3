@@ -5408,7 +5408,7 @@ function ProjectLineOfWorkView({state,persist,selectedId,showProjectPicker=true,
     }catch(e){if(workflowProjectRef.current===pid)setMeetingError(e.message);}
     finally{setBusy(false);}
   };
-  const checked=sub=>(sub.taskCategory==='Meeting'&&(!!historicalFor(sub)||visitHistory(meetingVisit(groups.find(group=>group.rows.includes(sub)),sub)||{}).length>0))||checksFor(sub).length>0&&checksFor(sub).every(row=>/^completed$|^done$/i.test(row.status));
+  const checked=sub=>!!historicalFor(sub)||(sub.taskCategory==='Meeting'&&(visitHistory(meetingVisit(groups.find(group=>group.rows.includes(sub)),sub)||{}).length>0))||checksFor(sub).length>0&&checksFor(sub).every(row=>/^completed$|^done$/i.test(row.status));
   const canCheck=sub=>{
     const open=checksFor(sub).filter(row=>!/^completed$|^done$/i.test(row.status));
     return sub.taskCategory!=='Meeting'&&String(sub.completionUploadRequired).toLowerCase()==='false'&&open.length>0&&
@@ -5460,12 +5460,12 @@ function ProjectLineOfWorkView({state,persist,selectedId,showProjectPicker=true,
         </div>
         {<div id={`workflow-subtasks-${key}`} style={{padding:'0 14px 12px'}}>
           <div style={{overflowX:'auto'}}><table id={`workflow-design-table-${project.id}-${key}`} aria-label={`Subtasks for ${r.tasks}`} style={{width:'100%',minWidth:400,tableLayout:'fixed',borderCollapse:'collapse',fontFamily:FONT_BODY}}><colgroup><col style={{width:'76%'}}/><col style={{width:'24%'}}/></colgroup><thead><tr>{['Subtask','Responsible person'].map((h,i)=><th key={h} style={{...thStyle,background:'#fff',color:T.inkDim,textAlign:i===0?'left':'center',fontFamily:FONT_MONO,fontSize:9,borderBottom:`1px solid ${T.line}`}}>{h}</th>)}</tr></thead>
-            <tbody>{g.rows.map((sub,i)=><tr key={rowId(sub)} id={`workflow-design-row-${project.id}-${rowId(sub)}`} style={{height:44}}><td style={{...tdStyle,textAlign:'left',padding:'9px 6px'}}><input type="checkbox" aria-label={'Complete '+sub.subtask} title={checked(sub)?'Completed':canCheck(sub)?'Mark complete':'Completion follows the task workflow'} checked={checked(sub)} disabled={busy||checked(sub)||(sub.taskCategory==='Meeting'?!canRecordHistory:!canCheck(sub))} onChange={()=>{
-              if(sub.taskCategory!=='Meeting'){checkSubtask(sub);return;}
-              const visit=meetingVisit(g,sub);
+            <tbody>{g.rows.map((sub,i)=><tr key={rowId(sub)} id={`workflow-design-row-${project.id}-${rowId(sub)}`} style={{height:44}}><td style={{...tdStyle,textAlign:'left',padding:'9px 6px'}}><input type="checkbox" aria-label={'Complete '+sub.subtask} title={checked(sub)?'Completed':canCheck(sub)?'Mark complete':'Completion follows the task workflow'} checked={checked(sub)} disabled={busy||checked(sub)||(!canRecordHistory&&!canCheck(sub))} onChange={()=>{
+              if(canCheck(sub)){checkSubtask(sub);return;}
+              const visit=sub.taskCategory==='Meeting'?meetingVisit(g,sub):null;
               if(visit?.scheduledDate){openMeetingAction(visit,'record');return;}
               setMeetingError('');setMeetingPrompt({sub,visit,date:'',notes:''});
-            }} style={{marginRight:8,verticalAlign:'middle'}}/><button type="button" disabled={busy} aria-label={`Details ${sub.subtask}`} title="Open subtask details" onClick={()=>setPanel({kind:'subtask',id:rowId(sub)})} style={{border:0,background:'transparent',padding:0,fontFamily:FONT_BODY,fontSize:12,color:T.ink,textAlign:'left',cursor:'pointer',lineHeight:1.5}}><span style={{color:T.inkDim,marginRight:8,fontSize:11}}>{i+1}.</span>{sub.subtask}</button>{historicalFor(sub)&&<small style={{marginLeft:8}}>Historical meeting{historicalFor(sub).date?' · '+formatProjectDate(historicalFor(sub).date):''}</small>}{workflowComment('subtask',rowId(sub),sub.subtask)}{sub.taskCategory==='Meeting'&&renderDesignMeetingControls(meetingForDesignSubtask(project,g,sub,stageVisits),sub.meetingMode,loading)}</td><td style={{...tdStyle,textAlign:'center',verticalAlign:'middle',fontSize:12}}><span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8}}><WorkflowStatusDot {...workflowDotStatus(workflowStatus(r,sub),workflowPrerequisite(r,drawingReceipts,zones,selectedArea,instances))}/><span>{sub.responsible||r.responsible||'Unassigned'}</span></span></td></tr>)}</tbody>
+            }} style={{marginRight:8,verticalAlign:'middle'}}/><button type="button" disabled={busy} aria-label={`Details ${sub.subtask}`} title="Open subtask details" onClick={()=>setPanel({kind:'subtask',id:rowId(sub)})} style={{border:0,background:'transparent',padding:0,fontFamily:FONT_BODY,fontSize:12,color:T.ink,textAlign:'left',cursor:'pointer',lineHeight:1.5}}><span style={{color:T.inkDim,marginRight:8,fontSize:11}}>{i+1}.</span>{sub.subtask}</button>{historicalFor(sub)&&<small style={{marginLeft:8}}>{sub.taskCategory==='Meeting'?'Historical meeting':'Historical completion'}{historicalFor(sub).date?' · '+formatProjectDate(historicalFor(sub).date):''}</small>}{workflowComment('subtask',rowId(sub),sub.subtask)}{sub.taskCategory==='Meeting'&&renderDesignMeetingControls(meetingForDesignSubtask(project,g,sub,stageVisits),sub.meetingMode,loading)}</td><td style={{...tdStyle,textAlign:'center',verticalAlign:'middle',fontSize:12}}><span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8}}><WorkflowStatusDot {...workflowDotStatus(workflowStatus(r,sub),workflowPrerequisite(r,drawingReceipts,zones,selectedArea,instances))}/><span>{sub.responsible||r.responsible||'Unassigned'}</span></span></td></tr>)}</tbody>
           </table></div>
           {editing&&<button disabled={busy} style={{...smallBtn,marginTop:12}} onClick={()=>addSubtask(g)}>+ Add subtask</button>}
         </div>}
@@ -5477,14 +5477,14 @@ function ProjectLineOfWorkView({state,persist,selectedId,showProjectPicker=true,
       </section>}
       {!!aligned.remaining.length&&<section className="workflow-final-execution" aria-label="Further execution work" style={{minWidth:0,marginTop:8}}><h3 style={{fontFamily:FONT_DISPLAY,fontSize:17}}>Execution and Task</h3>{renderVisitTable(aligned.remaining.filter(row=>!/staging|scene setting/i.test(row.milestone)))}{aligned.remaining.some(row=>/staging|scene setting/i.test(row.milestone))&&<section aria-label="Final staging and scene setting" style={{marginTop:22,border:`2px solid ${T.blue}`,background:'#E8F1F8'}}><h3 style={{margin:0,padding:'12px 14px',background:T.navy,color:'#fff',fontFamily:FONT_DISPLAY,fontSize:16}}>Staging & Scene Setting <span style={{fontFamily:FONT_MONO,fontSize:10,color:T.cyan,marginLeft:12}}>FINAL MILESTONE</span></h3>{renderVisitTable(aligned.remaining.filter(row=>/staging|scene setting/i.test(row.milestone)))}</section>}</section>}
       </div></div>
-      {meetingPrompt&&<div className="task-discussion-overlay"><section className="task-discussion-dialog" role="dialog" aria-modal="true" aria-label="Has this meeting already happened?">
-        <h2>Has this meeting already happened?</h2><p>{meetingPrompt.sub.subtask}</p>
-        <label>Actual meeting date (optional)<input type="date" style={inputStyle} disabled={busy} value={meetingPrompt.date} onChange={e=>setMeetingPrompt({...meetingPrompt,date:e.target.value})}/></label>
+      {meetingPrompt&&<div className="task-discussion-overlay"><section className="task-discussion-dialog" role="dialog" aria-modal="true" aria-labelledby="historical-completion-title">
+        <h2 id="historical-completion-title">{meetingPrompt.sub.taskCategory==='Meeting'?'Has this meeting already happened?':'Was this step already completed?'}</h2><p>{meetingPrompt.sub.subtask}</p>
+        <label>Actual date (optional)<input type="date" style={inputStyle} disabled={busy} value={meetingPrompt.date} onChange={e=>setMeetingPrompt({...meetingPrompt,date:e.target.value})}/></label>
         <label>Notes (optional)<textarea maxLength={4000} disabled={busy} value={meetingPrompt.notes} onChange={e=>setMeetingPrompt({...meetingPrompt,notes:e.target.value})}/></label>
         {meetingError&&<p role="alert">{meetingError}</p>}
         <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-          <button type="button" style={smallBtn} disabled={busy} onClick={saveHistoricalMeeting}>{busy?'Saving…':'Yes, record historical meeting'}</button>
-          <button type="button" style={smallBtn} disabled={busy||!meetingPrompt.visit} onClick={()=>{openMeetingAction(meetingPrompt.visit,'schedule');setMeetingPrompt(null);}}>No, schedule it</button>
+          <button type="button" style={smallBtn} disabled={busy} onClick={saveHistoricalMeeting}>{busy?'Saving…':meetingPrompt.sub.taskCategory==='Meeting'?'Yes, record historical meeting':'Yes, record historical completion'}</button>
+          {meetingPrompt.visit&&<button type="button" style={smallBtn} disabled={busy} onClick={()=>{openMeetingAction(meetingPrompt.visit,'schedule');setMeetingPrompt(null);}}>No, schedule it</button>}
           <button type="button" style={smallBtn} disabled={busy} onClick={()=>setMeetingPrompt(null)}>Cancel</button>
         </div>
       </section></div>}
