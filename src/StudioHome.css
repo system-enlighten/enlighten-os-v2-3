@@ -101,11 +101,10 @@
 .studio-week-day span,.studio-week-day small{font-size:clamp(9px,1vw,11px)}
 .studio-week-day[aria-current=date]{border-color:#46657a}
 .studio-week-day[aria-pressed=true]{background:#132237;color:white;border-color:#132237}
-.studio-unscheduled{border-top:1px solid #d8cdb9;padding-top:8px}
-.studio-unscheduled summary{font-weight:600;cursor:pointer}
+.studio-home-admin{border-top:1px solid #d8cdb9;padding-top:8px}
 
 .studio-home-list-scroll{overflow-y:auto;scrollbar-gutter:stable}
-.studio-home-admin-scroll{max-height:10rem}
+.studio-home-admin-scroll{block-size:13.5rem;overflow-y:scroll}
 .studio-home-pending-scroll{max-height:29rem}
 .studio-home-pending-project + .studio-home-pending-project{margin-top:12px}
 .studio-home-pending-project h3{margin:0;padding:7px 9px;background:#0d1c30;color:#fff;font-size:13px}

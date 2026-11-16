@@ -13,10 +13,11 @@ const stamp=t=>new Date(t).toLocaleTimeString('en-IN',{timeZone:tz,hour:'numeric
 const done=r=>/^(completed|done)$/i.test(r.status||r.task?.status||'');
 const running=r=>/in.?progress|running/i.test(r.status||r.task?.status||'');
 const title=r=>r.task?.taskType||r.title||'Work item';
+const taskProjectId=r=>r.projectId||r.task?.projectId||'';
 function groupPendingTasks(rows){
  const projects=new Map();
  for(const row of rows){
-  const projectId=row.projectId||row.task?.projectId||'';
+  const projectId=taskProjectId(row);
   const name=title(row).trim().replace(/^Bathroom Elevation Drawings$/i,'Bathroom Elevation');
   const key=name.toLowerCase();
   if(!projects.has(projectId))projects.set(projectId,new Map());
@@ -37,7 +38,7 @@ const calendarLabel=(value,options)=>new Date(value+'T12:00:00Z').toLocaleDateSt
 export default function StudioHome({state,user,request,loadWork,navigate,theme:T,buttonStyle,assistant,onMissedCheckout}){
  const [areaRows,setAreaRows]=useState(null),[areaError,setAreaError]=useState('');
  useEffect(()=>{let live=true;request('internalAreas',{action:'list'},'POST').then(r=>{if(live)setAreaRows(r.areas);}).catch(e=>{if(live)setAreaError(e.message);});return()=>{live=false;};},[request]);
- const areaNames=areaRows?Object.fromEntries(areaRows.map(a=>[a.id,a.name])):internalAreas;
+ const areaNames={...internalAreas,...Object.fromEntries((areaRows||[]).map(a=>[a.id,a.name]))};
 
  const [rows,setRows]=useState([]),[log,setLog]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[note,setNote]=useState(''),[start,setStart]=useState(''),[end,setEnd]=useState(''),[ready,setReady]=useState(false);
  const [manualWork,setManualWork]=useState(emptyWork),[manualOpen,setManualOpen]=useState(false);
@@ -77,7 +78,10 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  const chooseAssignee=async row=>{setAssignment({row,people:[],id:''});setAssignmentBusy(true);setError('');try{const people=await request('reportingAssignment',{designTaskId:row.designTaskId,action:'options'},'POST');setAssignment({row,people,id:''});}catch(e){setError(e.message);}finally{setAssignmentBusy(false);}};
  useEffect(()=>{let active=true;const update=()=>loadWork().then(r=>{if(active&&Array.isArray(r))setRows(r);}).catch(e=>{if(active)setError(e.message);});window.addEventListener("enlighten-assistant-work",update);return()=>{active=false;window.removeEventListener("enlighten-assistant-work",update);};},[loadWork]);
  const assign=async()=>{setAssignmentBusy(true);setError('');try{await request('reportingAssignment',{designTaskId:assignment.row.designTaskId,action:'assign',assigneeUserId:assignment.id},'POST');setAssignment(null);setRows(await loadWork());}catch(e){setError(e.message);}finally{setAssignmentBusy(false);}};
- const projectName=r=>areaNames[r.projectId]||(r.projectId==='__admin_work__'?'Admin / Owner work':(state.projects||[]).find(p=>String(p.id)===String(r.projectId))?.name||'Project');
+ const projectName=r=>{
+  const id=taskProjectId(r);
+  return areaNames[id]||(id==='__admin_work__'?'Admin / Owner work':(state.projects||[]).find(p=>String(p.id)===String(id))?.name||'Project');
+ };
  const openMine=rows.filter(r=>own(r)&&!done(r)).sort((a,b)=>Number(running(b))-Number(running(a)));
  const recent=rows.filter(r=>own(r)&&!running(r)&&!/paused/i.test(r.status||'')&&(r.task?.startedAt||r.startAt||r.stopAt)).sort((a,b)=>String(b.task?.completedAt||b.stopAt||b.startAt||'').localeCompare(String(a.task?.completedAt||a.stopAt||a.startAt||'')));
  const isWaiting=r=>!running(r)&&/blocked|on hold|waiting/i.test(r.status||r.task?.status||'');
@@ -89,15 +93,18 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
   if(row.plan?.plannedStart&&Number.isFinite(Date.parse(row.plan.plannedStart)))scheduledByDay.get(day(new Date(row.plan.plannedStart)))?.push(row);
  }
  for(const tasks of scheduledByDay.values())tasks.sort((a,b)=>Date.parse(a.plan.plannedStart)-Date.parse(b.plan.plannedStart));
- const isInternal=r=>r.projectId==='__admin_work__'||Object.hasOwn(areaNames,r.projectId);
- const unscheduled=openMine.filter(r=>!isWaiting(r)&&!r.plan?.plannedStart&&isInternal(r));
- const pending=groupPendingTasks(work.filter(r=>!done(r)));
+ const isInternal=r=>{
+  const id=taskProjectId(r);
+  return id==='__admin_work__'||String(id).startsWith('__internal_')||Object.hasOwn(areaNames,id)||r.task?.taskCategory==='Admin / Owner';
+ };
+ const adminWork=work.filter(r=>!done(r)&&isInternal(r)).sort((a,b)=>Number(running(b))-Number(running(a)));
+ const pending=groupPendingTasks(work.filter(r=>!done(r)&&taskProjectId(r)&&!isInternal(r)));
  const elapsed=r=>{const startAt=Date.parse(r.startAt),seconds=Math.floor((Number(r.totalMinutes)||0)*60+(running(r)&&Number.isFinite(startAt)?Math.max(0,clock-startAt)/1000:0));return [Math.floor(seconds/3600),Math.floor(seconds/60)%60,seconds%60].map(v=>String(v).padStart(2,'0')).join(':');};
  const ownSchedule=rows.filter(r=>(admin||own(r))&&!done(r)&&r.plan?.plannedStart&&day(new Date(r.plan.plannedStart))===today).map(r=>({time:stamp(r.plan.plannedStart),end:r.plan.plannedEnd?stamp(r.plan.plannedEnd):'',title:title(r)}));
  const panel={background:'#fff',border:'1px solid '+T.line,padding:16,minWidth:0};
  const loggingButton=r=><button type="button" style={buttonStyle} title={!own(r)?'Only the assigned team member can log time':undefined} disabled={!own(r)||isWaiting(r)||busy||!!timerBusy||!!log?.breakStart&&!running(r)||String(user?.appAccess).toLowerCase()==='viewer'} onClick={()=>timerAction(r)}>{timerBusy===r.designTaskId?'Updating…':running(r)?'Pause logging':/paused/i.test(r.status||'')?'Resume logging':'Start logging'}</button>;
  const pendingRow=(r,label,showProject=true)=><div className="studio-home-task-row" key={r.designTaskId}><div><strong>{label}</strong><p>{[showProject&&projectName(r),r.assigneeName||'Unassigned',r.status,r.plan?.plannedStart&&day(new Date(r.plan.plannedStart))].filter(Boolean).join(' · ')}</p></div>{loggingButton(r)}</div>;
- const taskRow=r=><div key={r.designTaskId} className="studio-home-task-row"><div><strong>{title(r)}</strong><p>{[projectName(r),r.task?.floor,r.task?.area,r.status].filter(Boolean).join(' · ')}</p>{['Admin / Owner','Meeting / Discussion'].includes(r.task?.taskCategory)&&r.task?.remarks&&<p style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{r.task.remarks}</p>}</div><div className="studio-home-task-controls"><span aria-label="Time logged" style={{fontVariantNumeric:'tabular-nums'}}>{elapsed(r)}</span>{loggingButton(r)}</div></div>;
+ const taskRow=r=><div key={r.designTaskId} className="studio-home-task-row"><div><strong>{title(r)}</strong><p>{[projectName(r),isInternal(r)&&(r.assigneeName||'Unassigned'),r.task?.floor,r.task?.area,r.status].filter(Boolean).join(' · ')}</p>{['Admin / Owner','Meeting / Discussion'].includes(r.task?.taskCategory)&&r.task?.remarks&&<p style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{r.task.remarks}</p>}</div><div className="studio-home-task-controls"><span aria-label="Time logged" style={{fontVariantNumeric:'tabular-nums'}}>{elapsed(r)}</span>{loggingButton(r)}</div></div>;
  return <main className="studio-home">
  <header className="studio-home-intro">
   <div><p className="studio-home-kicker">enLIGHTen / Studio desk</p><h1>{admin?'Studio overview':'My work'}</h1><p>{new Intl.DateTimeFormat('en-IN',{timeZone:tz,dateStyle:'full'}).format(new Date())}</p></div>
@@ -151,9 +158,9 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  <h3>{calendarLabel(activeDay,{weekday:'long',day:'numeric',month:'short'})}</h3>
  {scheduledByDay.get(activeDay).length?scheduledByDay.get(activeDay).map(taskRow):ready&&<p>No scheduled tasks.</p>}
  </section>
- <details className="studio-home-task-group studio-unscheduled"><summary>Admin work · {unscheduled.length}</summary>
- {unscheduled.length?<div className="studio-home-list-scroll studio-home-admin-scroll" role="region" aria-label="Admin work" tabIndex={0}>{unscheduled.map(taskRow)}</div>:ready&&<p>No admin work.</p>}
- </details>
+ <section className="studio-home-task-group studio-home-admin" aria-labelledby="studio-home-admin-heading"><h3 id="studio-home-admin-heading">Admin work · {adminWork.length}</h3>
+ {adminWork.length?<div className="studio-home-list-scroll studio-home-admin-scroll" role="region" aria-label="Admin work" tabIndex={0}>{adminWork.map(taskRow)}</div>:ready&&<p>No admin work.</p>}
+ </section>
  </section>
  <section className="studio-home-card" aria-label="Pending tasks">
  <h2>Pending tasks{ready?' · '+pending.reduce((count,project)=>count+project.tasks.length,0):''}</h2>
