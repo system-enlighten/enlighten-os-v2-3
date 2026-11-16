@@ -4,9 +4,8 @@
   --application-paper: #fbf9f4;
   color: var(--application-ink);
 }
-.application-library-header p {
-  margin: .65rem 0 1.25rem;
-  color: #505d68;
+.wih-workspace.wih-register-head.application-library-header {
+  padding: 10px 0 16px;
 }
 .application-toolbar,
 .application-actions {
@@ -89,14 +88,15 @@
   height: 100%;
   object-fit: contain;
 }
-.application-caption h2 {
-  font-size: 1rem;
-  margin: 0;
-}
 .application-caption p {
+  font: 400 .7rem/1.45 var(--studio-body-font, Inter, sans-serif);
+  color: #57616a;
+  margin: .2rem 0 0;
+}
+.application-caption .application-caption-title {
   font-size: .8rem;
-  color: #505d68;
-  margin: .35rem 0 0;
+  font-weight: 500;
+  margin: 0;
 }
 .application-references[data-view="list"] {
   gap: .75rem;

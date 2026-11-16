@@ -18,9 +18,9 @@ export default function ApplicationDatabase({state,request,onOpenFitting}){
  },[Boolean(draft)]);
  const edit=record=>{setSelected(null);setDraft({...record});};
  return <section className="application-library">
-   <header className="studio-technical-heading application-library-header">
+   <header className="wih-workspace wih-register-head application-library-header">
      <h1 className="studio-page-heading">Application Database</h1>
-     <p>Browse lighting effects and the fittings behind them.</p>
+     <p className="wih-intro">Browse lighting effects and the fittings behind them.</p>
    </header>
    {error&&<p role="alert">{error}</p>}
    <div className="application-toolbar">
@@ -58,7 +58,7 @@ export default function ApplicationDatabase({state,request,onOpenFitting}){
          <img loading="lazy" src={record.imageUrl} alt=""/>
        </button>
        <div className="application-caption">
-         <h2>{record.title}</h2>
+         <p className="application-caption-title">{record.title}</p>
          <p>{applicationCategories(record).join(' · ')||record.fittingType||'Needs category link'}</p>
        </div>
        <div className="application-actions">

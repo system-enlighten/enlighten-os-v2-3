@@ -9,7 +9,7 @@
 .wih-register-head{border-top:2px solid var(--register-ink);padding:20px 0 10px}
 .wih-register-kicker{margin:0 0 6px;color:#675c48;font:600 11px/1.3 var(--register-font);letter-spacing:.15em;text-transform:uppercase}
 .wih-register-head h2{font:600 clamp(30px,4vw,42px)/1.06 var(--register-font)!important;letter-spacing:-.04em}
-.wih-workspace .wih-intro{font:400 13px/1.55 var(--register-font)!important;color:var(--register-muted)!important;max-width:72ch;margin-top:8px!important}
+:is(.wih-workspace,.application-library-header) .wih-intro{font:400 13px/1.55 var(--register-font)!important;color:var(--register-muted)!important;max-width:72ch;margin-top:8px!important}
 .wih-workspace [role=tablist]{background:transparent!important;border-bottom:1px solid var(--register-rule)!important;margin-bottom:14px!important}
 .wih-workspace [role=tab]{font:600 13px/1.2 var(--register-font)!important}
 .wih-workspace [role=tablist]:not(.register-tabs) [role=tab][aria-selected=true]{border-bottom-color:#a18655!important}
@@ -34,7 +34,7 @@
 
 .wih-register-head{width:100%;box-sizing:border-box;padding:12px 0 8px}
 .wih-register-head h2{font-size:clamp(25px,3vw,34px)!important}
-.wih-workspace .wih-intro{max-width:110ch;margin:5px 0 0!important;font-size:12px!important}
+:is(.wih-workspace,.application-library-header) .wih-intro{max-width:110ch;margin:5px 0 0!important;font-size:12px!important}
 .wih-intro>span{display:block}
 .wih-register-controls{display:flex;align-items:center;gap:4px 12px;flex-wrap:wrap;padding:4px 0 6px;border-bottom:1px solid var(--register-rule);margin-bottom:7px}
 .wih-register-controls .wih-quiet-filters{flex:1 1 470px;margin:0;padding:0;border:0;gap:4px 12px}
@@ -45,7 +45,7 @@
 
 .wih-workspace .wih-register-head,.studio-technical-heading,.studio-drive-heading{padding:10px 0 48px}
 .wih-workspace .wih-register-head h2{margin:0}
-.wih-workspace .wih-register-head .wih-intro{margin:9px 0 0!important;line-height:1.4!important;font-style:italic!important}
+.wih-workspace .wih-register-head .wih-intro,.application-library-header .wih-intro{margin:9px 0 0!important;line-height:1.4!important;font-style:italic!important}
 .wih-register-controls .wih-filter-label{display:none}
 .wih-register-controls .wih-status-filters button{font-weight:500}
 .wih-register-controls .wih-status-filters button.is-active{
