@@ -111,3 +111,15 @@
 .studio-home-pending-project h3{margin:0;padding:7px 9px;background:#0d1c30;color:#fff;font-size:13px}
 .studio-home-pending-task > summary{cursor:pointer;margin-top:5px;padding:7px 9px;border:1px solid #d8cdb9;background:#efe8da;font-weight:600}
 
+
+.studio-mobile-menu{display:none}
+@media(max-width:760px){
+ .studio-app-shell{flex-direction:column}
+ .studio-mobile-menu{display:block;align-self:stretch;padding:12px 14px;border:0;border-bottom:1px solid #607489;background:#132237;color:#fff;text-align:left;font:600 14px Inter,system-ui,sans-serif}
+ .studio-app-sidebar{display:none;width:100%!important}
+ .studio-app-sidebar.is-open{display:block}
+ .studio-app-content{padding:14px 12px 76px!important}
+ .studio-home-intro{gap:12px;padding:14px 0}
+ .studio-home-attendance{flex-wrap:wrap;padding:12px}
+ .studio-team-availability{width:min(330px,calc(100% - 24px));right:max(12px,env(safe-area-inset-right))}
+}

@@ -32,7 +32,7 @@ export default function HomeAgenda({request,buttonStyle,readOnly,day,onItemsChan
  const [items,setItems]=useState([]),[error,setError]=useState(''),[busy,setBusy]=useState(false);
  const update=async(action='list',item)=>{
   setBusy(true);setError('');
-  try{const result=await request('homeAgenda',{action,id:item?.id,projectId:item?.projectId},'POST');setItems(result);onItemsChange?.(result);}
+  try{const result=await request('homeAgenda',{action,id:item?.id,projectId:item?.projectId},'POST');setItems(result);onItemsChange?.(result);if(item?.site&&['start','end'].includes(action))window.dispatchEvent(new Event('enlighten-attendance-change'));}
   catch(e){setError(e.message);}
   finally{setBusy(false);}
  };

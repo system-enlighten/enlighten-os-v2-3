@@ -2667,6 +2667,8 @@ function loadWorkflowWorkspace(projectId,retries=2){
 
 const PAGE_READ_CACHE=new Map();
 const PAGE_READS=new Set(['getDesignDashboard','getProjectWorkspace','listMomTasks','listExecutionVisits','listDrawingRegister','listFloorZones']);
+const pageReadKey=(action,payload)=>JSON.stringify([AUTH_SESSION_GENERATION,action,Object.entries(payload).sort()]);
+const peekPageRead=(action,payload)=>PAGE_READ_CACHE.get(pageReadKey(action,payload))?.data;
 const POST_READS=new Set(['getStudioDay','homeAgenda','departmentTeam']);
 function apiRequest(action,payload={},method='POST',timeoutMs=0){
   const cacheable=method==='GET'&&(PAGE_READS.has(action)||action==='getWIH'&&payload.fastRead===true&&!payload.includeDiagnostics);
@@ -2677,13 +2679,14 @@ function apiRequest(action,payload={},method='POST',timeoutMs=0){
       if(writes)PAGE_READ_CACHE.clear();
     });
   }
-  const key=JSON.stringify([AUTH_SESSION_GENERATION,action,Object.entries(payload).sort()]);
+  const key=pageReadKey(action,payload);
   const cached=PAGE_READ_CACHE.get(key);
   if(cached&&(cached.pending||Date.now()-cached.savedAt<45000))return cached.promise;
   const entry={pending:true,savedAt:0};
   entry.promise=requestFromServer(action,payload,method,timeoutMs).then(data=>{
     entry.pending=false;
     entry.savedAt=Date.now();
+    entry.data=data;
     return data;
   },error=>{
     if(PAGE_READ_CACHE.get(key)===entry)PAGE_READ_CACHE.delete(key);
@@ -5853,7 +5856,12 @@ function ProjectMomTasks({state,projectId,enabled=true,revision=0}){
 
 function DrawingControlDashboard({state,persist,projectId,deferLoad=false,heading,onEdit,onOpenWorkflow}){
   const project=(state.projects||[]).find(p=>String(p.id)===String(projectId));
-  const [payload,setPayload]=useState(null),[wih,setWih]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[revision,setRevision]=useState(0);
+  const scope=JSON.stringify([AUTH_SESSION_GENERATION,project?.id]);
+  const [dashboardResult,setDashboardResult]=useState(null),[workResult,setWorkResult]=useState(null);
+  const [loading,setLoading]=useState(true),[error,setError]=useState(''),[revision,setRevision]=useState(0);
+  const payload=dashboardResult?.scope===scope?dashboardResult.data:peekPageRead('getDesignDashboard',{projectId:project?.id});
+  const work=workResult?.scope===scope?workResult.data:peekPageRead('getWIH',{includeCompleted:true,projectId:project?.id,fastRead:true});
+  const wih=Array.isArray(work)?work:[];
   const sectionRef=useRef(null),[ready,setReady]=useState(!deferLoad),[showHours,setShowHours]=useState(false);
   const [output,setOutput]=useState(null),[outputBusy,setOutputBusy]=useState(false),[outputError,setOutputError]=useState(''),[outputNotice,setOutputNotice]=useState('');
   const outputJob=useRef({});
@@ -5879,12 +5887,12 @@ function DrawingControlDashboard({state,persist,projectId,deferLoad=false,headin
     if(sectionRef.current)observer.observe(sectionRef.current);
     return()=>observer.disconnect();
   },[ready]);
-  useEffect(()=>{let live=true;setPayload(null);setWih([]);setLoading(true);setError('');
+  useEffect(()=>{let live=true;setLoading(true);setError('');
     if(!project?.id){setLoading(false);return()=>{live=false;};}
     if(!ready)return()=>{live=false;};
-    queueDesignDashboardLoad(()=>{if(!live)return; const dashboard=projectApi.getDesignDashboard(project.id).then(data=>{if(live)setPayload(data);});const work=projectApi.getWIH(true,project.id,true).then(data=>{if(live)setWih(Array.isArray(data)?data:[]);});return Promise.allSettled([dashboard,work]).then(results=>{const failed=results.find(r=>r.status==='rejected');if(failed)throw failed.reason;});}).catch(e=>{if(live)setError(e.message||'Could not load dashboard data.');}).finally(()=>{if(live)setLoading(false);});
+    queueDesignDashboardLoad(()=>{if(!live)return; const dashboard=projectApi.getDesignDashboard(project.id).then(data=>{if(live)setDashboardResult({scope,data});});const work=projectApi.getWIH(true,project.id,true).then(data=>{if(live)setWorkResult({scope,data});});return Promise.allSettled([dashboard,work]).then(results=>{const failed=results.find(r=>r.status==='rejected');if(failed)throw failed.reason;});}).catch(e=>{if(live)setError(e.message||'Could not load dashboard data.');}).finally(()=>{if(live)setLoading(false);});
     return()=>{live=false;};
-  },[project?.id,revision,ready]);
+  },[project?.id,revision,ready,scope]);
   if(!project)return <p>No active project available.</p>;
   const eq=(a,b)=>String(a||'').trim().toLowerCase()===String(b||'').trim().toLowerCase();
   const allZones=(Array.isArray(payload?.floorZones)?payload.floorZones:project.floorZones||Object.entries(project.zones||{}).map(([zoneCode,z])=>({zoneCode,floor:z.floor,area:z.room}))).filter(z=>z.floor&&(z.area||z.room));
@@ -5988,7 +5996,7 @@ function DrawingControlDashboard({state,persist,projectId,deferLoad=false,headin
     {loading&&<p role="status" style={{fontFamily:FONT_BODY,fontSize:11,fontWeight:400,lineHeight:1.4,color:'#77776F',margin:'3px 0 8px'}}>{ready?'Loading project drawings and WIH status…':'Details load as this project comes into view…'}</p>}
     <div ref={layoutRef} style={{display:'grid',gridTemplateColumns:showHours?'minmax(0,1fr) 330px':'minmax(0,1fr)',gap:showHours?16:0,alignItems:'start',width:'100%',minWidth:0}}>
       <div style={{minWidth:0,background:'#fff'}}>
-        <table style={{width:'100%',borderCollapse:'collapse',marginBottom:8}}><tbody>{[[`Project ${project.no||project.projectNo||''}:`,project.name],['Start Date:',formatProjectDate(project.startDate)],['Time in hours:',loading?'Loading…':totalHours.toFixed(1)]].map(([label,value])=><tr key={label}><td style={{...cell,fontFamily:FONT_BODY,fontWeight:700,width:220}}>{label}</td><td style={{...cell,fontFamily:FONT_BODY}}>{label==='Time in hours:'?<div style={{display:'flex',gap:12,alignItems:'center',flexWrap:'wrap'}}><span>{value}</span><button type="button" aria-label={`Hours by person for ${project.name}`} aria-expanded={showHours} aria-controls={`project-hours-${project.id}`} style={{...smallBtn}} onClick={()=>setShowHours(open=>!open)}>{showHours?'Hide hours':hoursScope==='own'?'My hours':'Hours by person'}</button></div>:value}</td></tr>)}</tbody></table>
+        <table style={{width:'100%',borderCollapse:'collapse',marginBottom:8}}><tbody>{[[`Project ${project.no||project.projectNo||''}:`,project.name],['Start Date:',formatProjectDate(project.startDate)],['Time in hours:',loading&&!Array.isArray(work)?'Loading…':totalHours.toFixed(1)]].map(([label,value])=><tr key={label}><td style={{...cell,fontFamily:FONT_BODY,fontWeight:700,width:220}}>{label}</td><td style={{...cell,fontFamily:FONT_BODY}}>{label==='Time in hours:'?<div style={{display:'flex',gap:12,alignItems:'center',flexWrap:'wrap'}}><span>{value}</span><button type="button" aria-label={`Hours by person for ${project.name}`} aria-expanded={showHours} aria-controls={`project-hours-${project.id}`} style={{...smallBtn}} onClick={()=>setShowHours(open=>!open)}>{showHours?'Hide hours':hoursScope==='own'?'My hours':'Hours by person'}</button></div>:value}</td></tr>)}</tbody></table>
 
         <input type="file" multiple hidden ref={receivedPicker} aria-label="Select received drawings" onChange={e=>{const files=Array.from(e.target.files||[]);e.target.value='';if(!files.length||!receivedTarget.current)return;setReceivedNotice('');setReceivedSelection([receivedTarget.current]);setReceivedFiles(files);setReceivedMode(true);}}/>
         {receivedMode&&canReceive&&<div ref={receivedPanelRef} style={{scrollMarginTop:24}}><DashboardReceivedUpload projectId={project.id} selections={receivedSelection} files={receivedFiles} zones={zones} generation={AUTH_SESSION_GENERATION} getGeneration={()=>AUTH_SESSION_GENERATION} today={todayISO()} font={FONT_BODY} buttonStyle={smallBtn} inputStyle={inputStyle} onBusy={setReceivedBusy} onClear={()=>{setReceivedSelection([]);setReceivedFiles([]);setReceivedMode(false);}} services={{request:uploadApiRequest,transfer:transferDrawingToDrive,classify:projectApi.classifyDrawing,typeKey:drawingTypeKey}} onSaved={async()=>{setRevision(n=>n+1);setReceivedNotice('Drawing uploaded and entered in the register. Dashboard and linked work are refreshing.');if(persist)try{const workspace=await projectApi.getProjectWorkspace();await persist(latest=>({...latest,intakes:workspaceIntakes(workspace)}));}catch{setReceivedNotice('Drawing saved. Refresh Received / Sent or Classify to update the local list.');}}}/></div>}
@@ -7329,6 +7337,8 @@ function StudioApp() {
   const [department,setDepartment]=useState('');
   const { state, loading, saveErr, backendErr, currentUser, persist } = useStudioState();
   const [view, setView] = useState(window.location.hash==="#email-intake" ? "drawingRegister" : "home");
+  const [mobileNavOpen,setMobileNavOpen]=useState(false);
+  useEffect(()=>setMobileNavOpen(false),[view]);
   const [attendanceDay,setAttendanceDay]=useState('');
   const [showWihMeetings,setShowWihMeetings]=useState(false);
   const [feedbackContext,setFeedbackContext]=useState("General");
@@ -7374,11 +7384,12 @@ function StudioApp() {
   const viewLabel = view==='home'?'Home':NAV.find((n) => n.id === view)?.label;
 
   return (
-    <div style={{ fontFamily: FONT_BODY, background: T.paper, minHeight: 560, display: "flex", borderRadius: 10, overflow: "hidden", border: `1px solid ${T.line}` }}>
+    <div className="studio-app-shell" style={{ fontFamily: FONT_BODY, background: T.paper, minHeight: 560, display: "flex", borderRadius: 10, overflow: "hidden", border: `1px solid ${T.line}` }}>
       <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" />
 
       {/* Sidebar — drawing-set index */}
-      <div style={{ width: 210, background: T.navy, color: "#fff", padding: "20px 0", flexShrink: 0 }}>
+      <button type="button" className="studio-mobile-menu" aria-expanded={mobileNavOpen} aria-controls="studio-sidebar" onClick={()=>setMobileNavOpen(open=>!open)}>{mobileNavOpen?'Close menu':'Menu'} · {viewLabel}</button>
+      <div id="studio-sidebar" className={mobileNavOpen?'studio-app-sidebar is-open':'studio-app-sidebar'} style={{ width: 210, background: T.navy, color: "#fff", padding: "20px 0", flexShrink: 0 }}>
         <div style={{ padding: "0 20px 20px", borderBottom: `1px solid ${T.cyan}22`, marginBottom: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Building2 size={18} color={T.cyan} />
@@ -7386,7 +7397,7 @@ function StudioApp() {
           </div>
           <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.cyan, opacity: 0.7, marginTop: 4 }}>lighting design · intake → task → timesheet</div>
         </div>
-        <div style={{padding:"0 20px 12px"}}><button type="button" style={smallBtn} aria-current={view==='home'?'page':undefined} onClick={()=>setView('home')}>Home</button></div><SidebarNavigation items={allowedNav} view={view} onChange={next=>{if(next==='feedback')setFeedbackContext(viewLabel);if(next==='site')setAttendanceDay('');setView(next)}} pendingCount={pendingCount}/>
+        <div style={{padding:"0 20px 12px"}}><button type="button" style={smallBtn} aria-current={view==='home'?'page':undefined} onClick={()=>{setMobileNavOpen(false);setView('home');}}>Home</button></div><SidebarNavigation items={allowedNav} view={view} onChange={next=>{if(next==='feedback')setFeedbackContext(viewLabel);if(next==='site')setAttendanceDay('');setMobileNavOpen(false);setView(next)}} pendingCount={pendingCount}/>
         <div style={{ padding: "20px", marginTop: 20, fontFamily: FONT_MONO, fontSize: 10, color: T.cyan, opacity: 0.7 }}>
           <div style={{ marginBottom: 6 }}>{currentUser?.appAccess} · {currentUser?.name || ""}</div>
           <div style={{ opacity: 0.7, wordBreak: "break-all" }}>{currentUser?.email || ""}</div>
@@ -7408,7 +7419,7 @@ function StudioApp() {
             <AlertTriangle size={13} /> Google Sheets backend unavailable — Projects are showing the last local data.
           </div>
         )}
-        <div style={{ padding: "28px 32px", overflowY: "auto" }}>
+        <div className="studio-app-content" style={{ padding: "28px 32px", overflowY: "auto" }}>
           
           {view==='home'&&<StudioHome assistant={<ExecutiveAssistant profileApi={apiRequest} workUser={currentUser} workProjects={state.projects||[]} workRequest={apiRequest} userId={currentUser?.userId} sections={allowedNav} onNavigate={setView} theme={T} buttonStyle={smallBtn} inputStyle={inputStyle}/>} state={state} user={currentUser} request={apiRequest} loadWork={loadStudioHomeWork} navigate={setView} onMissedCheckout={day=>{setAttendanceDay(day);setView('site');}} theme={T} buttonStyle={smallBtn}/>}
           {view === "project" && (isAdmin?<ProjectView state={state} persist={persist} />:<ProjectPermissionsView state={state} persist={persist}/>)}
