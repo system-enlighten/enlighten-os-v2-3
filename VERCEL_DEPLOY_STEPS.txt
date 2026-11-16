@@ -1,26 +1,27 @@
-enLIGHTen OS v2.11.13 — Vercel-ready frontend
+DEPLOY THE FRONTEND FROM GITHUB
 
-WHAT WAS ADDED
-- api/index.js: a Vercel Serverless Function that proxies /api requests to the existing Google Apps Script Web App.
-- The existing frontend still calls /api, so App.jsx does not need to expose or change the backend URL.
-- The existing Vite development proxy remains in vite.config.js for local development.
+1. Extract Enlighten_OS_GitHub_Frontend.zip.
+2. Copy its contents into the existing frontend repository root, preserving
+   folders and filename case. Commit the files to the branch Vercel deploys.
 
-DEPLOY TO YOUR EXISTING GITHUB REPOSITORY
-1. Keep your working Google Sheet and Apps Script deployment unchanged.
-2. In GitHub, open the existing enLIGHTen repository on branch main.
-3. Replace the OLD frontend repository contents with ALL files/folders from THIS folder.
-   The repository root should contain at least:
-     api/
-     src/
-     index.html
-     package.json
-     vite.config.js
-4. Commit the changes to main (example message: Deploy enLIGHTen OS v2.11.13 Vercel-ready).
-5. Vercel should automatically create a new deployment from that commit.
-6. In Vercel, confirm Build settings use Vite / npm run build / dist (automatic Vite detection is fine).
-7. After Status = Ready, open the production URL and hard refresh (Ctrl+Shift+R).
+   index.html
+   package.json
+   vite.config.js
+   vercel.json
+   api/
+   public/
+   src/
+     main.jsx
+     App.jsx
+     StudioTheme.css
 
-IMPORTANT
-- Do NOT upload the AppsScript_Backend_v2.4 folder to Vercel/GitHub as part of this frontend deployment.
-- Do NOT change DATABASE_SPREADSHEET_ID if your Google Sheet + Apps Script are already working correctly.
-- If your Apps Script /exec deployment URL changes later, update APPS_SCRIPT_URL in api/index.js AND vite.config.js.
+3. Check the committed files in GitHub. index.html and the src directory must
+   be siblings. Open src/main.jsx in GitHub to confirm it was uploaded.
+4. Build from that same directory in Vercel. If the frontend files are at the
+   repository root, use the repository root as the Root Directory. Use the
+   existing Vite build settings (npm run build, output dist).
+5. Verify that the new deployment builds from the new GitHub commit.
+
+Use the complete ZIP for a project backup. Its deployable frontend is under
+System 224.0/Frontend. The existing Apps Script deployment and Vercel environment
+variables can be reused for this frontend update.

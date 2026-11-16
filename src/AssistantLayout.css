@@ -1,0 +1,11 @@
+
+.assistant-dialog-layout{display:flex;flex-direction:column;gap:14px;overscroll-behavior:contain;font:400 14px/1.5 Inter,system-ui,sans-serif;color:#172b3e;border:1px solid #d7cebc}
+.assistant-dialog-layout h2{margin:0;font-size:25px;line-height:1.2;letter-spacing:-.025em}
+.assistant-dialog-layout>p,.assistant-dialog-layout>details,.assistant-dialog-layout>section,.assistant-dialog-layout>button{margin:0!important}
+.assistant-dialog-layout>details{padding:10px 0;border-top:1px solid #d7cebc}
+.assistant-dialog-layout summary{cursor:pointer}
+.assistant-dialog-layout>button,.assistant-name-setup>button{align-self:flex-start}
+.assistant-name-setup{display:flex;flex-direction:column;gap:12px;padding:14px;background:#f9f5eb;border:1px solid #d7cebc}
+.assistant-name-setup label,.assistant-dialog-layout .assistant-field{display:grid;gap:6px;min-width:0;font-weight:600}
+.assistant-dialog-layout :is(input,select,textarea){box-sizing:border-box;max-width:100%;font-size:14px}
+.assistant-dialog-layout textarea{resize:vertical}
