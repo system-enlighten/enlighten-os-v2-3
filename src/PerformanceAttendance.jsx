@@ -26,7 +26,7 @@ export function MissedCheckoutNotice({day,onReview,buttonStyle}){
 }
 
 const dateLabel=d=>{const date=new Date(String(d||'').slice(0,10)+'T12:00:00+05:30');return Number.isFinite(date.getTime())?date.toLocaleDateString('en-IN',{timeZone:tz,day:'numeric',month:'short',year:'numeric'}):'Date unavailable';};
-export default function PerformanceAttendance({request,user,initialDay,siteRecords}){
+export default function PerformanceAttendance({request,user,initialDay}){
  const [tab,setTab]=useState('Day'),[day,setDay]=useState(initialDay||today),[uid,setUid]=useState(''),[data,setData]=useState(null),[people,setPeople]=useState([]);
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[start,setStart]=useState(''),[end,setEnd]=useState(''),[note,setNote]=useState(''),[reason,setReason]=useState(''),[checkout,setCheckout]=useState('');
  const [work,setWork]=useState(emptyWork);
@@ -40,21 +40,20 @@ export default function PerformanceAttendance({request,user,initialDay,siteRecor
    else{setData(result);setPeople(result.people);if(action==='confirmCheckout'){setCheckout('');setNotice('Checkout saved.');}if(action==='entry'){setStart('');setEnd('');setNote('');setWork(emptyWork);setNotice('Work time saved.');}if(action==='reopen')setReason('');}
   }catch(e){setError(e.message);}finally{setBusy(false);}
  };
- useEffect(()=>{if(tab==='Apply leave')load('leaveList');else if(tab!=='Site punch-ins'&&day){setData(null);setCheckout('');load();}},[tab,day,uid]);
+ useEffect(()=>{if(tab==='Apply leave')load('leaveList');else if(day){setData(null);setCheckout('');load();}},[tab,day,uid]);
  const missed=missedCheckoutDay(data?.missedDay);
  const t=data&&totals(data);
  const openDay=d=>{setDay(d);setTab('Day');};
  const submit=(action,fields)=>e=>{e.preventDefault();if(!busy)load(action,fields);};
  const lastDay=data?.recent.find(r=>r.day<today());
  return <main className="attendance"><header className="attendance-header"><h1>Timeline</h1><div className="attendance-titleblock"><small>Time zone</small><strong>India Standard Time</strong></div></header>
- <nav aria-label="Timeline views">{['Day','Punch records','Apply leave',...(siteRecords?['Site punch-ins']:[])].map(x=><button key={x} disabled={busy} aria-pressed={tab===x} onClick={()=>setTab(x)}>{x}</button>)}</nav>
+ <nav aria-label="Timeline views">{['Day','Apply leave'].map(x=><button key={x} disabled={busy} aria-pressed={tab===x} onClick={()=>setTab(x)}>{x}</button>)}</nav>
  {error&&<p className="attendance-error" role="alert">{error}</p>}{notice&&<p role="status">{notice}</p>}{busy&&<p role="status">Updating attendance…</p>}
- {tab==='Site punch-ins'&&siteRecords}
  {tab==='Apply leave'&&<div className="attendance-columns"><section className="attendance-panel"><h2>Apply leave</h2>{role==='viewer'?<p>Leave requests are available to employee accounts.</p>:<form onSubmit={submit('leaveApply',{from,to,reason:leaveReason})}><div className="attendance-fields"><label>From<input required type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label><label>To<input required type="date" min={from} value={to} onChange={e=>setTo(e.target.value)}/></label></div><label>Reason<textarea required maxLength={250} value={leaveReason} onChange={e=>setLeaveReason(e.target.value)}/></label><button className="attendance-primary" disabled={busy}>Submit request</button></form>}</section><section className="attendance-panel"><h2>{role==='admin'?'Leave requests':'My requests'}</h2>{leave.length===0&&<p>No requests yet.</p>}{leave.map(r=><article className="attendance-row" key={r.id}><div><strong>{dateLabel(r.from)} – {dateLabel(r.to)}</strong><p>{role==='admin'&&r.employee+' · '}{r.reason}</p><small>{r.status}</small></div>{role==='admin'&&r.status==='Pending'&&<div className="attendance-fields">{['Approved','Declined'].map(status=><button key={status} disabled={busy} onClick={()=>load('leaveReview',{id:r.id,status})}>{status==='Approved'?'Approve':'Decline'}</button>)}</div>}</article>)}</section></div>}
- {['Day','Punch records'].includes(tab)&&<>
+ {tab==='Day'&&<>
  <div className="attendance-filters">{tab==='Day'&&<label>Date<input required type="date" max={today()} value={day} disabled={busy} onChange={e=>e.target.value&&setDay(e.target.value)}/></label>}{people.length>0&&<label>Employee<select value={uid} disabled={busy} onChange={e=>setUid(e.target.value)}><option value="">My attendance</option>{people.filter(x=>x.id!==String(user?.userId)).map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label>}{lastDay&&<button disabled={busy} onClick={()=>openDay(lastDay.day)}>Last attendance day · {dateLabel(lastDay.day)}</button>}</div>
  {missed&&!(tab==='Day'&&data.pending)&&<aside className="attendance-warning" role="status"><strong>Checkout needs confirmation</strong><button onClick={()=>openDay(missed)}>Review {dateLabel(missed)}</button></aside>}
- {tab==='Punch records'&&data&&<section className="attendance-panel"><h2>Recent punch records</h2>{!data.recent.length&&<p>No punch records yet.</p>}{data.recent.map(r=><article className="attendance-row" key={r.day}><div><strong>{dateLabel(r.day)}</strong><p>In {stamp(r.checkIn)} · Out {r.pending?'Needs confirmation':stamp(r.checkOut)}</p></div><button onClick={()=>openDay(r.day)}>View day</button></article>)}</section>}
+
  {tab==='Day'&&data&&<>
  {data.pending&&<aside className="attendance-warning" role="status"><div><strong>Missed checkout · {dateLabel(day)}</strong><p>Enter the time you left. Totals currently run through the last recorded activity.</p></div>{role!=='viewer'&&<form className="attendance-fields" onSubmit={submit('confirmCheckout',{end:checkout})}><label>Actual checkout<input type="time" required value={checkout} onChange={e=>setCheckout(e.target.value)}/></label><button className="attendance-primary" disabled={busy}>Confirm checkout</button></form>}</aside>}
  {data.lo==null?<section className="attendance-panel">No check-in recorded for this day.</section>:<>
@@ -66,6 +65,7 @@ export default function PerformanceAttendance({request,user,initialDay,siteRecor
  </>}
  {data.admin&&data.checkOut&&<section className="attendance-panel"><h2>Correct a mistaken checkout</h2><form className="attendance-fields" onSubmit={submit('reopen',{reason})}><label>Reason<input required maxLength={250} value={reason} onChange={e=>setReason(e.target.value)}/></label><button disabled={busy}>Reopen day</button></form></section>}
  {data.history.length>0&&<section className="attendance-panel"><h2>Correction history</h2>{data.history.map((x,i)=><p key={i}>{x.by} · {x.action==='checkout'?'Confirmed checkout at '+stamp(x.checkout):'Reopened day · Previous checkout '+stamp(x.previous)} · {x.reason}</p>)}</section>}
+ {<section className="attendance-panel"><h2>Recent punch records</h2>{!data.recent.length&&<p>No punch records yet.</p>}{data.recent.map(r=><article className="attendance-row" key={r.day}><div><strong>{dateLabel(r.day)}</strong><p>In {stamp(r.checkIn)} · Out {r.pending?'Needs confirmation':stamp(r.checkOut)}</p></div><button onClick={()=>openDay(r.day)}>View day</button></article>)}</section>}
  </>}
  </>}
  </main>;
