@@ -98,3 +98,10 @@
 .wih-project-cards .wih-ceiling-floor details{width:100%}
 .wih-ceiling-floor summary{cursor:pointer}
 .wih-ceiling-floor details ul{margin-top:5px}
+
+.wih-task-table .wih-project-band th{padding:0!important}
+.wih-task-table .wih-project-band .wih-project-toggle{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:transparent!important;border:0!important;padding:10px 14px!important;color:inherit!important;cursor:pointer}
+.wih-project-toggle:focus-visible{outline:2px solid #235377;outline-offset:-3px}
+
+.wih-project-cards .wih-ceiling-floor{align-items:flex-start}
+.wih-project-cards .wih-ceiling-floor details{flex:1;min-width:0;width:auto}
