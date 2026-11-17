@@ -2675,6 +2675,14 @@ const pageReadKey=(action,payload)=>JSON.stringify([AUTH_SESSION_GENERATION,acti
 const peekPageRead=(action,payload)=>PAGE_READ_CACHE.get(pageReadKey(action,payload))?.data;
 const POST_READS=new Set(['getAccounts','getAccountsAttendance','getStudioDay','homeAgenda','departmentTeam']);
 const activitySubjects={
+  getAccounts:'Accounts',
+  saveAccounts:'Accounts',
+  getAccountsAttendance:'Payroll attendance',
+  getStudioDay:'Attendance',
+  saveStudioDay:'Attendance',
+  departmentTeam:'Team & Tasks',
+  teamAvailability:'Team availability',
+  attendanceDay:'Attendance',
   getNativeTechnicalTable:'Technical Table',
   getTechnicalWorkbook:'Technical Table',
   getScheduleSpecSheet:'Schedule / Spec Sheet',
@@ -2694,25 +2702,25 @@ const activitySubjects={
   listProjectDrive:'Drive',
   importTechnicalOutput:'Technical Table'
 };
-function requestWithActivity(action,payload,method,timeoutMs){
+function requestWithActivity(action,payload,method,timeoutMs,activityPage){
   const request=()=>requestFromServer(action,payload,method,timeoutMs);
   // Drawing jobs report the whole transaction, including direct-to-Drive transfer.
   if(/^(?:begin|finish)(?:Received|BaseDrawing|WorkDrawing|PastWork)Upload$/.test(action)||action==='uploadReceivedChunk'||action==='logActiveTime')return request();
   const read=method==='GET'||/^(get|list|lookup|search|preview)/.test(action)
-    ||['read','list','feed','review','options','workflow-read'].includes(payload.action)
+    ||['read','list','feed','review','options','workflow-read','leaveList'].includes(payload.action)
     ||action==='homeAgenda'&&!payload.action||action==='departmentTeam';
   const subject = activitySubjects[action] || action
     .replace(/^(?:get|list|save|update|upload|create)(?=[A-Z])/, '')
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2');
-  return trackActivity(read?'load':/^(upload|importTechnicalOutput)/.test(action)?'upload':'save',subject,request);
+  return trackActivity(read?'load':/^(upload|importTechnicalOutput)/.test(action)?'upload':'save',subject,request,activityPage);
 }
 
-function apiRequest(action,payload={},method='POST',timeoutMs=0){
+function apiRequest(action,payload={},method='POST',timeoutMs=0,activityPage){
   const cacheable=method==='GET'&&(PAGE_READS.has(action)||action==='getWIH'&&payload.fastRead===true&&!payload.includeDiagnostics);
   if(!cacheable){
     const writes=method==='POST'&&!POST_READS.has(action)&&!['read','list','feed','review','options'].includes(payload.action);
     if(writes)PAGE_READ_CACHE.clear();
-    return requestWithActivity(action,payload,method,timeoutMs).finally(()=>{
+    return requestWithActivity(action,payload,method,timeoutMs,activityPage).finally(()=>{
       if(writes)PAGE_READ_CACHE.clear();
     });
   }
@@ -2720,7 +2728,7 @@ function apiRequest(action,payload={},method='POST',timeoutMs=0){
   const cached=PAGE_READ_CACHE.get(key);
   if(cached&&(cached.pending||Date.now()-cached.savedAt<45000))return cached.promise;
   const entry={pending:true,savedAt:0};
-  entry.promise=requestWithActivity(action,payload,method,timeoutMs).then(data=>{
+  entry.promise=requestWithActivity(action,payload,method,timeoutMs,activityPage).then(data=>{
     entry.pending=false;
     entry.savedAt=Date.now();
     entry.data=data;
@@ -4032,10 +4040,10 @@ function wihPerformanceReport(tasks,quarter='all'){
  const groupsReport=[...groups].map(([title,list])=>{const timed=list.filter(t=>t.actualWorkHours!==null).sort((a,b)=>a.actualWorkHours-b.actualWorkHours);return {title,count:list.length,onTime:list.filter(t=>t.outcome==='On time').length,delayed:list.filter(t=>t.outcome==='Delayed').length,lowest:timed[0]||null,highest:timed.at(-1)||null,average:timed.length?timed.reduce((a,t)=>a+t.actualWorkHours,0)/timed.length:null};});
  return {rows,groups:groupsReport,total:rows.length,onTime:rows.filter(t=>t.outcome==='On time').length,delayed:rows.filter(t=>t.outcome==='Delayed').length,unrated:rows.length-rated.length,onTimeRate:rated.length?100*rows.filter(t=>t.outcome==='On time').length/rated.length:null,average:timed.length?timed.reduce((a,t)=>a+t.actualWorkHours,0)/timed.length:null,lowest:timed.sort((a,b)=>a.actualWorkHours-b.actualWorkHours)[0]||null,highest:timed.at(-1)||null};
 }
-function PerformanceView({state}){
+function PerformanceView({state,request=apiRequest}){
  const [rows,setRows]=useState([]),[busy,setBusy]=useState(true),[error,setError]=useState(''),[employee,setEmployee]=useState(String(state.currentUser?.userId||'')),[revision,setRevision]=useState(0);
  const generation=useRef(0),manager=state.currentUser?.appAccess?.toLowerCase()!=='viewer'&&((wihSystemAccount(state.currentUser)&&state.currentUser?.appAccess?.toLowerCase()==='admin')||Object.values(state.currentUser?.projectRoles||{}).includes('Admin'));
- useEffect(()=>{const n=++generation.current;setBusy(true);setError('');projectApi.getWIH(true).then(data=>{if(n!==generation.current)return;setRows(Array.isArray(data)?data:data?.rows||[]);}).catch(e=>{if(n===generation.current)setError(e.message||'Could not load performance.');}).finally(()=>{if(n===generation.current)setBusy(false);});return()=>{generation.current++;};},[revision,state.currentUser?.userId]);
+ useEffect(()=>{const n=++generation.current;setBusy(true);setError('');request('getWIH',{includeCompleted:true},'GET').then(data=>{if(n!==generation.current)return;setRows(Array.isArray(data)?data:data?.rows||[]);}).catch(e=>{if(n===generation.current)setError(e.message||'Could not load performance.');}).finally(()=>{if(n===generation.current)setBusy(false);});return()=>{generation.current++;};},[revision,state.currentUser?.userId,request]);
  const projectIds=new Set((state.projects||[]).map(p=>String(p.id)));
  const accessible=rows.filter(r=>projectIds.has(String(r.projectId))&&wihCanSeeTask(state.currentUser,r));
  const members=[...new Map(accessible.map(r=>[String(r.assigneeUserId||''),r.assigneeName||r.task?.assigneeName||'Unassigned'])).entries()];
@@ -4045,7 +4053,7 @@ function PerformanceView({state}){
  const timeRows=tasks.filter(t=>(!projectFilter||String(t.projectId)===projectFilter)&&Number(t.totalMinutes)>0);
  const minutes=timeRows.reduce((sum,t)=>sum+Number(t.totalMinutes),0);
  const elapsed=n=>Math.floor(n/60)+' h '+Math.floor(n%60)+' min';
- return <div className="studio-performance"><StudioHeading title="Performance"/><div style={{display:'flex',gap:12,alignItems:'center',flexWrap:'wrap',marginBottom:18}}>{manager&&<label style={{fontSize:12}}>Team member <select aria-label="Performance team member" value={employee} onChange={e=>setEmployee(e.target.value)} style={{...inputStyle,width:'auto'}}><option value="all">All accessible members</option>{!members.some(([id])=>id===String(state.currentUser?.userId))&&<option value={String(state.currentUser?.userId||'')}>{state.currentUser?.name||'My performance'}</option>}{members.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label>}<button style={smallBtn} disabled={busy} onClick={()=>setRevision(n=>n+1)}>Refresh performance</button>{busy&&<span role="status">Updating performance…</span>}</div>{error&&<p role="alert" style={{fontSize:12,color:T.redline}}>{error}</p>}<section aria-label="Tracked task time" style={{marginBottom:24,padding:12,border:`1px solid ${T.line}`,fontFamily:FONT_BODY}}><h3>Tracked task time</h3><p style={{fontSize:12}}>Time recorded with the Tasks timer.</p><label>Project <select style={{...inputStyle,width:'auto'}} value={projectFilter} onChange={e=>setProjectFilter(e.target.value)}><option value="">All projects</option>{(state.projects||[]).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label><p><strong>{elapsed(minutes)}</strong> recorded across {timeRows.length} tasks</p>{timeRows.length?<div style={{overflowX:'auto',maxHeight:420}}><table style={{width:'100%',textAlign:'left',borderCollapse:'collapse',fontSize:12}}><thead><tr>{['Team member','Project','Task','Floor / Area','Status','Recorded time'].map(h=><th key={h} style={{padding:8,background:'#D2CDC1'}}>{h}</th>)}</tr></thead><tbody>{timeRows.map(t=><tr key={t.designTaskId}>{[t.assignee,t.projectName,t.title,[t.floor,t.area].filter(Boolean).join(' · '),t.status,elapsed(Number(t.totalMinutes))].map((value,i)=><td key={i} style={{padding:8,borderBottom:`1px solid ${T.line}`}}>{value||'—'}</td>)}</tr>)}</tbody></table></div>:<p>{busy?'Loading tracked time…':'No timer minutes recorded for this selection.'}</p>}</section><ActiveTimeReport request={apiRequest} projects={state.projects||[]} employee={selected}/><WihPerformance tasks={tasks} person="All" currentUser={state.currentUser} reportTitle={selected==='all'?'Accessible team':members.find(([id])=>id===selected)?.[1]||state.currentUser?.name||'My performance'}/></div>;
+ return <div className="studio-performance"><StudioHeading title="Performance"/><div style={{display:'flex',gap:12,alignItems:'center',flexWrap:'wrap',marginBottom:18}}>{manager&&<label style={{fontSize:12}}>Team member <select aria-label="Performance team member" value={employee} onChange={e=>setEmployee(e.target.value)} style={{...inputStyle,width:'auto'}}><option value="all">All accessible members</option>{!members.some(([id])=>id===String(state.currentUser?.userId))&&<option value={String(state.currentUser?.userId||'')}>{state.currentUser?.name||'My performance'}</option>}{members.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label>}<button style={smallBtn} disabled={busy} onClick={()=>setRevision(n=>n+1)}>Refresh performance</button>{busy&&<span role="status">Updating performance…</span>}</div>{error&&<p role="alert" style={{fontSize:12,color:T.redline}}>{error}</p>}<section aria-label="Tracked task time" style={{marginBottom:24,padding:12,border:`1px solid ${T.line}`,fontFamily:FONT_BODY}}><h3>Tracked task time</h3><p style={{fontSize:12}}>Time recorded with the Tasks timer.</p><label>Project <select style={{...inputStyle,width:'auto'}} value={projectFilter} onChange={e=>setProjectFilter(e.target.value)}><option value="">All projects</option>{(state.projects||[]).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label><p><strong>{elapsed(minutes)}</strong> recorded across {timeRows.length} tasks</p>{timeRows.length?<div style={{overflowX:'auto',maxHeight:420}}><table style={{width:'100%',textAlign:'left',borderCollapse:'collapse',fontSize:12}}><thead><tr>{['Team member','Project','Task','Floor / Area','Status','Recorded time'].map(h=><th key={h} style={{padding:8,background:'#D2CDC1'}}>{h}</th>)}</tr></thead><tbody>{timeRows.map(t=><tr key={t.designTaskId}>{[t.assignee,t.projectName,t.title,[t.floor,t.area].filter(Boolean).join(' · '),t.status,elapsed(Number(t.totalMinutes))].map((value,i)=><td key={i} style={{padding:8,borderBottom:`1px solid ${T.line}`}}>{value||'—'}</td>)}</tr>)}</tbody></table></div>:<p>{busy?'Loading tracked time…':'No timer minutes recorded for this selection.'}</p>}</section><ActiveTimeReport request={request} projects={state.projects||[]} employee={selected}/><WihPerformance tasks={tasks} person="All" currentUser={state.currentUser} reportTitle={selected==='all'?'Accessible team':members.find(([id])=>id===selected)?.[1]||state.currentUser?.name||'My performance'}/></div>;
 }
 function WihPerformance({tasks,person,currentUser,reportTitle}){
  const now=new Date(),currentQuarter=now.getFullYear()+'-Q'+(Math.floor(now.getMonth()/3)+1);
@@ -7385,22 +7393,12 @@ function projectNavigationItems(user){
   return NAV.filter(n=>ids.includes(n.id));
 }
 
-const loadStudioHomeWork=()=>apiRequest('getWIH',{includeCompleted:true,fastRead:true,homeDeadlines:true},'GET');
-function StudioApp() {
-  const [department,setDepartment]=useState('');
-  const { state, loading, saveErr, backendErr, currentUser, persist } = useStudioState();
-  const [view, setView] = useState(window.location.hash==="#email-intake" ? "drawingRegister" : "home");
-  useLayoutEffect(() => {
-    setActivityPage(loading || !state ? undefined : view);
-    return () => setActivityPage(undefined);
-  }, [loading, Boolean(state), view]);
+function WorkspaceShell({name, switchDepartment, currentUser, view, viewLabel, activityPage=view, items, pendingCount=0, onChange, notices, children, isAccounts=false}) {
   const [mobileNavOpen,setMobileNavOpen]=useState(false);
   useEffect(()=>setMobileNavOpen(false),[view]);
-  const [attendanceDay,setAttendanceDay]=useState('');
-  const [showWihMeetings,setShowWihMeetings]=useState(false);
-  const [feedbackContext,setFeedbackContext]=useState("General");
-  const [diaryWorkflowTarget,setDiaryWorkflowTarget]=useState(null);
+  const changeView=next=>{setMobileNavOpen(false);onChange(next);};
   const contentRef=useRef(null);
+  const Content = isAccounts ? "main" : "div";
   const [sheetDetail,setSheetDetail]=useState(null);
   useEffect(()=>{
     const content=contentRef.current;
@@ -7415,7 +7413,56 @@ function StudioApp() {
     observer.observe(content,{subtree:true,childList:true,attributes:true,attributeFilter:['aria-selected','aria-pressed']});
     updateDetail();
     return ()=>observer.disconnect();
-  },[view,loading,Boolean(state)]);
+  },[view]);
+
+  return (
+    <div className={isAccounts?"studio-app-shell accounts-workspace":"studio-app-shell"} style={{ fontFamily: FONT_BODY, background: T.paper, minHeight: 560, display: "flex", borderRadius: 10, overflow: "hidden", border: `1px solid ${T.line}` }}>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" />
+
+      {/* Sidebar — drawing-set index */}
+      <button type="button" className="studio-mobile-menu" aria-expanded={mobileNavOpen} aria-controls="workspace-sidebar" onClick={()=>setMobileNavOpen(open=>!open)}>{mobileNavOpen?'Close menu':'Menu'} · {viewLabel}</button>
+      <div id="workspace-sidebar" className={mobileNavOpen?'studio-app-sidebar is-open':'studio-app-sidebar'} style={{ width: 210, background: T.navy, color: "#fff", padding: "20px 0", flexShrink: 0 }}>
+        <div style={{ padding: "0 20px 20px", borderBottom: `1px solid ${T.cyan}22`, marginBottom: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Building2 size={18} color={T.cyan} />
+            <DepartmentHeading name={name} onChoose={switchDepartment}/>
+          </div>
+          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 14, color: "#fff", marginTop: 4 }}>Enlighten Design Co.</div>
+        </div>
+        <div style={{padding:"0 20px 12px"}}><button type="button" className="studio-home-shortcut" style={smallBtn} aria-current={view==='home'?'page':undefined} onClick={()=>changeView('home')}>Home</button></div>
+        <SidebarNavigation items={items} view={view} onChange={changeView} pendingCount={pendingCount}/>
+        <div style={{ padding: "20px", marginTop: 20, fontFamily: FONT_MONO, fontSize: 10, color: T.cyan, opacity: 0.7 }}>
+          <div style={{ marginBottom: 6 }}>{currentUser?.appAccess} · {currentUser?.name || ""}</div>
+          <div style={{ opacity: 0.7, wordBreak: "break-all" }}>{currentUser?.email || ""}</div>
+          {!isAccounts && <div style={{ marginTop: 10, opacity: 0.6 }}>enLIGHTen OS · project → scope → team → line of work → WIH</div>}
+        </div>
+      </div>
+
+      {/* Main canvas */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+        <TitleBlock page={activityPage} view={viewLabel} sub={sheetDetail?.view===view ? sheetDetail.label : undefined} />
+        {notices}
+        <Content ref={contentRef} className="studio-app-content" style={{ padding: "28px 32px", overflowY: "auto", flex: isAccounts ? 1 : undefined }}>
+          {children}
+        </Content>
+      </div>
+    </div>
+  );
+}
+
+const loadStudioHomeWork=()=>apiRequest('getWIH',{includeCompleted:true,fastRead:true,homeDeadlines:true},'GET');
+function StudioApp() {
+  const [department,setDepartment]=useState('');
+  const { state, loading, saveErr, backendErr, currentUser, persist } = useStudioState();
+  const [view, setView] = useState(window.location.hash==="#email-intake" ? "drawingRegister" : "home");
+  useLayoutEffect(() => {
+    setActivityPage(loading || !state ? undefined : view);
+    return () => setActivityPage(undefined);
+  }, [loading, Boolean(state), view]);
+  const [attendanceDay,setAttendanceDay]=useState('');
+  const [showWihMeetings,setShowWihMeetings]=useState(false);
+  const [feedbackContext,setFeedbackContext]=useState("General");
+  const [diaryWorkflowTarget,setDiaryWorkflowTarget]=useState(null);
 
   useActiveTime(!loading&&!state?.accessDenied&&currentUser?.appAccess!=='Contractor'?currentUser?.userId:null,view,apiRequest);
   if (loading || !state) {
@@ -7454,36 +7501,16 @@ function StudioApp() {
   const personalWorkspace=currentUser?.departmentKey|| (assignedDepartment?assignedDepartment.masterId.slice(3):departmentFor(currentUser?.department));
   const workspace=superAdmin?department:(Object.hasOwn(directory,personalWorkspace)?personalWorkspace:'studio');
   if(superAdmin&&!workspace)return <DepartmentPicker directory={activeDirectory} choose={id=>{setView('home');setDepartment(id);}}/>;
-  if(workspace!=='studio')return <DepartmentWorkspace PerformanceView={PerformanceView} performanceState={state} key={workspace} id={workspace} name={directory[workspace][0]} user={currentUser} request={apiRequest} buttonStyle={smallBtn} inputStyle={inputStyle} switchDepartment={superAdmin?()=>setDepartment(''):null}/>;
+  if(workspace!=='studio')return <DepartmentWorkspace WorkspaceShell={WorkspaceShell} PerformanceView={PerformanceView} performanceState={state} key={workspace} id={workspace} name={directory[workspace][0]} user={currentUser} request={apiRequest} buttonStyle={smallBtn} switchDepartment={superAdmin?()=>setDepartment(''):null}/>;
   const allowedNav=projectNavigationItems(currentUser);
   const pendingCount = state.intakes.filter((i) => !i.classified).length;
   const viewLabel = view==='home'?'Home':NAV.find((n) => n.id === view)?.label;
 
   return (
-    <div className="studio-app-shell" style={{ fontFamily: FONT_BODY, background: T.paper, minHeight: 560, display: "flex", borderRadius: 10, overflow: "hidden", border: `1px solid ${T.line}` }}>
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" />
-
-      {/* Sidebar — drawing-set index */}
-      <button type="button" className="studio-mobile-menu" aria-expanded={mobileNavOpen} aria-controls="studio-sidebar" onClick={()=>setMobileNavOpen(open=>!open)}>{mobileNavOpen?'Close menu':'Menu'} · {viewLabel}</button>
-      <div id="studio-sidebar" className={mobileNavOpen?'studio-app-sidebar is-open':'studio-app-sidebar'} style={{ width: 210, background: T.navy, color: "#fff", padding: "20px 0", flexShrink: 0 }}>
-        <div style={{ padding: "0 20px 20px", borderBottom: `1px solid ${T.cyan}22`, marginBottom: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Building2 size={18} color={T.cyan} />
-            <DepartmentHeading name={directory[workspace][0]} onChoose={superAdmin?()=>setDepartment(''):null}/>
-          </div>
-          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 14, color: "#fff", marginTop: 4 }}>Enlighten Design Co.</div>
-        </div>
-        <div style={{padding:"0 20px 12px"}}><button type="button" className="studio-home-shortcut" style={smallBtn} aria-current={view==='home'?'page':undefined} onClick={()=>{setMobileNavOpen(false);setView('home');}}>Home</button></div><SidebarNavigation items={allowedNav} view={view} onChange={next=>{if(next==='feedback')setFeedbackContext(viewLabel);if(next==='site')setAttendanceDay('');setMobileNavOpen(false);setView(next)}} pendingCount={pendingCount}/>
-        <div style={{ padding: "20px", marginTop: 20, fontFamily: FONT_MONO, fontSize: 10, color: T.cyan, opacity: 0.7 }}>
-          <div style={{ marginBottom: 6 }}>{currentUser?.appAccess} · {currentUser?.name || ""}</div>
-          <div style={{ opacity: 0.7, wordBreak: "break-all" }}>{currentUser?.email || ""}</div>
-          <div style={{ marginTop: 10, opacity: 0.6 }}>enLIGHTen OS · project → scope → team → line of work → WIH</div>
-        </div>
-      </div>
-
-      {/* Main canvas */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <TitleBlock page={view} view={viewLabel} sub={sheetDetail?.view===view ? sheetDetail.label : undefined} />
+    <WorkspaceShell name={directory[workspace][0]} switchDepartment={superAdmin?()=>setDepartment(''):null}
+      currentUser={currentUser} view={view} viewLabel={viewLabel} items={allowedNav} pendingCount={pendingCount}
+      onChange={next=>{if(next==='feedback')setFeedbackContext(viewLabel);if(next==='site')setAttendanceDay('');setView(next);}}
+      notices={<>
         {view!=='upload'&&(state.pendingReceivedUploads||[]).length>0&&<div role="status" style={{padding:'8px 24px',fontFamily:FONT_BODY,fontSize:12,background:T.amberBg,color:T.ink}}>{state.pendingReceivedUploads.length} drawing upload(s) pending. <button type="button" style={smallBtn} onClick={()=>setView('drawingRegister')}>View uploads</button></div>}
         {saveErr && (
           <div style={{ background: T.redlineBg, color: T.redline, fontFamily: FONT_MONO, fontSize: 12, padding: "8px 24px", display: "flex", alignItems: "center", gap: 6 }}>
@@ -7495,7 +7522,7 @@ function StudioApp() {
             <AlertTriangle size={13} /> Google Sheets backend unavailable — Projects are showing the last local data.
           </div>
         )}
-        <div ref={contentRef} className="studio-app-content" style={{ padding: "28px 32px", overflowY: "auto" }}>
+      </>}>
           
           {view==='home'&&<StudioHome assistant={<ExecutiveAssistant profileApi={apiRequest} workUser={currentUser} workProjects={state.projects||[]} workRequest={apiRequest} userId={currentUser?.userId} sections={allowedNav} onNavigate={setView} theme={T} buttonStyle={smallBtn} inputStyle={inputStyle}/>} state={state} user={currentUser} request={apiRequest} loadWork={loadStudioHomeWork} navigate={setView} onMissedCheckout={day=>{setAttendanceDay(day);setView('site');}} theme={T} buttonStyle={smallBtn}/>}
           {view === "project" && (isAdmin?<ProjectView state={state} persist={persist} />:<ProjectPermissionsView state={state} persist={persist}/>)}
@@ -7513,9 +7540,7 @@ function StudioApp() {
           {allowedNav.some(n=>n.id==="site") && view === "site" && <PerformanceAttendance key={attendanceDay} initialDay={attendanceDay} request={apiRequest} user={currentUser}/>}
           {allowedNav.some(n=>n.id==="diary") && view === "diary" && <DiaryView state={state} persist={persist} onOpenWorkflow={(projectId,visitPlanId)=>{setDiaryWorkflowTarget({projectId,visitPlanId,token:Date.now()});setView("design");}}/>}
           {allowedNav.some(n=>n.id==="settings") && view === "settings" && <><StudioHeading title="Teams &amp; Tasks"/>{isAdmin&&<InternalAreas manage request={apiRequest} buttonStyle={smallBtn} inputStyle={inputStyle}/>} {wihSystemAccount(currentUser)&&isAdmin?<SettingsView state={state} persist={persist}/>:<ProjectTeamsTasksView/>}</>}
-        </div>
-      </div>
-    </div>
+    </WorkspaceShell>
   );
 }
 

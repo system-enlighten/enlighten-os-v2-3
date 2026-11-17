@@ -53,8 +53,8 @@ export function beginActivity(kind, subject = '', page = currentPage) {
   };
 }
 
-export async function trackActivity(kind, subject, work) {
-  const finish = beginActivity(kind, subject);
+export async function trackActivity(kind, subject, work, page) {
+  const finish = beginActivity(kind, subject, page);
   try {
     const result = await work(progress => finish(undefined, progress));
     finish(result !== false);

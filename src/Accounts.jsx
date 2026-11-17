@@ -63,6 +63,61 @@ function Invoice({invoice:r,printRef}){
   </article>;
 }
 
+function draftInvoice(draft,projects){
+  const items=draft.items.map(item=>{
+    const qty=Number(item.quantity),unitRate=Math.round(Number(item.rate)*100);
+    const quantity=Number.isSafeInteger(qty)&&qty>0&&qty<=10000?qty:0;
+    const rate=Number.isSafeInteger(unitRate)&&unitRate>0&&Number.isSafeInteger(unitRate*quantity)?unitRate:0;
+    return {...item,quantity,rate,amount:quantity*rate};
+  });
+  return {...draft,number:'Draft · assigned when saved',projectName:projects.find(project=>project.id===draft.projectId)?.name,items,amount:total(items,'amount')};
+}
+
+function originalInvoice(attachment){
+  const url=/^https:\/\/drive\.google\.com\//i.test(attachment||'')?new URL(attachment):null;
+  const id=url?.pathname.match(/^\/file\/d\/([\w-]+)/)?.[1]||url?.searchParams.get('id');
+  if(!id||!/^[-\w]+$/.test(id))return {};
+  const preview=new URL('https://drive.google.com/file/d/'+id+'/preview');
+  const key=url.searchParams.get('resourcekey');
+  if(key)preview.searchParams.set('resourcekey',key);
+  return {url:url.href,preview:preview.href};
+}
+
+function InvoicePreview({invoice,isDraft,onClose}){
+  const dialog=useRef(null),documentRef=useRef(null);
+  const [error,setError]=useState('');
+  useEffect(()=>{
+    const element=dialog.current;
+    element.showModal();
+    return ()=>element.close();
+  },[]);
+  const historical=invoice.kind==='legacyInvoice';
+  const original=historical?originalInvoice(invoice.attachment):{};
+  const title=isDraft?'Draft invoice preview':historical?'Imported invoice preview':'Invoice preview';
+  const print=()=>{
+    setError('');
+    try{printMarkup(documentRef.current,invoice.number);}
+    catch(e){setError(e.message);}
+  };
+  return <dialog ref={dialog} className="accounts-invoice-dialog" aria-labelledby="accounts-invoice-preview-title" onCancel={event=>{event.preventDefault();onClose();}}>
+    <header className="accounts-preview-header">
+      <h2 id="accounts-invoice-preview-title">{title}</h2>
+      <div className="accounts-actions">
+        {!isDraft&&!historical&&<button type="button" onClick={print}>Print / Save as PDF</button>}
+        {original.url&&<a href={original.url} target="_blank" rel="noreferrer">Open original</a>}
+        <button type="button" autoFocus onClick={onClose}>Close preview</button>
+      </div>
+    </header>
+    <div className="accounts-preview-body">
+      {error&&<p role="alert" className="accounts-error">{error}</p>}
+      {historical?<div className="accounts-invoice-history">
+        <dl>{[['Invoice number',invoice.sourceNumber||invoice.number],['Date',invoice.date],['Project',invoice.projectName],['Client',invoice.client],['Total',money(invoice.amount)]].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value||'—'}</dd></div>)}</dl>
+        {original.preview?<iframe title="Original invoice document" src={original.preview} loading="lazy"/>:<p>Original document unavailable to preview.{invoice.attachment&&' File reference: '+invoice.attachment}</p>}
+      </div>:<Invoice invoice={invoice} printRef={documentRef}/>}
+    </div>
+  </dialog>;
+}
+
 export default function Accounts({page,request,user}){
   const [data,setData]=useState(null),[draft,setDraft]=useState(null),[selected,setSelected]=useState(null);
   const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
@@ -71,6 +126,7 @@ export default function Accounts({page,request,user}){
   const [bank,setBank]=useState('IDFC'),[staged,setStaged]=useState([]);
   const [cashFrom,setCashFrom]=useState(()=>String(Number(today().slice(0,4))-(today().slice(5,7)<'04'?1:0))+'-04-01');
   const printRef=useRef(null), saving=useRef(false);
+  const [previewDraft,setPreviewDraft]=useState(false);
   const readOnly=/^viewer$/i.test(user.appAccess);
   const load=async()=>{
     setError('');
@@ -78,7 +134,7 @@ export default function Accounts({page,request,user}){
     catch(e){setError(e.message);}
   };
   useEffect(()=>{load();},[]);
-  useEffect(()=>{setDraft(null);setSelected(null);setNotice('');setError('');},[page]);
+  useEffect(()=>{setDraft(null);setSelected(null);setPreviewDraft(false);setNotice('');setError('');},[page]);
   const save=async e=>{
     e.preventDefault();
     if(saving.current)return;
@@ -191,10 +247,10 @@ export default function Accounts({page,request,user}){
       <div className="accounts-metrics">{[[0,30],[31,60],[61,Infinity]].map(([min,max])=><div key={min}><span>{max===Infinity?'61+':min+'–'+max} days</span><strong>{money(open.filter(r=>r.dueDate<=today()&&age(r)>=min&&age(r)<=max).reduce((n,r)=>n+r.amount-paid(r.id),0))}</strong></div>)}</div>
       <label>Collection month <input type="month" value={month} onChange={e=>setMonth(e.target.value)}/></label> <strong>{money(total(selectedReceipts,'amount'))}</strong>
     </>}
-    {page==='Invoicing'&&<>{!readOnly&&<button onClick={()=>begin('invoice')}>New invoice</button>}<Table columns={['Number','Type','Project','Client','Date','Total','Action']} rows={records.filter(r=>r.kind==='invoice').map(r=>({key:r.id,cells:[r.number,r.documentType,r.projectName,r.client,r.date,money(r.amount),<button onClick={()=>setSelected(r)}>Open</button>]}))}/></>}
+    {page==='Invoicing'&&<>{!readOnly&&<button onClick={()=>begin('invoice')}>New invoice</button>}<Table columns={['Number','Type','Project','Client','Date','Total','Action']} rows={records.filter(r=>r.kind==='invoice').map(r=>({key:r.id,cells:[r.number,r.documentType,r.projectName,r.client,r.date,money(r.amount),<button type="button" onClick={()=>setSelected(r)}>Preview</button>]}))}/></>}
     {page==='Invoicing'&&records.some(r=>r.kind==='legacyInvoice')&&<>
       <h2>Imported invoices</h2>
-      <Table columns={['Invoice number','Date','Project','Client','Amount','Original document']} rows={records.filter(r=>r.kind==='legacyInvoice').map(r=>({key:r.id,cells:[r.sourceNumber||r.number,r.date,r.projectName,r.client,money(r.amount),/^https:\/\/drive\.google\.com\//i.test(r.attachment)?<a href={r.attachment} target="_blank" rel="noreferrer">Open original</a>:r.attachment||'—']}))}/>
+      <Table columns={['Invoice number','Date','Project','Client','Amount','Action']} rows={records.filter(r=>r.kind==='legacyInvoice').map(r=>({key:r.id,cells:[r.sourceNumber||r.number,r.date,r.projectName,r.client,money(r.amount),<button type="button" onClick={()=>setSelected(r)}>Preview</button>]}))}/>
     </>}
     {page==='Debit / Credit'&&records.some(r=>r.kind==='legacyDesign')&&<details>
       <summary>Imported Design transactions</summary>
@@ -287,11 +343,13 @@ export default function Accounts({page,request,user}){
         {[['Description','description','text'],['SAC','sac','text'],['Unit','unit','text'],['Quantity','quantity','number'],['Unit rate (INR)','rate','number']].map(([label,key,type])=><label key={key}>{label}<input required type={type} min={type==='number'?(key==='rate'?.01:1):undefined} step={key==='rate'?.01:undefined} value={line[key]} onChange={e=>update('items',draft.items.map((other,j)=>j===i?{...other,[key]:e.target.value}:other))}/></label>)}
         <button type="button" disabled={draft.items.length===1} onClick={()=>update('items',draft.items.filter((_,j)=>i!==j))}>Remove line</button></div>)}
       <button type="button" disabled={draft.items.length>=25} onClick={()=>update('items',[...draft.items,freshItem()])}>Add line</button></>}
-      <div className="accounts-actions"><button type="submit">{busy?'Saving…':draft.kind==='invoice'?'Save invoice':'Save'}</button><button type="button" onClick={()=>setDraft(null)}>Cancel</button></div></fieldset>
+      <div className="accounts-actions">{draft.kind==='invoice'&&<button type="button" onClick={()=>setPreviewDraft(true)}>Preview invoice</button>}<button type="submit">{busy?'Saving…':draft.kind==='invoice'?'Save invoice':'Save'}</button><button type="button" onClick={()=>setDraft(null)}>Cancel</button></div></fieldset>
     </form>}
-    {selected&&<section className="accounts-preview"><div className="accounts-actions"><button onClick={print}>Print / Save as PDF</button><button onClick={()=>setSelected(null)}>Close</button></div>
-      {selected.kind==='invoice'?<Invoice invoice={selected} printRef={printRef}/>:<article ref={printRef}><h1>Enlighten Designs · Payslip</h1><p>{selected.employee} · {selected.date.slice(0,7)}</p>
-      <Table columns={['Pay component','Amount']} rows={[[ 'Earned pay',selected.earned],['Allowances',selected.allowances],['Overtime',selected.overtime],['Other deductions',selected.deductions],['Advance recovery',selected.advance],['Net pay',selected.amount]].map(([k,v])=>({cells:[k,money(v)]}))}/></article>}
+    {previewDraft&&draft?.kind==='invoice'&&<InvoicePreview invoice={draftInvoice(draft,projects)} isDraft onClose={()=>setPreviewDraft(false)}/>}
+    {['invoice','legacyInvoice'].includes(selected?.kind)&&<InvoicePreview key={selected.id} invoice={selected} onClose={()=>setSelected(null)}/>}
+    {selected?.kind==='payroll'&&<section className="accounts-preview"><div className="accounts-actions"><button onClick={print}>Print / Save as PDF</button><button onClick={()=>setSelected(null)}>Close</button></div>
+      <article ref={printRef}><h1>Enlighten Designs · Payslip</h1><p>{selected.employee} · {selected.date.slice(0,7)}</p>
+      <Table columns={['Pay component','Amount']} rows={[[ 'Earned pay',selected.earned],['Allowances',selected.allowances],['Overtime',selected.overtime],['Other deductions',selected.deductions],['Advance recovery',selected.advance],['Net pay',selected.amount]].map(([k,v])=>({cells:[k,money(v)]}))}/></article>
     </section>}
   </section>;
 }
