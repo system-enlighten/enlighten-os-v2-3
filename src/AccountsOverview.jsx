@@ -2,8 +2,8 @@ import React, {useState} from 'react';
 import {ArrowUpRight, Banknote, CalendarDays, ChartNoAxesCombined, Landmark, TrendingUp} from 'lucide-react';
 
 export const studioGstin='07AAKFE5187A1ZI';
-export const bankAccounts=['IDFC','Kotak','Cash'];
-const bankLabel={IDFC:'IDFC First Bank',Kotak:'Kotak Bank',Cash:'Cash in Hand'};
+export const bankAccounts=['IDFC','Cash'];
+const bankLabel={IDFC:'IDFC First Bank',Cash:'Cash in Hand'};
 const money=new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR'});
 const amount=n=>money.format(n/100);
 const sum=(rows,fn)=>rows.reduce((n,row)=>n+fn(row),0);

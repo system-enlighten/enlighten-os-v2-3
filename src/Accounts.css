@@ -126,3 +126,19 @@
  .accounts-cash-flow dl{grid-column:1;grid-row:auto;text-align:left;display:flex;flex-wrap:wrap;gap:12px}
  .accounts-cash-flow dl div+div{margin:0}
 }
+
+.payment-sheet-scroll{overflow:auto;max-height:72dvh;border:1px solid #aaa;background:#fff}
+.accounts table.payment-sheet{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0;font:12px/1.35 Helvetica,Arial,sans-serif;color:#161616}
+.payment-sheet col{width:108px}
+.payment-sheet col:first-child{width:235px}
+.payment-sheet col:nth-child(2){width:185px}
+.payment-sheet col:nth-child(n+3):nth-child(-n+5){width:155px}
+.accounts .payment-sheet :is(th,td){padding:5px 8px;border-right:1px solid #cecece;border-bottom:1px solid #cecece;vertical-align:middle;text-align:right;white-space:nowrap}
+.accounts .payment-sheet thead{position:sticky;top:0;z-index:2}
+.accounts .payment-sheet thead th{background:#ff0}
+.accounts .payment-sheet-totals :is(th,td){background:#fff}
+.accounts .payment-sheet tr>:first-child,.accounts .payment-sheet tr:not(.payment-sheet-totals)>:nth-child(2){text-align:left}
+.accounts .payment-sheet tbody th{font-weight:400;background:#fff}
+.accounts .payment-sheet tbody tr:hover>*{background:#fffde4}
+.payment-sheet-actions{margin-top:14px}
+.payment-sheet-actions summary{cursor:pointer}

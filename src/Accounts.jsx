@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './Accounts.css';
+import PaymentDashboard from './PaymentDashboard.jsx';
 import {AccountsDashboard, BankingOverview, GstOverview, bankAccounts, studioGstin} from './AccountsOverview.jsx';
 import {parseStatement,statementSuggestion} from './AccountsStatement.js';
 import wordmark from './AccountsWordmark.svg?raw';
@@ -158,7 +159,7 @@ function InvoiceWorkspace({records,invoice,editing,busy,form,onChoose,onNew,onCl
 export default function Accounts({page,request,user,onNavigate,reconciliationBank}){
   const [data,setData]=useState(null),[draft,setDraft]=useState(null),[selected,setSelected]=useState(null);
   const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
-  const [month,setMonth]=useState(''),[asOf,setAsOf]=useState(today);
+  const [asOf,setAsOf]=useState(today);
   const [payMonth,setPayMonth]=useState(()=>today().slice(0,7)),[staffQuery,setStaffQuery]=useState('');
   const [bank,setBank]=useState('IDFC'),[staged,setStaged]=useState([]);
   const [cashFrom,setCashFrom]=useState(()=>String(Number(today().slice(0,4))-(today().slice(5,7)<'04'?1:0))+'-04-01');
@@ -226,7 +227,8 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
   };
   const print=()=>{try{printMarkup(printRef.current,selected.number||'Payslip');}catch(e){setError(e.message);}};
   if(!data)return <>{error?<><p role="alert">{error}</p><button onClick={load}>Retry</button></>:<p role="status">Loading Accounts…</p>}</>;
-  const {records,projects,heads,employees}=data;
+  const {records,projects,employees}=data;
+  const heads=data.heads.filter(([head])=>head!=='Kotak');
   const invoices=records.filter(r=>r.kind==='invoice'&&r.documentType!=='Proforma Invoice');
   const receipts=records.filter(r=>r.kind==='receipt');
   const paid=id=>total(receipts.filter(r=>r.invoiceId===id),'amount');
@@ -238,11 +240,10 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
   const projectOptions=projects.map(p=>[p.id,p.name]);
   const milestones=records.filter(r=>r.kind==='milestone');
   const age=r=>Math.max(0,Math.floor((Date.parse(today())-Date.parse(r.dueDate))/86400000));
-  const open=invoices.filter(r=>r.amount>paid(r.id));
   const settled=r=>r.amount===paid(r.id);
-  const selectedReceipts=month?receipts.filter(r=>r.date.startsWith(month)):receipts;
   const report=records.filter(r=>r.date<=asOf).flatMap(r=>r.postings);
-  const headRows=heads.map(([name,type])=>{const entries=report.filter(r=>r.head===name);return {name,type,balance:total(entries,'debit')-total(entries,'credit')};});
+  const reportHeads=report.some(posting=>posting.head==='Kotak')?[...heads,['Kotak','Asset']]:heads;
+  const headRows=reportHeads.map(([name,type])=>{const entries=report.filter(r=>r.head===name);return {name,type,balance:total(entries,'debit')-total(entries,'credit')};});
   const balance=type=>total(headRows.filter(r=>r.type===type),'balance');
   const margin=-balance('Revenue')-balance('Direct expense');
   const surplus=margin-balance('Expense');
@@ -327,22 +328,15 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
     {page==='Banking'&&<BankingOverview records={records} today={today()} staged={staged} onNavigate={onNavigate}/>}
     {page==='GST'&&<GstOverview records={records} today={today()} onRecord={readOnly||busy?null:period=>begin('gstFiling',{period})}/>}
     {page==='Payment Dashboard'&&<>
-      <div className="accounts-metrics">{[['Billed',total(invoices,'amount')],['Receipts',total(receipts,'amount')],['Outstanding',total(open,'amount')-open.reduce((n,r)=>n+paid(r.id),0)]].map(([key,value])=><div key={key}><span>{key}</span><strong>{money(value)}</strong></div>)}</div>
-      {!readOnly&&<button onClick={()=>begin('milestone')}>Add milestone</button>}
-      <h2>Project balances</h2>
-      <Table columns={['Project','Client','Commitment','Received','Remaining commitment']} rows={projects.filter(p=>records.some(r=>r.projectId===p.id)).map(p=>{
-        const commitment=total(milestones.filter(r=>r.projectId===p.id),'amount');
-        const received=total(receipts.filter(r=>r.projectId===p.id),'amount');
-        return {key:p.id,cells:[p.name,p.client||'—',commitment?money(commitment):'—',money(received),commitment?money(commitment-received):'—']};
-      })}/>
-      <h2>Billing milestones and receivables</h2>
+      <PaymentDashboard projects={projects} milestones={milestones} receipts={receipts} money={money}/>
+      <details className="payment-sheet-actions">
+        <summary>Billing and payment actions</summary>
+        {!readOnly&&<button onClick={()=>begin('milestone')}>Add milestone</button>}
       <Table columns={['Project','Milestone / invoice','Due','Amount','Received','Outstanding','Status','Action']} rows={[
         ...milestones.filter(m=>!invoices.some(r=>r.milestoneId===m.id)).map(m=>({key:m.id,cells:[m.projectName,m.description,m.date,money(m.amount),'—','—','Scheduled',!readOnly&&<button onClick={()=>begin('invoice',{projectId:m.projectId,milestoneId:m.id,client:projects.find(p=>p.id===m.projectId)?.client,items:[{...freshItem(),description:m.description,rate:m.amount/100}]})}>Raise invoice</button>]})),
         ...invoices.map(r=>({key:r.id,status:settled(r)?'settled':'outstanding',cells:[r.projectName,r.number,r.dueDate,money(r.amount),money(paid(r.id)),money(r.amount-paid(r.id)),settled(r)?'Settled':age(r)?'Overdue':'Awaiting payment',!readOnly&&!settled(r)&&<button onClick={()=>begin('receipt',{invoiceId:r.id,direction:'Inflow'})}>Record receipt</button>]}))
       ]}/>
-      <h2>Aging and cash collections</h2>
-      <div className="accounts-metrics">{[[0,30],[31,60],[61,Infinity]].map(([min,max])=><div key={min}><span>{max===Infinity?'61+':min+'–'+max} days</span><strong>{money(open.filter(r=>r.dueDate<=today()&&age(r)>=min&&age(r)<=max).reduce((n,r)=>n+r.amount-paid(r.id),0))}</strong></div>)}</div>
-      <label>Collection month <input type="month" value={month} onChange={e=>setMonth(e.target.value)}/></label> <strong>{money(total(selectedReceipts,'amount'))}</strong>
+      </details>
     </>}
     {(page==='Invoicing'||draft?.kind==='invoice')&&<InvoiceWorkspace records={invoiceList} invoice={activeInvoice}
       editing={draft?.kind==='invoice'} busy={busy} form={editor} sent={sent}
