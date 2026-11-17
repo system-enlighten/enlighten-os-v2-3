@@ -3152,7 +3152,7 @@ function useStudioState() {
 /* ---------------------------------------------------------------
    SMALL UI PRIMITIVES
 --------------------------------------------------------------- */
-function TitleBlock({ view, sub }) {
+function TitleBlock({ view }) {
   const cell = { padding: "10px 16px", borderRight: `1px solid ${T.cyan}33` };
   const label = { fontFamily: FONT_MONO, fontSize: 10, letterSpacing: "0.12em", color: T.cyan, textTransform: "uppercase", opacity: 0.75 };
   const val = { fontFamily: FONT_DISPLAY, fontSize: 14, color: "#fff", marginTop: 3 };
@@ -3163,8 +3163,8 @@ function TitleBlock({ view, sub }) {
         <div style={val}>{view}</div>
       </div>
       <div style={cell}>
-        <div style={label}>Detail</div>
-        <div style={val}>{sub || "—"}</div>
+        <div style={label}>Status</div>
+        <div style={val}><WorkspaceActivity /></div>
       </div>
       <div style={cell}>
         <div style={label}>Date</div>
@@ -7448,7 +7448,7 @@ function StudioApp() {
 
       {/* Main canvas */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <TitleBlock view={viewLabel} sub={view === "timesheet" ? `${state.tasks.length} tasks` : view === "classify" ? `${pendingCount} pending` : view === "project" ? "Onboarding · Scope · Team" : view === "design" ? "Dashboard · Line of Work" : view === "meetings" ? `${(state.meetings || []).length} meetings` : view === "executionMain" ? "Milestones · MOM" : undefined} />
+        <TitleBlock view={viewLabel} />
         {view!=='upload'&&(state.pendingReceivedUploads||[]).length>0&&<div role="status" style={{padding:'8px 24px',fontFamily:FONT_BODY,fontSize:12,background:T.amberBg,color:T.ink}}>{state.pendingReceivedUploads.length} drawing upload(s) pending. <button type="button" style={smallBtn} onClick={()=>setView('drawingRegister')}>View uploads</button></div>}
         {saveErr && (
           <div style={{ background: T.redlineBg, color: T.redline, fontFamily: FONT_MONO, fontSize: 12, padding: "8px 24px", display: "flex", alignItems: "center", gap: 6 }}>
@@ -7721,7 +7721,7 @@ export default function App(){
     script.addEventListener('load',renderButton);const failed=()=>{if(active)setError('Google sign-in could not load. Check your connection.');};script.addEventListener('error',failed);
     return()=>{active=false;script.removeEventListener('load',renderButton);script.removeEventListener('error',failed);};
   },[config,signedIn,checking]);
-  if(signedIn)return <><div className="workspace-topbar" style={{background:T.navy,color:'#fff',padding:'8px 18px',display:'flex',justifyContent:'flex-end',alignItems:'center',gap:12,fontFamily:FONT_BODY,fontSize:12}}><WorkspaceActivity/>{error&&<span role="alert">{error}</span>}<button disabled={checking} onClick={signOut} style={{...smallBtn,background:'#fff'}}>{checking?'Signing out…':'Sign out / switch account'}</button></div><StudioApp/><DashboardUploadProgress generation={AUTH_SESSION_GENERATION} theme={T} font={FONT_BODY} mono={FONT_MONO} buttonStyle={smallBtn}/></>;
+  if(signedIn)return <><div className="workspace-topbar" style={{background:T.navy,color:'#fff',padding:'8px 18px',display:'flex',justifyContent:'flex-end',alignItems:'center',gap:12,fontFamily:FONT_BODY,fontSize:12}}>{error&&<span role="alert">{error}</span>}<button disabled={checking} onClick={signOut} style={{...smallBtn,background:'#fff'}}>{checking?'Signing out…':'Sign out / switch account'}</button></div><StudioApp/><DashboardUploadProgress generation={AUTH_SESSION_GENERATION} theme={T} font={FONT_BODY} mono={FONT_MONO} buttonStyle={smallBtn}/></>;
   return <main className="enlighten-landing" aria-label="enLIGHTen sign in">
     <section className="enlighten-landing__center" aria-label="Welcome to enLIGHTen">
       <img className="enlighten-landing__logo" src="/enlighten-wordmark.svg" alt="enLIGHTen" width="710" height="140" />

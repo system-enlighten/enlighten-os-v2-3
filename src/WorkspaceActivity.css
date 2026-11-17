@@ -5,13 +5,16 @@
   flex-wrap: wrap;
 }
 .workspace-activity {
-  margin-right: auto;
   display: flex;
   align-items: center;
   gap: 9px;
-  min-height: 36px;
   min-width: 0;
+  flex-wrap: wrap;
+  color: #fff;
   font-variant-numeric: tabular-nums;
+}
+.workspace-activity strong {
+  color: inherit;
 }
 .workspace-activity small {
   display: block;
