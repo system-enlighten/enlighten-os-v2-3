@@ -38,3 +38,10 @@
 @media (prefers-reduced-motion: reduce) {
   .workspace-activity-spinner { animation: none; }
 }
+
+.workspace-activity-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-inline-start: 6px;
+}

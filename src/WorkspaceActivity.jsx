@@ -70,18 +70,21 @@ export default function WorkspaceActivity() {
     || operations.find(item => item.kind === 'save')
     || operations.find(item => item.subject)
     || operations[0];
-  const item = operation || recent;
-  const label = item ? labels[item.kind][operation ? 0 : item.confirmed ? 1 : 2] : 'Ready';
-  const count = operations.length;
+  const visible = operation
+    ? [operation, ...operations.filter(item => item !== operation && item.subject)].slice(0, 4)
+    : [recent];
+  const remaining = operations.length - visible.length;
   return <div className="workspace-activity" role="status" aria-live="polite" aria-atomic="true">
-    <span aria-hidden="true" className={operation ? 'workspace-activity-spinner' : ''}>
-      {operation ? '' : item?.confirmed === false ? '!' : '✓'}
-    </span>
-    <span><strong>{label}{operation ? '…' : ''}</strong>
-      {item?.subject && <small>{item.subject}</small>}
-    </span>
-    {operation?.progress != null && <span>{operation.progress === 100 ? 'Confirming…' : operation.progress + '%'}</span>}
-    {count > 1 && <small>+{count - 1} more</small>}
+    {visible.map((item, index) => <span className="workspace-activity-item" key={index}>
+      <span aria-hidden="true" className={operation ? 'workspace-activity-spinner' : ''}>
+        {operation ? '' : item?.confirmed === false ? '!' : '✓'}
+      </span>
+      <span><strong>{item ? labels[item.kind][operation ? 0 : item.confirmed ? 1 : 2] : 'Ready'}{operation ? '…' : ''}</strong>
+        {item?.subject && <small>{item.subject}</small>}
+      </span>
+      {item?.progress != null && <span>{item.progress === 100 ? 'Confirming…' : item.progress + '%'}</span>}
+    </span>)}
+    {remaining > 0 && <small>+{remaining} more</small>}
   </div>;
 }
 
