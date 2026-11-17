@@ -1,0 +1,30 @@
+:host{display:block;color:#252525;background:#fff;font-synthesis:none}
+*{box-sizing:border-box}
+.pages-paper{width:595.28pt;min-height:841.89pt;position:relative;background:#fff;color:#252525;font:10pt/12pt PagesLight;transform-origin:top left;padding:0 0 48pt;overflow:hidden}
+b,strong{font-family:PagesBold;font-weight:normal}
+p{margin:0}h1{position:absolute;top:177.69pt;left:0;width:100%;margin:0;text-align:center;font:15pt/16.5pt PagesTitle;letter-spacing:.09em;color:#252525}
+.brand{position:absolute;left:154pt;top:34pt;width:310pt;height:74pt;display:flex;align-items:center}
+.brand svg{display:block;width:100%;height:auto}
+.brand-rule{position:absolute;left:12.5pt;right:12.5pt;top:103pt;border-top:1.5pt solid #252525}
+.issuer{position:absolute;top:114pt;left:60pt;right:60pt;text-align:center;font:10pt/12pt PagesLight}
+.invoice-date{position:absolute;top:199.76pt;left:0;right:0;text-align:center;font:12pt/13.2pt PagesDate}
+.details{position:relative;padding-top:247.72pt;margin:0 60.69pt;min-height:375.4pt;display:grid;grid-template-columns:260pt 220pt;column-gap:29.51pt;font:10pt/12pt PagesLight}
+.recipient{padding-right:8pt;white-space:pre-line}
+.state{margin-top:12pt}
+.references{padding-top:13.6pt;white-space:pre-line}
+.contact{margin-top:24pt}
+main{margin:0 61.14pt 0 60.69pt}
+table{width:473.45pt;border-collapse:collapse;table-layout:fixed;margin:0;font:10pt/12pt PagesLight;border:.5pt solid #777}
+th{text-align:left;white-space:pre-line;background:#252525;color:#fff;font:10pt/12pt PagesBold;height:34.67pt;padding:4pt;border-right:.5pt solid #aaa;vertical-align:middle;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+td{padding:5pt 4pt;vertical-align:top;border-right:.5pt dotted #999;border-bottom:.5pt solid #777;white-space:pre-line;overflow-wrap:break-word}
+.service{height:56pt}.service td:nth-child(n+3){white-space:nowrap;padding-left:4pt;padding-right:2pt}
+.sum{height:20.8pt}.sum td{padding:4pt;border-right:.5pt dotted #999}.sum td:first-child{border-right:.5pt solid #777}.sum td:nth-child(2){text-align:right}.sum td:last-child{white-space:nowrap}.grand td:not(:first-child){font-family:PagesLight}
+footer{margin-left:-4pt;margin-top:22pt;font:10pt/12pt PagesLight;break-inside:avoid}
+.words{font-family:PagesRegular;margin-bottom:12pt}
+.declaration{margin-bottom:16pt;font-size:10pt}
+.remittance{font:11pt/12pt PagesCourier;letter-spacing:.06em;white-space:nowrap}
+.signature{display:block;width:98.2755pt;height:41.8326pt;object-fit:contain;margin:0 0 20pt 4pt}
+.bank{font:10pt/11pt PagesLight}
+@media print{.pages-paper{transform:none!important;width:595.28pt;min-height:841.89pt}thead{display:table-header-group}.service,.sum{break-inside:avoid}}
+
+.service td:nth-child(3),.service td:nth-child(6),.service td:nth-child(7){text-align:right;padding-right:4pt}

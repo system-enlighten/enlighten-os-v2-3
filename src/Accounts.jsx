@@ -4,7 +4,7 @@ import './Accounts.css';
 import PaymentDashboard from './PaymentDashboard.jsx';
 import {AccountsDashboard, BankingOverview, GstOverview, bankAccounts, studioGstin} from './AccountsOverview.jsx';
 import {parseStatement, statementSuggestion} from './AccountsStatement.js';
-import wordmark from './AccountsWordmark.svg?raw';
+import PagesInvoice, {printPagesInvoice} from './PagesInvoice.jsx';
 import { Mail, Share2, Printer, Edit3, DollarSign, Download, Search, CheckCircle, ArrowRight, X } from 'lucide-react';
 
 export const accountsPages = ['Payment Dashboard','Invoicing','Debit / Credit','Banking','Reconciliation','GST','Chart of Accounts','Payroll','Financial Reports'];
@@ -33,6 +33,7 @@ function Table({columns,rows,empty='No records yet.'}){
 
 // In-page iframe print helper that bypasses browser pop-up blockers completely
 function printMarkup(node, title){
+  if(node?.shadowRoot) { printPagesInvoice(node,title); return; }
   try {
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed';
@@ -88,25 +89,9 @@ function numberWords(n){
   return numberWords(Math.floor(n/size))+' '+label+(n%size?' '+numberWords(n%size):'');
 }
 
-function Invoice({invoice:r,printRef}){
-  const date=value=>value?.split('-').reverse().join('.')||'—';
-  const words=r.words||(numberWords(Math.floor(r.amount/100))+(r.amount%100?' and '+numberWords(r.amount%100)+' Paise':'')+' Only');
-  return <article className="accounts-invoice" ref={printRef}>
-    <h1 className="invoice-brand"><span dangerouslySetInnerHTML={{__html:wordmark.replace('#fff0cf','#252525')}}/></h1>
-    <div className="invoice-address">{r.issuerAddress||'E-256, Naraina Vihar, New Delhi 110028'}<br/>Phone +91 9999277482 · design.enlighten@gmail.com<br/>GSTIN {studioGstin}</div>
-    <h2>{r.documentType.toUpperCase()}</h2><div className="invoice-address">{date(r.date)}</div>
-    <div className="invoice-meta"><div><p>To,</p><p><strong>{r.client}<br/>{r.clientDivision}</strong></p><p>Address · {r.address}</p><p>State · {r.state}</p><p>State Code · {r.stateCode}</p><p>{r.taxIdLabel||'GSTIN'} · {r.gstin}</p></div>
-      <div><p>Purchase Order/Ref. No. · {r.po||'—'}</p><p>Invoice No. · <strong>{r.number}</strong></p><p>Contract/Order Date · {date(r.orderDate)}</p><p>Project Name · {r.projectName}</p><p>Contact Person · {r.contact}</p><p>Contact No. · {r.phone}</p></div></div>
-    {r.incompleteHistory&&<p className="invoice-missing-detail">Service lines and billing details await the original invoice document.</p>}
-    <Table columns={['S. No.','Description of Services','SAC Code','Unit','Qty','Unit Rate','Total Amount']} rows={r.items.map((i,j)=>({cells:[j+1,<span style={{whiteSpace:'pre-line'}}>{i.description}</span>,i.sac,i.unit,i.displayQuantity||i.quantity,money(i.rate),money(i.amount)]}))}/>
-    <div className="invoice-totals">Subtotal &nbsp; {money(r.amount)}<br/><strong>Total &nbsp; {money(r.amount)}</strong></div>
-    <div className="invoice-footer"><p>Rupees: <strong>{words}</strong></p><p>Declaration: Composition taxable person, not eligible to collect taxes on supplies</p>
-      <div className="invoice-remittance">
-        <p style={{margin:0,fontWeight:600}}>Kindly note our Bank Account Number and IFSC for INR remittances:</p>
-        <p style={{margin:'4px 0 0'}}>NAME: Enlighten Designs<br/>A/C#: 10148974324<br/>IFSC: IDFB0020126<br/>BANK: IDFC First, Punjabi Bagh</p>
-      </div>
-      {!r.sourceDocument&&<p style={{textAlign:'right',marginTop:26}}>Shivam Gupta<br/><strong>Partner</strong></p>}</div>
-  </article>;
+function Invoice({invoice,printRef}){
+  const words=invoice.words||(numberWords(Math.floor(invoice.amount/100))+(invoice.amount%100?' and '+numberWords(invoice.amount%100)+' Paise':'')+' Only');
+  return <PagesInvoice invoice={{...invoice,words}} printRef={printRef}/>;
 }
 
 function draftInvoice(draft,projects){
