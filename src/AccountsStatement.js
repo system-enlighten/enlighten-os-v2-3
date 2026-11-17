@@ -16,28 +16,103 @@ export function parseStatement(text){
   }
   if(quoted)throw Error('Unclosed quoted CSV field.');
   finish();
-  const expected=['date','reference','description','debit','credit'];
-  const headers=rows.shift()?.map(s=>s.toLowerCase())||[];
-  if(headers.length!==expected.length||expected.some(h=>!headers.includes(h)))throw Error('Use CSV headers Date, Reference, Description, Debit, Credit.');
-  if(!rows.length||rows.length>500)throw Error('Upload 1–500 statement lines per file.');
-  return rows.map((values,index)=>{
-    const [date,reference,description,debit,credit]=expected.map(h=>values[headers.indexOf(h)]||'');
-    const dr=debit.replace(/,/g,''),cr=credit.replace(/,/g,'');
+  if(!rows.length)throw Error('Uploaded CSV file is empty.');
+
+  const headers=rows.shift()?.map(s=>s.toLowerCase().trim())||[];
+  const findIdx=patterns=>{
+    for(const p of patterns){
+      const idx=headers.findIndex(h=>p.test(h));
+      if(idx!==-1)return idx;
+    }
+    return -1;
+  };
+
+  const dateIdx=findIdx([/^(txn|trans|transaction|value)?[\s_-]*date$/i, /date$/i, /date/i]);
+  const refIdx=findIdx([/^(ref|reference|utr|chq|cheque|txn[\s_-]*id|transaction[\s_-]*id|doc[\s_-]*no)[\s_-]*(no|number)?$/i, /ref/i, /utr/i, /chq/i]);
+  const descIdx=findIdx([/^(desc|description|particulars|narration|remarks|details)/i, /particular/i, /narration/i, /desc/i, /detail/i]);
+  const debitIdx=findIdx([/^(debit|dr|withdrawal|outflow)[\s_-]*(amount)?$/i, /^debit$/i, /^dr$/i, /debit/i]);
+  const creditIdx=findIdx([/^(credit|cr|deposit|inflow)[\s_-]*(amount)?$/i, /^credit$/i, /^cr$/i, /credit/i]);
+
+  if(dateIdx===-1||debitIdx===-1||creditIdx===-1){
+    throw Error('CSV must contain Date, Debit, and Credit columns. Found: '+headers.join(', '));
+  }
+
+  const parseDateStr=s=>{
+    const trimmed=String(s||'').trim();
+    if(/^\d{4}-\d{2}-\d{2}$/.test(trimmed))return trimmed;
+    // Handle DD/MM/YYYY or DD-MM-YYYY
+    const dmy=trimmed.match(/^(\d{1,2})[\/\.-](\d{1,2})[\/\.-](\d{4})$/);
+    if(dmy){
+      const [,day,month,year]=dmy;
+      return `${year}-${month.padStart(2,'0')}-${day.padStart(2,'0')}`;
+    }
+    // Handle YYYY/MM/DD
+    const ymd=trimmed.match(/^(\d{4})[\/\.-](\d{1,2})[\/\.-](\d{1,2})$/);
+    if(ymd){
+      const [,year,month,day]=ymd;
+      return `${year}-${month.padStart(2,'0')}-${day.padStart(2,'0')}`;
+    }
+    return trimmed;
+  };
+
+  const sanitizeNum=s=>String(s||'').replace(/[₹$,\s]/g,'').trim();
+
+  return rows.filter(r=>r.some(Boolean)).map((values,index)=>{
+    const rawDate=values[dateIdx]||'';
+    const date=parseDateStr(rawDate);
+    const reference=refIdx!==-1?(values[refIdx]||'').trim():'REF-'+(index+1);
+    const description=descIdx!==-1?(values[descIdx]||'').trim():'Bank transaction';
+    const dr=sanitizeNum(values[debitIdx]);
+    const cr=sanitizeNum(values[creditIdx]);
+
     const positive=s=>/^\d{1,10}(\.\d{1,2})?$/.test(s)&&Number(s)>0;
     const blank=s=>!s||/^0+(\.0{1,2})?$/.test(s);
-    const validDate=/^\d{4}-\d\d-\d\d$/.test(date)&&Number.isFinite(Date.parse(date))&&new Date(date).toISOString().slice(0,10)===date;
-    if(values.length!==headers.length||!validDate||!reference||!((positive(dr)&&blank(cr))||(positive(cr)&&blank(dr))))throw Error('Review CSV row '+(index+2)+'. Use YYYY-MM-DD, a reference, and one positive Debit or Credit.');
-    return {date,reference,description,amount:positive(dr)?dr:cr,direction:positive(dr)?'Outflow':'Inflow'};
-  });
+    const validDate=/^\d{4}-\d{2}-\d{2}$/.test(date)&&Number.isFinite(Date.parse(date));
+
+    if(!validDate){
+      throw Error('Row '+(index+2)+': Invalid date format "'+rawDate+'". Use YYYY-MM-DD or DD/MM/YYYY.');
+    }
+
+    const hasDr=positive(dr)&&blank(cr);
+    const hasCr=positive(cr)&&blank(dr);
+
+    if(!hasDr&&!hasCr){
+      // Check if both zero or both positive
+      if(positive(dr)&&positive(cr)){
+        throw Error('Row '+(index+2)+': Both Debit and Credit have positive amounts.');
+      }
+      return null;
+    }
+
+    return {
+      date,
+      reference:reference||('TXN-'+(index+1)),
+      description,
+      amount:hasDr?dr:cr,
+      direction:hasDr?'Outflow':'Inflow'
+    };
+  }).filter(Boolean);
 }
 
 export function statementSuggestion(row){
   const text=(row.description||'').toLowerCase();
   if(row.direction==='Outflow'){
-    if(/\batm\b|cash withdrawal/.test(text))return ['Cash','ATM withdrawal'];
-    if(/\bsalary\b|\bpayroll\b/.test(text))return ['Payroll Payable','Payroll'];
+    if(/\batm\b|cash withdrawal/.test(text))return ['Cash','ATM cash withdrawal'];
+    if(/\bsalary\b|\bpayroll\b|\bwages\b/.test(text))return ['Payroll Payable','Payroll'];
     if(/30091379815/.test(text)&&/shivam gupta|rita gupta/.test(text))return ['Drawings','Owner transfer'];
+    if(/shivam|drawing|partner/i.test(text))return ['Drawings','Owner drawing'];
+    if(/chg|charge|annual fee|sms charge|gst on/i.test(text))return ['Bank Charges','Bank fee'];
+    if(/google|adobe|figma|aws|github|chatgpt|openai|microsoft|zoom|notion|canva|dropbox/i.test(text))return ['Software Subscription','Software subscription'];
+    if(/rent|landlord|flat 29/i.test(text))return ['Rent','Studio rent'];
+    if(/electricity|bses|power|airtel|jio|act fibernet|broadband/i.test(text))return ['Electricity','Utility bill'];
+    if(/swiggy|zomato|blinkit|zepto|instamart|milk|bisleri|chai/i.test(text))return ['Daily Essentials | Kitchen/Meals','Kitchen / daily supplies'];
+    if(/uber|ola|rapido|makemytrip|irctc|indigo|vistara|flight|train/i.test(text))return ['Site Visit | Flight/Train/Bus','Travel expense'];
+    if(/vendor|supplier|contractor|civil|electrical|stone|pop/i.test(text))return ['Direct Project Costs','Project direct cost'];
   }
-  if(/\bretina\b/.test(text)&&/4145334112/.test(text))return ['Intercompany Clearing','Intercompany transfer'];
+  if(row.direction==='Inflow'){
+    if(/\bretina\b/.test(text)&&/4145334112/.test(text))return ['Intercompany Clearing','Intercompany transfer'];
+    if(/interest|int\.pd|int earned/i.test(text))return ['Design Fees','Bank interest'];
+    if(/neft|rtgs|upi|cms|inward|client|advance/i.test(text))return ['Accounts Receivable','Client collection'];
+  }
   return [];
 }

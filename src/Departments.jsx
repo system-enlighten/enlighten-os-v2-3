@@ -47,13 +47,53 @@ export function DepartmentWorkspace({id,name=departments[id][0],user,request:api
  const content=<>
  {page!=='Timeline'&&(!isAccounts||page!=='Performance')&&<h1 className={isAccounts?'studio-page-heading':undefined}>{page==='Home'?name:page}</h1>}
  {error&&<p role="alert">{error}</p>}
- {isAccounts&&(page==='Home'||accountsPages.includes(page))&&<Accounts page={page} request={request} user={user} onNavigate={go} reconciliationBank={reconciliationBank}/>}
  {page==='Home'&&<section className="studio-home-attendance"><div><strong>Attendance</strong><p>{!log?'Loading attendance…':log.checkOut?'Checked out':log.breakStart?'On break':log.checkIn?'Checked in':'Ready to check in'}</p>{log?.checkIn&&<p>{fmt(log.checkIn)}{log.checkOut?' – '+fmt(log.checkOut):''} · IST</p>}</div><div>{log?.checkIn&&!log.checkOut&&<button style={buttonStyle} disabled={busy} onClick={()=>load(log.breakStart?'resume':'break')}>{log.breakStart?'Resume work':'Pause for break'}</button>} <button style={buttonStyle} disabled={!log||busy||!!log.checkOut} onClick={()=>load(log.checkIn?'out':'in')}>{log?.checkOut?'Day closed':log?.checkIn?'Check out':'Check in'}</button></div></section>}
  {page==='Home'&&<MissedCheckoutNotice day={log?.missedDay} onReview={day=>{setAttendanceDay(day);setPage('Timeline');}} buttonStyle={buttonStyle}/>}
+ {isAccounts&&(page==='Home'||accountsPages.includes(page))&&<Accounts page={page} request={request} user={user} onNavigate={go} reconciliationBank={reconciliationBank}/>}
  {page==='Home'&&<TeamAvailability request={request} department={id} buttonStyle={buttonStyle}/>}
  {page==='Timeline'&&<PerformanceAttendance initialDay={attendanceDay} request={request} user={user}/>}
- {page==='Performance'&&<PerformanceView state={performanceState} request={request}/> }
- {page==='Team & Tasks'&&<section className="studio-home-card">{!team&&!error&&<p>Loading department team…</p>}{team&&<>{!isAccounts&&<><h2>People</h2>{team.people.length?team.people.map(p=><p key={p.id}>{p.name} · {p.role||'Team member'}</p>):<p>No employees assigned to this department.</p>}</>}<h2>Tasks</h2>{team.tasks.length?team.tasks.map(t=><p key={t.id}>{t.title} · {t.status}</p>):<p>No tasks to show.</p>}</>}</section>}
+ {page==='Performance'&&(!isAccounts ? <PerformanceView state={performanceState} request={request}/> : (
+  <section className="studio-home-card">
+    <h2>Accounts Operational Performance</h2>
+    <p>Department KPIs for billing speed, collections, and compliance.</p>
+    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:12,margin:'16px 0'}}>
+      <div style={{background:'#f9f9f9',padding:12,border:'1px solid #ddd'}}>
+        <strong style={{fontSize:14}}>Billing Turnaround</strong>
+        <p style={{margin:'4px 0',fontSize:13}}>Milestones invoiced within 2 working days</p>
+      </div>
+      <div style={{background:'#f9f9f9',padding:12,border:'1px solid #ddd'}}>
+        <strong style={{fontSize:14}}>Bank Reconciliation</strong>
+        <p style={{margin:'4px 0',fontSize:13}}>IDFC statement matched weekly</p>
+      </div>
+      <div style={{background:'#f9f9f9',padding:12,border:'1px solid #ddd'}}>
+        <strong style={{fontSize:14}}>Payroll Punctuality</strong>
+        <p style={{margin:'4px 0',fontSize:13}}>Disbursed on or before 1st of month</p>
+      </div>
+      <div style={{background:'#f9f9f9',padding:12,border:'1px solid #ddd'}}>
+        <strong style={{fontSize:14}}>GST Compliance</strong>
+        <p style={{margin:'4px 0',fontSize:13}}>Quarterly CMP-08 paid on schedule</p>
+      </div>
+    </div>
+  </section>
+ ))}
+ {page==='Team & Tasks'&&<section className="studio-home-card">
+  {!team&&!error&&<p>Loading department team…</p>}
+  {team&&<>
+    <h2>{isAccounts?'Accounts Team Members':'People'}</h2>
+    {team.people.length?team.people.map(p=><p key={p.id}><strong>{p.name}</strong> · {p.role||'Team member'}</p>):<p>No employees assigned to this department.</p>}
+    <h2 style={{marginTop:20}}>{isAccounts?'Department Recurring Responsibilities':'Tasks'}</h2>
+    {team.tasks.length?team.tasks.map(t=><p key={t.id}>{t.title} · {t.status}</p>):(
+      isAccounts ? (
+        <div style={{fontSize:13,lineHeight:1.8}}>
+          <p>✓ <strong>Client Billing:</strong> Issue tax invoices on milestone achievements &amp; track payment collections.</p>
+          <p>✓ <strong>Bank Reconciliation:</strong> Import IDFC First Bank CSV statements &amp; clear pending entries.</p>
+          <p>✓ <strong>Monthly Payroll:</strong> Load attendance, compute allowances/deductions &amp; disburse salaries.</p>
+          <p>✓ <strong>GST Compliance:</strong> Calculate quarterly CMP-08 composition tax &amp; file annual GSTR-4.</p>
+        </div>
+      ) : <p>No tasks to show.</p>
+    )}
+  </>}
+ </section>}
  {!['Home','Performance','Timeline','Team & Tasks'].includes(page)&&id!=='accounts'&&<p>This section is reserved for the department’s next workflow update.</p>}
  </>;
  if(isAccounts)return <WorkspaceShell isAccounts name={name} switchDepartment={switchDepartment} currentUser={user}

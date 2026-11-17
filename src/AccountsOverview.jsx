@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {ArrowUpRight, Banknote, CalendarDays, ChartNoAxesCombined, Landmark, TrendingUp} from 'lucide-react';
+import {ArrowUpRight, Banknote, CalendarDays, ChartNoAxesCombined, Landmark, TrendingUp, ShieldCheck, FileCheck, Info} from 'lucide-react';
 
 export const studioGstin='07AAKFE5187A1ZI';
 export const bankAccounts=['IDFC','Cash'];
@@ -21,7 +21,7 @@ function Card({title,action,children,wide=false}){
 
 function ActivityChart({rows,labels}){
   const values=rows.flatMap(r=>[r.first,r.second]);
-  const top=Math.max(1,...values),bottom=Math.min(0,...values),range=top-bottom;
+  const top=Math.max(1,...values),bottom=Math.min(0,...values),range=top-bottom||1;
   return <>
     <div className="accounts-chart-legend"><span>{labels[0]}</span><span>{labels[1]}</span></div>
     <div className="accounts-chart" aria-hidden="true" style={{gridTemplateColumns:'repeat('+rows.length+',minmax(0,1fr))'}}>
@@ -63,19 +63,20 @@ export function AccountsDashboard({data,today,onNavigate}){
   const expenses=expenseHeads.map(head=>({head,value:sum(period,r=>movement(r,[head]))})).filter(row=>row.value>0).sort((a,b)=>b.value-a.value).slice(0,5);
   const activeProjects=projects.filter(project=>period.some(r=>r.projectId===project.id&&r.postings?.length));
   const balances=bankAccounts.map(bank=>({bank,balance:sum(posted,r=>movement(r,[bank]))}));
+
   return <div className="accounts-dashboard">
     <nav className="accounts-overview-tools" aria-label="Dashboard controls">
-      <label>Period <select value={previous?'previous':'current'} onChange={e=>setPrevious(e.target.value==='previous')}><option value="current">This Fiscal Year</option><option value="previous">Previous Fiscal Year</option></select></label>
+      <label>Period <select value={previous?'previous':'current'} onChange={e=>setPrevious(e.target.value==='previous')}><option value="current">This Fiscal Year (FY {year}-{String(year+1).slice(2)})</option><option value="previous">Previous Fiscal Year (FY {year-1}-{String(year).slice(2)})</option></select></label>
     </nav>
     <div className="accounts-overview-grid">
       <Card title="Total Receivables" action={<button onClick={()=>onNavigate('Payment Dashboard')}>View receivables <ArrowUpRight size={13}/></button>}>
-        <span>Total unpaid invoices</span><strong className="accounts-balance">{amount(receivable)}</strong>
+        <span>Total unpaid client invoices</span><strong className="accounts-balance">{amount(receivable)}</strong>
         <div className="accounts-receivables-meter"><span style={{width:(receivable?overdue/receivable*100:0)+'%'}}/></div>
         <div className="accounts-overview-inline"><span>Current <b>{amount(receivable-overdue)}</b></span><span>Overdue <b>{amount(overdue)}</b></span></div>
       </Card>
       <Card title="Total Payables" action={<button onClick={()=>onNavigate('Financial Reports')}>View reports <ArrowUpRight size={13}/></button>}>
         <span>Accounts Payable ledger balance</span><strong className="accounts-balance">{amount(payable)}</strong>
-        <small>Supplier bill aging is unavailable.</small>
+        <small>Outstanding vendor bills &amp; supplier obligations</small>
       </Card>
       <Card title="Cash Flow" wide>
         <div className="accounts-cash-flow"><ActivityChart rows={flows} labels={['Incoming','Outgoing']}/>
@@ -111,9 +112,11 @@ export function BankingOverview({records,today,staged,onNavigate}){
     const values=posted.filter(r=>r.date>=iso(from)&&r.date<=iso(until)).map(r=>movement(r,accounts));
     return {label:iso(from).slice(5),first:sum(values,n=>Math.max(n,0)),second:sum(values,n=>Math.max(-n,0))};
   });
+
   return <>
     <nav className="accounts-overview-tools" aria-label="Banking actions">
       <button className="accounts-overview-primary" onClick={()=>onNavigate('Reconciliation',bank==='all'?undefined:bank)}>Import statement / Reconcile</button>
+      <button onClick={()=>onNavigate('Debit / Credit')}>Record Transaction</button>
       <button onClick={()=>onNavigate('Chart of Accounts')}>Chart of Accounts</button>
     </nav>
     <Card title="Banking Overview" action={<label><CalendarDays size={14}/> <select aria-label="Chart period" value={days} onChange={e=>setDays(Number(e.target.value))}><option value="30">Last 30 days</option><option value="60">Last 60 days</option></select></label>}>
@@ -127,7 +130,18 @@ export function BankingOverview({records,today,staged,onNavigate}){
     </Card>
     <h2>Active Accounts</h2>
     <div className="accounts-scroll"><table><thead><tr><th>Account details</th><th>Pending statement lines</th><th>Amount in bank</th><th>Amount in Enlighten OS</th><th>Action</th></tr></thead>
-      <tbody>{accounts.map(key=><tr key={key}><td>{key==='Cash'?<Banknote size={17}/>:<Landmark size={17}/>} {bankLabel[key]}</td><td>{staged.filter(row=>row.bank===key).length}</td><td>{key==='Cash'?'—':'No bank feed'}</td><td><strong>{amount(balance(key))}</strong></td><td><button onClick={()=>onNavigate('Reconciliation',key)}>Reconcile</button></td></tr>)}</tbody>
+      <tbody>{accounts.map(key=><tr key={key}>
+        <td>{key==='Cash'?<Banknote size={17}/>:<Landmark size={17}/>} {bankLabel[key]}</td>
+        <td>{key==='Cash'?'—':staged.filter(row=>row.bank===key).length}</td>
+        <td>{key==='Cash'?'Physical cash count':'Statement reconciliation'}</td>
+        <td><strong>{amount(balance(key))}</strong></td>
+        <td>
+          {key==='Cash'?
+            <button onClick={()=>onNavigate('Debit / Credit')}>Cash Book</button>:
+            <button onClick={()=>onNavigate('Reconciliation',key)}>Reconcile</button>
+          }
+        </td>
+      </tr>)}</tbody>
     </table></div>
   </>;
 }
@@ -137,21 +151,81 @@ export function GstOverview({records,today,onRecord}){
   const entries=records.filter(r=>r.kind==='gstFiling').sort((a,b)=>b.period.localeCompare(a.period));
   const rows=history?entries:entries.filter(r=>r.period===period);
   const entriesForPeriod=records.filter(r=>r.date?.startsWith(period)&&r.kind==='invoice'&&r.documentType!=='Proforma Invoice');
+  const periodTotal=sum(entriesForPeriod,r=>r.amount||0);
+
+  // Composition Scheme (Sec 10(2A) for Service Providers: 6% total = 3% CGST + 3% SGST)
+  const estTax=Math.round(periodTotal*0.06);
+  const estCgst=Math.round(periodTotal*0.03);
+  const estSgst=Math.round(periodTotal*0.03);
+
+  const compositionForms=['CMP-08 (Quarterly)','GSTR-4 (Annual)'];
+  const regularForms=['GSTR-1','IMS','GSTR-2B','GSTR-3B'];
+
   return <div className="accounts-gst-grid">
     <Card title={'GSTIN '+studioGstin} action={<label><CalendarDays size={15}/> <input aria-label="GST period" type="month" value={period} onChange={e=>{if(e.target.value)setPeriod(e.target.value);}}/></label>}>
-      <p>Enlighten Designs · New Delhi</p>
-      <div className="accounts-gst-steps">{['GSTR-1','IMS','GSTR-2B','GSTR-3B','CMP-08','GSTR-4'].map(form=><div key={form}><strong>{form}</strong><small>{entries.some(r=>r.period===period&&r.returnType===form)?'Recorded':'No record'}</small></div>)}</div>
-      <div className="accounts-overview-inline"><button onClick={()=>setHistory(!history)}>{history?'View Selected Period':'View Filing History'}</button>{onRecord&&<button className="accounts-overview-primary" onClick={()=>onRecord(period)}>Record Filing</button>}</div>
+      <p><strong>Enlighten Designs</strong> · Composition Taxable Person · New Delhi</p>
+      
+      <div style={{background:'#f0f7f4',padding:10,borderRadius:4,margin:'12px 0',fontSize:12,border:'1px solid #c8e6c9'}}>
+        <span style={{fontWeight:600,color:'#2e7d32'}}>Composition Scheme Compliance:</span>
+        <span style={{display:'block',marginTop:2}}>Not eligible to collect GST on invoices. Quarterly tax is paid via challan <strong>CMP-08</strong> and annual return is <strong>GSTR-4</strong>.</span>
+      </div>
+
+      <h3>Applicable Composition Returns</h3>
+      <div className="accounts-gst-steps" style={{gridTemplateColumns:'repeat(2, minmax(130px, 1fr))'}}>
+        {compositionForms.map(form=>{
+          const key=form.split(' ')[0];
+          const isDone=entries.some(r=>r.period===period&&r.returnType.includes(key));
+          return (
+            <div key={form} style={{borderColor:isDone?'#2e7d32':undefined}}>
+              <strong>{form}</strong>
+              <small style={{color:isDone?'#2e7d32':'#c62828',fontWeight:500}}>
+                {isDone?'✓ Recorded for period':'Pending / No record'}
+              </small>
+            </div>
+          );
+        })}
+      </div>
+
+      <details style={{margin:'12px 0',fontSize:12}}>
+        <summary style={{cursor:'pointer',color:'#555'}}>Other GST Forms (Regular taxpayer reference)</summary>
+        <div className="accounts-gst-steps" style={{marginTop:8}}>
+          {regularForms.map(form=><div key={form}><strong>{form}</strong><small>{entries.some(r=>r.period===period&&r.returnType===form)?'Recorded':'Not applicable'}</small></div>)}
+        </div>
+      </details>
+
+      <div className="accounts-overview-inline" style={{marginTop:16}}>
+        <button onClick={()=>setHistory(!history)}>{history?'View Selected Period':'View Filing History'}</button>
+        {onRecord&&<button className="accounts-overview-primary" onClick={()=>onRecord(period)}>Record Filing</button>}
+      </div>
+
       <h3>{history?'Filing history':monthLabel(period)+' · Period records'}</h3>
       <div className="accounts-scroll"><table><thead><tr><th>Period</th><th>Form</th><th>Recorded date</th><th>Reference</th></tr></thead>
-        <tbody>{rows.length?rows.map(row=><tr key={row.id}><td>{row.period}</td><td>{row.returnType}</td><td>{row.date}</td><td>{row.reference}</td></tr>):<tr><td colSpan={4}>No filing records yet.</td></tr>}</tbody>
+        <tbody>{rows.length?rows.map(row=><tr key={row.id}><td>{row.period}</td><td>{row.returnType}</td><td>{row.date}</td><td>{row.reference}</td></tr>):<tr><td colSpan={4}>No filing records yet for this period.</td></tr>}</tbody>
       </table></div>
     </Card>
-    <Card title="Period Summary">
-      <p><ChartNoAxesCombined size={17}/> Posted invoices <strong>{entriesForPeriod.length}</strong></p>
-      <p>Total invoice value <strong>{amount(sum(entriesForPeriod,r=>r.amount||0))}</strong></p>
-      <p>Filing records are entered manually in Enlighten OS.</p>
-      <a href="https://www.gst.gov.in/" target="_blank" rel="noreferrer">Open GST Portal <ArrowUpRight size={13}/></a>
+
+    <Card title="Period Turnover &amp; CMP-08 Estimate">
+      <p><ChartNoAxesCombined size={17}/> Posted Tax Invoices: <strong>{entriesForPeriod.length}</strong></p>
+      <p>Gross Period Turnover: <strong>{amount(periodTotal)}</strong></p>
+      
+      <div style={{background:'#fafafa',border:'1px solid #ddd',padding:12,margin:'12px 0',borderRadius:4}}>
+        <strong style={{fontSize:13,display:'block',marginBottom:6}}>Estimated CMP-08 Tax (6%):</strong>
+        <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:4}}>
+          <span>CGST (3%):</span>
+          <strong>{amount(estCgst)}</strong>
+        </div>
+        <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:4}}>
+          <span>SGST (3%):</span>
+          <strong>{amount(estSgst)}</strong>
+        </div>
+        <div style={{display:'flex',justifyContent:'space-between',fontSize:13,paddingTop:4,borderTop:'1px dashed #ccc'}}>
+          <span>Total Payable:</span>
+          <strong style={{color:'#c62828'}}>{amount(estTax)}</strong>
+        </div>
+      </div>
+
+      <p style={{fontSize:11,color:'#666'}}>*Subject to any reverse charge mechanism (RCM) liabilities and applicable threshold limits.</p>
+      <a href="https://www.gst.gov.in/" target="_blank" rel="noreferrer" style={{marginTop:8}}>Open GST Portal <ArrowUpRight size={13}/></a>
     </Card>
   </div>;
 }
