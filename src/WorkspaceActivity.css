@@ -6,7 +6,7 @@
 }
 .workspace-activity {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: flex-end;
   text-align: right;
   overflow-wrap: anywhere;
@@ -23,25 +23,4 @@
   display: block;
   color: #d2dce7;
   overflow-wrap: anywhere;
-}
-.workspace-activity-spinner {
-  box-sizing: border-box;
-  flex: 0 0 13px;
-  width: 13px;
-  height: 13px;
-  border: 2px solid #ffffff55;
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: workspace-activity-spin .8s linear infinite;
-}
-@keyframes workspace-activity-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) {
-  .workspace-activity-spinner { animation: none; }
-}
-
-.workspace-activity-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding-inline-start: 6px;
 }

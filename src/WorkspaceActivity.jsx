@@ -4,11 +4,11 @@ import './WorkspaceActivity.css';
 const active = new Map();
 const listeners = new Set();
 let snapshot = {};
-let recentWrite, recentRead, expiry;
+let recentWrite, expiry;
 
 function publish() {
   const operations = [...active.values()];
-  snapshot = {operations, recent: recentWrite || recentRead};
+  snapshot = {operations, recent: recentWrite};
   listeners.forEach(listener => listener());
 }
 
@@ -20,7 +20,7 @@ function subscribe(listener) {
 export function resetWorkspaceActivity() {
   clearTimeout(expiry);
   active.clear();
-  recentWrite = recentRead = undefined;
+  recentWrite = undefined;
   publish();
 }
 
@@ -34,10 +34,8 @@ export function beginActivity(kind, subject = '') {
       active.set(token, {kind, subject, progress});
     } else {
       active.delete(token);
-      const result = {kind, subject, confirmed};
-      if (kind === 'load') recentRead = result;
-      else {
-        recentWrite = result;
+      if (kind !== 'load') {
+        recentWrite = {kind, subject, confirmed};
         clearTimeout(expiry);
         expiry = setTimeout(() => { recentWrite = undefined; publish(); }, confirmed ? 6000 : 15000);
       }
@@ -59,38 +57,38 @@ export async function trackActivity(kind, subject, work) {
 }
 
 const labels = {
-  load: ['Loading', 'Loaded', 'Load could not be completed'],
   save: ['Saving changes', 'Changes saved', 'Save could not be confirmed'],
   upload: ['Uploading', 'Upload complete', 'Upload could not be confirmed']
 };
 
 export default function WorkspaceActivity() {
   const {operations = [], recent} = useSyncExternalStore(subscribe, () => snapshot);
-  const operation = operations.find(item => item.kind === 'upload')
-    || operations.find(item => item.kind === 'save')
-    || operations.find(item => item.subject)
-    || operations[0];
-  const visible = operation
-    ? [operation, ...operations.filter(item => item !== operation)]
-    : [recent];
+  const loading = operations.some(item => item.kind === 'load');
+  const subjects = loadingSubjects(operations);
+  const writes = operations.filter(item => item.kind !== 'load');
+  const visibleWrites = writes.length ? writes : recent ? [recent] : [];
   return <div className="workspace-activity" role="status" aria-live="polite" aria-atomic="true">
-    {visible.map((item, index) => <span className="workspace-activity-item" key={index}>
-      <span aria-hidden="true" className={operation ? 'workspace-activity-spinner' : ''}>
-        {operation ? '' : item?.confirmed === false ? '!' : '✓'}
-      </span>
-      <span><strong>{item ? labels[item.kind][operation ? 0 : item.confirmed ? 1 : 2] : 'Ready'}{operation ? '…' : ''}</strong>
-        {item?.subject && <small>{item.subject}</small>}
-      </span>
-      {item?.progress != null && <span>{item.progress === 100 ? 'Confirming…' : item.progress + '%'}</span>}
+    {visibleWrites.map((item, index) => <span key={index}>
+      <strong>{labels[item.kind][item.confirmed === undefined ? 0 : item.confirmed ? 1 : 2]}
+        {item.confirmed === undefined ? '…' : ''}</strong>
+      {item.subject && <small>{item.subject}</small>}
+      {item.progress != null && <small>{item.progress === 100 ? 'Confirming…' : item.progress + '%'}</small>}
     </span>)}
+    {loading && <span><strong>Loading…</strong>
+      {subjects.length > 0 && <small>{subjects.join(' · ')}</small>}
+    </span>}
   </div>;
+}
+
+function loadingSubjects(operations) {
+  return [...new Set(operations
+    .filter(item => item.kind === 'load' && item.subject)
+    .map(item => item.subject))];
 }
 
 export function StudioLoadingDetail() {
   const {operations = []} = useSyncExternalStore(subscribe, () => snapshot);
-  const subjects = [...new Set(operations
-    .filter(item => item.kind === 'load' && item.subject)
-    .map(item => item.subject))];
+  const subjects = loadingSubjects(operations);
   return <div role="status" aria-atomic="true" style={{
     fontSize: 12, textAlign: 'center', maxWidth: 520, minHeight: '1.5em', lineHeight: 1.5
   }}>{subjects.join(' · ')}</div>;
