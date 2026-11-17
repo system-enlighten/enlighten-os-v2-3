@@ -1,0 +1,514 @@
+{
+  "E-IN-24-25-257": {
+    "client": "SRBS Interiors",
+    "address": "284 R, Sector- 42, Gurugram,\nHaryana, IN - 122002",
+    "state": "Haryana",
+    "stateCode": "06",
+    "gstin": "06AEBFS0136G12ZG",
+    "po": "C-069-AB-M-09-25-R1",
+    "orderDate": "2025-09-17",
+    "projectName": "Royal Enfield Discovery Centre",
+    "contact": "Mr. Arpit Goel",
+    "phone": "+91 99649 66664",
+    "date": "2026-02-18",
+    "number": "E-IN-24-25-157",
+    "documentType": "Performa Invoice",
+    "items": [
+      {
+        "description": "Lighting Design & Consultancy Services\nUpon completion of drawings",
+        "sac": "99839",
+        "unit": "LS",
+        "quantity": 1,
+        "displayQuantity": "LS",
+        "rate": 7500000,
+        "amount": 7500000
+      },
+      {
+        "description": "Lighting Design & Consultancy Services\nUpon completion of Technical Table, Schedule & BOQ",
+        "sac": "99839",
+        "unit": "LS",
+        "quantity": 1,
+        "displayQuantity": "LS",
+        "rate": 4500000,
+        "amount": 4500000
+      }
+    ],
+    "amount": 12000000,
+    "words": "One Lakh Twenty Thousand Only",
+    "sourceDocument": "Original invoice PDF",
+    "sourceUrl": "https://drive.google.com/file/d/1Mtd1LiQBgrPGC6iRrkFK9zZXtEOC8-tn/view"
+  },
+  "E-IN-24-25-259": {
+    "client": "Elchico Hotels & Restaurants Pvt Ltd",
+    "address": "142A/32, Mahatma Gandhi Marg, Civil\nLines, Prayagraj, Uttar Pradesh, 211001",
+    "state": "Uttar Pradesh",
+    "stateCode": "09",
+    "gstin": "09AAACE4923H1ZQ",
+    "po": "R-038-UP-M-05-23",
+    "orderDate": "2023-08-10",
+    "projectName": "Elchico Residence",
+    "contact": "Mr. Mohit Roy",
+    "phone": "+91 94153 17572",
+    "date": "2026-03-21",
+    "number": "E-IN-25-26-259",
+    "documentType": "Invoice",
+    "items": [
+      {
+        "description": "Lighting Design & Consultancy Services\nUpon completion of Drawings",
+        "sac": "99839",
+        "unit": "LS",
+        "quantity": 1,
+        "displayQuantity": "LS",
+        "rate": 7500000,
+        "amount": 7500000
+      },
+      {
+        "description": "Lighting Design & Consultancy Services\nUpon completion of Technical Table and Luminaire Schedule",
+        "sac": "99839",
+        "unit": "LS",
+        "quantity": 1,
+        "displayQuantity": "LS",
+        "rate": 7500000,
+        "amount": 7500000
+      },
+      {
+        "description": "Lighting Design & Consultancy Services\nAfter lighting fixtures are fully installed",
+        "sac": "99839",
+        "unit": "LS",
+        "quantity": 1,
+        "displayQuantity": "LS",
+        "rate": 2960000,
+        "amount": 2960000
+      }
+    ],
+    "amount": 17960000,
+    "words": "One Lakh Seventy Nine Thousand Six Hundred Only",
+    "sourceDocument": "Original invoice PDF",
+    "sourceUrl": "https://drive.google.com/file/d/1wfgMFoDRJXFUjb0hiQVL2_Emq5vHDCA-/view"
+  },
+  "E-IN-26-27-001": {
+    "client": "Mr Ravi Ramchandani",
+    "address": "B33 Lakewood City Surajkund,\nFaridabad - 121009",
+    "state": "Haryana",
+    "stateCode": "06",
+    "gstin": "",
+    "po": "H-AAD-D-02-01",
+    "orderDate": "2023-07-20",
+    "projectName": "Grandeur Residence",
+    "contact": "Mr. Karan Ramchandani",
+    "phone": "+91 94153 17572",
+    "date": "2026-04-13",
+    "number": "E-IN-25-26-260",
+    "documentType": "Invoice",
+    "items": [
+      {
+        "description": "Lighting Design & Consultancy Services\nUpon completion of Technical Table and Luminaire Schedule",
+        "sac": "99839",
+        "unit": "LS",
+        "quantity": 1,
+        "displayQuantity": "LS",
+        "rate": 7500000,
+        "amount": 7500000
+      }
+    ],
+    "amount": 7500000,
+    "words": "Seventy Five Thousand Only",
+    "sourceDocument": "Original invoice PDF",
+    "sourceUrl": "https://drive.google.com/file/d/1rGifA6YfadTP8HSi5F-shWf3t-a61C06/view"
+  },
+  "E-IN-26-27-002": {
+    "client": "Mr Rahul Goel",
+    "address": "11/26 East Punjabi Bagh, New Delhi -\n110063",
+    "state": "Delhi",
+    "stateCode": "07",
+    "gstin": "",
+    "po": "H-AAD-D-02-01",
+    "projectName": "11/26 Punjabi Bagh Residence",
+    "contact": "Mr. Rahul Goel",
+    "phone": "+91 94153 17572",
+    "orderDate": "2026-03-31",
+    "date": "2026-04-14",
+    "number": "E-IN-25-26-261",
+    "documentType": "Performa Invoice",
+    "items": [
+      {
+        "description": "Lighting Design & Consultancy Services\nOn Appointment Stage\n[Project Value: 2,75,000]",
+        "sac": "99839",
+        "unit": "LS",
+        "quantity": 1,
+        "displayQuantity": "LS",
+        "rate": 7500000,
+        "amount": 7500000
+      }
+    ],
+    "amount": 7500000,
+    "words": "Seventy Five Thousand Only",
+    "sourceDocument": "Original invoice PDF",
+    "sourceUrl": "https://drive.google.com/file/d/1eo3jLzYEhlSJaYtsZTg6Z5eLAlKgOWZY/view"
+  },
+  "E-IN-26-27-003": {
+    "client": "Arteform Designs Pvt. Ltd.",
+    "address": "A-14/27, DLF Phase1 Golf Course\nroad, Gurugram IN",
+    "state": "Haryana",
+    "stateCode": "06",
+    "gstin": "06AADCA5081H1ZU",
+    "contact": "Shaili Gupta",
+    "phone": "+91 97111 86738",
+    "po": "R-072-AB-M-06-26-R0",
+    "orderDate": "2026-06-05",
+    "projectName": "Conservatory, Gurugram",
+    "date": "2026-06-05",
+    "number": "E-IN-26-27-003",
+    "documentType": "Invoice",
+    "items": [
+      {
+        "description": "Lighting Design & Consultancy Services\nOn Appointment Stage",
+        "sac": "99839",
+        "unit": "LS",
+        "quantity": 1,
+        "displayQuantity": "LS",
+        "rate": 5000000,
+        "amount": 5000000
+      }
+    ],
+    "amount": 5000000,
+    "words": "Fifty thousand Only",
+    "sourceDocument": "Original invoice PDF",
+    "sourceUrl": "https://drive.google.com/file/d/1dXRLs7tqMI2zOZuEDqFMxY_Ao0fqp8IA/view"
+  },
+  "E-IN-26-27-004": {
+    "client": "Mr Rahul Goel",
+    "address": "11/26 East Punjabi Bagh, New Delhi -\n110063",
+    "state": "Delhi",
+    "stateCode": "07",
+    "gstin": "",
+    "po": "H-AAD-D-02-01",
+    "projectName": "11/26 Punjabi Bagh Residence",
+    "contact": "Mr. Rahul Goel",
+    "phone": "+91 94153 17572",
+    "orderDate": "2026-07-01",
+    "date": "2026-07-01",
+    "number": "E-IN-26-27-004",
+    "documentType": "Performa Invoice",
+    "items": [
+      {
+        "description": "Lighting Design & Consultancy Services\nFor Drawings (1F | 2F | 3F | 4F | 5F )\n[Project Value: 2,75,000]",
+        "sac": "99839",
+        "unit": "LS",
+        "quantity": 1,
+        "displayQuantity": "LS",
+        "rate": 8000000,
+        "amount": 8000000
+      }
+    ],
+    "amount": 8000000,
+    "words": "Eighty Thousand Only",
+    "sourceDocument": "Original invoice PDF",
+    "sourceUrl": "https://drive.google.com/file/d/1Osa64MXAUeiAuIkhnA6pOR2q9te61A8t/view"
+  },
+  "E-IN-26-27-005": {
+    "client": "Mr. Harshit Mangal",
+    "address": "201, Krishana Kunj Apartment, A26\nShastri Nagar (Opp. Hotel Ashapurna), Jaipur",
+    "state": "Rajasthan",
+    "stateCode": "08",
+    "gstin": "",
+    "po": "R-063-DL-M-04-25",
+    "orderDate": "2025-06-04",
+    "projectName": "Jaipur, Residence - 2",
+    "contact": "Mr. Harshit Mangal",
+    "phone": "+91 9928700006",
+    "date": "2026-07-02",
+    "number": "E-IN-26-27-005",
+    "documentType": "Invoice",
+    "items": [
+      {
+        "description": "Lighting Design & Consultancy Services\n(Against Technical Table)",
+        "sac": "99839",
+        "unit": "LS",
+        "quantity": 1,
+        "displayQuantity": "LS",
+        "rate": 1500000,
+        "amount": 1500000
+      }
+    ],
+    "amount": 1500000,
+    "words": "Fifteen Thousand Only",
+    "sourceDocument": "Original invoice PDF",
+    "sourceUrl": "https://drive.google.com/file/d/1mtopEFSr8FGfMrzqGzDIS0zvG4QTcEV2/view"
+  },
+  "E-IN-26-27-006": {
+    "client": "Arteform Designs Pvt. Ltd.",
+    "address": "A-14/27, DLF Phase1\nGolf Course road, Gurugram IN",
+    "state": "Haryana",
+    "stateCode": "06",
+    "gstin": "06AADCA5081H1ZU",
+    "contact": "Shaili Gupta",
+    "phone": "+91 97111 86738",
+    "po": "R-044-HY-M-01-24",
+    "orderDate": "2023-01-16",
+    "projectName": "Residence Hyderabad",
+    "issuerAddress": "E-256, Narina Vihar, New Delhi 110028 IN",
+    "date": "2026-08-20",
+    "number": "E-IN-26-27-006",
+    "documentType": "Invoice",
+    "items": [
+      {
+        "description": "Lighting Design & Consultancy Services",
+        "sac": "99839",
+        "unit": "LS",
+        "quantity": 1,
+        "displayQuantity": "LS",
+        "rate": 17000000,
+        "amount": 17000000
+      }
+    ],
+    "amount": 17000000,
+    "words": "One Lakh Seventy Thousand Rupee",
+    "sourceDocument": "Original invoice PDF",
+    "sourceUrl": "https://drive.google.com/file/d/1Ukws3DoSIUw35HUUCPITUFqx_8rQ44Y3/view"
+  },
+  "E-IN-26-27-007": {
+    "client": "Arteform Designs Pvt. Ltd.",
+    "address": "A-14/27, DLF Phase1 Golf Course\nroad, Gurugram IN",
+    "state": "Haryana",
+    "stateCode": "06",
+    "gstin": "06AADCA5081H1ZU",
+    "contact": "Shaili Gupta",
+    "phone": "+91 97111 86738",
+    "po": "R-072-AB-M-06-26-R0",
+    "orderDate": "2026-06-05",
+    "projectName": "Conservatory, Gurugram",
+    "issuerAddress": "E-256, Naraina , New Delhi IN 110028",
+    "date": "2026-09-11",
+    "number": "E-IN-26-27-007",
+    "documentType": "Invoice",
+    "items": [
+      {
+        "description": "Lighting Design & Consultancy Services\nAfter Drawing & Documentation”",
+        "sac": "99839",
+        "unit": "LS",
+        "quantity": 1,
+        "displayQuantity": "LS",
+        "rate": 5000000,
+        "amount": 5000000
+      }
+    ],
+    "amount": 5000000,
+    "words": "Fifty Thousand Only",
+    "sourceDocument": "Original invoice PDF",
+    "sourceUrl": "https://drive.google.com/file/d/1Rzk0kRm8ycyvR7WO1cEqYvMZZVyJlq45/view"
+  },
+  "E-IN-26-27-008": {
+    "client": "Tattvam & Co.",
+    "address": "2nd, Floor, JD-2C, Pitampura,\nNew Delhi 110034",
+    "state": "Delhi",
+    "stateCode": "07",
+    "gstin": "07AAHFV2670C1ZA",
+    "po": "R-063-DL-M-04-25",
+    "orderDate": "2024-02-16",
+    "projectName": "Residence Saraswati Vihar",
+    "contact": "Mrs. Pitam Goel",
+    "phone": "+91 9650777079",
+    "date": "2026-09-17",
+    "number": "E-IN-26-27- 008",
+    "documentType": "Invoice",
+    "items": [
+      {
+        "description": "Lighting Design & Consultancy Services\nFee - 9000 / month\nFor the month of June, July & Aug",
+        "sac": "99839",
+        "unit": "LS",
+        "quantity": 1,
+        "displayQuantity": "LS",
+        "rate": 2700000,
+        "amount": 2700000
+      }
+    ],
+    "amount": 2700000,
+    "words": "Twenty Seven Thousand Only",
+    "sourceDocument": "Original invoice PDF",
+    "sourceUrl": "https://drive.google.com/file/d/1h3CaBOKuW0aNKBVE838UrZquRlZJtLLI/view"
+  },
+  "E-IN-26-27-009": {
+    "client": "Mr. Ujjwal Jain",
+    "address": "F1U8 Pitampura, New Delhi 110034 IN",
+    "state": "Delhi",
+    "stateCode": "07",
+    "gstin": "",
+    "po": "R-053-DL-M-07-24",
+    "orderDate": "2024-10-06",
+    "projectName": "Pitampura Residence",
+    "contact": "Mr. Ujjwal Jain",
+    "phone": "+91 8377885243",
+    "date": "2026-09-17",
+    "number": "E-IN-26-27-009",
+    "documentType": "Invoice",
+    "items": [
+      {
+        "description": "Lighting Design & Consultancy Services\nTech table | Luminaire schedule\nFacade | Bathroom | Furniture",
+        "sac": "99839",
+        "unit": "LS",
+        "quantity": 1,
+        "displayQuantity": "LS",
+        "rate": 5000000,
+        "amount": 5000000
+      }
+    ],
+    "amount": 5000000,
+    "words": "Fifty thousand Only",
+    "sourceDocument": "Original invoice PDF",
+    "sourceUrl": "https://drive.google.com/file/d/1NN36JmCMpTNtNuCSG3py_31V3hh_hdwE/view"
+  },
+  "E-IN-26-27-010": {
+    "client": "Mr. Vikas Jain",
+    "address": "MD24 Pitampura, New Delhi 110034\nIN",
+    "state": "Delhi",
+    "stateCode": "07",
+    "gstin": "",
+    "po": "R-053-DL-M-07-24",
+    "orderDate": "2024-10-06",
+    "projectName": "Pitampura Residence",
+    "contact": "Mr. Vikas Jain",
+    "phone": "+91 9999149924",
+    "date": "2026-09-17",
+    "number": "E-IN-26-27-010",
+    "documentType": "Invoice",
+    "items": [
+      {
+        "description": "Lighting Design & Consultancy Services\nTech table | Luminaire schedule\nFacade | Bathroom | Furniture",
+        "sac": "99839",
+        "unit": "LS",
+        "quantity": 1,
+        "displayQuantity": "LS",
+        "rate": 5000000,
+        "amount": 5000000
+      }
+    ],
+    "amount": 5000000,
+    "words": "Fifty thousand Only",
+    "sourceDocument": "Original invoice PDF",
+    "sourceUrl": "https://drive.google.com/file/d/1emeBDwfBD5t6DNnnZHotryLO_S-W0vIc/view"
+  },
+  "E-IN-26-27-011": {
+    "client": "SRBS Interiors",
+    "address": "284 R, Sector- 42, Gurugram,\nHaryana, IN - 122002",
+    "state": "Haryana",
+    "stateCode": "06",
+    "gstin": "06AEBFS0136G12ZG",
+    "po": "C-069-AB-M-09-25-R1",
+    "orderDate": "2025-09-17",
+    "projectName": "Royal Enfield Discovery Centre",
+    "contact": "Mr. Arpit Goel",
+    "phone": "+91 99649 66664",
+    "date": "2026-10-21",
+    "number": "E-IN-26-27-011",
+    "documentType": "Performa Invoice",
+    "items": [
+      {
+        "description": "Lighting Design & Consultancy Services\nAs construction fee",
+        "sac": "99839",
+        "unit": "LS",
+        "quantity": 1,
+        "displayQuantity": "LS",
+        "rate": 13000000,
+        "amount": 13000000
+      }
+    ],
+    "amount": 13000000,
+    "words": "One Lakh Thirty thousand Rupees Only",
+    "sourceDocument": "Original invoice PDF",
+    "sourceUrl": "https://drive.google.com/file/d/13byA8l9nXnBMOruDPAZL2D63UC77H8Az/view"
+  },
+  "E-IN-26-27-012": {
+    "client": "Royal Enfield",
+    "clientDivision": "(A unit of Eicher Motors Ltd.)",
+    "address": "96, Institutional Area, Sector 32,\nGurugram, Haryana, IN - 122001",
+    "state": "Haryana",
+    "stateCode": "06",
+    "gstin": "06AEBFS0136G12ZG",
+    "po": "C-069-AB-M-09-25-R1",
+    "orderDate": "2026-08-11",
+    "projectName": "Gurgaon Service Centre",
+    "contact": "Mr. Arpit Goel",
+    "phone": "+91 99649 66664",
+    "date": "2026-10-21",
+    "number": "E-IN-26-27-012",
+    "documentType": "Performa Invoice",
+    "items": [
+      {
+        "description": "Lighting Design & Consultancy Services\nMobilisation Advance",
+        "sac": "99839",
+        "unit": "LS",
+        "quantity": 1,
+        "displayQuantity": "LS",
+        "rate": 15000000,
+        "amount": 15000000
+      }
+    ],
+    "amount": 15000000,
+    "words": "One Lakh Fifty Thousand Only",
+    "sourceDocument": "Original invoice PDF",
+    "sourceUrl": "https://drive.google.com/file/d/1R-H4fR3Fpx8h4ADVNps5Gtk9luZ3RXU9/view"
+  },
+  "E-IN-26-27-013": {
+    "client": "Mrs. Sandhya Singh",
+    "address": "Plot No-113,Sector-17A,\nGurgaon Haryana-122001",
+    "state": "Haryana",
+    "stateCode": "06",
+    "gstin": "BHMPS3309A",
+    "taxIdLabel": "GSTIN/PAN",
+    "po": "R-072-HR-G-08-26-R1",
+    "orderDate": "2026-10-21",
+    "projectName": "Gurgaon Residence",
+    "contact": "Mr. Aaryaman Singh",
+    "phone": "+91 96668 40009",
+    "date": "2026-10-21",
+    "number": "E-IN-26-27-013",
+    "documentType": "Invoice",
+    "items": [
+      {
+        "description": "Lighting Design & Consultancy Services\nMobilisation Advance",
+        "sac": "99839",
+        "unit": "LS",
+        "quantity": 1,
+        "displayQuantity": "LS",
+        "rate": 35000000,
+        "amount": 35000000
+      }
+    ],
+    "amount": 35000000,
+    "words": "Three lakh Fifty thousand Only",
+    "sourceDocument": "Original invoice PDF",
+    "sourceUrl": "https://drive.google.com/file/d/1QKKDP3qdUVKWUnHo6x2r5v1sewkg5pVd/view"
+  },
+  "E-IN-26-27-014": {
+    "client": "Mrs. Akankshha Mehra",
+    "address": "Amigo Farm Gurugram, Haryana",
+    "state": "Haryana",
+    "stateCode": "06",
+    "gstin": "",
+    "po": "Site Visit",
+    "orderDate": "2026-10-24",
+    "projectName": "Amigo farm",
+    "contact": "Mrs. Akankshha",
+    "phone": "+91 94153 17572",
+    "sourceWarning": "The PDF spells the amount as “Eighty Thousand Only”, while its service line and total are ₹10,000.",
+    "date": "2026-10-24",
+    "number": "E-IN-26-27-014",
+    "documentType": "Invoice",
+    "items": [
+      {
+        "description": "Lighting Design & Consultancy Services\nFor Site Visit",
+        "sac": "99839",
+        "unit": "LS",
+        "quantity": 1,
+        "displayQuantity": "LS",
+        "rate": 1000000,
+        "amount": 1000000
+      }
+    ],
+    "amount": 1000000,
+    "words": "Eighty Thousand Only",
+    "sourceDocument": "Original invoice PDF",
+    "sourceUrl": "https://drive.google.com/file/d/1RhwK0JYR8tleg0iSX2YYEzrSIz0XxUk7/view"
+  }
+}

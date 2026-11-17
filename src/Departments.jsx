@@ -1,3 +1,4 @@
+import OfficePolicy from './OfficePolicy.jsx';
 import ExecutiveAssistant from './ExecutiveAssistant.jsx';
 import {StudioHeadingText} from './StudioHeading.jsx';
 import Accounts, {accountsPages} from './Accounts.jsx';
@@ -28,6 +29,7 @@ const accountsNavigation=[
  {id:'Chart of Accounts',label:'Chart of Accounts',group:'BOOKKEEPING',icon:BookOpen},
  {id:'Financial Reports',label:'Financial Reports',group:'BOOKKEEPING',icon:ChartNoAxesColumnIncreasing},
  {id:'GST',label:'GST',group:'FILING & COMPLIANCE',icon:ReceiptIndianRupee},
+ {id:'Office Policy',label:'Office Policy',group:'PEOPLE',icon:BookOpen},
  {id:'Payroll',label:'Payroll',group:'PEOPLE',icon:Users},
  {id:'Performance',label:'Performance',group:'PEOPLE',icon:ChartNoAxesColumnIncreasing},
  {id:'Timeline',label:'Timeline',group:'PEOPLE',icon:Timer},
@@ -77,6 +79,7 @@ export function DepartmentWorkspace({id,name=departments[id][0],user,request:api
  {page==='Home'&&!isAccounts&&<MissedCheckoutNotice day={log?.missedDay} onReview={day=>{setAttendanceDay(day);setPage('Timeline');}} buttonStyle={buttonStyle}/>}
  {isAccounts&&(page==='Home'||accountsPages.includes(page))&&<Accounts page={page} request={request} user={user} onNavigate={go} reconciliationBank={reconciliationBank}/>}
  {page==='Home'&&<TeamAvailability request={request} department={id} buttonStyle={buttonStyle}/>}
+ {isAccounts&&page==='Office Policy'&&<OfficePolicy/>}
  {page==='Timeline'&&<PerformanceAttendance initialDay={attendanceDay} request={request} user={user}/>}
  {page==='Performance'&&(!isAccounts ? <PerformanceView state={performanceState} request={request}/> : (
   <section className="studio-home-card">

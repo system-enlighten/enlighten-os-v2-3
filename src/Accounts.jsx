@@ -1,3 +1,4 @@
+import {invoiceForDisplay} from './InvoiceHistory.js';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './Accounts.css';
 import PaymentDashboard from './PaymentDashboard.jsx';
@@ -49,13 +50,13 @@ function printMarkup(node, title){
       body { font: 10pt Arial, sans-serif; color: #222; margin: 0; background: #fff; }
       h1, h2 { text-align: center; margin: 10px 0 4px; }
       .invoice-brand { font-size: 28pt; font-weight: 300; letter-spacing: .1em; border-bottom: 1px solid #333; margin: 0 0 6px; }
-      .invoice-brand svg { width: 185px; height: auto; }
+      .invoice-brand svg { width: 380px; max-width:100%; height:auto; }
       .invoice-address { text-align: center; line-height: 1.45; font-size: 9pt; }
-      .invoice-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; font-size: 9.5pt; }
+      .invoice-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 34px 0 20px; font-size: 9.5pt; }
       .invoice-meta p { margin: 4px 0; white-space: pre-line; }
       table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9.5pt; }
       th, td { text-align: left; vertical-align: top; padding: 7px 5px; border-bottom: 1px solid #bbb; }
-      th { background: #f0f0f0; print-color-adjust: exact; -webkit-print-color-adjust: exact; font-weight: 600; }
+      th { background: #252525; color:#fff; print-color-adjust: exact; -webkit-print-color-adjust: exact; font-weight: 600; }
       tr, .invoice-footer { break-inside: avoid; }
       td:first-child, td:nth-child(n+3) { white-space: nowrap; }
       .invoice-totals { text-align: right; line-height: 1.7; margin-top: 12px; font-size: 10pt; }
@@ -89,21 +90,22 @@ function numberWords(n){
 
 function Invoice({invoice:r,printRef}){
   const date=value=>value?.split('-').reverse().join('.')||'—';
-  const words=numberWords(Math.floor(r.amount/100))+(r.amount%100?' and '+numberWords(r.amount%100)+' Paise':'')+' Only';
+  const words=r.words||(numberWords(Math.floor(r.amount/100))+(r.amount%100?' and '+numberWords(r.amount%100)+' Paise':'')+' Only');
   return <article className="accounts-invoice" ref={printRef}>
     <h1 className="invoice-brand"><span dangerouslySetInnerHTML={{__html:wordmark.replace('#fff0cf','#252525')}}/></h1>
-    <div className="invoice-address">E-256, Naraina Vihar, New Delhi 110028<br/>Phone +91 9999277482 · design.enlighten@gmail.com<br/>GSTIN {studioGstin}</div>
+    <div className="invoice-address">{r.issuerAddress||'E-256, Naraina Vihar, New Delhi 110028'}<br/>Phone +91 9999277482 · design.enlighten@gmail.com<br/>GSTIN {studioGstin}</div>
     <h2>{r.documentType.toUpperCase()}</h2><div className="invoice-address">{date(r.date)}</div>
-    <div className="invoice-meta"><div><p>To,</p><p><strong>{r.client}</strong></p><p>Address · {r.address}</p><p>State · {r.state}</p><p>State Code · {r.stateCode}</p><p>GSTIN · {r.gstin}</p></div>
+    <div className="invoice-meta"><div><p>To,</p><p><strong>{r.client}<br/>{r.clientDivision}</strong></p><p>Address · {r.address}</p><p>State · {r.state}</p><p>State Code · {r.stateCode}</p><p>{r.taxIdLabel||'GSTIN'} · {r.gstin}</p></div>
       <div><p>Purchase Order/Ref. No. · {r.po||'—'}</p><p>Invoice No. · <strong>{r.number}</strong></p><p>Contract/Order Date · {date(r.orderDate)}</p><p>Project Name · {r.projectName}</p><p>Contact Person · {r.contact}</p><p>Contact No. · {r.phone}</p></div></div>
-    <Table columns={['S. No.','Description of Services','SAC Code','Unit','Qty','Unit Rate','Total Amount']} rows={r.items.map((i,j)=>({cells:[j+1,i.description,i.sac,i.unit,i.quantity,money(i.rate),money(i.amount)]}))}/>
-    <div className="invoice-totals">Subtotal &nbsp; {money(r.amount)}<br/><strong>Total Amount Due &nbsp; {money(r.amount)}</strong></div>
+    {r.incompleteHistory&&<p className="invoice-missing-detail">Service lines and billing details await the original invoice document.</p>}
+    <Table columns={['S. No.','Description of Services','SAC Code','Unit','Qty','Unit Rate','Total Amount']} rows={r.items.map((i,j)=>({cells:[j+1,<span style={{whiteSpace:'pre-line'}}>{i.description}</span>,i.sac,i.unit,i.displayQuantity||i.quantity,money(i.rate),money(i.amount)]}))}/>
+    <div className="invoice-totals">Subtotal &nbsp; {money(r.amount)}<br/><strong>Total &nbsp; {money(r.amount)}</strong></div>
     <div className="invoice-footer"><p>Rupees: <strong>{words}</strong></p><p>Declaration: Composition taxable person, not eligible to collect taxes on supplies</p>
-      <div style={{background:'#f9f9f9',padding:10,border:'1px solid #eee',margin:'10px 0'}}>
+      <div className="invoice-remittance">
         <p style={{margin:0,fontWeight:600}}>Kindly note our Bank Account Number and IFSC for INR remittances:</p>
         <p style={{margin:'4px 0 0'}}>NAME: Enlighten Designs<br/>A/C#: 10148974324<br/>IFSC: IDFB0020126<br/>BANK: IDFC First, Punjabi Bagh</p>
       </div>
-      <p style={{textAlign:'right',marginTop:26}}>Shivam Gupta<br/><strong>Partner</strong></p></div>
+      {!r.sourceDocument&&<p style={{textAlign:'right',marginTop:26}}>Shivam Gupta<br/><strong>Partner</strong></p>}</div>
   </article>;
 }
 
@@ -128,17 +130,19 @@ function originalInvoice(attachment){
 }
 
 function InvoiceDocument({invoice,documentRef}){
-  if(invoice.kind!=='legacyInvoice')return <Invoice invoice={invoice} printRef={documentRef}/>;
-  const original=originalInvoice(invoice.attachment);
-  if(original.preview)return <div className="invoice-original-window">
-    <iframe className="invoice-original-frame" title="Original invoice document" src={original.preview}/>
-  </div>;
-  return <article className="accounts-invoice invoice-history-paper" ref={documentRef}>
-    <h1>Enlighten Designs</h1>
-    <h2>Imported invoice record</h2>
-    <dl>{[['Invoice number',invoice.sourceNumber||invoice.number],['Date',invoice.date],['Project',invoice.projectName],['Client',invoice.client],['Total',money(invoice.amount)]].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value||'—'}</dd></div>)}</dl>
-    <p>Original invoice PDF unavailable.{invoice.attachment&&' File reference: '+invoice.attachment}</p>
-  </article>;
+  const displayed=invoiceForDisplay(invoice);
+  const clean=value=>String(value||'').replace(/\s/g,'');
+  const numberDiff=displayed.completeHistory&&clean(displayed.number)!==clean(displayed.registerNumber);
+  const amountDiff=displayed.completeHistory&&displayed.amount!==displayed.registerAmount;
+  return <>
+    {(numberDiff||amountDiff||displayed.sourceWarning)&&<div className="invoice-source-notice" role="note">
+      {numberDiff&&<p>PDF invoice number {displayed.number} · Register number {displayed.registerNumber}</p>}
+      {amountDiff&&<p>PDF total {money(displayed.amount)} · Register total {money(displayed.registerAmount)}</p>}
+      {displayed.sourceWarning&&<p>{displayed.sourceWarning}</p>}
+      {displayed.sourceUrl&&<a href={displayed.sourceUrl} target="_blank" rel="noreferrer">View source PDF</a>}
+    </div>}
+    <Invoice invoice={displayed} printRef={documentRef}/>
+  </>;
 }
 
 function InvoiceWorkspace({records,invoice,editing,busy,form,onChoose,onNew,onEdit,onClose,onPayment,canPay,sent,onMarkSent}){
@@ -147,9 +151,9 @@ function InvoiceWorkspace({records,invoice,editing,busy,form,onChoose,onNew,onEd
   const [query,setQuery]=useState('');
   const [sendOpen,setSendOpen]=useState(false);
 
-  const number=invoice?.sourceNumber||invoice?.number;
+  const number=invoice?invoiceForDisplay(invoice).number:undefined;
   useEffect(()=>{setMessage('');setSendOpen(false);},[invoice?.id]);
-  const original=invoice?.kind==='legacyInvoice'?originalInvoice(invoice.attachment):{};
+  const original=invoice?.kind==='legacyInvoice'?originalInvoice(invoiceForDisplay(invoice).sourceUrl||invoice.attachment):{};
   const summary=invoice?[number,invoice.client,invoice.projectName,money(invoice.amount)].filter(Boolean).join(' · '):'';
 
   const shareText = useMemo(() => {
@@ -237,7 +241,7 @@ function InvoiceWorkspace({records,invoice,editing,busy,form,onChoose,onNew,onEd
             <Share2 size={13} style={{marginRight:4}}/> Share Details
           </button>
 
-          <button type="button" disabled={editing} onClick={print}>
+          <button type="button" disabled={editing||invoiceForDisplay(invoice).incompleteHistory} onClick={print}>
             <Printer size={13} style={{marginRight:4}}/> Print / Save PDF
           </button>
 
