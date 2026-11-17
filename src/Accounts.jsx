@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './Accounts.css';
+import {AccountsDashboard, BankingOverview, GstOverview, bankAccounts, studioGstin} from './AccountsOverview.jsx';
 import {parseStatement,statementSuggestion} from './AccountsStatement.js';
 import wordmark from './AccountsWordmark.svg?raw';
 
-export const accountsPages = ['Payment Dashboard','Invoicing','Debit / Credit','Reconciliation','Chart of Accounts','Payroll','Financial Reports'];
-const banks=['IDFC','Kotak','Cash'];
+export const accountsPages = ['Payment Dashboard','Invoicing','Debit / Credit','Banking','Reconciliation','GST','Chart of Accounts','Payroll','Financial Reports'];
+const banks=bankAccounts;
 const today=()=>new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Kolkata'});
 const money=n=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR'}).format((n||0)/100);
 const total=(rows,key)=>rows.reduce((sum,row)=>sum+(row[key]||0),0);
@@ -50,7 +51,7 @@ function Invoice({invoice:r,printRef}){
   const words=numberWords(Math.floor(r.amount/100))+(r.amount%100?' and '+numberWords(r.amount%100)+' Paise':'')+' Only';
   return <article className="accounts-invoice" ref={printRef}>
     <h1 className="invoice-brand"><span dangerouslySetInnerHTML={{__html:wordmark.replace('#fff0cf','#252525')}}/></h1>
-    <div className="invoice-address">E-256, Naraina Vihar, New Delhi 110028<br/>Phone +91 9999277482 · design.enlighten@gmail.com<br/>GSTIN 07AAKFE5187A1ZI</div>
+    <div className="invoice-address">E-256, Naraina Vihar, New Delhi 110028<br/>Phone +91 9999277482 · design.enlighten@gmail.com<br/>GSTIN {studioGstin}</div>
     <h2>{r.documentType.toUpperCase()}</h2><div className="invoice-address">{date(r.date)}</div>
     <div className="invoice-meta"><div><p>To,</p><p>{r.client}</p><p>Address · {r.address}</p><p>State · {r.state}</p><p>State Code · {r.stateCode}</p><p>GSTIN · {r.gstin}</p></div>
       <div><p>Purchase Order/Ref. No. · {r.po||'—'}</p><p>Invoice No. · {r.number}</p><p>Contract/Order Date · {date(r.orderDate)}</p><p>Project Name · {r.projectName}</p><p>Contact Person · {r.contact}</p><p>Contact No. · {r.phone}</p></div></div>
@@ -86,7 +87,9 @@ function originalInvoice(attachment){
 function InvoiceDocument({invoice,documentRef}){
   if(invoice.kind!=='legacyInvoice')return <Invoice invoice={invoice} printRef={documentRef}/>;
   const original=originalInvoice(invoice.attachment);
-  if(original.preview)return <iframe className="invoice-original-frame" title="Original invoice document" src={original.preview}/>;
+  if(original.preview)return <div className="invoice-original-window">
+    <iframe className="invoice-original-frame" title="Original invoice document" src={original.preview}/>
+  </div>;
   return <article className="accounts-invoice invoice-history-paper" ref={documentRef}>
     <h1>Enlighten Designs</h1>
     <h2>Imported invoice record</h2>
@@ -152,7 +155,7 @@ function InvoiceWorkspace({records,invoice,editing,busy,form,onChoose,onNew,onCl
   </div>;
 }
 
-export default function Accounts({page,request,user}){
+export default function Accounts({page,request,user,onNavigate,reconciliationBank}){
   const [data,setData]=useState(null),[draft,setDraft]=useState(null),[selected,setSelected]=useState(null);
   const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
   const [month,setMonth]=useState(''),[asOf,setAsOf]=useState(today);
@@ -168,6 +171,7 @@ export default function Accounts({page,request,user}){
     catch(e){setError(e.message);}
   };
   useEffect(()=>{load();},[]);
+  useEffect(()=>{if(page==='Reconciliation'&&reconciliationBank)setBank(reconciliationBank);},[page,reconciliationBank]);
   useEffect(()=>{setDraft(null);setSelected(null);setInvoiceClosed(false);setNotice('');setError('');},[page]);
   const save=async e=>{
     e.preventDefault();
@@ -277,7 +281,7 @@ export default function Accounts({page,request,user}){
     finally{saving.current=false;setBusy(false);}
   };
   const editor=draft&&<form onSubmit={save} className="accounts-form">
-      <h2>{({milestone:'Schedule milestone',invoice:'Raise invoice',receipt:'Record receipt',transaction:'Record transaction',payroll:'Post payroll',reconciliation:'Reconcile statement line',opening:'Add opening journal'})[draft.kind]}</h2>
+      <h2>{({milestone:'Schedule milestone',invoice:'Raise invoice',receipt:'Record receipt',transaction:'Record transaction',payroll:'Post payroll',reconciliation:'Reconcile statement line',opening:'Add opening journal',gstFiling:'Record GST filing'})[draft.kind]}</h2>
       <fieldset disabled={busy}><div className="accounts-fields">
       {field(draft.kind==='milestone'?'Scheduled date':'Date','date','date',true)}
       {['milestone','invoice','transaction'].includes(draft.kind)&&options('Project','projectId',projectOptions,draft.kind!=='transaction',id=>{
@@ -290,6 +294,11 @@ export default function Accounts({page,request,user}){
         {options(draft.kind==='reconciliation'?'Clearing ledger if unmatched':'Ledger head','head',heads.filter(([h])=>h!==draft.bank).map(([h])=>h),draft.kind==='transaction')}
       </>}
       {['milestone','transaction','reconciliation'].includes(draft.kind)&&field('Description','description','text',draft.kind==='milestone')}
+      {draft.kind==='gstFiling'&&<>
+        {field('Reporting period','period','month',true)}
+        {options('Form','returnType',['GSTR-1','IMS','GSTR-2B','GSTR-3B','CMP-08','GSTR-4'],true)}
+        {field('Filing / record reference','reference','text',true,{maxLength:100})}
+      </>}
       {draft.kind==='opening'&&<>{options('Debit head','debitHead',heads.map(([h])=>h),true)}{options('Credit head','creditHead',heads.map(([h])=>h),true)}{field('Opening reference','description','text',true)}</>}
       {draft.kind==='transaction'&&<>{field('Value date','valueDate','date')}{field('Beneficiary','beneficiary')}{options('Classification','classification',['Project direct cost','Studio overhead','Owner drawings'])}{draft.head==='Employee Advances'&&options('Employee','employeeId',employees.map(e=>[e.id,e.name]),true)}</>}
       {draft.kind==='invoice'&&<>
@@ -314,6 +323,9 @@ export default function Accounts({page,request,user}){
     </form>;
   return <section className="accounts">
     {error&&<p role="alert" className="accounts-error">{error}</p>}{notice&&<p role="status">{notice}</p>}
+    {page==='Home'&&<AccountsDashboard data={data} today={today()} onNavigate={onNavigate}/>}
+    {page==='Banking'&&<BankingOverview records={records} today={today()} staged={staged} onNavigate={onNavigate}/>}
+    {page==='GST'&&<GstOverview records={records} today={today()} onRecord={readOnly||busy?null:period=>begin('gstFiling',{period})}/>}
     {page==='Payment Dashboard'&&<>
       <div className="accounts-metrics">{[['Billed',total(invoices,'amount')],['Receipts',total(receipts,'amount')],['Outstanding',total(open,'amount')-open.reduce((n,r)=>n+paid(r.id),0)]].map(([key,value])=><div key={key}><span>{key}</span><strong>{money(value)}</strong></div>)}</div>
       {!readOnly&&<button onClick={()=>begin('milestone')}>Add milestone</button>}

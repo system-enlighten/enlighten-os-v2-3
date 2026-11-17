@@ -1,3 +1,4 @@
+import {House as AccountsHomeIcon} from 'lucide-react';
 import WorkspaceActivity, {StudioLoadingDetail, beginActivity, resetWorkspaceActivity, setActivityPage, trackActivity} from "./WorkspaceActivity.jsx";
 import StudioHeading from './StudioHeading.jsx';
 import { projectCardFloor } from './projectCardFloor.mjs';
@@ -7429,7 +7430,7 @@ function WorkspaceShell({name, switchDepartment, currentUser, view, viewLabel, a
           </div>
           <div style={{ fontFamily: FONT_DISPLAY, fontSize: 14, color: "#fff", marginTop: 4 }}>Enlighten Design Co.</div>
         </div>
-        <div style={{padding:"0 20px 12px"}}><button type="button" className="studio-home-shortcut" style={smallBtn} aria-current={view==='home'?'page':undefined} onClick={()=>changeView('home')}>Home</button></div>
+        <div style={{padding:"0 20px 12px"}}><button type="button" className="studio-home-shortcut" style={isAccounts?{...smallBtn,display:'flex',alignItems:'center',gap:8}:smallBtn} aria-current={view==='home'?'page':undefined} onClick={()=>changeView('home')}>{isAccounts&&<AccountsHomeIcon size={15}/>}Home</button></div>
         <SidebarNavigation items={items} view={view} onChange={changeView} pendingCount={pendingCount}/>
         <div style={{ padding: "20px", marginTop: 20, fontFamily: FONT_MONO, fontSize: 10, color: T.cyan, opacity: 0.7 }}>
           <div style={{ marginBottom: 6 }}>{currentUser?.appAccess} · {currentUser?.name || ""}</div>
