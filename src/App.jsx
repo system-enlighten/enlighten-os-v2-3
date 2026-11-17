@@ -2673,7 +2673,7 @@ const PAGE_READ_CACHE=new Map();
 const PAGE_READS=new Set(['getDesignDashboard','getProjectWorkspace','listMomTasks','listExecutionVisits','listDrawingRegister','listFloorZones']);
 const pageReadKey=(action,payload)=>JSON.stringify([AUTH_SESSION_GENERATION,action,Object.entries(payload).sort()]);
 const peekPageRead=(action,payload)=>PAGE_READ_CACHE.get(pageReadKey(action,payload))?.data;
-const POST_READS=new Set(['getStudioDay','homeAgenda','departmentTeam']);
+const POST_READS=new Set(['getAccounts','getAccountsAttendance','getStudioDay','homeAgenda','departmentTeam']);
 const activitySubjects={
   getNativeTechnicalTable:'Technical Table',
   getTechnicalWorkbook:'Technical Table',

@@ -1,3 +1,4 @@
+import Accounts, {accountsPages} from './Accounts.jsx';
 import TeamAvailability from './TeamAvailability.jsx';
 import './DepartmentDirectory.css';
 import React,{useEffect,useState} from 'react';
@@ -6,7 +7,7 @@ export const departments={
  studio:['Studio · Operations',[]],
  sales:['Business Development & Sales',['CRM','Design Sales']],
  marketing:['Marketing · Document & Showcase',['Project journals','Narratives','Showcase']],
- accounts:['Accounts',['Payroll','Expenses','GST & Compliance']],
+ accounts:['Accounts',accountsPages],
  legal:['Legal & Contracts',['Contracts','Policies','Renewals']],
  hr:['HR & Team Building',['Onboarding','Training modules']]
 };
@@ -29,7 +30,8 @@ export function DepartmentWorkspace({id,name=departments[id][0],user,request,but
  {page==='Timeline'&&<PerformanceAttendance initialDay={attendanceDay} request={request} user={user}/>}
  {page==='Performance'&&<PerformanceView state={performanceState}/> }
  {page==='Team & Tasks'&&<section className="studio-home-card">{!team&&!error&&<p>Loading department team…</p>}{team&&<><h2>People</h2>{team.people.length?team.people.map(p=><p key={p.id}>{p.name} · {p.role||'Team member'}</p>):<p>No employees assigned to this department.</p>}<h2>Tasks</h2>{team.tasks.length?team.tasks.map(t=><p key={t.id}>{t.title} · {t.status}</p>):<p>No tasks to show.</p>}</>}</section>}
- {!['Home','Performance','Timeline','Team & Tasks'].includes(page)&&<p>This section is reserved for the department’s next workflow update.</p>}</main></div>;
+ {id==='accounts'&&accountsPages.includes(page)&&<Accounts page={page} request={request} user={user}/>}
+ {!['Home','Performance','Timeline','Team & Tasks'].includes(page)&&id!=='accounts'&&<p>This section is reserved for the department’s next workflow update.</p>}</main></div>;
 }
 
 export function DepartmentHeading({name,onChoose}){
