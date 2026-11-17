@@ -164,3 +164,16 @@
  .studio-home-task-board>.studio-home-card{padding:10px}
  .studio-home-deadline{display:table;margin:4px 0}
 }
+
+.studio-home .studio-home-task-group .studio-home-deadline-group{
+ margin-top:16px;
+ padding-top:8px;
+ border-top:1px solid #ddd7ca;
+}
+.studio-home .studio-home-task-group .studio-home-deadline-group h3{
+ font-family:inherit;
+ font-size:13px;
+ font-weight:600;
+ line-height:1.4;
+ margin:0 0 6px;
+}

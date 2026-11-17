@@ -53,7 +53,7 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  };
  const today=day(new Date()),admin=String(user?.appAccess).toLowerCase()==='admin';
  useEffect(()=>{let live=true;loadWork().then(r=>{if(live){setRows(Array.isArray(r)?r:[]);setReady(true);}}).catch(e=>{if(live)setError(e.message);});request('getStudioDay',{},'POST').then(r=>{if(live)setLog(r);}).catch(e=>{if(live)setError(e.message);});return()=>{live=false;};},[request,loadWork]);
- const save=async(action)=>{if(busy)return;setBusy(true);setError('');try{setLog({...await request('saveStudioDay',{action,note,start,end,...(action==='entry'?manualWork:{})},'POST'),missedDay:log?.missedDay});window.dispatchEvent(new Event('enlighten-attendance-change'));if(action==='break'){try{const updated=await loadWork();if(Array.isArray(updated))setRows(updated);}catch{setError('Break saved. Refresh Home to update the task display.');}}if(action==='entry'){setNote('');setStart('');setEnd('');setManualWork(emptyWork);}}catch(e){setError(e.message);}finally{setBusy(false);}};
+ const save=async(action)=>{if(busy)return;setBusy(true);setError('');try{setLog({...await request('saveStudioDay',{action,note,start,end,...(action==='entry'?manualWork:{})},'POST'),missedDay:log?.missedDay});window.dispatchEvent(new Event('enlighten-attendance-change'));if(['break','out'].includes(action)){try{const updated=await loadWork();if(Array.isArray(updated))setRows(updated);}catch{setError('Attendance saved. Refresh Home to update the task display.');}}if(action==='entry'){setNote('');setStart('');setEnd('');setManualWork(emptyWork);}}catch(e){setError(e.message);}finally{setBusy(false);}};
  const [timerBusy,setTimerBusy]=useState(''),[timerError,setTimerError]=useState(''),[clock,setClock]=useState(Date.now());
  const [weekOffset,setWeekOffset]=useState(0),[selectedDay,setSelectedDay]=useState('');
  useEffect(()=>{const tick=setInterval(()=>setClock(Date.now()),1000);return()=>clearInterval(tick);},[]);
@@ -189,10 +189,10 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
    <p>{[item.site?'Site visit':'Meeting',[scheduledTime(item.time),scheduledTime(item.endTime)].filter(Boolean).join(' – '),item.projectName!==item.title&&item.title&&item.projectName].filter(Boolean).join(' · ')}</p></div>
   </div>)}
  </section>}
- {overdueDeadlines.length>0&&<section aria-label="Overdue tasks"><h3>Overdue · {overdueDeadlines.length}</h3>
+ {overdueDeadlines.length>0&&<section className="studio-home-deadline-group" aria-label="Overdue tasks"><h3>Overdue · {overdueDeadlines.length}</h3>
   {overdueDeadlines.map(taskRow)}
  </section>}
- {tomorrowDeadlines.length>0&&<section aria-label="Due tomorrow"><h3>Due tomorrow · {tomorrowDeadlines.length}</h3>{tomorrowDeadlines.map(taskRow)}</section>}
+ {tomorrowDeadlines.length>0&&<section className="studio-home-deadline-group" aria-label="Due tomorrow"><h3>Due tomorrow · {tomorrowDeadlines.length}</h3>{tomorrowDeadlines.map(taskRow)}</section>}
  </section>
  {adminWork.length>0&&<section className="studio-home-task-group studio-home-admin" aria-label="Admin work">
  <div className="studio-home-list-scroll studio-home-admin-scroll" role="region" aria-label="Admin tasks" tabIndex={0}>{adminWork.map(taskRow)}</div>
