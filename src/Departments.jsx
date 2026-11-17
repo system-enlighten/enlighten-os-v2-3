@@ -1,3 +1,5 @@
+import ExecutiveAssistant from './ExecutiveAssistant.jsx';
+import {StudioHeadingText} from './StudioHeading.jsx';
 import Accounts, {accountsPages} from './Accounts.jsx';
 import TeamAvailability from './TeamAvailability.jsx';
 import './DepartmentDirectory.css';
@@ -32,8 +34,9 @@ const accountsNavigation=[
  {id:'Team & Tasks',label:'Team & Tasks',group:'PEOPLE',icon:ClipboardList},
 ];
 
-export function DepartmentWorkspace({id,name=departments[id][0],user,request:apiRequest,buttonStyle,switchDepartment,PerformanceView,performanceState,WorkspaceShell}){
+export function DepartmentWorkspace({id,name=departments[id][0],user,request:apiRequest,buttonStyle,switchDepartment,PerformanceView,performanceState,WorkspaceShell,theme,inputStyle}){
  const [attendanceDay,setAttendanceDay]=useState('');
+ const [assigned,setAssigned]=useState(false),[teamBusy,setTeamBusy]=useState(false);
  const [reconciliationBank,setReconciliationBank]=useState();
  const [page,setPage]=useState('Home'),[log,setLog]=useState(null),[team,setTeam]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(false);
  const isAccounts=id==='accounts';
@@ -41,14 +44,37 @@ export function DepartmentWorkspace({id,name=departments[id][0],user,request:api
  const request=useCallback((action,payload,method,timeout)=>apiRequest(action,payload,method,timeout,activityPage),[apiRequest,activityPage]);
  const load=async(action)=>{setBusy(true);setError('');try{const result=await request(action?'saveStudioDay':'getStudioDay',action?{action}:{},'POST');setLog(action?{...result,missedDay:log?.missedDay}:result);if(action)window.dispatchEvent(new Event('enlighten-attendance-change'));}catch(e){setError(e.message);}finally{setBusy(false);}};
  useEffect(()=>{if(page==='Home')load();},[id,page]);
- useEffect(()=>{if(page==='Team & Tasks')request('departmentTeam',{department:id},'POST').then(setTeam).catch(e=>setError(e.message));},[page,id]);
+ useEffect(()=>{if(page==='Team & Tasks'||page==='Home'&&assigned){let live=true;setTeamBusy(true);request('departmentTeam',{department:id},'POST').then(result=>{if(live)setTeam(result);}).catch(e=>{if(live)setError(e.message);}).finally(()=>{if(live)setTeamBusy(false);});return()=>{live=false;};}},[page,id,assigned,request]);
  const go=(next,bank)=>{setError('');setAttendanceDay('');setReconciliationBank(bank);setPage(next);};
  const fmt=s=>new Date(s).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit'});
  const content=<>
- {page!=='Timeline'&&(!isAccounts||page!=='Performance')&&<h1 className={isAccounts?'studio-page-heading':undefined}>{page==='Home'?name:page}</h1>}
+ {page!=='Timeline'&&(!isAccounts||!['Home','Performance'].includes(page))&&<h1 className={isAccounts?'studio-page-heading':undefined}>{page==='Home'?name:page}</h1>}
  {error&&<p role="alert">{error}</p>}
- {page==='Home'&&<section className="studio-home-attendance"><div><strong>Attendance</strong><p>{!log?'Loading attendance…':log.checkOut?'Checked out':log.breakStart?'On break':log.checkIn?'Checked in':'Ready to check in'}</p>{log?.checkIn&&<p>{fmt(log.checkIn)}{log.checkOut?' – '+fmt(log.checkOut):''} · IST</p>}</div><div>{log?.checkIn&&!log.checkOut&&<button style={buttonStyle} disabled={busy} onClick={()=>load(log.breakStart?'resume':'break')}>{log.breakStart?'Resume work':'Pause for break'}</button>} <button style={buttonStyle} disabled={!log||busy||!!log.checkOut} onClick={()=>load(log.checkIn?'out':'in')}>{log?.checkOut?'Day closed':log?.checkIn?'Check out':'Check in'}</button></div></section>}
- {page==='Home'&&<MissedCheckoutNotice day={log?.missedDay} onReview={day=>{setAttendanceDay(day);setPage('Timeline');}} buttonStyle={buttonStyle}/>}
+ {isAccounts&&page==='Home'&&<div className="studio-home accounts-home-intro">
+   <header className="studio-home-intro">
+     <StudioHeadingText title="Accounts overview" department="Accounts"/>
+     <div className="studio-home-attendance-stack"><section aria-label="Attendance" className="studio-home-attendance">
+   <div><p className="studio-home-kicker">Attendance</p><strong>{!log?'Attendance unavailable':log.checkOut?'Checked out':log.breakStart?'On break':log.checkIn?'Checked in':'Ready to check in'}</strong>{log?.checkIn&&<small>{fmt(log.checkIn)}{log.checkOut?' – '+fmt(log.checkOut):' · IST'}</small>}</div>
+   <div style={{display:'grid',gap:6}}>
+     {log?.checkIn&&!log.checkOut&&<button type="button" style={buttonStyle} disabled={busy} onClick={()=>load(log.breakStart?'resume':'break')}>{log.breakStart?'Resume work':'Pause for break'}</button>}
+     <button type="button" className="studio-home-check" disabled={!log||busy||!!log.checkOut} onClick={()=>load(log.checkIn?'out':'in')}>{busy?'Saving…':log?.checkOut?'Day closed':log?.checkIn?'Check out':'Check in'}</button>
+   </div>
+ </section>
+       <MissedCheckoutNotice day={log?.missedDay} onReview={day=>{setAttendanceDay(day);setPage('Timeline');}} buttonStyle={buttonStyle}/>
+     </div>
+     <div className="studio-home-utilities">
+       <ExecutiveAssistant profileApi={request} workRequest={request} workUser={user} workProjects={performanceState.projects||[]} userId={user.userId}
+         sections={accountsNavigation} onNavigate={go} theme={theme} buttonStyle={buttonStyle} inputStyle={inputStyle}/>
+       <button type="button" style={buttonStyle} aria-expanded={assigned} aria-controls="accounts-assigned-requests" onClick={()=>setAssigned(!assigned)}>Assigned requests</button>
+     </div>
+   </header>
+   {assigned&&<section id="accounts-assigned-requests" className="studio-home-card">
+     <h2>Assigned requests</h2>
+     {teamBusy?<p role="status">Loading assigned requests…</p>:team?.tasks?.length?team.tasks.map((task,index)=><div key={task.id||index} className="studio-home-task-row"><div><strong>{task.title}</strong><p>{[task.assigneeName,task.status].filter(Boolean).join(' · ')}</p></div></div>):<p>No assigned requests to show.</p>}
+   </section>}
+ </div>}
+ {page==='Home'&&!isAccounts&&<section className="studio-home-attendance"><div><strong>Attendance</strong><p>{!log?'Loading attendance…':log.checkOut?'Checked out':log.breakStart?'On break':log.checkIn?'Checked in':'Ready to check in'}</p>{log?.checkIn&&<p>{fmt(log.checkIn)}{log.checkOut?' – '+fmt(log.checkOut):''} · IST</p>}</div><div>{log?.checkIn&&!log.checkOut&&<button style={buttonStyle} disabled={busy} onClick={()=>load(log.breakStart?'resume':'break')}>{log.breakStart?'Resume work':'Pause for break'}</button>} <button style={buttonStyle} disabled={!log||busy||!!log.checkOut} onClick={()=>load(log.checkIn?'out':'in')}>{log?.checkOut?'Day closed':log?.checkIn?'Check out':'Check in'}</button></div></section>}
+ {page==='Home'&&!isAccounts&&<MissedCheckoutNotice day={log?.missedDay} onReview={day=>{setAttendanceDay(day);setPage('Timeline');}} buttonStyle={buttonStyle}/>}
  {isAccounts&&(page==='Home'||accountsPages.includes(page))&&<Accounts page={page} request={request} user={user} onNavigate={go} reconciliationBank={reconciliationBank}/>}
  {page==='Home'&&<TeamAvailability request={request} department={id} buttonStyle={buttonStyle}/>}
  {page==='Timeline'&&<PerformanceAttendance initialDay={attendanceDay} request={request} user={user}/>}

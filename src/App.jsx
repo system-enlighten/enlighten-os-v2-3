@@ -7502,7 +7502,7 @@ function StudioApp() {
   const personalWorkspace=currentUser?.departmentKey|| (assignedDepartment?assignedDepartment.masterId.slice(3):departmentFor(currentUser?.department));
   const workspace=superAdmin?department:(Object.hasOwn(directory,personalWorkspace)?personalWorkspace:'studio');
   if(superAdmin&&!workspace)return <DepartmentPicker directory={activeDirectory} choose={id=>{setView('home');setDepartment(id);}}/>;
-  if(workspace!=='studio')return <DepartmentWorkspace WorkspaceShell={WorkspaceShell} PerformanceView={PerformanceView} performanceState={state} key={workspace} id={workspace} name={directory[workspace][0]} user={currentUser} request={apiRequest} buttonStyle={smallBtn} switchDepartment={superAdmin?()=>setDepartment(''):null}/>;
+  if(workspace!=='studio')return <DepartmentWorkspace theme={T} inputStyle={inputStyle} WorkspaceShell={WorkspaceShell} PerformanceView={PerformanceView} performanceState={state} key={workspace} id={workspace} name={directory[workspace][0]} user={currentUser} request={apiRequest} buttonStyle={smallBtn} switchDepartment={superAdmin?()=>setDepartment(''):null}/>;
   const allowedNav=projectNavigationItems(currentUser);
   const pendingCount = state.intakes.filter((i) => !i.classified).length;
   const viewLabel = view==='home'?'Home':NAV.find((n) => n.id === view)?.label;
