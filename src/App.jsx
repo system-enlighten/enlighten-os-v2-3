@@ -1,3 +1,4 @@
+import WorkspaceActivity, {beginActivity, resetWorkspaceActivity, trackActivity} from "./WorkspaceActivity.jsx";
 import StudioHeading from './StudioHeading.jsx';
 import { projectCardFloor } from './projectCardFloor.mjs';
 import {scheduledTime,editableTime} from './HomeAgenda.jsx';
@@ -2673,12 +2674,32 @@ const PAGE_READS=new Set(['getDesignDashboard','getProjectWorkspace','listMomTas
 const pageReadKey=(action,payload)=>JSON.stringify([AUTH_SESSION_GENERATION,action,Object.entries(payload).sort()]);
 const peekPageRead=(action,payload)=>PAGE_READ_CACHE.get(pageReadKey(action,payload))?.data;
 const POST_READS=new Set(['getStudioDay','homeAgenda','departmentTeam']);
+const activitySubjects={
+  getNativeTechnicalTable:'Technical Table',
+  getTechnicalWorkbook:'Technical Table',
+  getScheduleSpecSheet:'Schedule / Spec Sheet',
+  getWorkflowWorkspace:'Line of Work',
+  getProjectWorkspace:'Projects',
+  getWIH:'Tasks',
+  listProjectDrive:'Drive',
+  importTechnicalOutput:'Technical Table'
+};
+function requestWithActivity(action,payload,method,timeoutMs){
+  const request=()=>requestFromServer(action,payload,method,timeoutMs);
+  // Drawing jobs report the whole transaction, including direct-to-Drive transfer.
+  if(/^(?:begin|finish)(?:Received|BaseDrawing|WorkDrawing|PastWork)Upload$/.test(action)||action==='uploadReceivedChunk')return request();
+  const read=method==='GET'||/^(get|list|lookup|search|preview)/.test(action)
+    ||['read','list','feed','review','options','workflow-read'].includes(payload.action)
+    ||action==='homeAgenda'&&!payload.action||action==='departmentTeam';
+  return trackActivity(read?'load':/^(upload|importTechnicalOutput)/.test(action)?'upload':'save',activitySubjects[action],request);
+}
+
 function apiRequest(action,payload={},method='POST',timeoutMs=0){
   const cacheable=method==='GET'&&(PAGE_READS.has(action)||action==='getWIH'&&payload.fastRead===true&&!payload.includeDiagnostics);
   if(!cacheable){
     const writes=method==='POST'&&!POST_READS.has(action)&&!['read','list','feed','review','options'].includes(payload.action);
     if(writes)PAGE_READ_CACHE.clear();
-    return requestFromServer(action,payload,method,timeoutMs).finally(()=>{
+    return requestWithActivity(action,payload,method,timeoutMs).finally(()=>{
       if(writes)PAGE_READ_CACHE.clear();
     });
   }
@@ -2686,7 +2707,7 @@ function apiRequest(action,payload={},method='POST',timeoutMs=0){
   const cached=PAGE_READ_CACHE.get(key);
   if(cached&&(cached.pending||Date.now()-cached.savedAt<45000))return cached.promise;
   const entry={pending:true,savedAt:0};
-  entry.promise=requestFromServer(action,payload,method,timeoutMs).then(data=>{
+  entry.promise=requestWithActivity(action,payload,method,timeoutMs).then(data=>{
     entry.pending=false;
     entry.savedAt=Date.now();
     entry.data=data;
@@ -3111,15 +3132,16 @@ function useStudioState() {
     })();
   }, []);
 
-  const persist = useCallback(async (update) => {
+  const persist = useCallback(async (update, reportActivity=true) => {
+    const saveLocal=value=>reportActivity?trackActivity("save","On this device",()=>localStateSet(STORE_KEY,value)):localStateSet(STORE_KEY,value);
     const before=stateRef.current;
     const next=typeof update==='function'?update(before):update;
     if(currentUser?.appAccess?.toLowerCase()!=="admin"){
       const resolved=mergeMemberState(before,next,currentUser);stateRef.current=resolved;setState(resolved);
-      const ok=await localStateSet(STORE_KEY,JSON.stringify(resolved));setSaveErr(!ok);return resolved;
+      const ok=await saveLocal(JSON.stringify(resolved));setSaveErr(!ok);return resolved;
     }
     stateRef.current=next;setState(next);
-    const ok = await localStateSet(STORE_KEY, JSON.stringify(next));
+    const ok = await saveLocal(JSON.stringify(next));
     setSaveErr(!ok);
     return next;
   }, [currentUser]);
@@ -3316,7 +3338,10 @@ async function transferDrawingToDrive(entry,file,onProgress=()=>{}){
  entry.completion=result;onProgress(100);return result;
 }
 
-async function uploadProjectDrawingJob(file,projectId,destination,entry,onProgress,designTaskId){
+function uploadProjectDrawingJob(file,projectId,destination,entry,onProgress,designTaskId){
+  return trackActivity('upload','Drawing to ' + destination,report=>uploadProjectDrawingJobToDrive(file,projectId,destination,entry,progress=>{report(progress);onProgress?.(progress);},designTaskId));
+}
+async function uploadProjectDrawingJobToDrive(file,projectId,destination,entry,onProgress,designTaskId){
   if(entry.file!==file||entry.projectId!==projectId||entry.destination!==destination||entry.designTaskId!==designTaskId){for(const key of Object.keys(entry))delete entry[key];Object.assign(entry,{file,projectId,destination,designTaskId,uploadId:'PRJ-UPL-'+uid()});}
   if(entry.saved)return entry.saved;
   const start=destination==='Base'?'beginBaseDrawingUpload':'beginWorkDrawingUpload',finish=destination==='Base'?'finishBaseDrawingUpload':'finishWorkDrawingUpload';
@@ -3447,7 +3472,10 @@ function DrawingProjectSelectList({value,projects,onChange}){
   return <div ref={ref} style={{position:'relative',minWidth:0,fontFamily:FONT_BODY,fontSize:13,fontWeight:400,letterSpacing:0}}><button ref={buttonRef} type="button" role="combobox" aria-label="Drawing register project" aria-expanded={open} aria-haspopup="listbox" aria-controls="drawing-project-options" aria-activedescendant={open?`drawing-project-option-${active}`:undefined} onKeyDown={keyDown} onClick={()=>{setActive(selected);setOpen(v=>!v);}} style={{...inputStyle,fontFamily:FONT_BODY,fontSize:13,fontWeight:400,letterSpacing:0,lineHeight:1.5,display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,textAlign:'left',cursor:'pointer'}}><span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{options[selected].label}</span><ChevronDown size={15} style={{flexShrink:0,marginRight:5}}/></button>{open&&<div role="listbox" id="drawing-project-options" aria-label="Projects" style={{position:'absolute',top:'calc(100% + 4px)',left:0,right:0,zIndex:1000,maxHeight:320,overflowY:'auto',background:T.paper,border:`1px solid ${T.line}`,boxShadow:'0 6px 18px #08192d20',fontFamily:FONT_BODY,fontSize:13,fontWeight:400,letterSpacing:0}}>{options.map((option,i)=><div key={option.value} id={`drawing-project-option-${i}`} role="option" aria-selected={i===selected} data-project-option={i} onMouseDown={e=>e.preventDefault()} onMouseEnter={()=>setActive(i)} onClick={()=>choose(i)} style={{padding:'5px 12px',borderBottom:0,background:i===active?'#E6EEF4':'transparent',color:T.ink,fontFamily:FONT_BODY,fontSize:13,fontWeight:400,letterSpacing:0,lineHeight:1.5,cursor:'pointer',overflowWrap:'anywhere'}}>{option.label}</div>)}</div>}</div>;
 }
 
-async function uploadPastWorkFile(row,projectId,entry,onProgress){
+function uploadPastWorkFile(row,projectId,entry,onProgress){
+  return trackActivity('upload','Historical drawing',report=>uploadPastWorkFileToDrive(row,projectId,entry,progress=>{report(progress);onProgress?.(progress);}));
+}
+async function uploadPastWorkFileToDrive(row,projectId,entry,onProgress){
  const file=row.file,metadata={projectId,uploadId:entry.uploadId||(entry.uploadId='PAST-'+uid()),destination:row.destination,originalDate:row.originalDate,revisionNo:row.revisionNo,drawingCode:row.drawingCode,floor:row.floor,area:row.area,fileName:file.name,mimeType:file.type||'application/octet-stream',fileSize:file.size};
  if(!entry.session)entry.session=await uploadApiRequest('beginPastWorkUpload',metadata,120000);
  if(entry.session.file)return entry.session.file;
@@ -3557,7 +3585,8 @@ function runReceivedUploadJob(persist,job,file){
   if(entry?.work)return entry.work;
   if(!entry){entry={file};RECEIVED_UPLOAD_JOBS.set(job.id,entry);}else if(file)entry.file=file;
   const generation=AUTH_SESSION_GENERATION;
-  const update=patch=>generation===AUTH_SESSION_GENERATION?persist(latest=>({...latest,pendingReceivedUploads:(latest.pendingReceivedUploads||[]).map(j=>j.id===job.id?{...j,...patch}:j)})):Promise.resolve();
+  const report=beginActivity('upload','Received drawing');
+  const update=patch=>generation===AUTH_SESSION_GENERATION?persist(latest=>({...latest,pendingReceivedUploads:(latest.pendingReceivedUploads||[]).map(j=>j.id===job.id?{...j,...patch}:j)}),false):Promise.resolve();
   const work=receivedUploadChain.catch(()=>{}).then(async()=>{
     if(generation!==AUTH_SESSION_GENERATION)return;
     try{
@@ -3572,20 +3601,22 @@ function runReceivedUploadJob(persist,job,file){
         if(entry.session.drawing)saved=entry.session.drawing;
         else{
           await update({phase:'Uploading directly to Google Drive…'});
-          const result=await transferDrawingToDrive(entry,entry.file,progress=>{update({progress,phase:'Uploading drawing to Google Drive…'});});
+          const result=await transferDrawingToDrive(entry,entry.file,progress=>{report(undefined,progress);update({progress,phase:'Uploading drawing to Google Drive…'});});
           entry.completion=result;
+          report(undefined,100);
           await update({progress:100,phase:'File uploaded · saving drawing register…'});
           saved=await uploadApiRequest('finishReceivedUpload',{completionTicket:result.completionTicket},120000);
         }
       if(generation!==AUTH_SESSION_GENERATION)return;
       const records=Array.isArray(saved.parts)?saved.parts:[saved];
       const newIntakes=records.map(row=>{let tagged=metadata.floors;try{tagged=JSON.parse(row.floorTags||'[]');}catch{}return {id:row.drawingId,projectId:metadata.projectId,floor:row.floor||tagged.join(', '),floors:tagged,zone:row.area||metadata.area||'',areas:row.area||metadata.area?[row.area||metadata.area]:[],drawingType:canonicalDrawingType(row.drawingType||metadata.drawingType),fileName:metadata.fileName,driveUrl:row.driveUrl||'',driveFileId:row.driveFileId||'',mimeType:metadata.mimeType,note:metadata.notes,date:row.receivedSentDate||metadata.receivedSentDate,uploadedAt:row.createdAt||new Date().toISOString(),classified:row.classified===true||String(row.classified)==='true',source:'Received Upload'};});
-      await persist(latest=>({...latest,intakes:[...newIntakes,...(latest.intakes||[]).filter(i=>!newIntakes.some(n=>n.id===i.id))],pendingReceivedUploads:(latest.pendingReceivedUploads||[]).filter(j=>j.id!==job.id)}));
+      await persist(latest=>({...latest,intakes:[...newIntakes,...(latest.intakes||[]).filter(i=>!newIntakes.some(n=>n.id===i.id))],pendingReceivedUploads:(latest.pendingReceivedUploads||[]).filter(j=>j.id!==job.id)}),false);
+      report(true);
       RECEIVED_UPLOAD_JOBS.delete(job.id);
     }catch(e){
       if(/session.*expired|invalid or expired/i.test(e.message)){entry.session=null;entry.completion=null;entry.transferStarted=false;entry.directFailed=false;}
       await update({status:'error',error:e.message||'Upload could not be confirmed. Retry to check or resume it.'});
-    }finally{entry.work=null;}
+    }finally{report(false);entry.work=null;}
   });
   entry.work=work;receivedUploadChain=work;return work;
 }
@@ -7636,7 +7667,7 @@ function ProjectGantt({state,projectId}){
 
 let AUTH_ID_TOKEN='';
 let AUTH_SESSION_GENERATION=0;
-function clearStudioCaches(){PAGE_READ_CACHE.clear();clearWorkflowWorkspaceCache();try{for(let i=localStorage.length-1;i>=0;i--){const k=localStorage.key(i);if(k&&/enlighten/i.test(k))localStorage.removeItem(k);}}catch(_){}}
+function clearStudioCaches(){resetWorkspaceActivity();PAGE_READ_CACHE.clear();clearWorkflowWorkspaceCache();try{for(let i=localStorage.length-1;i>=0;i--){const k=localStorage.key(i);if(k&&/enlighten/i.test(k))localStorage.removeItem(k);}}catch(_){}}
 export default function App(){
   const [signedIn,setSignedIn]=useState(false);
   const [config,setConfig]=useState(null);
@@ -7690,7 +7721,7 @@ export default function App(){
     script.addEventListener('load',renderButton);const failed=()=>{if(active)setError('Google sign-in could not load. Check your connection.');};script.addEventListener('error',failed);
     return()=>{active=false;script.removeEventListener('load',renderButton);script.removeEventListener('error',failed);};
   },[config,signedIn,checking]);
-  if(signedIn)return <><div style={{background:T.navy,color:'#fff',padding:'8px 18px',display:'flex',justifyContent:'flex-end',alignItems:'center',gap:12,fontFamily:FONT_BODY,fontSize:12}}>{error&&<span role="alert">{error}</span>}<button disabled={checking} onClick={signOut} style={{...smallBtn,background:'#fff'}}>{checking?'Signing out…':'Sign out / switch account'}</button></div><StudioApp/><DashboardUploadProgress generation={AUTH_SESSION_GENERATION} theme={T} font={FONT_BODY} mono={FONT_MONO} buttonStyle={smallBtn}/></>;
+  if(signedIn)return <><div className="workspace-topbar" style={{background:T.navy,color:'#fff',padding:'8px 18px',display:'flex',justifyContent:'flex-end',alignItems:'center',gap:12,fontFamily:FONT_BODY,fontSize:12}}><WorkspaceActivity/>{error&&<span role="alert">{error}</span>}<button disabled={checking} onClick={signOut} style={{...smallBtn,background:'#fff'}}>{checking?'Signing out…':'Sign out / switch account'}</button></div><StudioApp/><DashboardUploadProgress generation={AUTH_SESSION_GENERATION} theme={T} font={FONT_BODY} mono={FONT_MONO} buttonStyle={smallBtn}/></>;
   return <main className="enlighten-landing" aria-label="enLIGHTen sign in">
     <section className="enlighten-landing__center" aria-label="Welcome to enLIGHTen">
       <img className="enlighten-landing__logo" src="/enlighten-wordmark.svg" alt="enLIGHTen" width="710" height="140" />
