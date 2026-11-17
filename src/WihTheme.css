@@ -107,3 +107,90 @@
 .wih-project-cards .wih-ceiling-floor details{flex:1;min-width:0;width:auto}
 
 .wih-task-table .wih-area-toggle{padding:0!important;border:0!important;background:transparent!important;color:inherit!important;font:inherit!important;text-align:left}
+
+@media (max-width: 760px) {
+  .wih-workspace .register-tabs[role=tablist] {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .wih-workspace .register-tabs [role=tab],
+  .wih-register-controls .wih-status-filters button {
+    min-height: 40px;
+  }
+
+  .wih-register-controls .wih-quiet-filters {
+    min-width: 0;
+  }
+
+  .wih-status-filters {
+    flex-wrap: wrap;
+  }
+
+  .wih-workspace .wih-task-table table {
+    display: block;
+    min-width: 0 !important;
+  }
+
+  .wih-task-table tbody,
+  .wih-task-table .wih-project-band,
+  .wih-task-table .wih-project-band th {
+    display: block;
+  }
+
+  .wih-task-table colgroup,
+  .wih-task-table thead {
+    display: none;
+  }
+
+  .wih-task-table :is(.wih-task-row, .wih-task-floor-group) {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px 10px;
+    padding: 10px;
+    border-bottom: 1px solid #ded8ca;
+  }
+
+  .wih-task-table :is(.wih-task-row, .wih-task-floor-group) > td {
+    min-width: 0;
+    padding: 0 !important;
+    border: 0 !important;
+    overflow-wrap: anywhere;
+  }
+
+  .wih-task-table .wih-task-row > td:is(:nth-child(3), :nth-child(4), :nth-child(6), :nth-child(8)),
+  .wih-task-table .wih-task-floor-group > td:is(:first-child, :nth-child(3), :nth-child(4), :nth-child(6)),
+  .wih-task-table .wih-subtype > span {
+    display: none;
+  }
+
+  .wih-task-table .wih-task-row > td:nth-child(5),
+  .wih-task-table .wih-task-row > td:nth-child(9),
+  .wih-task-table .wih-task-row > td:nth-child(11) {
+    grid-column: 2;
+  }
+
+  .wih-task-table .wih-task-row > td:nth-child(10),
+  .wih-task-table .wih-task-row > td:last-child {
+    grid-column: 3;
+    justify-self: end;
+  }
+
+  .wih-task-table .wih-task-name {
+    flex-wrap: wrap-reverse;
+  }
+
+  .wih-task-table .wih-action-cell button,
+  .wih-task-table .wih-compact-button,
+  .wih-task-table .wih-row-icon,
+  .wih-task-table .wih-area-toggle {
+    min-height: 38px;
+  }
+
+  .wih-task-table .wih-action-cell button,
+  .wih-task-table .wih-compact-button {
+    max-width: 100%;
+    white-space: normal !important;
+  }
+}

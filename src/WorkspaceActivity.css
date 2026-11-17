@@ -24,3 +24,17 @@
   color: #d2dce7;
   overflow-wrap: anywhere;
 }
+
+@media (max-width: 760px) {
+  .workspace-title-block .workspace-title-metadata {
+    display: none;
+  }
+  .workspace-title-block:not(:has(.workspace-activity > span)) {
+    display: none !important;
+  }
+  .workspace-title-block .workspace-title-activity {
+    width: 100%;
+    padding: 6px 14px !important;
+    font-size: 12px !important;
+  }
+}

@@ -1,4 +1,4 @@
-import WorkspaceActivity, {StudioLoadingDetail, beginActivity, resetWorkspaceActivity, trackActivity} from "./WorkspaceActivity.jsx";
+import WorkspaceActivity, {StudioLoadingDetail, beginActivity, resetWorkspaceActivity, setActivityPage, trackActivity} from "./WorkspaceActivity.jsx";
 import StudioHeading from './StudioHeading.jsx';
 import { projectCardFloor } from './projectCardFloor.mjs';
 import {scheduledTime,editableTime} from './HomeAgenda.jsx';
@@ -660,7 +660,7 @@ raw strings "true" or "false" for these fields.
 
 import './LandingPage.css';
 import QRCode from 'qrcode';
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import {
   Upload, ClipboardCheck, LayoutGrid, Users, Clock, Plus, X, CheckCircle2, Circle, Timer, FileUp, ChevronRight, Settings2, AlertTriangle, Loader2, Building2, CalendarDays, MapPin, LogIn, LogOut, Navigation, FileText, HardHat, ChevronDown, FolderOpen
 } from "lucide-react";
@@ -2697,7 +2697,7 @@ const activitySubjects={
 function requestWithActivity(action,payload,method,timeoutMs){
   const request=()=>requestFromServer(action,payload,method,timeoutMs);
   // Drawing jobs report the whole transaction, including direct-to-Drive transfer.
-  if(/^(?:begin|finish)(?:Received|BaseDrawing|WorkDrawing|PastWork)Upload$/.test(action)||action==='uploadReceivedChunk')return request();
+  if(/^(?:begin|finish)(?:Received|BaseDrawing|WorkDrawing|PastWork)Upload$/.test(action)||action==='uploadReceivedChunk'||action==='logActiveTime')return request();
   const read=method==='GET'||/^(get|list|lookup|search|preview)/.test(action)
     ||['read','list','feed','review','options','workflow-read'].includes(payload.action)
     ||action==='homeAgenda'&&!payload.action||action==='departmentTeam';
@@ -3165,26 +3165,26 @@ function useStudioState() {
 /* ---------------------------------------------------------------
    SMALL UI PRIMITIVES
 --------------------------------------------------------------- */
-function TitleBlock({ view, sub }) {
+function TitleBlock({ view, sub, page }) {
   const cell = { padding: "10px 16px", borderRight: `1px solid ${T.cyan}33` };
   const label = { fontFamily: FONT_MONO, fontSize: 10, letterSpacing: "0.12em", color: T.cyan, textTransform: "uppercase", opacity: 0.75 };
   const val = { fontFamily: FONT_DISPLAY, fontSize: 14, color: "#fff", marginTop: 3 };
   return (
-    <div style={{ display: "flex", background: T.navy, borderBottom: `1px solid ${T.cyan}33`, flexWrap: "wrap" }}>
-      <div style={cell}>
+    <div className="workspace-title-block" style={{ display: "flex", background: T.navy, borderBottom: `1px solid ${T.cyan}33`, flexWrap: "wrap" }}>
+      <div className="workspace-title-metadata" style={cell}>
         <div style={label}>Sheet</div>
         <div style={val}>{view}</div>
       </div>
-      <div style={cell}>
+      <div className="workspace-title-metadata" style={cell}>
         <div style={label}>Detail</div>
         <div style={val}>{sub || "—"}</div>
       </div>
-      <div style={cell}>
+      <div className="workspace-title-metadata" style={cell}>
         <div style={label}>Date</div>
         <div style={val}>{fmtDate(todayISO())}</div>
       </div>
-      <div style={{ ...cell, borderRight: "none", marginLeft: "auto", alignSelf: "center", maxWidth: "100%", boxSizing: "border-box", fontFamily: FONT_DISPLAY, fontSize: 14 }}>
-        <WorkspaceActivity />
+      <div className="workspace-title-activity" style={{ ...cell, borderRight: "none", marginLeft: "auto", alignSelf: "center", maxWidth: "100%", boxSizing: "border-box", fontFamily: FONT_DISPLAY, fontSize: 14 }}>
+        <WorkspaceActivity page={page} />
       </div>
     </div>
   );
@@ -3597,7 +3597,7 @@ function runReceivedUploadJob(persist,job,file){
   if(entry?.work)return entry.work;
   if(!entry){entry={file};RECEIVED_UPLOAD_JOBS.set(job.id,entry);}else if(file)entry.file=file;
   const generation=AUTH_SESSION_GENERATION;
-  const report=beginActivity('upload','Received drawing');
+  const report=beginActivity('upload','Received drawing','upload');
   const update=patch=>generation===AUTH_SESSION_GENERATION?persist(latest=>({...latest,pendingReceivedUploads:(latest.pendingReceivedUploads||[]).map(j=>j.id===job.id?{...j,...patch}:j)}),false):Promise.resolve();
   const work=receivedUploadChain.catch(()=>{}).then(async()=>{
     if(generation!==AUTH_SESSION_GENERATION)return;
@@ -4404,7 +4404,7 @@ function TimesheetView({ state, persist, calendarOnly=false }) {
         </tr>}
         {(!grouped||expanded)&&group.tasks.map(t=>{
        const editable=canWork&&(assignProject(t.projectId)||t.assigneeUserId===state.currentUser?.userId),cell={padding:'8px 10px',fontSize:12,borderBottom:`1px solid ${T.line}`,verticalAlign:'middle'},marks=taskMarks[t.designTaskId]||{},project=(state.projects||[]).find(p=>String(p.id)===String(t.projectId));
-       return <tr key={t.designTaskId}><td style={cell}><div style={{display:'flex',alignItems:'center',gap:1,whiteSpace:'nowrap'}}><input type="checkbox" checked={isDone(t.status)} className="wih-complete-check" disabled={!run(t)||isDone(t.status)} aria-label={'Complete '+t.title} onChange={()=>setCompleteEditor({task:t,file:null,...workDrawingDetails(t),actualHours:t.hours||'',notes:''})}/></div></td><td style={cell}><span className="wih-task-name"><span className="wih-task-marks"><button type="button" className="wih-row-icon" style={{...icon,'--wih-icon-color':marks.pinned?'#a13427':icon.color}} title={marks.pinned?'Unpin':'Pin'} aria-label={marks.pinned?'Unpin task':'Pin task'} aria-pressed={!!marks.pinned} onClick={()=>markTask(t.designTaskId,{pinned:!marks.pinned})}><WihPin size={15} aria-hidden="true" fill={marks.pinned?'currentColor':'none'}/></button><button type="button" className="wih-row-icon" style={{...icon,'--wih-icon-color':marks.priority==='high'?'#a13427':marks.priority==='low'?'#41765a':icon.color}} title={marks.priority==='high'?'High priority · click for low':marks.priority==='low'?'Low priority · click to clear':'Set high priority'} aria-label={(marks.priority||'Normal')+' priority for '+t.title+'. '+(marks.priority==='high'?'Set low':marks.priority==='low'?'Clear priority':'Set high')} onClick={()=>markTask(t.designTaskId,{priority:marks.priority==='high'?'low':marks.priority==='low'?'':'high'})}><WihFlag size={16} aria-hidden="true" fill={marks.priority?'currentColor':'none'}/></button></span><strong>{t.title}</strong></span></td><td style={cell}>{t.projectName}</td><td style={cell}>{project?.city||project?.projectControl?.city||'—'}</td><td style={cell}>{t.batchCoverage?.length>1?<details><summary>{t.batchCoverage.length} areas</summary>{t.batchCoverage.map(z=><div key={JSON.stringify([z.floor,z.area])}>{z.floor} · {z.area}</div>)}</details>:[t.floor||t.batchCoverage?.[0]?.floor,t.area||t.batchCoverage?.[0]?.area].filter(Boolean).join(' · ')||'—'}</td><td style={cell}>{t.drawingType||'—'}</td><td style={cell}><span className="wih-subtype"><span>{t.task?.taskCategory||t.task?.taskType||'—'}</span><button type="button" title="Comments" aria-label="Task comments" className="wih-row-icon" style={{...icon,'--wih-icon-color':taskThread?.task?.designTaskId===t.designTaskId?T.blue:icon.color}} disabled={threadPending} onClick={()=>threadAction(t,'read')}><WihComment size={16} aria-hidden="true" fill={taskThread?.task?.designTaskId===t.designTaskId?T.cyan:"none"}/></button></span></td><td style={cell}>{Number(t.task?.estimatedHours)>0?`${Number(t.task.estimatedHours)} h`:'—'}</td><td style={cell}>{t.plan?.internalDueDate?<><div>{t.plan.tatDays?`${t.plan.tatDays} d`:'—'} · {formatProjectDate(t.plan.internalDueDate)}</div>{wihUrgency(t,clock).urgent&&<div style={{fontSize:11,color:T.redline,fontWeight:600,marginTop:3}} className="wih-urgent-label">Urgent</div>}</>:editable&&!isDone(t.status)?<button className="wih-compact-button" style={smallBtn} onClick={()=>{setTatError('');setTatEditor({task:t,days:'',date:''});}}>Enter TAT</button>:<span style={{color:T.inkDim}}>TAT not entered</span>}</td><td style={cell}><WihDashboardStatus task={t}/></td><td style={cell}>{t.assigneeUserId?(t.assignee||'Assigned'):assignProject(t.projectId)&&!isDone(t.status)?<button type="button" className="wih-compact-button" style={smallBtn} onClick={()=>openAssign(t)}>Assign</button>:'Not assigned'}</td><td className="wih-action-cell" style={cell}>{loggingButton(t)}</td></tr>;
+       return <tr className="wih-task-row" key={t.designTaskId}><td style={cell}><div style={{display:'flex',alignItems:'center',gap:1,whiteSpace:'nowrap'}}><input type="checkbox" checked={isDone(t.status)} className="wih-complete-check" disabled={!run(t)||isDone(t.status)} aria-label={'Complete '+t.title} onChange={()=>setCompleteEditor({task:t,file:null,...workDrawingDetails(t),actualHours:t.hours||'',notes:''})}/></div></td><td style={cell}><span className="wih-task-name"><span className="wih-task-marks"><button type="button" className="wih-row-icon" style={{...icon,'--wih-icon-color':marks.pinned?'#a13427':icon.color}} title={marks.pinned?'Unpin':'Pin'} aria-label={marks.pinned?'Unpin task':'Pin task'} aria-pressed={!!marks.pinned} onClick={()=>markTask(t.designTaskId,{pinned:!marks.pinned})}><WihPin size={15} aria-hidden="true" fill={marks.pinned?'currentColor':'none'}/></button><button type="button" className="wih-row-icon" style={{...icon,'--wih-icon-color':marks.priority==='high'?'#a13427':marks.priority==='low'?'#41765a':icon.color}} title={marks.priority==='high'?'High priority · click for low':marks.priority==='low'?'Low priority · click to clear':'Set high priority'} aria-label={(marks.priority||'Normal')+' priority for '+t.title+'. '+(marks.priority==='high'?'Set low':marks.priority==='low'?'Clear priority':'Set high')} onClick={()=>markTask(t.designTaskId,{priority:marks.priority==='high'?'low':marks.priority==='low'?'':'high'})}><WihFlag size={16} aria-hidden="true" fill={marks.priority?'currentColor':'none'}/></button></span><strong>{t.title}</strong></span></td><td style={cell}>{t.projectName}</td><td style={cell}>{project?.city||project?.projectControl?.city||'—'}</td><td style={cell}>{t.batchCoverage?.length>1?<details><summary>{t.batchCoverage.length} areas</summary>{t.batchCoverage.map(z=><div key={JSON.stringify([z.floor,z.area])}>{z.floor} · {z.area}</div>)}</details>:[t.floor||t.batchCoverage?.[0]?.floor,t.area||t.batchCoverage?.[0]?.area].filter(Boolean).join(' · ')||'—'}</td><td style={cell}>{t.drawingType||'—'}</td><td style={cell}><span className="wih-subtype"><span>{t.task?.taskCategory||t.task?.taskType||'—'}</span><button type="button" title="Comments" aria-label="Task comments" className="wih-row-icon" style={{...icon,'--wih-icon-color':taskThread?.task?.designTaskId===t.designTaskId?T.blue:icon.color}} disabled={threadPending} onClick={()=>threadAction(t,'read')}><WihComment size={16} aria-hidden="true" fill={taskThread?.task?.designTaskId===t.designTaskId?T.cyan:"none"}/></button></span></td><td style={cell}>{Number(t.task?.estimatedHours)>0?`${Number(t.task.estimatedHours)} h`:'—'}</td><td style={cell}>{t.plan?.internalDueDate?<><div>{t.plan.tatDays?`${t.plan.tatDays} d`:'—'} · {formatProjectDate(t.plan.internalDueDate)}</div>{wihUrgency(t,clock).urgent&&<div style={{fontSize:11,color:T.redline,fontWeight:600,marginTop:3}} className="wih-urgent-label">Urgent</div>}</>:editable&&!isDone(t.status)?<button className="wih-compact-button" style={smallBtn} onClick={()=>{setTatError('');setTatEditor({task:t,days:'',date:''});}}>Enter TAT</button>:<span style={{color:T.inkDim}}>TAT not entered</span>}</td><td style={cell}><WihDashboardStatus task={t}/></td><td style={cell}>{t.assigneeUserId?(t.assignee||'Assigned'):assignProject(t.projectId)&&!isDone(t.status)?<button type="button" className="wih-compact-button" style={smallBtn} onClick={()=>openAssign(t)}>Assign</button>:'Not assigned'}</td><td className="wih-action-cell" style={cell}>{loggingButton(t)}</td></tr>;
       })}</React.Fragment>;})}</React.Fragment>;})}
     </tbody></table></div></>}
     {taskThread&&<DiscussionDialog task={taskThread.task} data={taskThread} error={threadNotice} busy={threadPending} text={taskComment} setText={setTaskComment} showPriority onPost={priority=>threadAction(taskThread.task,'comment',priority)} onClose={()=>setTaskThread(null)} buttonStyle={smallBtn}/>}
@@ -7390,6 +7390,10 @@ function StudioApp() {
   const [department,setDepartment]=useState('');
   const { state, loading, saveErr, backendErr, currentUser, persist } = useStudioState();
   const [view, setView] = useState(window.location.hash==="#email-intake" ? "drawingRegister" : "home");
+  useLayoutEffect(() => {
+    setActivityPage(loading || !state ? undefined : view);
+    return () => setActivityPage(undefined);
+  }, [loading, Boolean(state), view]);
   const [mobileNavOpen,setMobileNavOpen]=useState(false);
   useEffect(()=>setMobileNavOpen(false),[view]);
   const [attendanceDay,setAttendanceDay]=useState('');
@@ -7479,7 +7483,7 @@ function StudioApp() {
 
       {/* Main canvas */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <TitleBlock view={viewLabel} sub={sheetDetail?.view===view ? sheetDetail.label : undefined} />
+        <TitleBlock page={view} view={viewLabel} sub={sheetDetail?.view===view ? sheetDetail.label : undefined} />
         {view!=='upload'&&(state.pendingReceivedUploads||[]).length>0&&<div role="status" style={{padding:'8px 24px',fontFamily:FONT_BODY,fontSize:12,background:T.amberBg,color:T.ink}}>{state.pendingReceivedUploads.length} drawing upload(s) pending. <button type="button" style={smallBtn} onClick={()=>setView('drawingRegister')}>View uploads</button></div>}
         {saveErr && (
           <div style={{ background: T.redlineBg, color: T.redline, fontFamily: FONT_MONO, fontSize: 12, padding: "8px 24px", display: "flex", alignItems: "center", gap: 6 }}>
