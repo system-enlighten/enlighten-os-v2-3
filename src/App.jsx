@@ -2701,7 +2701,10 @@ function requestWithActivity(action,payload,method,timeoutMs){
   const read=method==='GET'||/^(get|list|lookup|search|preview)/.test(action)
     ||['read','list','feed','review','options','workflow-read'].includes(payload.action)
     ||action==='homeAgenda'&&!payload.action||action==='departmentTeam';
-  return trackActivity(read?'load':/^(upload|importTechnicalOutput)/.test(action)?'upload':'save',activitySubjects[action],request);
+  const subject = activitySubjects[action] || action
+    .replace(/^(?:get|list|save|update|upload|create)(?=[A-Z])/, '')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+  return trackActivity(read?'load':/^(upload|importTechnicalOutput)/.test(action)?'upload':'save',subject,request);
 }
 
 function apiRequest(action,payload={},method='POST',timeoutMs=0){

@@ -71,9 +71,8 @@ export default function WorkspaceActivity() {
     || operations.find(item => item.subject)
     || operations[0];
   const visible = operation
-    ? [operation, ...operations.filter(item => item !== operation && item.subject)].slice(0, 4)
+    ? [operation, ...operations.filter(item => item !== operation)]
     : [recent];
-  const remaining = operations.length - visible.length;
   return <div className="workspace-activity" role="status" aria-live="polite" aria-atomic="true">
     {visible.map((item, index) => <span className="workspace-activity-item" key={index}>
       <span aria-hidden="true" className={operation ? 'workspace-activity-spinner' : ''}>
@@ -84,7 +83,6 @@ export default function WorkspaceActivity() {
       </span>
       {item?.progress != null && <span>{item.progress === 100 ? 'Confirming…' : item.progress + '%'}</span>}
     </span>)}
-    {remaining > 0 && <small>+{remaining} more</small>}
   </div>;
 }
 
