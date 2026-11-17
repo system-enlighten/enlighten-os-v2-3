@@ -83,39 +83,73 @@ function originalInvoice(attachment){
   return {url:url.href,preview:preview.href};
 }
 
-function InvoicePreview({invoice,isDraft,onClose}){
-  const dialog=useRef(null),documentRef=useRef(null);
-  const [error,setError]=useState('');
-  useEffect(()=>{
-    const element=dialog.current;
-    element.showModal();
-    return ()=>element.close();
-  },[]);
-  const historical=invoice.kind==='legacyInvoice';
-  const original=historical?originalInvoice(invoice.attachment):{};
-  const title=isDraft?'Draft invoice preview':historical?'Imported invoice preview':'Invoice preview';
-  const print=()=>{
-    setError('');
-    try{printMarkup(documentRef.current,invoice.number);}
-    catch(e){setError(e.message);}
+function InvoiceDocument({invoice,documentRef}){
+  if(invoice.kind!=='legacyInvoice')return <Invoice invoice={invoice} printRef={documentRef}/>;
+  const original=originalInvoice(invoice.attachment);
+  if(original.preview)return <iframe className="invoice-original-frame" title="Original invoice document" src={original.preview}/>;
+  return <article className="accounts-invoice invoice-history-paper" ref={documentRef}>
+    <h1>Enlighten Designs</h1>
+    <h2>Imported invoice record</h2>
+    <dl>{[['Invoice number',invoice.sourceNumber||invoice.number],['Date',invoice.date],['Project',invoice.projectName],['Client',invoice.client],['Total',money(invoice.amount)]].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value||'—'}</dd></div>)}</dl>
+    <p>Original invoice PDF unavailable.{invoice.attachment&&' File reference: '+invoice.attachment}</p>
+  </article>;
+}
+
+function InvoiceWorkspace({records,invoice,editing,busy,form,onChoose,onNew,onClose,onPayment,canPay,sent,onMarkSent}){
+  const documentRef=useRef(null),editorRef=useRef(null),[message,setMessage]=useState('');
+  const [query,setQuery]=useState('');
+  const number=invoice?.sourceNumber||invoice?.number;
+  useEffect(()=>{setMessage('');},[invoice?.id]);
+  const original=invoice?.kind==='legacyInvoice'?originalInvoice(invoice.attachment):{};
+  const summary=invoice?[number,invoice.client,invoice.projectName,money(invoice.amount)].filter(Boolean).join(' · '):'';
+  const share=async()=>{
+    try{
+      if(navigator.share)await navigator.share({title:number,text:summary,...(original.url?{url:original.url}:{})});
+      else{await navigator.clipboard.writeText([summary,original.url].filter(Boolean).join('\n'));setMessage('Invoice details copied.');}
+    }catch(e){if(e.name!=='AbortError')setMessage('Sharing was unavailable.');}
   };
-  return <dialog ref={dialog} className="accounts-invoice-dialog" aria-labelledby="accounts-invoice-preview-title" onCancel={event=>{event.preventDefault();onClose();}}>
-    <header className="accounts-preview-header">
-      <h2 id="accounts-invoice-preview-title">{title}</h2>
-      <div className="accounts-actions">
-        {!isDraft&&!historical&&<button type="button" onClick={print}>Print / Save as PDF</button>}
-        {original.url&&<a href={original.url} target="_blank" rel="noreferrer">Open original</a>}
-        <button type="button" autoFocus onClick={onClose}>Close preview</button>
-      </div>
-    </header>
-    <div className="accounts-preview-body">
-      {error&&<p role="alert" className="accounts-error">{error}</p>}
-      {historical?<div className="accounts-invoice-history">
-        <dl>{[['Invoice number',invoice.sourceNumber||invoice.number],['Date',invoice.date],['Project',invoice.projectName],['Client',invoice.client],['Total',money(invoice.amount)]].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value||'—'}</dd></div>)}</dl>
-        {original.preview?<iframe title="Original invoice document" src={original.preview} loading="lazy"/>:<p>Original document unavailable to preview.{invoice.attachment&&' File reference: '+invoice.attachment}</p>}
-      </div>:<Invoice invoice={invoice} printRef={documentRef}/>}
-    </div>
-  </dialog>;
+  const print=()=>{
+    setMessage('');
+    try{printMarkup(documentRef.current,number);}
+    catch(e){setMessage(e.message);}
+  };
+  const mail=invoice&&!editing?'mailto:?subject='+encodeURIComponent('Invoice '+number)+'&body='+encodeURIComponent([summary,original.url].filter(Boolean).join('\n\n')):undefined;
+  const search=query.trim().toLowerCase();
+  const visible=records.filter(record=>[record.number,record.sourceNumber,record.client,record.projectName].some(value=>String(value||'').toLowerCase().includes(search)));
+  return <div className="invoice-workspace">
+    <aside className="invoice-list" aria-label="Invoice list">
+      <header><h2>All Invoices</h2>{onNew&&<button type="button" disabled={editing} onClick={onNew}>＋ New invoice</button>}</header>
+      <input type="search" className="invoice-search" aria-label="Search invoices" placeholder="Search invoices" value={query} onChange={e=>setQuery(e.target.value)}/>
+      {visible.map(record=><button className="invoice-list-row" type="button" key={record.id} disabled={editing||busy} aria-current={invoice?.id===record.id?'true':undefined} onClick={()=>onChoose(record)}>
+        <strong>{record.client||record.projectName||record.number}</strong><strong>{money(record.amount)}</strong>
+        <span>{[record.sourceNumber||record.number,record.date].filter(Boolean).join(' · ')}</span>
+        <small>{record.kind==='legacyInvoice'?'Imported':record.documentType}</small>
+      </button>)}
+      {!visible.length&&<p>{search?'No matching invoices.':'No invoices yet.'}</p>}
+    </aside>
+    <section className="invoice-detail" aria-label="Invoice detail">
+      {invoice?<><header className="invoice-detail-heading"><div><small>{invoice.projectName||invoice.client||'Invoice'}</small><h2>{editing?'New invoice':number}</h2></div>{onClose&&<button type="button" onClick={onClose} aria-label={editing?'Cancel invoice draft':'Close invoice'}>×</button>}</header>
+        <nav className="invoice-toolbar" aria-label="Invoice actions">
+          <button type="button" disabled={!editing} title={editing?'Go to draft fields':'Only unsaved drafts can be edited'} onClick={()=>editorRef.current?.querySelector('input,select')?.focus()}>Edit</button>
+          {mail?<a href={mail} title="Open an email draft with invoice details">Send</a>:<button type="button" disabled>Send</button>}
+          <button type="button" disabled={editing} onClick={share}>Share</button>
+          {original.url?<a href={original.url} target="_blank" rel="noreferrer">PDF/Print</a>:<button type="button" disabled={editing||invoice.kind==='legacyInvoice'} onClick={print}>PDF/Print</button>}
+          <button type="button" disabled={!canPay} onClick={onPayment}>Record Payment</button>
+        </nav>
+        {message&&<p className="invoice-action-message" role="status">{message}</p>}
+        {mail&&<div className="invoice-next">
+          {sent?<strong>Marked as sent · {sent.date}</strong>:<a href={mail}>Send Invoice</a>}
+          {!sent&&onMarkSent&&<button type="button" disabled={busy} onClick={onMarkSent}>Mark As Sent</button>}
+          {!sent&&<span>Email opens in your mail app{original.url?' with the original link':'. Attach the PDF before sending'}.</span>}
+        </div>}
+        {!editing&&form}
+        <div className={editing?'invoice-live invoice-live-editing':'invoice-live'}>
+          {editing&&form&&<div ref={editorRef}>{form}</div>}
+          <div className="invoice-paper-pane">{editing&&<div className="invoice-draft-label">Draft · Live preview</div>}<InvoiceDocument invoice={invoice} documentRef={documentRef}/></div>
+        </div>
+      </>:<p className="invoice-action-message">Select an invoice to preview it.</p>}
+    </section>
+  </div>;
 }
 
 export default function Accounts({page,request,user}){
@@ -126,7 +160,7 @@ export default function Accounts({page,request,user}){
   const [bank,setBank]=useState('IDFC'),[staged,setStaged]=useState([]);
   const [cashFrom,setCashFrom]=useState(()=>String(Number(today().slice(0,4))-(today().slice(5,7)<'04'?1:0))+'-04-01');
   const printRef=useRef(null), saving=useRef(false);
-  const [previewDraft,setPreviewDraft]=useState(false);
+  const [invoiceClosed,setInvoiceClosed]=useState(false);
   const readOnly=/^viewer$/i.test(user.appAccess);
   const load=async()=>{
     setError('');
@@ -134,7 +168,7 @@ export default function Accounts({page,request,user}){
     catch(e){setError(e.message);}
   };
   useEffect(()=>{load();},[]);
-  useEffect(()=>{setDraft(null);setSelected(null);setPreviewDraft(false);setNotice('');setError('');},[page]);
+  useEffect(()=>{setDraft(null);setSelected(null);setInvoiceClosed(false);setNotice('');setError('');},[page]);
   const save=async e=>{
     e.preventDefault();
     if(saving.current)return;
@@ -227,6 +261,57 @@ export default function Accounts({page,request,user}){
       if(debitCash!==creditCash)cashFlows[cashType(debitCash?cr.head:dr.head)]+=debitCash?dr.debit:-cr.credit;
     }
   }
+  const invoiceList=records.filter(r=>['invoice','legacyInvoice'].includes(r.kind))
+    .sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+  const activeInvoice=draft?.kind==='invoice'?draftInvoice(draft,projects):
+    ['invoice','legacyInvoice'].includes(selected?.kind)?selected:invoiceClosed?null:invoiceList[0];
+  const sent=records.find(r=>r.kind==='invoiceDispatch'&&r.sentInvoiceId===activeInvoice?.id);
+  const markSent=async()=>{
+    if(saving.current)return;
+    saving.current=true;
+    setBusy(true);setError('');setNotice('');
+    try{
+      const record=await request('saveAccounts',{kind:'invoiceDispatch',id:crypto.randomUUID(),date:today(),sentInvoiceId:activeInvoice.id});
+      setData(current=>({...current,records:[...current.records.filter(r=>r.id!==record.id),record]}));
+    }catch(e){setError(e.message);}
+    finally{saving.current=false;setBusy(false);}
+  };
+  const editor=draft&&<form onSubmit={save} className="accounts-form">
+      <h2>{({milestone:'Schedule milestone',invoice:'Raise invoice',receipt:'Record receipt',transaction:'Record transaction',payroll:'Post payroll',reconciliation:'Reconcile statement line',opening:'Add opening journal'})[draft.kind]}</h2>
+      <fieldset disabled={busy}><div className="accounts-fields">
+      {field(draft.kind==='milestone'?'Scheduled date':'Date','date','date',true)}
+      {['milestone','invoice','transaction'].includes(draft.kind)&&options('Project','projectId',projectOptions,draft.kind!=='transaction',id=>{
+        if(draft.kind==='invoice'){update('client',projects.find(p=>p.id===id)?.client||'');update('milestoneId','');}
+      })}
+      {['milestone','receipt','transaction','reconciliation','opening'].includes(draft.kind)&&field('Amount (INR)','amount','number',true,{min:'0.01',step:'0.01'})}
+      {['transaction','reconciliation','receipt'].includes(draft.kind)&&<>{options('Source account','bank',banks,true)}{field('UTR / cheque / reference','reference','text',draft.kind==='reconciliation')}</>}
+      {['transaction','reconciliation'].includes(draft.kind)&&<>
+        {options('Flow direction','direction',[['Outflow','Debit · outflow'],['Inflow','Credit · inflow']],true)}
+        {options(draft.kind==='reconciliation'?'Clearing ledger if unmatched':'Ledger head','head',heads.filter(([h])=>h!==draft.bank).map(([h])=>h),draft.kind==='transaction')}
+      </>}
+      {['milestone','transaction','reconciliation'].includes(draft.kind)&&field('Description','description','text',draft.kind==='milestone')}
+      {draft.kind==='opening'&&<>{options('Debit head','debitHead',heads.map(([h])=>h),true)}{options('Credit head','creditHead',heads.map(([h])=>h),true)}{field('Opening reference','description','text',true)}</>}
+      {draft.kind==='transaction'&&<>{field('Value date','valueDate','date')}{field('Beneficiary','beneficiary')}{options('Classification','classification',['Project direct cost','Studio overhead','Owner drawings'])}{draft.head==='Employee Advances'&&options('Employee','employeeId',employees.map(e=>[e.id,e.name]),true)}</>}
+      {draft.kind==='invoice'&&<>
+        {options('Document type','documentType',['Proforma Invoice','Invoice','Bill of Supply'],true)}
+        {options('Milestone','milestoneId',milestones.filter(m=>m.projectId===draft.projectId&&!invoices.some(r=>r.milestoneId===m.id)).map(m=>[m.id,m.description]),false,id=>{const m=milestones.find(r=>r.id===id);if(m)update('items',[{...freshItem(),description:m.description,rate:m.amount/100}]);})}
+        {field('Due date','dueDate','date')}{field('Client','client','text',true)}
+        <label>Billing address<textarea required value={draft.address||''} onChange={e=>update('address',e.target.value)}/></label>
+        {field('State','state')}{field('State code','stateCode')}{field('Client GSTIN','gstin')}{field('PO / Reference','po')}{field('Contract / order date','orderDate','date')}{field('Contact person','contact')}{field('Contact number','phone','tel')}
+      </>}
+      {draft.kind==='payroll'&&<>
+        {options('Employee','employeeId',employees.map(e=>[e.id,e.name]),true)}{options('Daily wage basis','method',['Working days','Calendar days'],true)}
+        {field('Monthly gross (INR)','gross','number',true,{min:'0.01',step:'0.01'})}
+        {[['Working days','working',1],['Present days','present',.5],['Paid leave','leave',.5],['Overtime hours','hours',.25],['Overtime multiplier','multiplier',.01],['Allowances (INR)','allowances',.01],['Other deductions (INR)','deductions',.01],['Advance recovery (INR)','advance',.01]].map(([label,key,step],i)=><React.Fragment key={key}>{field(label,key,'number',i===0,{min:0,step})}</React.Fragment>)}
+      </>}
+      </div>
+      {draft.kind==='payroll'&&<div className="accounts-actions"><button type="button" disabled={!draft.employeeId||!draft.date} onClick={useAttendance}>Load monthly attendance</button><span>Review working days, holidays, paid leave and overtime before posting.</span></div>}
+      {draft.kind==='invoice'&&<><h3>Service lines</h3>{draft.items.map((line,i)=><div className="accounts-fields accounts-line" key={i}>
+        {[['Description','description','text'],['SAC','sac','text'],['Unit','unit','text'],['Quantity','quantity','number'],['Unit rate (INR)','rate','number']].map(([label,key,type])=><label key={key}>{label}<input required type={type} min={type==='number'?(key==='rate'?.01:1):undefined} step={key==='rate'?.01:undefined} value={line[key]} onChange={e=>update('items',draft.items.map((other,j)=>j===i?{...other,[key]:e.target.value}:other))}/></label>)}
+        <button type="button" disabled={draft.items.length===1} onClick={()=>update('items',draft.items.filter((_,j)=>i!==j))}>Remove line</button></div>)}
+      <button type="button" disabled={draft.items.length>=25} onClick={()=>update('items',[...draft.items,freshItem()])}>Add line</button></>}
+      <div className="accounts-actions"><button type="submit">{busy?'Saving…':draft.kind==='invoice'?'Save invoice':'Save'}</button><button type="button" onClick={()=>setDraft(null)}>Cancel</button></div></fieldset>
+    </form>;
   return <section className="accounts">
     {error&&<p role="alert" className="accounts-error">{error}</p>}{notice&&<p role="status">{notice}</p>}
     {page==='Payment Dashboard'&&<>
@@ -247,11 +332,13 @@ export default function Accounts({page,request,user}){
       <div className="accounts-metrics">{[[0,30],[31,60],[61,Infinity]].map(([min,max])=><div key={min}><span>{max===Infinity?'61+':min+'–'+max} days</span><strong>{money(open.filter(r=>r.dueDate<=today()&&age(r)>=min&&age(r)<=max).reduce((n,r)=>n+r.amount-paid(r.id),0))}</strong></div>)}</div>
       <label>Collection month <input type="month" value={month} onChange={e=>setMonth(e.target.value)}/></label> <strong>{money(total(selectedReceipts,'amount'))}</strong>
     </>}
-    {page==='Invoicing'&&<>{!readOnly&&<button onClick={()=>begin('invoice')}>New invoice</button>}<Table columns={['Number','Type','Project','Client','Date','Total','Action']} rows={records.filter(r=>r.kind==='invoice').map(r=>({key:r.id,cells:[r.number,r.documentType,r.projectName,r.client,r.date,money(r.amount),<button type="button" onClick={()=>setSelected(r)}>Preview</button>]}))}/></>}
-    {page==='Invoicing'&&records.some(r=>r.kind==='legacyInvoice')&&<>
-      <h2>Imported invoices</h2>
-      <Table columns={['Invoice number','Date','Project','Client','Amount','Action']} rows={records.filter(r=>r.kind==='legacyInvoice').map(r=>({key:r.id,cells:[r.sourceNumber||r.number,r.date,r.projectName,r.client,money(r.amount),<button type="button" onClick={()=>setSelected(r)}>Preview</button>]}))}/>
-    </>}
+    {(page==='Invoicing'||draft?.kind==='invoice')&&<InvoiceWorkspace records={invoiceList} invoice={activeInvoice}
+      editing={draft?.kind==='invoice'} busy={busy} form={editor} sent={sent}
+      onMarkSent={!readOnly&&!draft?markSent:undefined} onChoose={record=>{setSelected(record);setInvoiceClosed(false);setDraft(null);}}
+      onNew={readOnly||busy?undefined:()=>begin('invoice')}
+      onClose={busy?undefined:()=>{if(draft)setDraft(null);else{setSelected(null);setInvoiceClosed(true);}}}
+      canPay={!readOnly&&!busy&&!draft&&activeInvoice?.kind==='invoice'&&activeInvoice.documentType!=='Proforma Invoice'&&activeInvoice.amount>paid(activeInvoice.id)}
+      onPayment={()=>{setDraft({...makeDraft('receipt'),invoiceId:activeInvoice.id,direction:'Inflow'});setError('');setNotice('');}}/>}
     {page==='Debit / Credit'&&records.some(r=>r.kind==='legacyDesign')&&<details>
       <summary>Imported Design transactions</summary>
       <Table columns={['Date','Type','Project','Description','Ledger head','Amount','IDFC']} rows={records.filter(r=>r.kind==='legacyDesign').map(r=>({key:r.id,cells:[r.date,r.type,r.projectName,r.description,r.head,money(r.amount),r.idfc?'Matched':'—']}))}/>
@@ -309,44 +396,7 @@ export default function Accounts({page,request,user}){
         return {cells:[bank,money(debit),money(credit),money(debit-credit)]};
       })}/>
     </>}
-    {draft&&<form onSubmit={save} className="accounts-form">
-      <h2>{({milestone:'Schedule milestone',invoice:'Raise invoice',receipt:'Record receipt',transaction:'Record transaction',payroll:'Post payroll',reconciliation:'Reconcile statement line',opening:'Add opening journal'})[draft.kind]}</h2>
-      <fieldset disabled={busy}><div className="accounts-fields">
-      {field(draft.kind==='milestone'?'Scheduled date':'Date','date','date',true)}
-      {['milestone','invoice','transaction'].includes(draft.kind)&&options('Project','projectId',projectOptions,draft.kind!=='transaction',id=>{
-        if(draft.kind==='invoice'){update('client',projects.find(p=>p.id===id)?.client||'');update('milestoneId','');}
-      })}
-      {['milestone','receipt','transaction','reconciliation','opening'].includes(draft.kind)&&field('Amount (INR)','amount','number',true,{min:'0.01',step:'0.01'})}
-      {['transaction','reconciliation','receipt'].includes(draft.kind)&&<>{options('Source account','bank',banks,true)}{field('UTR / cheque / reference','reference','text',draft.kind==='reconciliation')}</>}
-      {['transaction','reconciliation'].includes(draft.kind)&&<>
-        {options('Flow direction','direction',[['Outflow','Debit · outflow'],['Inflow','Credit · inflow']],true)}
-        {options(draft.kind==='reconciliation'?'Clearing ledger if unmatched':'Ledger head','head',heads.filter(([h])=>h!==draft.bank).map(([h])=>h),draft.kind==='transaction')}
-      </>}
-      {['milestone','transaction','reconciliation'].includes(draft.kind)&&field('Description','description','text',draft.kind==='milestone')}
-      {draft.kind==='opening'&&<>{options('Debit head','debitHead',heads.map(([h])=>h),true)}{options('Credit head','creditHead',heads.map(([h])=>h),true)}{field('Opening reference','description','text',true)}</>}
-      {draft.kind==='transaction'&&<>{field('Value date','valueDate','date')}{field('Beneficiary','beneficiary')}{options('Classification','classification',['Project direct cost','Studio overhead','Owner drawings'])}{draft.head==='Employee Advances'&&options('Employee','employeeId',employees.map(e=>[e.id,e.name]),true)}</>}
-      {draft.kind==='invoice'&&<>
-        {options('Document type','documentType',['Proforma Invoice','Invoice','Bill of Supply'],true)}
-        {options('Milestone','milestoneId',milestones.filter(m=>m.projectId===draft.projectId&&!invoices.some(r=>r.milestoneId===m.id)).map(m=>[m.id,m.description]),false,id=>{const m=milestones.find(r=>r.id===id);if(m)update('items',[{...freshItem(),description:m.description,rate:m.amount/100}]);})}
-        {field('Due date','dueDate','date')}{field('Client','client','text',true)}
-        <label>Billing address<textarea required value={draft.address||''} onChange={e=>update('address',e.target.value)}/></label>
-        {field('State','state')}{field('State code','stateCode')}{field('Client GSTIN','gstin')}{field('PO / Reference','po')}{field('Contract / order date','orderDate','date')}{field('Contact person','contact')}{field('Contact number','phone','tel')}
-      </>}
-      {draft.kind==='payroll'&&<>
-        {options('Employee','employeeId',employees.map(e=>[e.id,e.name]),true)}{options('Daily wage basis','method',['Working days','Calendar days'],true)}
-        {field('Monthly gross (INR)','gross','number',true,{min:'0.01',step:'0.01'})}
-        {[['Working days','working',1],['Present days','present',.5],['Paid leave','leave',.5],['Overtime hours','hours',.25],['Overtime multiplier','multiplier',.01],['Allowances (INR)','allowances',.01],['Other deductions (INR)','deductions',.01],['Advance recovery (INR)','advance',.01]].map(([label,key,step],i)=><React.Fragment key={key}>{field(label,key,'number',i===0,{min:0,step})}</React.Fragment>)}
-      </>}
-      </div>
-      {draft.kind==='payroll'&&<div className="accounts-actions"><button type="button" disabled={!draft.employeeId||!draft.date} onClick={useAttendance}>Load monthly attendance</button><span>Review working days, holidays, paid leave and overtime before posting.</span></div>}
-      {draft.kind==='invoice'&&<><h3>Service lines</h3>{draft.items.map((line,i)=><div className="accounts-fields accounts-line" key={i}>
-        {[['Description','description','text'],['SAC','sac','text'],['Unit','unit','text'],['Quantity','quantity','number'],['Unit rate (INR)','rate','number']].map(([label,key,type])=><label key={key}>{label}<input required type={type} min={type==='number'?(key==='rate'?.01:1):undefined} step={key==='rate'?.01:undefined} value={line[key]} onChange={e=>update('items',draft.items.map((other,j)=>j===i?{...other,[key]:e.target.value}:other))}/></label>)}
-        <button type="button" disabled={draft.items.length===1} onClick={()=>update('items',draft.items.filter((_,j)=>i!==j))}>Remove line</button></div>)}
-      <button type="button" disabled={draft.items.length>=25} onClick={()=>update('items',[...draft.items,freshItem()])}>Add line</button></>}
-      <div className="accounts-actions">{draft.kind==='invoice'&&<button type="button" onClick={()=>setPreviewDraft(true)}>Preview invoice</button>}<button type="submit">{busy?'Saving…':draft.kind==='invoice'?'Save invoice':'Save'}</button><button type="button" onClick={()=>setDraft(null)}>Cancel</button></div></fieldset>
-    </form>}
-    {previewDraft&&draft?.kind==='invoice'&&<InvoicePreview invoice={draftInvoice(draft,projects)} isDraft onClose={()=>setPreviewDraft(false)}/>}
-    {['invoice','legacyInvoice'].includes(selected?.kind)&&<InvoicePreview key={selected.id} invoice={selected} onClose={()=>setSelected(null)}/>}
+    {page!=='Invoicing'&&draft?.kind!=='invoice'&&editor}
     {selected?.kind==='payroll'&&<section className="accounts-preview"><div className="accounts-actions"><button onClick={print}>Print / Save as PDF</button><button onClick={()=>setSelected(null)}>Close</button></div>
       <article ref={printRef}><h1>Enlighten Designs · Payslip</h1><p>{selected.employee} · {selected.date.slice(0,7)}</p>
       <Table columns={['Pay component','Amount']} rows={[[ 'Earned pay',selected.earned],['Allowances',selected.allowances],['Overtime',selected.overtime],['Other deductions',selected.deductions],['Advance recovery',selected.advance],['Net pay',selected.amount]].map(([k,v])=>({cells:[k,money(v)]}))}/></article>
