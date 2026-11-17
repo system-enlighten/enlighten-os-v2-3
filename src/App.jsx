@@ -1,4 +1,4 @@
-import WorkspaceActivity, {beginActivity, resetWorkspaceActivity, trackActivity} from "./WorkspaceActivity.jsx";
+import WorkspaceActivity, {StudioLoadingDetail, beginActivity, resetWorkspaceActivity, trackActivity} from "./WorkspaceActivity.jsx";
 import StudioHeading from './StudioHeading.jsx';
 import { projectCardFloor } from './projectCardFloor.mjs';
 import {scheduledTime,editableTime} from './HomeAgenda.jsx';
@@ -2679,7 +2679,17 @@ const activitySubjects={
   getTechnicalWorkbook:'Technical Table',
   getScheduleSpecSheet:'Schedule / Spec Sheet',
   getWorkflowWorkspace:'Line of Work',
-  getProjectWorkspace:'Projects',
+  getCurrentUser:'Account access',
+  listProjects:'Projects',
+  listProjectContacts:'Project contacts',
+  listLineOfWork:'Line of Work',
+  listFloorZones:'Floor zones',
+  listProjectPeople:'Project team',
+  listTeamMembers:'Studio team',
+  listDepartments:'Departments',
+  listDesignations:'Designations',
+  listDrawingTaskMaster:'Drawing task templates',
+  getProjectWorkspace:'Project workspace',
   getWIH:'Tasks',
   listProjectDrive:'Drive',
   importTechnicalOutput:'Technical Table'
@@ -3152,7 +3162,7 @@ function useStudioState() {
 /* ---------------------------------------------------------------
    SMALL UI PRIMITIVES
 --------------------------------------------------------------- */
-function TitleBlock({ view }) {
+function TitleBlock({ view, sub }) {
   const cell = { padding: "10px 16px", borderRight: `1px solid ${T.cyan}33` };
   const label = { fontFamily: FONT_MONO, fontSize: 10, letterSpacing: "0.12em", color: T.cyan, textTransform: "uppercase", opacity: 0.75 };
   const val = { fontFamily: FONT_DISPLAY, fontSize: 14, color: "#fff", marginTop: 3 };
@@ -3163,16 +3173,15 @@ function TitleBlock({ view }) {
         <div style={val}>{view}</div>
       </div>
       <div style={cell}>
-        <div style={label}>Status</div>
-        <div style={val}><WorkspaceActivity /></div>
+        <div style={label}>Detail</div>
+        <div style={val}>{sub || "—"}</div>
       </div>
       <div style={cell}>
         <div style={label}>Date</div>
         <div style={val}>{fmtDate(todayISO())}</div>
       </div>
-      <div style={{ ...cell, borderRight: "none", marginLeft: "auto" }}>
-        <div style={label}>Studio</div>
-        <div style={val}>Enlighten Design Co.</div>
+      <div style={{ ...cell, borderRight: "none", marginLeft: "auto", alignSelf: "center", maxWidth: "100%", boxSizing: "border-box", fontFamily: FONT_DISPLAY, fontSize: 14 }}>
+        <WorkspaceActivity />
       </div>
     </div>
   );
@@ -7388,8 +7397,11 @@ function StudioApp() {
   useActiveTime(!loading&&!state?.accessDenied&&currentUser?.appAccess!=='Contractor'?currentUser?.userId:null,view,apiRequest);
   if (loading || !state) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 400, fontFamily: FONT_BODY, color: T.inkDim, gap: 8 }}>
-        <Loader2 size={16} className="spin" /> Loading studio data…
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 400, fontFamily: FONT_BODY, color: T.inkDim, gap: 8, flexDirection: "column", paddingInline: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Loader2 size={16} className="spin" aria-hidden="true" /> Loading studio data…
+        </div>
+        <StudioLoadingDetail />
         <style>{`.spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     );
@@ -7436,7 +7448,7 @@ function StudioApp() {
             <Building2 size={18} color={T.cyan} />
             <DepartmentHeading name={directory[workspace][0]} onChoose={superAdmin?()=>setDepartment(''):null}/>
           </div>
-          <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.cyan, opacity: 0.7, marginTop: 4 }}>lighting design · intake → task → timesheet</div>
+          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 14, color: "#fff", marginTop: 4 }}>Enlighten Design Co.</div>
         </div>
         <div style={{padding:"0 20px 12px"}}><button type="button" className="studio-home-shortcut" style={smallBtn} aria-current={view==='home'?'page':undefined} onClick={()=>{setMobileNavOpen(false);setView('home');}}>Home</button></div><SidebarNavigation items={allowedNav} view={view} onChange={next=>{if(next==='feedback')setFeedbackContext(viewLabel);if(next==='site')setAttendanceDay('');setMobileNavOpen(false);setView(next)}} pendingCount={pendingCount}/>
         <div style={{ padding: "20px", marginTop: 20, fontFamily: FONT_MONO, fontSize: 10, color: T.cyan, opacity: 0.7 }}>
@@ -7448,7 +7460,7 @@ function StudioApp() {
 
       {/* Main canvas */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <TitleBlock view={viewLabel} />
+        <TitleBlock view={viewLabel} sub={view === "timesheet" ? `${state.tasks.length} tasks` : view === "classify" ? `${pendingCount} pending` : view === "project" ? "Onboarding · Scope · Team" : view === "design" ? "Dashboard · Line of Work" : view === "meetings" ? `${(state.meetings || []).length} meetings` : view === "executionMain" ? "Milestones · MOM" : undefined} />
         {view!=='upload'&&(state.pendingReceivedUploads||[]).length>0&&<div role="status" style={{padding:'8px 24px',fontFamily:FONT_BODY,fontSize:12,background:T.amberBg,color:T.ink}}>{state.pendingReceivedUploads.length} drawing upload(s) pending. <button type="button" style={smallBtn} onClick={()=>setView('drawingRegister')}>View uploads</button></div>}
         {saveErr && (
           <div style={{ background: T.redlineBg, color: T.redline, fontFamily: FONT_MONO, fontSize: 12, padding: "8px 24px", display: "flex", alignItems: "center", gap: 6 }}>

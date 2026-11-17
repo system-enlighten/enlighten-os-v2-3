@@ -84,3 +84,13 @@ export default function WorkspaceActivity() {
     {count > 1 && <small>+{count - 1} more</small>}
   </div>;
 }
+
+export function StudioLoadingDetail() {
+  const {operations = []} = useSyncExternalStore(subscribe, () => snapshot);
+  const subjects = [...new Set(operations
+    .filter(item => item.kind === 'load' && item.subject)
+    .map(item => item.subject))];
+  return <div role="status" aria-atomic="true" style={{
+    fontSize: 12, textAlign: 'center', maxWidth: 520, minHeight: '1.5em', lineHeight: 1.5
+  }}>{subjects.join(' · ')}</div>;
+}
