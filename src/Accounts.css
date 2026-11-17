@@ -29,3 +29,21 @@
 .invoice-totals{text-align:right;line-height:1.7}
 .invoice-footer{margin-top:20px}
 .invoice-brand svg{width:185px;height:auto;max-width:100%}
+.signed-in-workspace:has(>.accounts-workspace){min-height:100dvh;display:flex;flex-direction:column;background:#f4f0e6}
+.accounts-workspace{flex:1;display:grid;grid-template-columns:218px minmax(0,1fr);background:#f4f0e6;font-family:Inter,system-ui,sans-serif;color:#162a3a}
+.accounts-sidebar{background:#102235;color:white;padding:24px 0}
+.accounts-sidebar>:first-child{margin:0 20px 18px}
+.accounts-sidebar nav h2{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:#a6c0d2;margin:22px 20px 6px}
+.accounts-sidebar nav button{display:block;width:100%;text-align:left;background:none;border:0;border-left:3px solid transparent;color:#d9e4ec;font:inherit;font-size:14px;padding:10px 17px;cursor:pointer}
+.accounts-sidebar nav button:hover,.accounts-sidebar nav button[aria-current=page]{background:#203a51;color:white}
+.accounts-sidebar nav button[aria-current=page]{border-left-color:#8eb9d6}
+.accounts-main{min-width:0;padding:clamp(16px,3vw,44px);align-self:start}
+.accounts-main>h1{margin:0 0 22px;padding-top:12px;border-top:2px solid #162a3a;font-size:clamp(26px,3vw,40px);letter-spacing:-.035em}
+.accounts-home-links{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:12px;margin:24px 0}
+.accounts-home-links button{display:grid;gap:6px;text-align:left;font:inherit;color:inherit;background:#fff;border:1px solid #d5d0c4;border-top:2px solid #49657d;padding:14px;cursor:pointer}
+.accounts-home-links span{font-size:13px;color:#486073}
+.accounts-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:12px 0}
+.accounts-toolbar label{display:inline-flex;gap:8px;align-items:center;flex-wrap:wrap}
+.accounts td:last-child button{white-space:nowrap}
+.accounts tr[data-status=routine]{background:#eee5f6}
+@media(max-width:700px){.accounts-workspace{grid-template-columns:1fr}.accounts-sidebar{padding:14px 10px}.accounts-sidebar>:first-child{margin:0 8px 8px}.accounts-sidebar nav{display:flex;overflow:auto;gap:10px}.accounts-sidebar nav section{display:flex;align-items:center;flex-shrink:0}.accounts-sidebar nav h2{display:none}.accounts-sidebar nav button{width:auto;white-space:nowrap;padding:8px}.accounts-main{padding-bottom:85px}}

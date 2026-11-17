@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './Accounts.css';
+import {parseStatement,statementSuggestion} from './AccountsStatement.js';
 import wordmark from './AccountsWordmark.svg?raw';
 
 export const accountsPages = ['Payment Dashboard','Invoicing','Debit / Credit','Reconciliation','Chart of Accounts','Payroll','Financial Reports'];
@@ -66,6 +67,9 @@ export default function Accounts({page,request,user}){
   const [data,setData]=useState(null),[draft,setDraft]=useState(null),[selected,setSelected]=useState(null);
   const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
   const [month,setMonth]=useState(''),[asOf,setAsOf]=useState(today);
+  const [payMonth,setPayMonth]=useState(()=>today().slice(0,7)),[staffQuery,setStaffQuery]=useState('');
+  const [bank,setBank]=useState('IDFC'),[staged,setStaged]=useState([]);
+  const [cashFrom,setCashFrom]=useState(()=>String(Number(today().slice(0,4))-(today().slice(5,7)<'04'?1:0))+'-04-01');
   const printRef=useRef(null), saving=useRef(false);
   const readOnly=/^viewer$/i.test(user.appAccess);
   const load=async()=>{
@@ -83,6 +87,7 @@ export default function Accounts({page,request,user}){
     try{
       const record=await request('saveAccounts',draft);
       setData(d=>({...d,records:[...d.records.filter(r=>r.id!==record.id),record]}));
+      if(draft.importId)setStaged(rows=>rows.filter(r=>r.id!==draft.importId));
       setDraft(null);setNotice('Saved to Accounts.');
       if(['invoice','payroll'].includes(record.kind))setSelected(record);
     }catch(e){setError(e.message);}
@@ -95,6 +100,35 @@ export default function Accounts({page,request,user}){
       const counts=await request('getAccountsAttendance',{employeeId:draft.employeeId,date:draft.date});
       setDraft(d=>d?.id===id?{...d,...counts}:d);
     }catch(e){setError(e.message);}finally{setBusy(false);}
+  };
+  const importStatement=async event=>{
+    const file=event.target.files?.[0],source=bank;
+    event.target.value='';
+    if(!file)return;
+    setError('');
+    try{
+      if(file.size>1024*1024)throw Error('Choose a CSV smaller than 1 MB.');
+      const rows=parseStatement(await file.text()).map(row=>({...row,bank:source,id:crypto.randomUUID()}));
+      setStaged(rows);
+    }catch(e){setError(e.message);}
+  };
+  const matchStatement=async rows=>{
+    if(saving.current||!rows.length)return;
+    saving.current=true;setBusy(true);setError('');setNotice('');
+    let matched=0;
+    const remaining=new Map();
+    try{
+      for(const row of rows){
+        try{
+          const result=await request('saveAccounts',{...row,kind:'reconciliation',head:''});
+          setData(d=>({...d,records:[...d.records.filter(r=>r.id!==result.id),result]}));
+          matched++;
+        }catch(e){remaining.set(row.id,e.message);}
+      }
+      const ids=new Set(rows.map(r=>r.id));
+      setStaged(previous=>previous.flatMap(row=>!ids.has(row.id)?[row]:remaining.has(row.id)?[{...row,issue:remaining.get(row.id)}]:[]));
+      setNotice(matched+' matched · '+remaining.size+' need review.');
+    }finally{saving.current=false;setBusy(false);}
   };
   const print=()=>{try{printMarkup(printRef.current,selected.number||'Payslip');}catch(e){setError(e.message);}};
   if(!data)return <>{error?<><p role="alert">{error}</p><button onClick={load}>Retry</button></>:<p role="status">Loading Accounts…</p>}</>;
@@ -118,6 +152,25 @@ export default function Accounts({page,request,user}){
   const balance=type=>total(headRows.filter(r=>r.type===type),'balance');
   const margin=-balance('Revenue')-balance('Direct expense');
   const surplus=margin-balance('Expense');
+  const payroll=records.filter(r=>r.kind==='payroll'&&r.date.startsWith(payMonth));
+  const cashFlows={'Operating':0,'Investing':0,'Financing':0,'Unclassified':0};
+  const classifications={
+    'Asset':'Unclassified','Liability':'Unclassified','Equity':'Financing',
+    'Revenue':'Operating','Expense':'Operating','Direct expense':'Operating'
+  };
+  const cashType=head=>{
+    if(/fixed assets|building renovation|hardware & software|fixed deposit/i.test(head))return 'Investing';
+    if(/^(loan|intercompany clearing)$/i.test(head))return 'Financing';
+    if(/accounts receivable|accounts payable|payroll payable|gst composition payable|employee advances|advance from customers|payroll deductions payable/i.test(head))return 'Operating';
+    return classifications[heads.find(([h])=>h===head)?.[1]]||'Unclassified';
+  };
+  for(const row of records.filter(r=>r.date>=cashFrom&&r.date<=asOf&&r.kind!=='opening')){
+    for(let i=0;i<row.postings.length;i+=2){
+      const [dr,cr]=row.postings.slice(i,i+2);
+      const debitCash=banks.includes(dr.head),creditCash=banks.includes(cr.head);
+      if(debitCash!==creditCash)cashFlows[cashType(debitCash?cr.head:dr.head)]+=debitCash?dr.debit:-cr.credit;
+    }
+  }
   return <section className="accounts">
     {error&&<p role="alert" className="accounts-error">{error}</p>}{notice&&<p role="status">{notice}</p>}
     {page==='Payment Dashboard'&&<>
@@ -139,10 +192,48 @@ export default function Accounts({page,request,user}){
       <label>Collection month <input type="month" value={month} onChange={e=>setMonth(e.target.value)}/></label> <strong>{money(total(selectedReceipts,'amount'))}</strong>
     </>}
     {page==='Invoicing'&&<>{!readOnly&&<button onClick={()=>begin('invoice')}>New invoice</button>}<Table columns={['Number','Type','Project','Client','Date','Total','Action']} rows={records.filter(r=>r.kind==='invoice').map(r=>({key:r.id,cells:[r.number,r.documentType,r.projectName,r.client,r.date,money(r.amount),<button onClick={()=>setSelected(r)}>Open</button>]}))}/></>}
+    {page==='Invoicing'&&records.some(r=>r.kind==='legacyInvoice')&&<>
+      <h2>Imported invoices</h2>
+      <Table columns={['Invoice number','Date','Project','Client','Amount','Original document']} rows={records.filter(r=>r.kind==='legacyInvoice').map(r=>({key:r.id,cells:[r.sourceNumber||r.number,r.date,r.projectName,r.client,money(r.amount),/^https:\/\/drive\.google\.com\//i.test(r.attachment)?<a href={r.attachment} target="_blank" rel="noreferrer">Open original</a>:r.attachment||'—']}))}/>
+    </>}
+    {page==='Debit / Credit'&&records.some(r=>r.kind==='legacyDesign')&&<details>
+      <summary>Imported Design transactions</summary>
+      <Table columns={['Date','Type','Project','Description','Ledger head','Amount','IDFC']} rows={records.filter(r=>r.kind==='legacyDesign').map(r=>({key:r.id,cells:[r.date,r.type,r.projectName,r.description,r.head,money(r.amount),r.idfc?'Matched':'—']}))}/>
+    </details>}
+    {page==='Reconciliation'&&records.some(r=>r.kind==='legacyDesign'&&r.idfc)&&<details>
+      <summary>Imported IDFC matches</summary>
+      <Table columns={['Date','Value date','Description','Reference','Debit','Credit']} rows={records.filter(r=>r.kind==='legacyDesign'&&r.idfc).map(({id,idfc:r})=>({key:id,cells:[r.date,r.valueDate,r.description,r.reference,r.debit||'—',r.credit||'—']}))}/>
+    </details>}
     {page==='Debit / Credit'&&<>{!readOnly&&<button onClick={()=>begin('transaction')}>New transaction</button>}<Table columns={['Date','Value date','Account','Direction','Ledger head','Project','Reference','Amount']} rows={records.filter(r=>r.kind==='transaction').map(r=>({key:r.id,cells:[r.date,r.valueDate,r.bank,r.direction,r.head,r.projectName||'Studio',r.reference,money(r.amount)]}))}/></>}
-    {page==='Reconciliation'&&<>{!readOnly&&<button onClick={()=>begin('reconciliation')}>Reconcile statement line</button>}<Table columns={['Date','Account','Direction','Reference','Amount','Match']} rows={records.filter(r=>r.kind==='reconciliation').map(r=>({key:r.id,cells:[r.date,r.bank,r.direction,r.reference,money(r.amount),r.matchId?'Matched journal entry':r.head]}))}/></>}
+    {page==='Reconciliation'&&<>
+      <p>Import an Enlighten bank statement, match posted entries, then review exceptions before posting them.</p>
+      {!readOnly&&<div className="accounts-toolbar">
+        <label>Statement account <select value={bank} onChange={e=>setBank(e.target.value)} disabled={busy}>{banks.map(name=><option key={name}>{name}</option>)}</select></label>
+        <label>Import CSV <input type="file" accept=".csv,text/csv" onChange={importStatement} disabled={busy}/></label>
+        <a download="Enlighten_Statement_Template.csv" href="data:text/csv;charset=utf-8,Date%2CReference%2CDescription%2CDebit%2CCredit%0A">CSV template</a>
+        <button onClick={()=>begin('reconciliation',{bank})} disabled={busy}>Enter statement line</button>
+      </div>}
+      {staged.length>0&&<>
+        <h2>Statement review · {staged.length} lines</h2>
+        <button disabled={busy} onClick={()=>matchStatement(staged)}>{busy?'Matching…':'Match posted entries'}</button>
+        <Table columns={['Date','Account','Reference / description','Amount','Review','Action']} rows={staged.map(row=>{
+          const [head,classification]=statementSuggestion(row);
+          return {key:row.id,status:head?'routine':undefined,cells:[row.date,row.bank,<>{row.reference}<br/>{row.description}</>,money(Number(row.amount)*100),[classification,row.issue].filter(Boolean).join(' · ')||'Ready to match',<button disabled={busy} onClick={()=>begin('reconciliation',{...row,importId:row.id,head})}>Review line</button>]};
+        })}/>
+      </>}
+      <h2>Reconciled entries</h2>
+      <Table columns={['Date','Account','Direction','Reference','Amount','Match']} rows={records.filter(r=>r.kind==='reconciliation').map(r=>({key:r.id,cells:[r.date,r.bank,r.direction,r.reference,money(r.amount),r.matchId?'Matched journal entry':r.head]}))}/>
+    </>}
     {page==='Chart of Accounts'&&<Table columns={['Division','Type','Head','Sub Head']} rows={heads.map(([head,type,subhead])=>({cells:['Design',type,head,subhead||'—']}))}/>}
-    {page==='Payroll'&&<>{!readOnly&&<button onClick={()=>begin('payroll')}>Calculate and post payroll</button>}<Table columns={['Employee','Month','Earned','Overtime','Deductions','Advance recovery','Net pay','Action']} rows={records.filter(r=>r.kind==='payroll').map(r=>({key:r.id,cells:[r.employee,r.date.slice(0,7),money(r.earned),money(r.overtime),money(r.deductions),money(r.advance),money(r.amount),<button onClick={()=>setSelected(r)}>Payslip</button>]}))}/></>}
+    {page==='Payroll'&&<>
+      <div className="accounts-toolbar"><label>Payroll month <input type="month" value={payMonth} onChange={e=>setPayMonth(e.target.value)}/></label><label>Find employee <input type="search" value={staffQuery} onChange={e=>setStaffQuery(e.target.value)} placeholder="Name or department"/></label></div>
+      <Table columns={['Employee','Department','Role','Status','Net pay','Action']} rows={employees.filter(e=>[e.name,e.department,e.role].filter(Boolean).join(' ').toLowerCase().includes(staffQuery.trim().toLowerCase())).map(e=>{
+        const run=payroll.find(r=>r.employeeId===e.id);
+        return {key:e.id,cells:[e.name,e.department||'—',e.role||'—',run?'Posted':'To prepare',run?money(run.amount):'—',run?<button onClick={()=>setSelected(run)}>Payslip</button>:!readOnly&&<button disabled={!payMonth} onClick={()=>begin('payroll',{employeeId:e.id,date:payMonth+'-01'})}>Prepare payroll</button>]};
+      })}/>
+      <h2>Payroll history</h2>
+      <Table columns={['Employee','Month','Earned','Overtime','Deductions','Advance recovery','Net pay','Action']} rows={records.filter(r=>r.kind==='payroll').slice().reverse().map(r=>({key:r.id,cells:[r.employee,r.date.slice(0,7),money(r.earned),money(r.overtime),money(r.deductions),money(r.advance),money(r.amount),<button onClick={()=>setSelected(r)}>Payslip</button>]}))}/>
+    </>}
     {page==='Financial Reports'&&<>
       <label>Balances as of <input type="date" value={asOf} onChange={e=>setAsOf(e.target.value)}/></label>
       {user.canChooseDepartment&&!readOnly&&<button onClick={()=>begin('opening')}>Add opening journal</button>}
@@ -153,7 +244,10 @@ export default function Accounts({page,request,user}){
       <Table columns={['Measure','Amount']} rows={[[ 'Design revenue',-balance('Revenue')],['Direct costs',balance('Direct expense')],['Gross profit',margin],['Operating expenses',balance('Expense')],['Net profit',surplus]].map(([k,v])=>({cells:[k,money(v)]}))}/>
       <h2>Balance sheet</h2>
       <Table columns={['Measure','Amount']} rows={[[ 'Assets',balance('Asset')],['Liabilities',-balance('Liability')],['Equity including earnings',-balance('Equity')+surplus]].map(([k,v])=>({cells:[k,money(v)]}))}/>
-      <h2>Net cash movement</h2>
+      <h2>Cash flow by activity</h2>
+      <label>Cash-flow start <input type="date" value={cashFrom} max={asOf} onChange={e=>setCashFrom(e.target.value)}/></label>
+      <Table columns={['Activity','Net cash flow']} rows={Object.entries(cashFlows).map(([type,amount])=>({cells:[type,money(amount)]}))}/>
+      <h2>Cash movement by account through {asOf}</h2>
       <Table columns={['Cash / bank','Inflows','Outflows','Net']} rows={banks.map(bank=>{
         const rows=report.filter(r=>r.head===bank), debit=total(rows,'debit'), credit=total(rows,'credit');
         return {cells:[bank,money(debit),money(credit),money(debit-credit)]};
