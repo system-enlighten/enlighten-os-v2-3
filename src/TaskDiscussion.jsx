@@ -34,7 +34,7 @@ export function DiscussionDialog({task,data,error,busy,text,setText,onPost,onClo
 }
 export default function TaskDiscussion({request,buttonStyle,studioPosts=[],openStudio,projectId,includeTasks,flaggedOnly,refresh,recent=false}){
  const [posts,setPosts]=useState(null),[task,setTask]=useState(null),[data,setData]=useState(null),[error,setError]=useState(''),[threadError,setThreadError]=useState(''),[text,setText]=useState(''),[busy,setBusy]=useState(false),[more,setMore]=useState(false),[loading,setLoading]=useState(false);
- const revision=useRef(0),offset=useRef(0);
+ const revision=useRef(0),offset=useRef(0),momCommentRetry=useRef(null);
  const load=async(append=false)=>{
   const version=++revision.current;
   setError('');setLoading(true);
@@ -48,12 +48,14 @@ export default function TaskDiscussion({request,buttonStyle,studioPosts=[],openS
   finally{if(version===revision.current)setLoading(false);}
  };
  useEffect(()=>{if(includeTasks)load();return()=>{revision.current++;};},[request,projectId,includeTasks,refresh,recent]);
+ useEffect(()=>{const changed=e=>{if(includeTasks&&(!projectId||String(e.detail?.projectId)===String(projectId)))load();};window.addEventListener('enlighten-mom-discussion-changed',changed);return()=>window.removeEventListener('enlighten-mom-discussion-changed',changed);},[request,projectId,includeTasks]);
  const open=async(p,action='read')=>{
   setBusy(true);setThreadError('');
   if(action==='read'){setTask(p);setData(null);setText('');}
+  if(p.momTaskId&&action==='comment'&&(!momCommentRetry.current||momCommentRetry.current.taskId!==p.momTaskId||momCommentRetry.current.text!==text))momCommentRetry.current={taskId:p.momTaskId,text,id:crypto.randomUUID()};
   try{
-   setData(await request('assignedWorkThread',{designTaskId:p.designTaskId,projectId:p.projectId,threadKey:p.threadKey,priority:p.priority,title:p.title,action:p.threadKey?'workflow-'+action:action,comment:action==='comment'?text:''},'POST'));
-   if(action==='comment'){setText('');load();}
+   setData(p.momTaskId?await request('momDiscussion',{projectId:p.projectId,momTaskId:p.momTaskId,action:action==='comment'?'comment':'read',text,commentId:action==='comment'?momCommentRetry.current.id:undefined},'POST'):await request('assignedWorkThread',{designTaskId:p.designTaskId,projectId:p.projectId,threadKey:p.threadKey,priority:p.priority,title:p.title,action:p.threadKey?'workflow-'+action:action,comment:action==='comment'?text:''},'POST'));
+   if(action==='comment'){setText('');momCommentRetry.current=null;if(p.momTaskId)window.dispatchEvent(new CustomEvent('enlighten-mom-discussion-changed',{detail:{projectId:p.projectId}}));else load();}
   }catch(e){setThreadError(e.message);}
   finally{setBusy(false);}
  };
@@ -77,6 +79,6 @@ export default function TaskDiscussion({request,buttonStyle,studioPosts=[],openS
   {includeTasks&&loading&&<p role="status">Loading task discussions…</p>}
   {!entries.length&&!loading&&!error&&<p>{recent?'No recent task discussions yet.':'No conversations match these filters.'}</p>}
   {includeTasks&&!recent&&more&&<button type="button" style={buttonStyle} disabled={loading} onClick={()=>load(true)}>Load more task discussions</button>}
-  {task&&<DiscussionDialog task={task} data={data} error={threadError} busy={busy} text={text} setText={setText} onClose={()=>setTask(null)} onPost={priority=>open({...task,priority},'comment')} showPriority buttonStyle={buttonStyle}/>}
+  {task&&<DiscussionDialog task={task} data={data} error={threadError} busy={busy} text={text} setText={setText} onClose={()=>setTask(null)} onPost={priority=>open({...task,priority},'comment')} showPriority={!task.momTaskId} buttonStyle={buttonStyle}/>}
  </section>;
 }
