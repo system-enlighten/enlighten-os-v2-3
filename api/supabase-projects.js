@@ -18,6 +18,32 @@ export default async function handler(req, res) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   if (process.env.VERCEL_ENV !== 'preview') return respond(res, 404, 'Not available');
   if (req.method !== 'GET') return respond(res, 405, 'Method not allowed');
+  // Connection-only diagnostic. Never returns records, credentials or SQL errors.
+  // The project-specific route below continues to require authentication.
+  if (req.query?.check === 'connection') {
+    const db = process.env.SUPABASE_DATABASE_URL;
+    if (!db) return respond(res, 503, 'Preview database configuration is missing');
+    let diagnosticPool;
+    try {
+      const parsed = new URL(db.trim());
+      if (!['postgres:', 'postgresql:'].includes(parsed.protocol))
+        return respond(res, 503, 'Invalid database connection configuration');
+      diagnosticPool = new Pool({
+        connectionString: db.trim(),
+        ssl: { rejectUnauthorized: true },
+        max: 1,
+        connectionTimeoutMillis: 10000,
+        idleTimeoutMillis: 1000,
+      });
+      await diagnosticPool.query('SELECT 1 FROM enlighten_import.projects LIMIT 1');
+      return res.status(200).json({ ok: true, source: 'supabase-postgresql', connected: true, schemaAccessible: true });
+    } catch (error) {
+      console.error('Supabase connection diagnostic failed', { code: error?.code });
+      return respond(res, 502, 'Database connection or schema access failed');
+    } finally {
+      if (diagnosticPool) await diagnosticPool.end().catch(() => {});
+    }
+  }
   const secret = process.env.ENLIGHTEN_PROXY_SECRET;
   const audience = process.env.GOOGLE_CLIENT_ID;
   const appsScriptUrl = process.env.APPS_SCRIPT_URL;
