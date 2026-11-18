@@ -1,3 +1,4 @@
+import PersonalMeetingCalendar from './TimelineCalendar.jsx';
 import StudioHeading from './StudioHeading.jsx';
 import ManualWorkFields,{emptyWork,manualWorkLabel} from './ManualWorkFields.jsx';
 import React,{useEffect,useState} from 'react';
@@ -27,7 +28,7 @@ export function MissedCheckoutNotice({day,onReview,buttonStyle}){
 }
 
 const dateLabel=d=>{const date=new Date(String(d||'').slice(0,10)+'T12:00:00+05:30');return Number.isFinite(date.getTime())?date.toLocaleDateString('en-IN',{timeZone:tz,day:'numeric',month:'short',year:'numeric'}):'Date unavailable';};
-export default function PerformanceAttendance({request,user,initialDay}){
+export default function PerformanceAttendance({request,user,initialDay,calendarView}){
  const [tab,setTab]=useState('Day'),[day,setDay]=useState(initialDay||today),[uid,setUid]=useState(''),[data,setData]=useState(null),[people,setPeople]=useState([]);
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[start,setStart]=useState(''),[end,setEnd]=useState(''),[note,setNote]=useState(''),[reason,setReason]=useState(''),[checkout,setCheckout]=useState('');
  const [work,setWork]=useState(emptyWork);
@@ -41,15 +42,16 @@ export default function PerformanceAttendance({request,user,initialDay}){
    else{setData(result);setPeople(result.people);if(action==='confirmCheckout'){setCheckout('');setNotice('Checkout saved.');}if(action==='entry'){setStart('');setEnd('');setNote('');setWork(emptyWork);setNotice('Work time saved.');}if(action==='reopen')setReason('');}
   }catch(e){setError(e.message);}finally{setBusy(false);}
  };
- useEffect(()=>{if(tab==='Apply leave')load('leaveList');else if(day){setData(null);setCheckout('');load();}},[tab,day,uid]);
+ useEffect(()=>{if(tab==='Apply leave')load('leaveList');else if(tab==='Day'&&day){setData(null);setCheckout('');load();}},[tab,day,uid]);
  const missed=missedCheckoutDay(data?.missedDay);
  const t=data&&totals(data);
  const openDay=d=>{setDay(d);setTab('Day');};
  const submit=(action,fields)=>e=>{e.preventDefault();if(!busy)load(action,fields);};
  const lastDay=data?.recent.find(r=>r.day<today());
  return <main className="attendance"><StudioHeading title="Timeline"><div className="attendance-titleblock"><small>Time zone</small><strong>India Standard Time</strong></div></StudioHeading>
- <nav aria-label="Timeline views" data-sheet-tabs>{['Day','Apply leave'].map(x=><button key={x} disabled={busy} aria-pressed={tab===x} onClick={()=>setTab(x)}>{x}</button>)}</nav>
+ <nav aria-label="Timeline views" data-sheet-tabs>{['Day','Calendar','Apply leave'].map(x=><button key={x} disabled={busy} aria-pressed={tab===x} onClick={()=>setTab(x)}>{x}</button>)}</nav>
  {error&&<p className="attendance-error" role="alert">{error}</p>}{notice&&<p role="status">{notice}</p>}{busy&&<p role="status">Updating attendance…</p>}
+ {tab==='Calendar'&&(calendarView||<PersonalMeetingCalendar request={request} user={user}/>)}
  {tab==='Apply leave'&&<div className="attendance-columns"><section className="attendance-panel"><h2>Apply leave</h2>{role==='viewer'?<p>Leave requests are available to employee accounts.</p>:<form onSubmit={submit('leaveApply',{from,to,reason:leaveReason})}><div className="attendance-fields"><label>From<input required type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label><label>To<input required type="date" min={from} value={to} onChange={e=>setTo(e.target.value)}/></label></div><label>Reason<textarea required maxLength={250} value={leaveReason} onChange={e=>setLeaveReason(e.target.value)}/></label><button className="attendance-primary" disabled={busy}>Submit request</button></form>}</section><section className="attendance-panel"><h2>{role==='admin'?'Leave requests':'My requests'}</h2>{leave.length===0&&<p>No requests yet.</p>}{leave.map(r=><article className="attendance-row" key={r.id}><div><strong>{dateLabel(r.from)} – {dateLabel(r.to)}</strong><p>{role==='admin'&&r.employee+' · '}{r.reason}</p><small>{r.status}</small></div>{role==='admin'&&r.status==='Pending'&&<div className="attendance-fields">{['Approved','Declined'].map(status=><button key={status} disabled={busy} onClick={()=>load('leaveReview',{id:r.id,status})}>{status==='Approved'?'Approve':'Decline'}</button>)}</div>}</article>)}</section></div>}
  {tab==='Day'&&<>
  <div className="attendance-filters">{tab==='Day'&&<label>Date<input required type="date" max={today()} value={day} disabled={busy} onChange={e=>e.target.value&&setDay(e.target.value)}/></label>}{people.length>0&&<label>Employee<select value={uid} disabled={busy} onChange={e=>setUid(e.target.value)}><option value="">My attendance</option>{people.filter(x=>x.id!==String(user?.userId)).map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label>}{lastDay&&<button disabled={busy} onClick={()=>openDay(lastDay.day)}>Last attendance day · {dateLabel(lastDay.day)}</button>}</div>
