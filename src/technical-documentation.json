@@ -1,0 +1,3342 @@
+{
+  "zones": {
+    "name": "STATS",
+    "widths": [
+      70.33015,
+      237.27443,
+      77.64088,
+      86.8834,
+      99.747856,
+      126.89895,
+      122.5
+    ],
+    "heights": [
+      57.79,
+      32.79,
+      32.79,
+      32.79,
+      32.79,
+      32.79,
+      32.79,
+      32.79,
+      32.79,
+      32.79,
+      32.79
+    ],
+    "cells": [
+      [
+        {
+          "text": "Zone",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "Area",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "SQ. FT",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "Floor",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "Total Circuits",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "Total Luminaires",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "Connected Load",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        }
+      ],
+      [
+        {
+          "text": "",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        }
+      ],
+      [
+        {
+          "text": "",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        }
+      ],
+      [
+        {
+          "text": "",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        }
+      ],
+      [
+        {
+          "text": "",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        }
+      ],
+      [
+        {
+          "text": "",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        }
+      ],
+      [
+        {
+          "text": "",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        }
+      ],
+      [
+        {
+          "text": "",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        }
+      ],
+      [
+        {
+          "text": "",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        }
+      ],
+      [
+        {
+          "text": "",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        }
+      ],
+      [
+        {
+          "text": "",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        }
+      ]
+    ],
+    "merges": []
+  },
+  "table": {
+    "name": "TECH_TABLE DRFSS126",
+    "widths": [
+      194.85217,
+      90.851425,
+      118.49195,
+      228.53745,
+      326.61893,
+      220.97348,
+      220.97348,
+      202.43425,
+      202.43425,
+      145.0,
+      164.4835,
+      164.4835
+    ],
+    "heights": [
+      76.76095,
+      26.413841,
+      134.92477,
+      27.819807,
+      181.34483,
+      27.819807,
+      134.612,
+      17.725624
+    ],
+    "cells": [
+      [
+        {
+          "text": "Zone",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "CN",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "FIXTURE",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "TYPE",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "APPLICATION",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "3D",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "REFERENCE",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "OBJECT | SIZE",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "CMF",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "HEIGHT/DISTANCE",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "ILLUMINANCE",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "QUANTITY",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        }
+      ],
+      [
+        {
+          "text": "",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": "#e41be41be41b",
+          "align": "center"
+        },
+        {
+          "text": "Fill",
+          "font": "Founders Grotesk",
+          "size": 11.0,
+          "bold": true,
+          "italic": false,
+          "color": "#fe01fe01fe01",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Founders Grotesk",
+          "size": 11.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Founders Grotesk",
+          "size": 11.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Founders Grotesk",
+          "size": 11.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Founders Grotesk",
+          "size": 11.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Founders Grotesk",
+          "size": 11.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Founders Grotesk",
+          "size": 11.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Founders Grotesk",
+          "size": 11.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Founders Grotesk",
+          "size": 11.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Founders Grotesk",
+          "size": 11.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Founders Grotesk",
+          "size": 11.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        }
+      ],
+      [
+        {
+          "text": "",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        }
+      ],
+      [
+        {
+          "text": "",
+          "font": "Founders Grotesk",
+          "size": 11.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "Focussed",
+          "font": "Founders Grotesk",
+          "size": 11.0,
+          "bold": true,
+          "italic": false,
+          "color": "#fe01fe01fe01",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        }
+      ],
+      [
+        {
+          "text": "",
+          "font": "Founders Grotesk",
+          "size": 21.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        }
+      ],
+      [
+        {
+          "text": "",
+          "font": "Founders Grotesk",
+          "size": 11.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "Decorative",
+          "font": "Founders Grotesk",
+          "size": 11.0,
+          "bold": true,
+          "italic": false,
+          "color": "#fe01fe01fe01",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        }
+      ],
+      [
+        {
+          "text": "",
+          "font": "Founders Grotesk",
+          "size": 11.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": null,
+          "align": "center"
+        }
+      ],
+      [
+        {
+          "text": "",
+          "font": "Founders Grotesk",
+          "size": 11.0,
+          "bold": true,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        },
+        {
+          "text": "",
+          "font": "Helvetica Neue",
+          "size": 18.0,
+          "bold": false,
+          "italic": false,
+          "color": "#000000",
+          "background": "#000000",
+          "align": "center"
+        }
+      ]
+    ],
+    "merges": []
+  },
+  "nomenclature": [
+    {
+      "name": "Product_Mix",
+      "widths": [
+        26.35,
+        28.16093,
+        131.34229,
+        195.84517,
+        150.35,
+        112.31317,
+        107.452805,
+        195.84517,
+        195.84517
+      ],
+      "heights": [
+        8.0,
+        15.447909,
+        95.98051,
+        88.10538,
+        92.19803,
+        89.812485,
+        103.454315,
+        120.145134,
+        114.39765,
+        114.39765,
+        126.902824,
+        126.902824
+      ],
+      "cells": [
+        [
+          {
+            "text": "IP",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": "#bd42bf40be41",
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 21.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "CATEGORY",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": "#bd42bf40be41",
+            "align": "center"
+          },
+          {
+            "text": "LUMINAIRE TYPE",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": "#bd42bf40be41",
+            "align": "center"
+          },
+          {
+            "text": "COLOUR TYPE",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": "#bd42bf40be41",
+            "align": "center"
+          },
+          {
+            "text": "SURFACE",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": "#bd42bf40be41",
+            "align": "center"
+          },
+          {
+            "text": "MOUNT",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": "#bd42bf40be41",
+            "align": "center"
+          },
+          {
+            "text": "TRAVEL",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": "#bd42bf40be41",
+            "align": "center"
+          },
+          {
+            "text": "BEAM SPREAD",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": "#fb046798609f",
+            "align": "center"
+          }
+        ],
+        [
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 21.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 21.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 21.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 21.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 21.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 21.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 21.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 21.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 21.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          }
+        ],
+        [
+          {
+            "text": "1",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "1",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "DOWNLIGHT\n[D]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 18.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "STATIC WHITE\n[1]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "CEILING\n[C]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "RECESSED\n[R]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "UPTO 3M HEIGHT\n[3]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "SYMETRICAL \n[S]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          }
+        ],
+        [
+          {
+            "text": "2",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "2",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "UPLIGHT\n[U]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 18.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "WHITE BALANCE\n[2]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "WALL\n[W]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "SURFACE\n[S]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "UPTO 6M HEIGHT\n[6]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "ASSYMETRICAL \n[A]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          }
+        ],
+        [
+          {
+            "text": "3",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "3",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "DIRECTIONAL\n[W]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "WALL HIGHLIGHTER\nSYMETRICAL [S]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "DIM TO WARM\n[3]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "FLOOR\n[F]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "HANGING\n[H]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "UPTO 9M HEIGHT\n[9]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 18.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          }
+        ],
+        [
+          {
+            "text": "4",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "4",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 18.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "WALL WASHER\nASSYMETRICAL [A]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "RGBW\n[4]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "FURNITURE\n[N]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "TRACK\n[T]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 18.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 18.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          }
+        ],
+        [
+          {
+            "text": "5",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "5",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "LINEAR LIGHT\n[L]\n\n\nNOTE: All Linear Lights mandatory to always have Profile Code\n[001]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "TEXTURE GRAZER\nSYMETRICAL [S]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "left"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 18.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 18.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          }
+        ],
+        [
+          {
+            "text": "6",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "6",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 18.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "LINEAR LIGHT\n[COVE]\nHIGH BRIGHTNESS [H]\nBRIGHT [B]\nLOW BRIGHTNESS [L]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 18.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 18.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 18.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 18.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          }
+        ],
+        [
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "left"
+          },
+          {
+            "text": "7",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 18.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "LINEAR LIGHT\n[CURTAIN GRAZER]\nSYMETRICAL [S]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 18.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 18.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 18.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 18.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 18.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          }
+        ],
+        [
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "left"
+          },
+          {
+            "text": "8",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 18.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "LINEAR LIGHT [CEILING]\nHIGH BRIGHTNESS [H]\nBRIGHT [B]\nLOW BRIGHTNESS [L]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "left"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "left"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 18.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 18.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 18.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          }
+        ],
+        [
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "left"
+          },
+          {
+            "text": "9",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 18.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "LINEAR LIGHT [FURNITURE]\nHIGH BRIGHTNESS [H]\nBRIGHT [B]\nLOW BRIGHTNESS [L]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "left"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 18.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 18.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "left"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 18.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          }
+        ],
+        [
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "left"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "left"
+          },
+          {
+            "text": "DIMENSIONAL LIGHT\n[X]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "STRETCH CLOTH\nHIGH BRIGHTNESS [H]\nBRIGHT [B]\nLOW BRIGHTNESS [L]",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "left"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "left"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "left"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "left"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "left"
+          }
+        ]
+      ],
+      "merges": [
+        [
+          0,
+          5,
+          1,
+          5
+        ],
+        [
+          0,
+          6,
+          1,
+          6
+        ],
+        [
+          0,
+          3,
+          1,
+          3
+        ],
+        [
+          0,
+          2,
+          1,
+          2
+        ],
+        [
+          0,
+          4,
+          1,
+          4
+        ],
+        [
+          0,
+          7,
+          1,
+          7
+        ],
+        [
+          0,
+          0,
+          1,
+          1
+        ],
+        [
+          0,
+          8,
+          1,
+          8
+        ],
+        [
+          4,
+          2,
+          5,
+          2
+        ],
+        [
+          6,
+          2,
+          10,
+          2
+        ]
+      ]
+    },
+    {
+      "name": "LED STRIP",
+      "widths": [
+        131.34229,
+        150.35,
+        195.84517,
+        158.83727,
+        183.83643,
+        195.84517,
+        195.84517,
+        195.84517
+      ],
+      "heights": [
+        8.0,
+        15.447909,
+        253.51294
+      ],
+      "cells": [
+        [
+          {
+            "text": "LED’s COUNT",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": "#bd42bf40be41",
+            "align": "center"
+          },
+          {
+            "text": "WIDTH",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": "#bd42bf40be41",
+            "align": "center"
+          },
+          {
+            "text": "COLOUR",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": "#bd42bf40be41",
+            "align": "center"
+          },
+          {
+            "text": "BIN | CRI",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": "#bd42bf40be41",
+            "align": "center"
+          },
+          {
+            "text": "FLEXIBLE | RIGID",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": "#bd42bf40be41",
+            "align": "center"
+          },
+          {
+            "text": "VOLTAGE",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": "#bd42bf40be41",
+            "align": "center"
+          },
+          {
+            "text": "WATT",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": "#bd42bf40be41",
+            "align": "center"
+          },
+          {
+            "text": "ROLL LENGTH",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": "#bd42bf40be41",
+            "align": "center"
+          }
+        ],
+        [
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 21.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 21.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 21.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 21.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 21.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 21.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 21.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "",
+            "font": "Helvetica Neue",
+            "size": 21.0,
+            "bold": true,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          }
+        ],
+        [
+          {
+            "text": "60\n120\n180\n240",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "5mm\n8mm\n10mm\n12mm",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "1800K\n2200K\n2400K\n2700K\n3000K\n4000K\n5700K\n6500K\n7000K",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "-\n-\n-\n90CRI | 1A-B-B\n-\n-\n-\n-\n-",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "FLEXIBLE\nRIGID",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "12V\n24V\n36V",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "5W\n10W\n15W\n20W\n30W",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          },
+          {
+            "text": "5M\n10M",
+            "font": "Helvetica Neue",
+            "size": 13.0,
+            "bold": false,
+            "italic": false,
+            "color": "#000000",
+            "background": null,
+            "align": "center"
+          }
+        ]
+      ],
+      "merges": [
+        [
+          0,
+          3,
+          1,
+          3
+        ],
+        [
+          0,
+          4,
+          1,
+          4
+        ],
+        [
+          0,
+          2,
+          1,
+          2
+        ],
+        [
+          0,
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          1,
+          1,
+          1
+        ],
+        [
+          0,
+          5,
+          1,
+          5
+        ],
+        [
+          0,
+          6,
+          1,
+          6
+        ],
+        [
+          0,
+          7,
+          1,
+          7
+        ]
+      ]
+    }
+  ]
+}
