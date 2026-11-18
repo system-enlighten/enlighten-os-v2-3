@@ -3,3 +3,14 @@
 @font-face{font-family:'TechnicalFounders';src:url('./technical-assets/FoundersGrotesk-Bold.woff2') format('woff2');font-weight:700;font-display:block}
 @font-face{font-family:'TechnicalHelvetica';src:url('./invoice-assets/HelveticaNeue.woff2') format('woff2');font-weight:400;font-display:block}
 @font-face{font-family:'TechnicalHelvetica';src:url('./invoice-assets/HelveticaNeue-Bold.woff2') format('woff2');font-weight:700;font-display:block}
+
+.technical-print-pages{display:none}
+@media print{
+ .generated-technical-document .technical-controls,.generated-technical-document .technical-screen-table{display:none!important}
+ .generated-technical-document .technical-print-pages{display:block}
+ .technical-print-page{break-after:page;page-break-after:always;background:white}
+ .technical-print-page:last-child{break-after:auto;page-break-after:auto}
+ .technical-print-page tr{break-inside:avoid;page-break-inside:avoid}
+ .technical-print-page thead{display:table-header-group}
+ .technical-print-page table{print-color-adjust:exact;-webkit-print-color-adjust:exact}
+}
