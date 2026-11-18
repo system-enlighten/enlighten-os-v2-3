@@ -1,3 +1,4 @@
+import {LegalContracts} from './ProjectBilling.jsx';
 import OfficePolicy from './OfficePolicy.jsx';
 import ExecutiveAssistant from './ExecutiveAssistant.jsx';
 import {StudioHeadingText} from './StudioHeading.jsx';
@@ -22,7 +23,9 @@ export function DepartmentPicker({choose,directory=departments}){
 }
 const accountsNavigation=[
  {id:'Payment Dashboard',label:'Payment Dashboard',group:'BILLING',icon:Wallet},
- {id:'Invoicing',label:'Invoicing',group:'BILLING',icon:FileText},
+ {id:'Projects & Clients',label:'Projects & Clients',group:'BILLING',icon:Users},
+ {id:'Estimates',label:'Estimates',group:'BILLING',icon:FileText},
+ {id:'Invoices',label:'Invoices',group:'BILLING',icon:Receipt},
  {id:'Debit / Credit',label:'Debit / Credit',group:'BOOKKEEPING',icon:Receipt},
  {id:'Banking',label:'Banking',group:'BOOKKEEPING',icon:Landmark},
  {id:'Reconciliation',label:'Reconciliation',group:'BOOKKEEPING',icon:ListChecks},
@@ -123,7 +126,8 @@ export function DepartmentWorkspace({id,name=departments[id][0],user,request:api
     )}
   </>}
  </section>}
- {!['Home','Performance','Timeline','Team & Tasks'].includes(page)&&id!=='accounts'&&<p>This section is reserved for the department’s next workflow update.</p>}
+ {id==='legal'&&page==='Contracts'&&<LegalContracts request={request} user={user}/>}
+ {!['Home','Performance','Timeline','Team & Tasks'].includes(page)&&id!=='accounts'&&!(id==='legal'&&page==='Contracts')&&<p>This section is reserved for the department’s next workflow update.</p>}
  </>;
  if(isAccounts)return <WorkspaceShell isAccounts name={name} switchDepartment={switchDepartment} currentUser={user}
    view={page==='Home'?'home':page} viewLabel={page} activityPage={activityPage} items={accountsNavigation}

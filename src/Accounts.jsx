@@ -1,13 +1,14 @@
+import AccountsReconciliation from './AccountsReconciliation.jsx';
+import {ProjectBilling} from './ProjectBilling.jsx';
 import {invoiceForDisplay} from './InvoiceHistory.js';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './Accounts.css';
 import PaymentDashboard from './PaymentDashboard.jsx';
 import {AccountsDashboard, BankingOverview, GstOverview, bankAccounts, studioGstin} from './AccountsOverview.jsx';
-import {parseStatement, statementSuggestion} from './AccountsStatement.js';
 import PagesInvoice, {printPagesInvoice} from './PagesInvoice.jsx';
 import { Mail, Share2, Printer, Edit3, DollarSign, Download, Search, CheckCircle, ArrowRight, X } from 'lucide-react';
 
-export const accountsPages = ['Payment Dashboard','Invoicing','Debit / Credit','Banking','Reconciliation','GST','Chart of Accounts','Payroll','Financial Reports'];
+export const accountsPages = ['Projects & Clients','Payment Dashboard','Estimates','Invoices','Debit / Credit','Banking','Reconciliation','GST','Chart of Accounts','Payroll','Financial Reports'];
 const banks = bankAccounts;
 const today = () => new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Kolkata'});
 const money = n => new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR'}).format((n||0)/100);
@@ -190,7 +191,7 @@ function InvoiceWorkspace({records,invoice,editing,busy,form,onChoose,onNew,onEd
 
   return <div className="invoice-workspace">
     <aside className="invoice-list" aria-label="Invoice list">
-      <header><h2>All Invoices</h2>{onNew&&<button type="button" disabled={editing} onClick={onNew}>＋ New invoice</button>}</header>
+      <header><h2>{invoice?.documentType==='Proforma Invoice'?'Estimates / Proforma':'Invoices'}</h2>{onNew&&<button type="button" disabled={editing} onClick={onNew}>＋ New estimate / proforma</button>}</header>
       <input type="search" className="invoice-search" aria-label="Search invoices" placeholder="Search invoices by client, project, or no..." value={query} onChange={e=>setQuery(e.target.value)}/>
       {visible.map(record=><button className="invoice-list-row" type="button" key={record.id} disabled={editing||busy} aria-current={invoice?.id===record.id?'true':undefined} onClick={()=>onChoose(record)}>
         <strong>{record.client||record.projectName||record.number}</strong><strong>{money(record.amount)}</strong>
@@ -213,7 +214,7 @@ function InvoiceWorkspace({records,invoice,editing,busy,form,onChoose,onNew,onEd
           {editing ? (
             <button type="button" onClick={()=>editorRef.current?.querySelector('input,select')?.focus()} title="Jump to draft fields">Jump to Form</button>
           ) : (
-            <button type="button" onClick={()=>onEdit?.(invoice)} title="Edit invoice details">
+            <button type="button" disabled={!onEdit||busy} onClick={()=>onEdit?.(invoice)} title="Edit invoice details">
               <Edit3 size={13} style={{marginRight:4}}/> Edit Invoice
             </button>
           )}
@@ -279,7 +280,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
   const [payMonth,setPayMonth]=useState(()=>today().slice(0,7)),[staffQuery,setStaffQuery]=useState('');
   const [coaQuery,setCoaQuery]=useState('');
   const [ledgerHead,setLedgerHead]=useState(null);
-  const [bank,setBank]=useState('IDFC'),[staged,setStaged]=useState([]);
+  const [bank,setBank]=useState('IDFC');
   const [cashFrom,setCashFrom]=useState(()=>String(Number(today().slice(0,4))-(today().slice(5,7)<'04'?1:0))+'-04-01');
   const printRef=useRef(null), saving=useRef(false);
   const [invoiceClosed,setInvoiceClosed]=useState(false);
@@ -304,8 +305,8 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
     try{
       const record=await request('saveAccounts',draft);
       setData(d=>({...d,records:[...d.records.filter(r=>r.id!==record.id),record]}));
-      if(draft.importId)setStaged(rows=>rows.filter(r=>r.id!==draft.importId));
-      setDraft(null);setNotice('Saved to Accounts.');
+      if(record.kind==='receipt')await load();
+      setDraft(null);setNotice(record.generatedInvoiceId?'Payment received. Invoice automatically issued for the payment date.':'Saved to Accounts.');
       if(['invoice','payroll'].includes(record.kind))setSelected(record);
     }catch(e){setError(e.message);}
     finally{saving.current=false;setBusy(false);}
@@ -320,40 +321,6 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
     }catch(e){setError(e.message);}finally{setBusy(false);}
   };
 
-  const importStatement=async event=>{
-    const file=event.target.files?.[0],source=bank;
-    event.target.value='';
-    if(!file)return;
-    setError('');
-    try{
-      if(file.size>1024*1024)throw Error('Choose a CSV smaller than 1 MB.');
-      const rows=parseStatement(await file.text()).map(row=>({...row,bank:source,id:crypto.randomUUID()}));
-      setStaged(rows);
-      setNotice(`Imported ${rows.length} statement rows for review.`);
-    }catch(e){setError(e.message);}
-  };
-
-  const matchStatement=async rows=>{
-    if(saving.current||!rows.length)return;
-    saving.current=true;setBusy(true);setError('');setNotice('');
-    let matched=0;
-    const remaining=new Map();
-    try{
-      for(const row of rows){
-        try{
-          const [suggestedHead]=statementSuggestion(row);
-          const headToUse=row.head||suggestedHead||'';
-          const result=await request('saveAccounts',{...row,kind:'reconciliation',head:headToUse});
-          setData(d=>({...d,records:[...d.records.filter(r=>r.id!==result.id),result]}));
-          matched++;
-        }catch(e){remaining.set(row.id,e.message);}
-      }
-      const ids=new Set(rows.map(r=>r.id));
-      setStaged(previous=>previous.flatMap(row=>!ids.has(row.id)?[row]:remaining.has(row.id)?[{...row,issue:remaining.get(row.id)}]:[]));
-      setNotice(matched+' matched · '+remaining.size+' need manual categorization.');
-    }finally{saving.current=false;setBusy(false);}
-  };
-
   const print=()=>{
     try{printMarkup(printRef.current,selected?.number||'Document');}
     catch(e){setError(e.message);}
@@ -365,7 +332,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
   const heads=data.heads.filter(([head])=>head!=='Kotak');
   const invoices=records.filter(r=>['invoice','legacyInvoice'].includes(r.kind)&&r.documentType!=='Proforma Invoice');
   const receipts=records.filter(r=>r.kind==='receipt');
-  const paid=id=>total(receipts.filter(r=>r.invoiceId===id),'amount');
+  const paid=id=>total(receipts.filter(r=>r.invoiceId===id||r.proformaId===id),'amount');
 
   const begin=(kind,fields={})=>{
     setSelected(null);
@@ -427,9 +394,9 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
     }
   }
 
-  const invoiceList=records.filter(r=>['invoice','legacyInvoice'].includes(r.kind))
+  const invoiceList=records.filter(r=>['invoice','legacyInvoice'].includes(r.kind)&&(page==='Estimates'?r.documentType==='Proforma Invoice':r.documentType!=='Proforma Invoice'))
     .sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
-  const activeInvoice=draft?.kind==='invoice'?draftInvoice(draft,projects):
+  const activeInvoice=draft?.kind==='receipt'?draft.targetInvoice:draft?.kind==='invoice'?draftInvoice(draft,projects):
     ['invoice','legacyInvoice'].includes(selected?.kind)?selected:invoiceClosed?null:invoiceList[0];
   const sent=records.find(r=>r.kind==='invoiceDispatch'&&r.sentInvoiceId===activeInvoice?.id);
 
@@ -491,11 +458,13 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
 
       <fieldset disabled={busy}><div className="accounts-fields">
       {field(draft.kind==='milestone'?'Scheduled date':'Date','date','date',true)}
-      {['milestone','invoice','transaction'].includes(draft.kind)&&options('Project','projectId',projectOptions,draft.kind!=='transaction',id=>{
+      {['milestone','invoice','transaction','reconciliation'].includes(draft.kind)&&options('Project','projectId',projectOptions,['milestone','invoice'].includes(draft.kind),id=>{
         if(draft.kind==='invoice'){
           const proj = projects.find(p=>p.id===id);
           update('client',proj?.client||'');
           update('address',proj?.clientAddress||'');
+          for(const key of ['state','stateCode','gstin','contact','contactEmail','phone'])update(key,proj?.billing?.[key]||'');
+          update('orderDate',proj?.contractDate||'');
           update('milestoneId','');
         }
       })}
@@ -512,9 +481,9 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
         {field('Filing / challan reference','reference','text',true,{maxLength:100})}
       </>}
       {draft.kind==='opening'&&<>{options('Debit head','debitHead',heads.map(([h])=>h),true)}{options('Credit head','creditHead',heads.map(([h])=>h),true)}{field('Opening reference','description','text',true)}</>}
-      {draft.kind==='transaction'&&<>{field('Value date','valueDate','date')}{field('Beneficiary','beneficiary')}{options('Classification','classification',['Project direct cost','Studio overhead','Owner drawings'])}{draft.head==='Employee Advances'&&options('Employee','employeeId',employees.map(e=>[e.id,e.name]),true)}</>}
+      {['transaction','reconciliation'].includes(draft.kind)&&<>{field('Value date','valueDate','date')}{field('Beneficiary','beneficiary')}{options('Classification','classification',['Project direct cost','Studio overhead','Owner drawings'])}{draft.head==='Employee Advances'&&options('Employee','employeeId',employees.map(e=>[e.id,e.name]),true)}</>}
       {draft.kind==='invoice'&&<>
-        {options('Document type','documentType',['Proforma Invoice','Invoice','Bill of Supply'],true)}
+        {options('Document type','documentType',(page==='Estimates'?['Proforma Invoice']:['Invoice','Bill of Supply']),true)}
         {options('Milestone','milestoneId',milestones.filter(m=>m.projectId===draft.projectId&&!invoices.some(r=>r.milestoneId===m.id)).map(m=>[m.id,m.description]),false,id=>{const m=milestones.find(r=>r.id===id);if(m)update('items',[{...freshItem(),description:m.description,rate:m.amount/100}]);})}
         {field('Due date','dueDate','date')}{field('Client','client','text',true)}
         <label>Billing address<textarea required value={draft.address||''} onChange={e=>update('address',e.target.value)}/></label>
@@ -541,28 +510,30 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
     {error&&<p role="alert" className="accounts-error">{error}</p>}{notice&&<p role="status" style={{background:'#e8f5e9',padding:8,borderRadius:3,color:'#1b5e20'}}>{notice}</p>}
     
     {page==='Home'&&<AccountsDashboard data={data} today={today()} onNavigate={onNavigate}/>}
-    {page==='Banking'&&<BankingOverview records={records} today={today()} staged={staged} onNavigate={onNavigate}/>}
+    {page==='Banking'&&<BankingOverview records={records} today={today()} onNavigate={onNavigate}/>}
     {page==='GST'&&<GstOverview records={records} today={today()} onRecord={readOnly||busy?null:period=>begin('gstFiling',{period})}/>}
     
+    {page==='Projects & Clients'&&<ProjectBilling projects={projects} request={request} onSaved={load} readOnly={readOnly}/>}
+    {page==='Invoices'&&<p>Invoices are issued automatically when a proforma payment is recorded. Historical invoices remain available here.</p>}
     {page==='Payment Dashboard'&&<>
-      <PaymentDashboard projects={projects} milestones={milestones} receipts={receipts} invoices={invoices} money={money}/>
+      <PaymentDashboard projects={projects} milestones={milestones} receipts={receipts} invoices={records.filter(r=>['invoice','legacyInvoice'].includes(r.kind))} money={money}/>
       <details className="payment-sheet-actions" open>
         <summary>Billing &amp; Payment Action Center</summary>
         <div style={{display:'flex',gap:10,margin:'12px 0'}}>
           {!readOnly&&<button onClick={()=>begin('milestone')}>＋ Add milestone</button>}
-          {!readOnly&&<button className="accounts-overview-primary" onClick={()=>{ onNavigate('Invoicing'); begin('invoice'); }}>＋ Raise new invoice</button>}
+          {!readOnly&&<button className="accounts-overview-primary" onClick={()=>{ onNavigate('Estimates'); }}>＋ New estimate / proforma</button>}
         </div>
       <Table columns={['Project','Milestone / invoice','Due','Amount','Received','Outstanding','Status','Action']} rows={[
         ...milestones.filter(m=>!invoices.some(r=>r.milestoneId===m.id)).map(m=>({key:m.id,cells:[m.projectName,m.description,m.date,money(m.amount),'—','—','Scheduled',!readOnly&&<button onClick={()=>{
-          onNavigate('Invoicing');
-          begin('invoice',{projectId:m.projectId,milestoneId:m.id,client:projects.find(p=>p.id===m.projectId)?.client,items:[{...freshItem(),description:m.description,rate:m.amount/100}]});
-        }}>Raise invoice</button>]})),
+          onNavigate('Estimates');
+          
+        }}>Open estimates</button>]})),
         ...invoices.map(r=>({key:r.id,status:settled(r)?'settled':'outstanding',cells:[r.projectName,r.number,r.dueDate||r.date,money(r.amount),money(paid(r.id)),money(Math.max(0,r.amount-paid(r.id))),settled(r)?'Settled':age(r)?'Overdue':'Awaiting payment',!readOnly&&!settled(r)&&<button onClick={()=>begin('receipt',{invoiceId:r.id,direction:'Inflow',amount:((r.amount-paid(r.id))/100).toFixed(2),targetInvoice:r})}>Record receipt</button>]}))
       ]}/>
       </details>
     </>}
 
-    {page==='Invoicing'&&<InvoiceWorkspace
+    {['Estimates','Invoices'].includes(page)&&<InvoiceWorkspace
       records={invoiceList}
       invoice={activeInvoice}
       editing={draft?.kind==='invoice'}
@@ -571,8 +542,8 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
       sent={sent}
       onMarkSent={!readOnly&&!draft?markSent:undefined}
       onChoose={record=>{setSelected(record);setInvoiceClosed(false);setDraft(null);}}
-      onNew={readOnly||busy?undefined:()=>begin('invoice')}
-      onEdit={invoice=>{
+      onNew={readOnly||busy||page!=='Estimates'?undefined:()=>begin('invoice',{documentType:'Proforma Invoice'})}
+      onEdit={readOnly||!!draft||activeInvoice?.generatedFromReceiptId||paid(activeInvoice?.id)>0?undefined:invoice=>{
         begin('invoice',{
           ...invoice,
           isEdit: true,
@@ -600,47 +571,10 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',margin:'12px 0'}}>
         {!readOnly&&<button className="accounts-overview-primary" onClick={()=>begin('transaction')}>＋ New transaction</button>}
       </div>
-      <Table columns={['Date','Value date','Account','Direction','Ledger head','Project','Reference','Amount']} rows={records.filter(r=>r.kind==='transaction').map(r=>({key:r.id,cells:[r.date,r.valueDate||r.date,r.bank,r.direction,r.head,r.projectName||'Studio',r.reference||'—',money(r.amount)]}))}/>
+      <Table columns={['Date','Value date','Account','Direction','Ledger head','Project','Reference','Amount']} rows={records.filter(r=>r.kind==='transaction'||r.kind==='reconciliation'&&r.postings?.length>0).map(r=>({key:r.id,cells:[r.date,r.valueDate||r.date,r.bank,r.direction,r.head,r.projectName||'Studio',r.reference||'—',money(r.categorizedAmount??r.amount)]}))}/>
     </>}
 
-    {page==='Reconciliation'&&<>
-      <p>Import an Enlighten bank statement CSV, match posted entries, or classify pending transactions.</p>
-      {!readOnly&&<div className="accounts-toolbar">
-        <label>Statement account <select value={bank} onChange={e=>setBank(e.target.value)} disabled={busy}>{banks.filter(b=>b!=='Cash').map(name=><option key={name}>{name}</option>)}</select></label>
-        <label className="accounts-overview-primary" style={{cursor:'pointer',padding:'7px 10px',borderRadius:2}}>
-          Import Bank CSV <input type="file" accept=".csv,text/csv" onChange={importStatement} disabled={busy} style={{display:'none'}}/>
-        </label>
-        <a download="Enlighten_Statement_Template.csv" href="data:text/csv;charset=utf-8,Date%2CReference%2CDescription%2CDebit%2CCredit%0A">Download CSV template</a>
-        <button onClick={()=>begin('reconciliation',{bank})} disabled={busy}>Enter single statement line</button>
-      </div>}
-
-      {staged.length>0&&<>
-        <h2>Statement review · {staged.length} lines</h2>
-        <div style={{display:'flex',gap:10,marginBottom:10}}>
-          <button className="accounts-overview-primary" disabled={busy} onClick={()=>matchStatement(staged)}>
-            {busy?'Matching…':'Match & Clear Staged Entries'}
-          </button>
-        </div>
-        <Table columns={['Date','Account','Reference / description','Amount','Suggested head / Status','Action']} rows={staged.map(row=>{
-          const [head,classification]=statementSuggestion(row);
-          return {
-            key:row.id,
-            status:head?'routine':undefined,
-            cells:[
-              row.date,
-              row.bank,
-              <>{row.reference}<br/><small style={{color:'#666'}}>{row.description}</small></>,
-              money(Number(row.amount)*100),
-              [classification,row.issue].filter(Boolean).join(' · ')||(head?`Suggested: ${head}`:'Ready to match'),
-              <button disabled={busy} onClick={()=>begin('reconciliation',{...row,importId:row.id,head:head||''})}>Review &amp; Clear</button>
-            ]
-          };
-        })}/>
-      </>}
-
-      <h2>Reconciled entries</h2>
-      <Table columns={['Date','Account','Direction','Reference','Amount','Match status / Ledger head']} rows={records.filter(r=>r.kind==='reconciliation').map(r=>({key:r.id,cells:[r.date,r.bank,r.direction,r.reference,money(r.amount),r.matchId?'✓ Matched journal entry':r.head]}))}/>
-    </>}
+    {page==='Reconciliation'&&<AccountsReconciliation records={records} projects={projects} heads={heads} bank={bank} setBank={setBank} request={request} onSaved={load} readOnly={readOnly} onNavigate={onNavigate}/>}
 
     {page==='Chart of Accounts'&&<>
       <div className="accounts-toolbar" style={{justifyContent:'space-between'}}>
@@ -787,7 +721,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
       })}/>
     </>}
 
-    {page!=='Invoicing'&&draft?.kind!=='invoice'&&editor}
+    {!['Estimates','Invoices'].includes(page)&&draft?.kind!=='invoice'&&editor}
 
     {selected?.kind==='payroll'&&<section className="accounts-preview">
       <div className="accounts-actions">

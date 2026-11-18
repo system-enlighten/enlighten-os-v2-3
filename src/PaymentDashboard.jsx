@@ -12,36 +12,20 @@ export default function PaymentDashboard({ projects = [], milestones = [], recei
   const byProject = useMemo(() => {
     const map = new Map(projects.map(p => [String(p.id), {
       ...p,
-      commitment: null,
+      commitment: p.contractAmount ?? null,
+      proformas:new Map(),
       received: 0,
       invoiced: 0,
       months: new Map()
     }]));
 
-    for (const milestone of milestones) {
-      const row = map.get(String(milestone.projectId));
-      if (row) {
-        row.commitment = (row.commitment ?? 0) + Number(milestone.amount || 0);
-      }
-    }
-
     for (const invoice of invoices) {
-      if (invoice.documentType === 'Proforma Invoice') continue;
-      const row = map.get(String(invoice.projectId));
-      if (row) {
-        row.invoiced += Number(invoice.amount || 0);
-        // If commitment wasn't set by milestones, use invoiced total as base
-        if (row.commitment === null) {
-          row.commitment = 0;
-        }
-      }
-    }
-
-    // Fallback: if milestone commitments are 0 or null, but invoice has been raised, use invoice total
-    for (const row of map.values()) {
-      if ((row.commitment === null || row.commitment === 0) && row.invoiced > 0) {
-        row.commitment = row.invoiced;
-      }
+      const row=map.get(String(invoice.projectId));
+      if(!row)continue;
+      if(invoice.documentType==='Proforma Invoice'){
+        const key=invoice.date?.slice(0,7);
+        row.proformas.set(key,(row.proformas.get(key)||0)+Number(invoice.amount||0));
+      }else row.invoiced+=Number(invoice.amount||0);
     }
 
     for (const receipt of receipts) {
@@ -63,6 +47,7 @@ export default function PaymentDashboard({ projects = [], milestones = [], recei
     const allKeys = [];
 
     for (const row of byProject.values()) {
+      for(const k of row.proformas.keys())allKeys.push(k);
       for (const [k, v] of row.months.entries()) {
         totals.set(k, (totals.get(k) || 0) + v);
         allKeys.push(k);
@@ -138,6 +123,7 @@ export default function PaymentDashboard({ projects = [], milestones = [], recei
 
   return (
     <div className="payment-dashboard-wrapper">
+      <p>Projects: shared project register. Project amount: signed Legal &amp; Contracts value. Monthly cells show proformas raised and actual payments received.</p>
       {/* KPI Cards Header */}
       <div className="accounts-overview-grid" style={{ marginBottom: 16 }}>
         <div className="accounts-overview-card" style={{ padding: 14 }}>
@@ -243,7 +229,7 @@ export default function PaymentDashboard({ projects = [], milestones = [], recei
                     const amt = row.months.get(key);
                     return (
                       <td key={key} style={{ background: amt ? '#f1f8e9' : undefined, fontWeight: amt ? 600 : 400 }}>
-                        {amt ? money(amt) : ''}
+                        {row.proformas.has(key)&&<div>Proforma {money(row.proformas.get(key))}</div>}{amt?<div>Received {money(amt)}</div>:null}
                       </td>
                     );
                   })}

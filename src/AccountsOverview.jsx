@@ -1,3 +1,4 @@
+import {statementReconciliation} from './reconciliation.mjs';
 import React, {useState} from 'react';
 import {ArrowUpRight, Banknote, CalendarDays, ChartNoAxesCombined, Landmark, TrendingUp, ShieldCheck, FileCheck, Info} from 'lucide-react';
 
@@ -100,7 +101,7 @@ export function AccountsDashboard({data,today,onNavigate}){
   </div>;
 }
 
-export function BankingOverview({records,today,staged,onNavigate}){
+export function BankingOverview({records,today,onNavigate}){
   const [bank,setBank]=useState('all'),[days,setDays]=useState(30),[chart,setChart]=useState(false);
   const accounts=bank==='all'?bankAccounts:[bank];
   const posted=records.filter(r=>r.date<=today);
@@ -132,7 +133,7 @@ export function BankingOverview({records,today,staged,onNavigate}){
     <div className="accounts-scroll"><table><thead><tr><th>Account details</th><th>Pending statement lines</th><th>Amount in bank</th><th>Amount in Enlighten OS</th><th>Action</th></tr></thead>
       <tbody>{accounts.map(key=><tr key={key}>
         <td>{key==='Cash'?<Banknote size={17}/>:<Landmark size={17}/>} {bankLabel[key]}</td>
-        <td>{key==='Cash'?'—':staged.filter(row=>row.bank===key).length}</td>
+        <td>{records.filter(row=>row.kind==='statement'&&row.bank===key&&!statementReconciliation(row,records)).length}</td>
         <td>{key==='Cash'?'Physical cash count':'Statement reconciliation'}</td>
         <td><strong>{amount(balance(key))}</strong></td>
         <td>

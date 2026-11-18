@@ -3,6 +3,8 @@ export function parseStatement(text){
   let row=[],value='',quoted=false;
   function push(){row.push(value.trim());value='';}
   function finish(){push();if(row.some(Boolean))rows.push(row);row=[];}
+  const first=String(text).replace(/^\uFEFF/,'').split(/\r?\n/)[0];
+  const delimiter=first.includes('\t')?'\t':first.split(';').length>first.split(',').length?';':',';
   const source=text.replace(/^\uFEFF/,'').replace(/\r\n/g,'\n');
   for(let i=0;i<source.length;i++){
     const c=source[i];
@@ -10,7 +12,7 @@ export function parseStatement(text){
       if(quoted&&source[i+1]==='"'){value+='"';i++;}
       else if(quoted||!value.trim())quoted=!quoted;
       else throw Error('Invalid quote in CSV.');
-    }else if(!quoted&&c===',')push();
+    }else if(!quoted&&c===delimiter)push();
     else if(!quoted&&(c==='\n'||c==='\r'))finish();
     else value+=c;
   }
@@ -28,6 +30,12 @@ export function parseStatement(text){
   };
 
   const dateIdx=findIdx([/^(txn|trans|transaction|value)?[\s_-]*date$/i, /date$/i, /date/i]);
+  const bankIdx=findIdx([/^(source account|account|bank)$/i]);
+  const headIdx=findIdx([/^(ledger head|chart of accounts|head)$/i]);
+  const projectIdx=findIdx([/^project[ _-]?id$/i]);
+  const beneficiaryIdx=findIdx([/^beneficiary$/i]);
+  const classificationIdx=findIdx([/^classification$/i]);
+  const valueIdx=findIdx([/^value[ _-]?date$/i]);
   const refIdx=findIdx([/^(ref|reference|utr|chq|cheque|txn[\s_-]*id|transaction[\s_-]*id|doc[\s_-]*no)[\s_-]*(no|number)?$/i, /ref/i, /utr/i, /chq/i]);
   const descIdx=findIdx([/^(desc|description|particulars|narration|remarks|details)/i, /particular/i, /narration/i, /desc/i, /detail/i]);
   const debitIdx=findIdx([/^(debit|dr|withdrawal|outflow)[\s_-]*(amount)?$/i, /^debit$/i, /^dr$/i, /debit/i]);
@@ -52,6 +60,8 @@ export function parseStatement(text){
       const [,year,month,day]=ymd;
       return `${year}-${month.padStart(2,'0')}-${day.padStart(2,'0')}`;
     }
+    const named=trimmed.match(/^(\d{1,2})[- /]([A-Za-z]{3})[- /](\d{4})$/);
+    if(named){const month=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'].indexOf(named[2].toLowerCase())+1;if(month)return named[3]+'-'+String(month).padStart(2,'0')+'-'+named[1].padStart(2,'0');}
     return trimmed;
   };
 
@@ -67,7 +77,7 @@ export function parseStatement(text){
 
     const positive=s=>/^\d{1,10}(\.\d{1,2})?$/.test(s)&&Number(s)>0;
     const blank=s=>!s||/^0+(\.0{1,2})?$/.test(s);
-    const validDate=/^\d{4}-\d{2}-\d{2}$/.test(date)&&Number.isFinite(Date.parse(date));
+    const validDate=/^\d{4}-\d{2}-\d{2}$/.test(date)&&Number.isFinite(Date.parse(date))&&new Date(date).toISOString().slice(0,10)===date;
 
     if(!validDate){
       throw Error('Row '+(index+2)+': Invalid date format "'+rawDate+'". Use YYYY-MM-DD or DD/MM/YYYY.');
@@ -81,10 +91,16 @@ export function parseStatement(text){
       if(positive(dr)&&positive(cr)){
         throw Error('Row '+(index+2)+': Both Debit and Credit have positive amounts.');
       }
-      return null;
+      if(blank(dr)&&blank(cr))return null;
+      throw Error('Row '+(index+2)+': Invalid debit or credit amount.');
     }
 
+    const bank=bankIdx<0?'':values[bankIdx]||'';
+    if(bank&&!['IDFC','Cash'].includes(bank))throw Error('Row '+(index+2)+': Source account must be IDFC or Cash.');
+    const valueDate=valueIdx<0||!values[valueIdx]?'':parseDateStr(values[valueIdx]);
+    if(valueDate&&(!/^\d{4}-\d{2}-\d{2}$/.test(valueDate)||!Number.isFinite(Date.parse(valueDate))||new Date(valueDate).toISOString().slice(0,10)!==valueDate))throw Error('Row '+(index+2)+': Invalid value date.');
     return {
+      ...(bank?{bank}:{}),head:headIdx<0?'':values[headIdx]||'',projectId:projectIdx<0?'':values[projectIdx]||'',beneficiary:beneficiaryIdx<0?'':values[beneficiaryIdx]||'',classification:classificationIdx<0?'':values[classificationIdx]||'',valueDate,
       date,
       reference:reference||('TXN-'+(index+1)),
       description,
