@@ -210,6 +210,17 @@ export default async function handler(req,res) {
       const backend=async(name,data)=>{const response=await fetchAppsScript(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(signRequest(name,data,identity,secret)),signal:AbortSignal.timeout(90000)});const checked=await response.json();if(!checked.ok)throw Error(checked.error?.message||'Project access denied.');return checked.data;};
       try{const context=await backend('getProjectBookContext',{projectId:payload.projectId});const book=await runProjectBookAi(context);const sources=context.sources.map(({text,...source})=>source);return send(200,{ok:true,data:await backend('saveProjectBook',{projectId:payload.projectId,expectedVersion:context.version,book,sources})});}catch(e){return send(502,{ok:false,error:{message:e.message}});}
     }
+    if(['transcribeDiaryMeeting','transcribeDiarySavedAudio'].includes(action)){
+      if(method!=='POST')return send(405,{ok:false,error:{message:'Meeting transcription requires POST.'}});
+      const backend=async(name,data)=>{const response=await fetchAppsScript(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(signRequest(name,data,identity,secret)),signal:AbortSignal.timeout(90000)});const checked=await response.json();if(!checked.ok)throw Error(checked.error?.message||'Project diary access denied.');return checked.data;};
+      try{
+        const saved=await backend(action==='transcribeDiaryMeeting'?'uploadDiaryRecordingChunk':'getDiaryRecordingAudio',payload);
+        if(saved.text)return send(200,{ok:true,data:saved});
+        const context=await backend('getDiaryRecordingContext',{projectId:payload.projectId,entryId:payload.entryId});
+        const result=await runMomAi('transcribeVisitMom',{...(action==='transcribeDiaryMeeting'?payload:{...payload,audio:saved.audio,mimeType:saved.mimeType}),allowSilence:true},context);
+        return send(200,{ok:true,data:await backend('saveDiaryTranscriptChunk',{projectId:payload.projectId,entryId:payload.entryId,recordingId:payload.recordingId,sequence:payload.sequence,text:result.text})});
+      }catch(e){return send(502,{ok:false,error:{message:e.message+' Saved audio can be retried from this Diary entry.'}});}
+    }
     if(['transcribeVisitMom','draftVisitMom'].includes(action)){
       if(method!=='POST')return send(405,{ok:false,error:{message:'MOM assistance requires POST.'}});
       if(!process.env.OPENAI_API_KEY)return send(503,{ok:false,error:{message:'Add OPENAI_API_KEY in Vercel environment variables and redeploy to enable MOM assistance.'}});
@@ -263,7 +274,7 @@ export async function runMomAi(action,payload,context,env=process.env,request=fe
   }
   let data;try{data=await response.json();}catch{throw Error('OpenAI returned an unreadable response. Your notes are retained.');}
   if(!response.ok){if(response.status===401||response.status===403)throw Error('Check the OpenAI API key and model access in Vercel.');if(response.status===429)throw Error('OpenAI usage or rate limit reached. Check API billing/limits and retry.');throw Error('OpenAI could not process this request. Your notes are retained; please retry.');}
-  if(action==='transcribeVisitMom'){if(typeof data.text!=='string'||!data.text.trim())throw Error('No speech was transcribed. Try a clearer recording.');return {text:data.text.trim()};}
+  if(action==='transcribeVisitMom'){if(typeof data.text!=='string'||!data.text.trim()){if(payload.allowSilence)return {text:'[No speech detected in this segment]'};throw Error('No speech was transcribed. Try a clearer recording.');}return {text:data.text.trim()};}
   if(data.status&&data.status!=='completed')throw Error('The MOM draft was incomplete. Try shorter notes.');
   const text=(data.output||[]).flatMap(item=>item.content||[]).filter(c=>c.type==='output_text').map(c=>c.text).join('\n').trim();if(!text)throw Error('No MOM draft was generated. Your notes are retained.');return {text};
 }

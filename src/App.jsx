@@ -5317,7 +5317,7 @@ function ExecutionVisitPlanner({project,rows,onChange,loadError,loading,children
     setBusy(true);setError('');setNotice('Saving visit and pictures…');
     try{
       const prepared=await prepareMomPoints(entry.points,async(point,photo)=>{
-        return apiRequest('uploadMomPointPhoto',{projectId:project.id,visitPlanId:entry.row.visitPlanId,visitId:entry.visitId,pointId:point.id,photoId:photo.uploadId,name:photo.name,base64:photo.preview.split(',')[1],originalBase64:photo.strokes?.length?photo.original.split(',')[1]:'',marked:!!photo.strokes?.length},'POST',120000);
+        return apiRequest('uploadMomPointPhoto',{projectId:project.id,visitPlanId:entry.row.visitPlanId,visitId:entry.visitId,pointId:point.id,photoId:photo.uploadId,name:photo.name,caption:photo.caption||'',base64:photo.preview.split(',')[1],originalBase64:photo.strokes?.length?photo.original.split(',')[1]:'',marked:!!photo.strokes?.length},'POST',120000);
       },points=>{entry={...entry,points};setDraft(d=>d?.visitId===entry.visitId?{...d,points}:d);});
       entry={...entry,points:prepared};
       const saved=await projectApi.recordExecutionVisit({projectId:project.id,visitPlanId:entry.row.visitPlanId,visitId:entry.visitId,date:entry.date,visitBy:entry.visitBy,notes:momPointNotes(prepared),points:prepared,scheduledFor:entry.row.scheduledDate||''});
