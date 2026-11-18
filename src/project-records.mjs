@@ -1,5 +1,6 @@
-export function meetingRecordColumns(event){
- const points=event.minutePoints||[],mom=points.filter(p=>p.action!==false&&p.task?.kind!=='Follow-up'),followups=points.filter(p=>p.action!==false&&p.task?.kind==='Follow-up');
+import {needsMomFollowup} from './mom-responsibility.mjs';
+export function meetingRecordColumns(event,user){
+ const points=event.minutePoints||[],follow=p=>user?needsMomFollowup(p,user):p.task?.kind==='Follow-up',mom=points.filter(p=>p.action!==false&&!follow(p)),followups=points.filter(p=>p.action!==false&&follow(p));
  const discussion=points.filter(p=>p.action===false).map(p=>p.text);
  for(const [key,label]of[['summary','Summary'],['workDone','Work recorded'],['decisions','Decisions'],['momText','Additional notes']])if(event.detail?.[key])discussion.push(label+': '+event.detail[key]);
  const seen=new Set(),photos=[];const add=p=>{if(!p?.url)return;const key=p.fileId||p.url;if(seen.has(key))return;seen.add(key);photos.push(p)};
