@@ -53,15 +53,15 @@ export default function GeneratedTechnicalTable({projectId,request,canEdit}){
   return <button type="button" aria-label={`${fixture?'Add or change fixture':kind==='image3d'?'Choose 3D':'Choose reference'} image for ${row.cn}`} disabled={!canEdit||busy} onClick={()=>choose(row,kind)} style={{border:0,padding:0,width:'100%',height:fixture?'90pt':'110pt',overflow:'hidden',background:'transparent',color:'#555',font:'inherit',cursor:canEdit?'pointer':'default'}}>{content}</button>;
  };
  const rowCells=(row,print)=>[
-  row.cn,picture(row,'fixture',print),row.type,row.application,picture(row,'image3d',print),picture(row,'reference',print),row.object,
+  row.cn,picture(row,'fixture',print),row.code,row.application,picture(row,'image3d',print),picture(row,'reference',print),row.object,
   canEdit&&!print?<textarea aria-label={`CMF for ${row.cn}`} value={row.cmf} maxLength={2000} disabled={busy} onChange={e=>edit(row.id,{cmf:e.target.value})} style={{font:'inherit',width:'100%',minHeight:'65pt',resize:'vertical',border:'1px dashed #bbb',background:'transparent'}}/>:row.cmf,
   row.height,row.illuminance,row.quantity,
   print?row.lighting:<select aria-label={`Lighting category for ${row.cn}`} value={row.lighting} disabled={!canEdit||busy} onChange={e=>edit(row.id,{lighting:e.target.value})} style={{maxWidth:'100%',padding:'4pt',fontFamily:'TechnicalHelvetica',fontSize:'12pt',background:'white',border:'0.5pt solid #777'}}>{layers.map(v=><option key={v} value={v}>{v}</option>)}</select>
  ];
- const table=(groups,print=false)=><table aria-label={print?'Printable Technical Table':'Calculated Technical Table'} style={{zoom:print?1:scale,tableLayout:'fixed',borderCollapse:'collapse',width:widths.reduce((a,b)=>a+b,0)+'pt'}}><colgroup>{widths.map((w,i)=><col key={i} style={{width:w+'pt'}}/>)}</colgroup><thead><tr style={{height:sheet.heights[0]+'pt'}}>{[...sheet.cells[0].map(c=>c.text),'CATEGORY'].map((name,i)=><th key={i} style={cell(i,true)}>{name}</th>)}</tr></thead>{groups.map(group=><tbody key={group.id} data-zone={group.code}>
-  <tr className="technical-zone-divider" aria-hidden="true"><td colSpan={13} style={{height:'26pt',padding:0,background:'#000',border:'0.5pt solid #000'}}/></tr>
+ const table=(groups,print=false)=><table aria-label={print?'Printable Technical Table':'Calculated Technical Table'} style={{zoom:print?1:scale,tableLayout:'fixed',borderCollapse:'collapse',width:widths.reduce((a,b)=>a+b,0)+'pt'}}><colgroup>{widths.map((w,i)=><col key={i} style={{width:w+'pt'}}/>)}</colgroup><thead><tr style={{height:sheet.heights[0]+'pt'}}>{[...sheet.cells[0].map(c=>c.text),'CATEGORY'].map((name,i)=><th key={i} style={cell(i,true)}>{name}</th>)}</tr></thead>{groups.map((group,groupIndex)=><tbody key={group.id} data-zone={group.code}>
+  {groupIndex>0&&<tr className="technical-zone-divider" aria-hidden="true"><td colSpan={13} style={{height:'26pt',padding:0,background:'#000',border:'0.5pt solid #000'}}/></tr>}
   {group.sections.map((section,sectionIndex)=><React.Fragment key={section.label}>
-   <tr className="technical-category-band">{sectionIndex===0&&<td rowSpan={group.rowSpan} style={cell(0)}>{group.label}</td>}<th scope="rowgroup" colSpan={12} style={{...cell(1),height:'26pt',background:'#000',color:'#fff',textAlign:'left',padding:'4pt 10pt',fontWeight:600}}>{section.label}</th></tr>
+   <tr className="technical-category-band">{sectionIndex===0&&<td rowSpan={group.rowSpan} style={cell(0)}>{group.label}</td>}<th scope="rowgroup" colSpan={12} style={{...cell(1),height:'26pt',background:'#e5e5e5',color:'#142238',textAlign:'left',padding:'4pt 10pt',fontWeight:600}}>{section.label}</th></tr>
    {section.rows.map(row=><tr key={row.id} data-circuit={row.cn} style={{height:sheet.heights[2]+'pt'}}>{rowCells(row,print).map((value,index)=><td key={index} style={cell(index+1)}>{value||'\u00a0'}</td>)}</tr>)}
   </React.Fragment>)}
  </tbody>)}</table>;
