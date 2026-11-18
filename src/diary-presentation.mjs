@@ -1,0 +1,3 @@
+export const hasMeetingMinutes=e=>!!(e.notes||e.actions||e.detail?.momText||e.detail?.documents?.length||e.detail?.workDone||e.detail?.decisions||e.detail?.summary||e.minutePoints?.length);
+export function matchesMeeting(e,target){if(!target)return true;if(String(e.projectId)!==String(target.projectId))return false;const ids=new Set([String(e.id),...(e.aliases||[]).map(String),String(e.detail?.entryId||'')]);return [target.id,...(target.aliases||[])].some(id=>ids.has(String(id)));}
+export function meetingMetadata(e){return [['Format',e.meetingMode],['Participants',e.participants],['Location',e.location],['Coverage',(e.floors||[]).map(f=>String(f).toLowerCase()==='project'?'Project-wide':f).join(' · ')],['Work stage',(e.workItems||[]).join(' · ')]].filter(([,v])=>v);}
