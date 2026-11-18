@@ -67,7 +67,7 @@ export default function HomeAgenda({request,buttonStyle,readOnly,day,onItemsChan
     </div>
     {!readOnly&&item.canAct===true&&today&&!item.endAt
      ?<button type="button" className="studio-home-check" disabled={busy} onClick={()=>update(action,item)}>{label}</button>
-     :!item.endAt&&<span className="studio-site-assignment">{item.assignee?<><span>Scheduled for</span>{' '}<span>{item.assignee}</span></>:'Visit lead not assigned'}</span>}
+     :!item.endAt&&<span className="studio-site-assignment">{item.assignee?<><span>Scheduled for</span>{' '}<span>{item.assignee}</span></>:'No team participants selected'}</span>}
    </div>;
    return <article key={key}>
     <small>Meeting · {schedule}</small>
