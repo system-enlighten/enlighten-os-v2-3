@@ -76,6 +76,34 @@ export default async function handler(req, res) {
     catch { return respond(res, 401, 'Invalid Google identity token'); }
   }
   if (!identity) return respond(res, 401, 'Sign in to the Preview website first');
+  // Authenticated, read-only import inventory. No project records are exposed.
+  if (req.query?.check === 'inventory') {
+    let inventoryPool;
+    try {
+      inventoryPool = new Pool({
+        ...databaseConnection(dbUrl), max: 1,
+        connectionTimeoutMillis: 10000, idleTimeoutMillis: 1000,
+      });
+      const { rows } = await inventoryPool.query(`
+        SELECT count(*)::int AS total_rows,
+          count(*) FILTER (WHERE coalesce(cells->>'projectId','') = '')::int AS missing_project_ids,
+          count(DISTINCT NULLIF(cells->>'projectId',''))::int AS distinct_project_ids
+        FROM enlighten_import.projects
+      `);
+      const counts = rows[0];
+      return res.status(200).json({
+        ok: true, source: 'supabase-preview', readOnly: true,
+        data: { ...counts,
+          duplicate_project_ids: Math.max(0, counts.total_rows - counts.missing_project_ids - counts.distinct_project_ids),
+          schema: 'enlighten_import', table: 'projects' }
+      });
+    } catch (error) {
+      console.error('Supabase inventory diagnostic failed', { code: error?.code });
+      return respond(res, 502, 'Could not read Supabase project inventory');
+    } finally {
+      if (inventoryPool) await inventoryPool.end().catch(() => {});
+    }
+  }
   const projectId = req.query?.projectId;
   if (typeof projectId !== 'string' || !/^[A-Za-z0-9_.:-]{1,128}$/.test(projectId))
     return respond(res, 400, 'Provide a valid projectId');
