@@ -6012,12 +6012,12 @@ export default function App(){
   const [config,setConfig]=useState(null);
   const [error,setError]=useState('');
   const buttonRef=useRef(null);
-  const signOut=()=>{AUTH_ID_TOKEN='';clearStudioCaches();setToken('');window.google?.accounts?.id?.disableAutoSelect();};
+  const signOut=()=>{fetch('/api',{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'authSignOut',payload:{}})}).catch(()=>{});AUTH_ID_TOKEN='';clearStudioCaches();setToken('');window.google?.accounts?.id?.disableAutoSelect();};
   useEffect(()=>{const expired=()=>{signOut();setError('Your sign-in expired. Sign in again.');};window.addEventListener('enlighten-auth-expired',expired);fetch('/api?action=authConfig').then(r=>r.json()).then(r=>{if(!r.data?.clientId)throw Error('Admin setup required: configure GOOGLE_CLIENT_ID in Vercel.');setConfig(r.data);}).catch(e=>setError(e.message));return()=>window.removeEventListener('enlighten-auth-expired',expired);},[]);
   useEffect(()=>{
     if(!config||token)return;
     let active=true;
-    const renderButton=()=>{if(!active||!buttonRef.current)return;window.google.accounts.id.initialize({client_id:config.clientId,auto_select:false,callback:response=>{if(!active||!response.credential)return;AUTH_ID_TOKEN=response.credential;clearStudioCaches();setError('');setToken(response.credential);}});window.google.accounts.id.renderButton(buttonRef.current,{theme:'outline',size:'large',width:280,text:'signin_with'});};
+    const renderButton=()=>{if(!active||!buttonRef.current)return;window.google.accounts.id.initialize({client_id:config.clientId,auto_select:false,callback:async response=>{if(!active||!response.credential)return;try{const login=await fetch('/api',{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8',Authorization:`Bearer ${response.credential}`},body:JSON.stringify({action:'authSession',payload:{}})});const result=await login.json();if(!login.ok||!result?.ok||!result?.data?.signedIn)throw Error(result?.error?.message||'Could not establish a secure Preview session.');if(!active)return;AUTH_ID_TOKEN=response.credential;clearStudioCaches();setError('');setToken(response.credential);}catch(err){if(active)setError(err?.message||'Sign-in session failed.');}}});window.google.accounts.id.renderButton(buttonRef.current,{theme:'outline',size:'large',width:280,text:'signin_with'});};
     if(window.google?.accounts?.id){renderButton();return()=>{active=false;};}
     let script=document.getElementById('enlighten-google-login');if(!script){script=document.createElement('script');script.id='enlighten-google-login';script.src='https://accounts.google.com/gsi/client';script.async=true;document.head.appendChild(script);}
     script.addEventListener('load',renderButton);const failed=()=>setError('Google sign-in could not load. Check your connection.');script.addEventListener('error',failed);
