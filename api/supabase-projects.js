@@ -5,28 +5,20 @@
 import { Pool } from 'pg';
 import { verifyAppSession, verifyGoogleIdentity, signRequest, fetchAppsScript } from './index.js';
 
-// Use explicit connection fields so SSL query parameters in the URL cannot
-// silently override our verified TLS configuration in node-postgres.
-function databasePool(databaseUrl) {
-  const uri = new URL(databaseUrl.trim());
-  if (!['postgres:', 'postgresql:'].includes(uri.protocol) || !uri.hostname || !uri.pathname.slice(1)) {
-    throw Object.assign(new Error('Invalid database connection configuration'), { code: 'INVALID_DATABASE_URL' });
-  }
+// Trust the Supabase database CA supplied only to the Vercel server runtime.
+// Do not disable TLS verification or expose this certificate via VITE_ variables.
+function databaseConnection(url) {
   const ca = String(process.env.SUPABASE_DB_CA || '').replace(/\\n/g, '\n').trim();
-  if (ca && (!ca.includes('-----BEGIN CERTIFICATE-----') || !ca.includes('-----END CERTIFICATE-----'))) {
-    throw Object.assign(new Error('Invalid database CA certificate'), { code: 'INVALID_DATABASE_CA' });
+  if (!ca || !ca.includes('-----BEGIN CERTIFICATE-----') || !ca.includes('-----END CERTIFICATE-----')) {
+    throw Object.assign(new Error('Database CA configuration missing or invalid'), { code: 'ERR_DB_CA_CONFIG' });
   }
-  return new Pool({
-    host: uri.hostname,
-    port: uri.port ? Number(uri.port) : 5432,
-    database: decodeURIComponent(uri.pathname.slice(1)),
-    user: decodeURIComponent(uri.username),
-    password: decodeURIComponent(uri.password),
-    ssl: { rejectUnauthorized: true, ...(ca ? { ca } : {}) },
-    max: 1,
-    connectionTimeoutMillis: 10000,
-    idleTimeoutMillis: 1000,
-  });
+  const parsed = new URL(url.trim());
+  if (!['postgres:', 'postgresql:'].includes(parsed.protocol)) {
+    throw Object.assign(new Error('Invalid database URL protocol'), { code: 'ERR_INVALID_URL' });
+  }
+  // node-postgres may override the supplied ssl object if these URL options exist.
+  for (const key of ['sslmode', 'sslcert', 'sslkey', 'sslrootcert']) parsed.searchParams.delete(key);
+  return { connectionString: parsed.toString(), ssl: { ca, rejectUnauthorized: true } };
 }
 
 const cookieName = 'enlighten_session';
@@ -49,7 +41,15 @@ export default async function handler(req, res) {
     if (!db) return respond(res, 503, 'Preview database configuration is missing');
     let diagnosticPool;
     try {
-      diagnosticPool = databasePool(db);
+      const parsed = new URL(db.trim());
+      if (!['postgres:', 'postgresql:'].includes(parsed.protocol))
+        return respond(res, 503, 'Invalid database connection configuration');
+      diagnosticPool = new Pool({
+        ...databaseConnection(db),
+        max: 1,
+        connectionTimeoutMillis: 10000,
+        idleTimeoutMillis: 1000,
+      });
       await diagnosticPool.query('SELECT 1 FROM enlighten_import.projects LIMIT 1');
       return res.status(200).json({ ok: true, source: 'supabase-postgresql', connected: true, schemaAccessible: true });
     } catch (error) {
@@ -96,7 +96,15 @@ export default async function handler(req, res) {
 
   let pool;
   try {
-    pool = databasePool(dbUrl);
+    const uri = new URL(dbUrl.trim());
+    if (!['postgres:', 'postgresql:'].includes(uri.protocol))
+      return respond(res, 503, 'Invalid database connection configuration');
+    pool = new Pool({
+      ...databaseConnection(dbUrl),
+      max: 1,
+      connectionTimeoutMillis: 10000,
+      idleTimeoutMillis: 1000,
+    });
     const { rows } = await pool.query({
       text: `SELECT cells FROM enlighten_import.projects
              WHERE cells->>'projectId' = $1 LIMIT 2`,
