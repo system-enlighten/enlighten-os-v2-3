@@ -1,3 +1,4 @@
+
 import { Pool } from 'pg';
 
 import {
@@ -16,6 +17,7 @@ import {
 // ?check=session
 // ?check=inventory
 // ?projectId=YOUR_PROJECT_ID
+// ?list=projects&page=1&limit=10 (authorized, paginated)
 
 function respond(res, status, message) {
   return res.status(status).json({
@@ -214,6 +216,77 @@ export default async function handler(req, res) {
       401,
       'Sign in to the Preview website first'
     );
+  }
+
+  // Reuse the existing Apps Script project-level authorization.
+  async function canReadProject(projectId) {
+    const signed = signRequest(
+      'getProjectWorkspace', { projectId }, identity, secret
+    );
+    const response = await fetchAppsScript(appsScriptUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(signed),
+      signal: AbortSignal.timeout(15000),
+    });
+    const result = await response.json();
+    return response.ok && result?.ok === true && Boolean(result?.data);
+  }
+
+  // ================================================
+  // 4A. PAGINATED, AUTHORIZED PROJECT LIST (READ ONLY)
+  // ================================================
+  if (req.query?.list === 'projects') {
+    const page = Number(req.query?.page ?? 1);
+    const limit = Number(req.query?.limit ?? 10);
+    if (!Number.isSafeInteger(page) || page < 1 || page > 10000 ||
+        !Number.isSafeInteger(limit) || limit < 1 || limit > 10) {
+      return respond(res, 400, 'page must be positive and limit must be 1 to 10');
+    }
+
+    let pool;
+    try {
+      pool = createPool(dbUrl);
+      // Fetch one extra row to determine whether another page exists.
+      const { rows } = await pool.query({
+        text: `SELECT cells FROM enlighten_import.projects
+               ORDER BY cells->>'projectId' ASC
+               LIMIT $1 OFFSET $2`,
+        values: [limit + 1, (page - 1) * limit],
+      });
+      const candidates = rows.slice(0, limit);
+      const authorized = [];
+      // Fail closed on authorization-service errors; never expose unchecked rows.
+      for (const row of candidates) {
+        const id = row.cells?.projectId;
+        if (typeof id !== 'string' || !/^[A-Za-z0-9_.:-]{1,128}$/.test(id)) continue;
+        try {
+          if (await canReadProject(id)) authorized.push(row.cells);
+        } catch (error) {
+          console.error('Project list authorization unavailable', { code: error?.code });
+          return respond(res, 502, 'Could not verify project access');
+        }
+      }
+      return res.status(200).json({
+        ok: true,
+        source: 'supabase-preview',
+        readOnly: true,
+        data: authorized,
+        pagination: {
+          page,
+          limit,
+          scanned: candidates.length,
+          returned: authorized.length,
+          hasMore: rows.length > limit,
+          nextPage: rows.length > limit ? page + 1 : null,
+        },
+      });
+    } catch (error) {
+      console.error('Supabase project list failed', { code: error?.code });
+      return respond(res, 502, 'Could not read authorized Supabase projects');
+    } finally {
+      await closePool(pool);
+    }
   }
 
   // ================================================
