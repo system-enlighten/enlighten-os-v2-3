@@ -19,7 +19,7 @@ export function assessmentGroups(data,products=[]){
  const h=(data.headers||[]).map(norm),groups=new Map(),warnings=[];
  const value=(r,names)=>{for(const n of names){const i=h.indexOf(norm(n));if(i>=0&&clean(r[i])&&clean(r[i])!=='<>')return clean(r[i])}return ''};
  (data.rows||[]).forEach((r,index)=>{
-  const code=value(r,['HOUSINGNUMBER','FITTINGTYPE','PRODUCTCODE']);if(!code){warnings.push(`Output row ${index+1}: no product code; add it in Design Technical Table.`);return}
+  const code=value(r,['HOUSINGNUMBER','FITTINGTYPE','PRODUCTCODE']);if(!code){warnings.push(`Output row ${index+1}: no product code; add it in Technical Table | Design.`);return}
   const type=value(r,['TYPE','NAME']),raw=value(r,['LENGTHINMETRE','LENGTHINMETERS','LENGTHINMETRES'])||value(r,['LENGTH']);
   const linear=/^(L\d|ALP)/i.test(code)||/linear|strip|profile|tape/i.test(type)||/^\d+(?:\.\d+)?\s*(mm|m)?$/i.test(raw);
   const id=assessmentKey(code,linear);if(!groups.has(id)){const p=products.find(p=>norm(p.fittingType)===norm(code));groups.set(id,{id,code,type,unit:linear?'m':'pcs',linear,quantity:0,missingLengths:0,circuits:new Set(),icon:p?.iconUrl||'',catalogOptions:catalogOptionsForCode(code,products)})}

@@ -3,18 +3,18 @@ import React,{useEffect,useMemo,useRef,useState} from 'react';
 import './TechnicalDocumentation.css';
 import source from './technical-documentation.json';
 import icons from './technical-icon-map.json';
-import {buildColumnTable,technicalZoneSections,technicalPrintPages} from './technical-column-logic.mjs';
+import {buildColumnTable,technicalZoneSections,technicalPrintPages,lightingChoices,toggleLightingCategory} from './technical-column-logic.mjs';
 import TechnicalSheetsExport from './TechnicalSheetsExport.jsx';
 import {loadApplications} from './application-library.js';
 import {editableOutputFields,sourceFieldValues,applyOutputEdits,serializeTechnicalOutput,materializeCmfOverrides} from './technical-editing.mjs';
-const layers=['Fill','Focused','Decorative','Unclassified'];
+const layers=[...lightingChoices,'Unclassified'];
 const framing=m=>({width:'100%',height:'100%',objectFit:'cover',objectPosition:`${m.x??50}% ${m.y??50}%`,transform:`scale(${m.zoom||1})`,transformOrigin:`${m.x??50}% ${m.y??50}%`});
 function TechnicalMedia({media,request,projectId,style,alt}){
  const [url,setUrl]=useState(''),[failed,setFailed]=useState(false);
  useEffect(()=>{let live=true;setFailed(false);setUrl(media.driveFileId?'':media.url);if(media.driveFileId)request('getTechnicalProjectImage',{projectId,fileId:media.driveFileId},'POST',90000).then(r=>live&&setUrl(r.url)).catch(()=>live&&setFailed(true));return()=>{live=false}},[media.url,media.driveFileId,projectId]);
  return failed?<span>Image unavailable. Choose another image.</span>:url?<img src={url} alt={alt||media.label||'Project image'} style={style} onError={()=>setFailed(true)}/>:<span>Loading image…</span>;
 }
-function FixtureImage({url,onMissing,cn}){return <img src={icons[url]||url} alt={`Fixture for ${cn}`} onError={onMissing} style={{maxWidth:'100%',maxHeight:'90pt'}}/>}
+function FixtureImage({url,onMissing,cn}){return <img src={icons[url]||url} alt={`Fixture for ${cn}`} onError={onMissing} style={{width:'100%',height:'100%',maxHeight:'90pt',objectFit:'contain',transform:'scale(1.12)',transformOrigin:'center'}}/>}
 function TechnicalTextCell({value,label,editable,onCommit,onOpen,hasMultiple=false}){
  const [editing,setEditing]=useState(false),[draft,setDraft]=useState(value||'');const cancelled=useRef(false);
  const finish=()=>{if(cancelled.current){cancelled.current=false;setEditing(false);return}if(draft!==(value||''))onCommit(draft);setEditing(false)};
@@ -74,7 +74,7 @@ export default function GeneratedTechnicalTable({projectId,request,canEdit,canEd
   row.cn,picture(row,'fixture',print),textCell(row,'code',row.code,print),textCell(row,'application',row.application,print),picture(row,'image3d',print),picture(row,'reference',print),textCell(row,'object',row.object,print),textCell(row,'cmf',row.cmf,print),
   print||!canEditText||busy?row.height:<TechnicalTextCell value={row.height} label={`Height / distance for ${row.cn}`} editable onOpen={()=>openSource(row,['height','distance','surface','mount'])}/>,
   textCell(row,'illuminance',row.illuminance,print),print||!canEditText||busy||!row.linear?row.quantity:<TechnicalTextCell value={row.quantity} label={`Linear lengths for ${row.cn}`} editable onOpen={()=>openSource(row,['length'])}/>,
-  print?row.lighting:<select aria-label={`Lighting category for ${row.cn}`} value={row.lighting} disabled={!canEditMedia||busy} onChange={e=>edit(row.id,{lighting:e.target.value})} style={{maxWidth:'100%',padding:'4pt',fontFamily:'TechnicalHelvetica',fontSize:'12pt',background:'white',border:'0.5pt solid #777'}}>{layers.map(v=><option key={v} value={v}>{v}</option>)}</select>
+  print?row.lighting:<div role="group" aria-label={`Lighting category for ${row.cn}`} style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'3pt'}}>{lightingChoices.map(v=><button type="button" key={v} aria-pressed={row.lighting===v} disabled={!canEditMedia||busy} onClick={()=>edit(row.id,{lighting:toggleLightingCategory(row.lighting,v)})} style={{padding:'4pt 2pt',minWidth:0,fontFamily:'TechnicalHelvetica',fontSize:'10pt',border:'0.5pt solid '+(row.lighting===v?'#142238':'#bab6ae'),background:row.lighting===v?'#142238':'#fff',color:row.lighting===v?'#fff':'#142238',cursor:canEditMedia?'pointer':'default'}}>{v}</button>)}</div>
  ];
  const table=(groups,print=false)=><table aria-label={print?'Printable Technical Table':'Calculated Technical Table'} style={{zoom:print?1:scale,tableLayout:'fixed',borderCollapse:'collapse',width:widths.reduce((a,b)=>a+b,0)+'pt'}}><colgroup>{widths.map((w,i)=><col key={i} style={{width:w+'pt'}}/>)}</colgroup><thead><tr style={{height:sheet.heights[0]+'pt'}}>{[...sheet.cells[0].map(c=>c.text),'CATEGORY'].map((name,i)=><th key={i} style={cell(i,true)}>{name}</th>)}</tr></thead>{groups.map((group,groupIndex)=><tbody key={group.id} data-zone={group.code}>
   {groupIndex>0&&<tr className="technical-zone-divider" aria-hidden="true"><td colSpan={13} style={{height:'26pt',padding:0,background:'#000',border:'0.5pt solid #000'}}/></tr>}

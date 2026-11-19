@@ -178,7 +178,7 @@
  margin:0 0 6px;
 }
 /* Both task columns remain bounded regardless of task count. */
-.studio-home-task-board>.studio-home-card{height:44rem;max-height:44rem;box-sizing:border-box;overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable;overscroll-behavior:contain;min-height:0}
+.studio-home-task-board>.studio-home-card{height:38rem;max-height:38rem;box-sizing:border-box;overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable;overscroll-behavior:contain;min-height:0}
 .studio-home-task-board>.studio-home-card>.studio-home-task-board-heading{position:sticky;top:-16px;background:#faf8f2;z-index:2;padding-block:8px}
 .studio-home-task-board .studio-home-pending-scroll{max-height:none;overflow:visible;scrollbar-gutter:auto}
 @media(max-width:480px){.studio-home-task-board>.studio-home-card>.studio-home-task-board-heading{top:-10px}}
