@@ -22,3 +22,9 @@
 .assessment-modal>div{padding:24px;background:#f5f1e8;width:min(600px,92vw);max-height:90vh;overflow:auto}
 .assessment-modal label{display:grid;gap:8px;margin:16px 0}.assessment-modal input{padding:10px}.assessment-modal button{margin-right:12px}
 @media print{.assessment-controls,.assessment-modal{display:none!important}.assessment-scroll{overflow:visible;padding:0;border:0}.product-assessment table{zoom:1!important}.product-assessment thead{display:table-header-group}.product-assessment tr{break-inside:avoid}.product-assessment th,.product-assessment td{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
+.assessment-stars{display:flex;justify-content:center;gap:0;white-space:nowrap}
+.assessment-stars button{padding:0;width:16pt;min-width:0;line-height:1;font:20pt Arial,sans-serif;border:0;background:transparent;color:#c5c8c9;cursor:pointer}
+.assessment-stars button.is-filled{color:#142b3e}.assessment-stars button:focus-visible{outline:1pt solid #142b3e;outline-offset:1pt}
+.product-assessment .assessment-delete{position:absolute;top:2pt;right:2pt;font:11pt TechnicalHelvetica;border:.5pt solid #aaa;background:white;padding:2pt 4pt;margin:0;z-index:1}
+.assessment-catalog-option{display:flex;align-items:center;gap:16px;padding:12px 0;border-bottom:1px solid #d7d3c8}.assessment-catalog-option img{width:90px;height:75px;object-fit:contain}.assessment-catalog-option span{flex:1}
+@media print{.assessment-delete{display:none!important}}
