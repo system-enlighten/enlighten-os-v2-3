@@ -22,8 +22,8 @@ export function assessmentGroups(data,products=[]){
   const code=value(r,['HOUSINGNUMBER','FITTINGTYPE','PRODUCTCODE']);if(!code){warnings.push(`Output row ${index+1}: no product code; add it in Technical Table | Design.`);return}
   const type=value(r,['TYPE','NAME']),raw=value(r,['LENGTHINMETRE','LENGTHINMETERS','LENGTHINMETRES'])||value(r,['LENGTH']);
   const linear=/^(L\d|ALP)/i.test(code)||/linear|strip|profile|tape/i.test(type)||/^\d+(?:\.\d+)?\s*(mm|m)?$/i.test(raw);
-  const id=assessmentKey(code,linear);if(!groups.has(id)){const p=products.find(p=>norm(p.fittingType)===norm(code));groups.set(id,{id,code,type,unit:linear?'m':'pcs',linear,quantity:0,missingLengths:0,circuits:new Set(),icon:p?.iconUrl||'',catalogOptions:catalogOptionsForCode(code,products)})}
-  const g=groups.get(id);g.circuits.add(value(r,['CN','CIRCUITNUMBER']));
+  const id=assessmentKey(code,linear);if(!groups.has(id)){const p=products.find(p=>norm(p.fittingType)===norm(code));groups.set(id,{id,code,type,unit:linear?'m':'pcs',linear,quantity:0,missingLengths:0,sourceIndices:[],circuits:new Set(),icon:p?.iconUrl||'',catalogOptions:catalogOptionsForCode(code,products)})}
+  const g=groups.get(id);g.sourceIndices.push(index);g.circuits.add(value(r,['CN','CIRCUITNUMBER']));
   if(!linear){g.quantity++;return}
   if(!/^(?:\d+(?:\.\d+)?|\.\d+)\s*(?:mm|m)?$/i.test(raw)||Number(raw.replace(/\s*(mm|m)$/i,''))<=0){g.missingLengths++;warnings.push(`${code} · Output row ${index+1}: linear length needs review.`);return}
   const metres=value(r,['LENGTHINMETRE','LENGTHINMETERS','LENGTHINMETRES'])||(/m$/i.test(raw)&&!/mm$/i.test(raw));g.quantity+=Number(raw.replace(/\s*(mm|m)$/i,''))/(metres?1:1000);

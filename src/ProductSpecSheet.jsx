@@ -29,3 +29,21 @@ export function SpecSheetLivePreview({product,fitting={},context={}}){
  const scale=Math.min(1,Math.max(1,width)/1123);
  return <div ref={host} className="spec-live-preview"><div style={{height:794*scale,position:'relative',overflow:'hidden'}}><iframe title="Live product spec sheet" srcDoc={html} style={{width:1123,height:794,border:0,display:'block',transform:`scale(${scale})`,transformOrigin:'top left'}}/></div></div>;
 }
+
+export function combinedSpecSheetDocument(entries,context={},fonts){
+ if(!entries.length)return '';
+ const documents=entries.map((e,i)=>specSheetDocument(e.product,{fittingType:e.codes.join(' / ')},{...context,area:e.areas.join(', ')},fonts).replace('<footer class="footer">1 of 1</footer>',`<footer class="footer">${i+1} of ${entries.length}</footer>`));
+ return documents[0].slice(0,documents[0].indexOf('<body>'))+'<body>'+documents.map(d=>d.slice(d.indexOf('<body>')+6,d.lastIndexOf('</body>'))).join('')+'<style>.sheet:last-of-type{break-after:auto}</style></body></html>';
+}
+export async function embedSpecSheetEntries(entries){
+ const cache=new Map();const load=u=>{if(!u)return Promise.resolve('');if(!cache.has(u))cache.set(u,inlineUrl(u));return cache.get(u)};
+ const fonts={regular:await load(regular),bold:await load(bold)};const result=[];
+ for(const entry of entries){const p=structuredClone(entry.product),s=p.specs||{},d=s.specSheet||{};p.imageUrl=await load(p.imageUrl);p.specs={...s,diagramUrl:await load(s.diagramUrl),specSheet:{...d,photometricUrl:await load(d.photometricUrl),symbolsUrl:await load(d.symbolsUrl),controlDiagramUrl:await load(d.controlDiagramUrl)}};result.push({...entry,product:p});}
+ return {entries:result,fonts};
+}
+export function SpecSheetBookPreview({html,pageCount,frameRef}){
+ const host=useRef(null),[width,setWidth]=useState(900);
+ useEffect(()=>{if(!host.current)return;const observer=new ResizeObserver(e=>setWidth(e[0].contentRect.width));observer.observe(host.current);return()=>observer.disconnect()},[]);
+ const scale=Math.min(1,Math.max(1,width)/1123),height=794*pageCount;
+ return <div ref={host} style={{maxHeight:'75vh',overflow:'auto',background:'#fff',border:'1px solid #ddd7ca'}}><div style={{height:height*scale,position:'relative'}}><iframe ref={frameRef} title="Selected project product specification sheets" srcDoc={html} style={{display:'block',width:1123,height,border:0,transform:`scale(${scale})`,transformOrigin:'top left'}}/></div></div>;
+}

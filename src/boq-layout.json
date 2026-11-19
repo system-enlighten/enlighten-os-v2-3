@@ -1,0 +1,29 @@
+{
+  "headers": [
+    "S. No",
+    "Control Type",
+    "Fixture Image",
+    "Fixture Ref. Code",
+    "Typified Make",
+    "Catalogue No.",
+    "Equivalant Make",
+    "MOCK-UP",
+    "UNIT"
+  ],
+  "widths": [
+    255,
+    255,
+    255,
+    255,
+    255,
+    255,
+    255,
+    255,
+    255
+  ],
+  "headerHeight": 82,
+  "rowHeight": 47,
+  "headerFont": 21.0,
+  "bodyFont": 10.0,
+  "headerColor": "#bff81c"
+}
