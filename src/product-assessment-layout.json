@@ -1,0 +1,270 @@
+{
+  "name": "SELECTION_DRFS1254",
+  "widths": [
+    199.38707,
+    210.63658,
+    39.5,
+    184.0,
+    145.0,
+    220.561,
+    145.0,
+    145.0,
+    145.0,
+    145.0,
+    166.82672,
+    98
+  ],
+  "heights": [
+    75.05887,
+    34.0,
+    34.0,
+    34.0,
+    34.0
+  ],
+  "cells": [
+    [
+      {
+        "text": "Fitting Type",
+        "font": "Founders Grotesk",
+        "size": 21.0,
+        "bold": true,
+        "italic": false,
+        "color": "#000000",
+        "background": null,
+        "align": "center"
+      },
+      {
+        "text": "",
+        "font": "Founders Grotesk",
+        "size": 21.0,
+        "bold": true,
+        "italic": false,
+        "color": "#000000",
+        "background": null,
+        "align": "center"
+      },
+      {
+        "text": "",
+        "font": "Founders Grotesk",
+        "size": 21.0,
+        "bold": true,
+        "italic": false,
+        "color": "#000000",
+        "background": null,
+        "align": "center"
+      },
+      {
+        "text": "Photo",
+        "font": "Founders Grotesk",
+        "size": 21.0,
+        "bold": true,
+        "italic": false,
+        "color": "#000000",
+        "background": null,
+        "align": "center"
+      },
+      {
+        "text": "Brand",
+        "font": "Founders Grotesk",
+        "size": 21.0,
+        "bold": true,
+        "italic": false,
+        "color": "#000000",
+        "background": null,
+        "align": "center"
+      },
+      {
+        "text": "Article Number",
+        "font": "Founders Grotesk",
+        "size": 21.0,
+        "bold": true,
+        "italic": false,
+        "color": "#000000",
+        "background": null,
+        "align": "center"
+      },
+      {
+        "text": "Price",
+        "font": "Founders Grotesk",
+        "size": 21.0,
+        "bold": true,
+        "italic": false,
+        "color": "#000000",
+        "background": null,
+        "align": "center"
+      },
+      {
+        "text": "Quantity",
+        "font": "Founders Grotesk",
+        "size": 21.0,
+        "bold": true,
+        "italic": false,
+        "color": "#000000",
+        "background": null,
+        "align": "center"
+      },
+      {
+        "text": "Total",
+        "font": "Founders Grotesk",
+        "size": 21.0,
+        "bold": true,
+        "italic": false,
+        "color": "#000000",
+        "background": null,
+        "align": "center"
+      },
+      {
+        "text": "Remarks",
+        "font": "Founders Grotesk",
+        "size": 21.0,
+        "bold": true,
+        "italic": false,
+        "color": "#000000",
+        "background": null,
+        "align": "center"
+      },
+      {
+        "text": "Product Rating",
+        "font": "Founders Grotesk",
+        "size": 21.0,
+        "bold": true,
+        "italic": false,
+        "color": "#000000",
+        "background": null,
+        "align": "center"
+      },
+      {
+        "text": "",
+        "font": "Founders Grotesk",
+        "size": 21.0,
+        "bold": true,
+        "italic": false,
+        "color": "#000000",
+        "background": null,
+        "align": "center"
+      }
+    ],
+    [
+      {
+        "text": "",
+        "font": "Founders Grotesk",
+        "size": 21.0,
+        "bold": true,
+        "italic": false,
+        "color": "#000000",
+        "background": null,
+        "align": "center"
+      },
+      {
+        "text": "",
+        "font": "Founders Grotesk",
+        "size": 21.0,
+        "bold": true,
+        "italic": false,
+        "color": "#000000",
+        "background": null,
+        "align": "center"
+      },
+      {
+        "text": "",
+        "font": "Founders Grotesk",
+        "size": 21.0,
+        "bold": true,
+        "italic": false,
+        "color": "#000000",
+        "background": null,
+        "align": "center"
+      },
+      {
+        "text": "",
+        "font": "Helvetica Neue",
+        "size": 15.0,
+        "bold": false,
+        "italic": false,
+        "color": "#000000",
+        "background": null,
+        "align": "center"
+      },
+      {
+        "text": "",
+        "font": "Helvetica Neue",
+        "size": 18.0,
+        "bold": false,
+        "italic": false,
+        "color": "#000000",
+        "background": null,
+        "align": "center"
+      },
+      {
+        "text": "",
+        "font": "Helvetica Neue",
+        "size": 18.0,
+        "bold": false,
+        "italic": false,
+        "color": "#00b7b3",
+        "background": null,
+        "align": "center"
+      },
+      {
+        "text": "",
+        "font": "Helvetica Neue",
+        "size": 18.0,
+        "bold": false,
+        "italic": false,
+        "color": "#000000",
+        "background": null,
+        "align": "center"
+      },
+      {
+        "text": "",
+        "font": "Helvetica Neue",
+        "size": 18.0,
+        "bold": false,
+        "italic": false,
+        "color": "#000000",
+        "background": null,
+        "align": "center"
+      },
+      {
+        "text": "",
+        "font": "Helvetica Neue",
+        "size": 18.0,
+        "bold": false,
+        "italic": false,
+        "color": "#000000",
+        "background": null,
+        "align": "center"
+      },
+      {
+        "text": "",
+        "font": "Helvetica Neue",
+        "size": 18.0,
+        "bold": false,
+        "italic": false,
+        "color": "#000000",
+        "background": null,
+        "align": "center"
+      },
+      {
+        "text": "",
+        "font": "Helvetica Neue",
+        "size": 15.0,
+        "bold": true,
+        "italic": false,
+        "color": "#000000",
+        "background": "#909090",
+        "align": "left"
+      },
+      {
+        "text": "",
+        "font": "Helvetica Neue",
+        "size": 18.0,
+        "bold": false,
+        "italic": false,
+        "color": "#000000",
+        "background": "#909090",
+        "align": "center"
+      }
+    ]
+  ]
+}

@@ -1,0 +1,24 @@
+.product-assessment{color:#142238}
+.assessment-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:14px 0}
+.assessment-controls input{margin-left:auto;padding:9px;border:1px solid #d9d3c6;background:white}
+.assessment-scroll{overflow:auto;background:white;padding:16px;border:1px solid #ded8ca;margin-top:14px}
+.product-assessment table{table-layout:fixed;border-collapse:collapse;color:#000;background:white}
+.product-assessment td,.product-assessment th{border:.5pt solid #777;padding:4pt;box-sizing:border-box;vertical-align:middle;white-space:pre-wrap;overflow-wrap:anywhere;line-height:normal}
+.product-assessment td textarea,.product-assessment td input:not([type=checkbox]),.product-assessment td select{font:inherit;color:inherit;text-align:inherit;background:transparent;white-space:pre-wrap;width:100%;border:0;outline-offset:2pt;padding:0;resize:vertical;box-sizing:border-box}
+.product-assessment td textarea{min-height:45pt;field-sizing:content}
+.product-assessment td input[type=checkbox]{width:18pt;height:18pt;accent-color:#326b64;cursor:pointer}
+.product-assessment td select{appearance:none;text-align:center;cursor:pointer}
+.assessment-selected td:nth-child(n){box-shadow:inset 0 0 0 .25pt #8ba9a1}
+.assessment-photo{background:none;border:0;width:100%;height:120pt;font:inherit;cursor:pointer;color:#555;padding:0;display:grid;place-items:center}
+.assessment-photo img{max-height:120pt;max-width:100%;object-fit:contain}
+.assessment-fixture{width:100%;max-height:160pt;object-fit:contain}
+.assessment-unit{display:block;font-size:12pt;color:#555}
+.assessment-type-actions{justify-content:center;font-family:TechnicalHelvetica;font-size:14pt}
+.assessment-type-actions button{font:inherit;padding:6pt 10pt;background:white;border:.5pt solid #999}
+.product-assessment .assessment-divider td{height:20pt;padding:0;background:#000;border-color:#000}
+.assessment-total{display:flex;justify-content:space-between;gap:50px;max-width:360px;margin:24px 0 0 auto;border:1px solid #999;padding:14px;background:white}
+.assessment-error{color:#a23424}
+.assessment-modal{position:fixed;inset:0;background:#0008;z-index:2100;display:grid;place-items:center}
+.assessment-modal>div{padding:24px;background:#f5f1e8;width:min(600px,92vw);max-height:90vh;overflow:auto}
+.assessment-modal label{display:grid;gap:8px;margin:16px 0}.assessment-modal input{padding:10px}.assessment-modal button{margin-right:12px}
+@media print{.assessment-controls,.assessment-modal{display:none!important}.assessment-scroll{overflow:visible;padding:0;border:0}.product-assessment table{zoom:1!important}.product-assessment thead{display:table-header-group}.product-assessment tr{break-inside:avoid}.product-assessment th,.product-assessment td{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
