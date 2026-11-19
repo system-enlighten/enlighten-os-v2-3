@@ -190,15 +190,11 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
    <p>{[item.site?'Site visit':'Meeting',[scheduledTime(item.time),scheduledTime(item.endTime)].filter(Boolean).join(' – '),item.projectName!==item.title&&item.title&&item.projectName].filter(Boolean).join(' · ')}</p></div>
   </div>)}
  </section>}
- {activeDay===today&&openMine.some(r=>!deadlineDate(r)&&!isInternal(r))&&<section aria-label="Tasks without a due date"><h3>Open tasks · No due date</h3>{openMine.filter(r=>!deadlineDate(r)&&!isInternal(r)).map(taskRow)}</section>}
  {overdueDeadlines.length>0&&<section className="studio-home-deadline-group" aria-label="Overdue tasks"><h3>Overdue · {overdueDeadlines.length}</h3>
   {overdueDeadlines.map(taskRow)}
  </section>}
- {tomorrowDeadlines.length>0&&<section className="studio-home-deadline-group" aria-label="Due tomorrow"><h3>Due tomorrow · {tomorrowDeadlines.length}</h3>{tomorrowDeadlines.map(taskRow)}</section>}
  </section>
- {adminWork.length>0&&<section className="studio-home-task-group studio-home-admin" aria-label="Admin work">
- <div className="studio-home-list-scroll studio-home-admin-scroll" role="region" aria-label="Admin tasks" tabIndex={0}>{adminWork.map(taskRow)}</div>
- </section>}
+
  </section>
  <section className="studio-home-card" aria-label="Pending tasks">
  <h2>Pending tasks{ready?' · '+pending.reduce((count,project)=>count+project.tasks.length,0):''}</h2>
@@ -215,6 +211,9 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
    </section>)}
   </div>}
  </section></div>
+ {adminWork.length>0&&<section className="studio-home-task-group studio-home-admin" aria-label="Admin work">
+ <div className="studio-home-list-scroll studio-home-admin-scroll" role="region" aria-label="Admin tasks" tabIndex={0}>{adminWork.map(taskRow)}</div>
+ </section>}
  <div className="studio-home-band"><div><h2>Work overview</h2><p>{ready?(admin?'Studio tasks':'My tasks'):'Loading work…'}</p></div><div className="studio-home-period" role="group" aria-label="Chart period">{[['week','Weekly'],['month','Monthly']].map(([id,label])=><button type="button" aria-pressed={period===id} key={id} onClick={()=>setPeriod(id)}>{label}</button>)}</div></div>
  <WihMetrics tasks={work} personalTasks={work.filter(own)} projectIdFor={row=>isInternal(row)?null:taskProjectId(row)} now={clock} period={period} loading={!ready}/>
  <div className="studio-home-band"><div><h2>Today’s work</h2></div></div><div className="studio-home-grid"><section className="studio-home-card"><h2>In progress</h2>{work.filter(r=>running(r)&&!done(r)).length?<ul>{work.filter(r=>running(r)&&!done(r)).map(r=><li key={r.designTaskId}>{title(r)} · {r.assigneeName||user?.name}</li>)}</ul>:<p>No work in progress.</p>}<button type="button" style={buttonStyle} onClick={()=>navigate('timesheet')}>Open Tasks</button></section>
