@@ -2736,7 +2736,8 @@ function requestWithActivity(action,payload,method,timeoutMs,activityPage){
 }
 
 function apiRequest(action,payload={},method='POST',timeoutMs=0,activityPage){
-  const cacheable=method==='GET'&&(PAGE_READS.has(action)||action==='getWIH'&&payload.fastRead===true&&!payload.includeDiagnostics);
+  const isPostRead = method==='POST' && POST_READS.has(action) && (!payload.action || ['read','list','feed','review','options'].includes(payload.action));
+  const cacheable=(method==='GET'&&(PAGE_READS.has(action)||action==='getWIH'&&payload.fastRead===true&&!payload.includeDiagnostics)) || isPostRead;
   if(!cacheable){
     const writes=method==='POST'&&!POST_READS.has(action)&&!['read','list','feed','review','options'].includes(payload.action);
     if(writes)PAGE_READ_CACHE.clear();
@@ -2823,6 +2824,7 @@ const projectApi = {
   trashProjectDrawing:p=>apiRequest('trashProjectDrawing',p),
   organizeProjectReceived:projectId=>apiRequest('organizeProjectReceived',{projectId}),
   getCurrentUser: () => apiRequest("getCurrentUser", {}, "GET"),
+  bootstrap: (payload = {}) => apiRequest("bootstrap", payload, "GET"),
   listAll: () => apiRequest("listProjects", { activeOnly: false }, "GET"),
   create: payload => apiRequest("createProject", payload),
   update: payload => apiRequest("updateProject", payload),
@@ -3091,7 +3093,34 @@ function useStudioState() {
 
         if(user.appAccess==='Contractor'){clearStudioCaches();localState={projects:[],people:[],tasks:[],intakes:[],templates:[],meetings:[],pendingReceivedUploads:[],currentUser:user};setState(localState);return;}
         if(user.appAccess.toLowerCase()!=="admin"){
-          const [remote,contacts,work,zones,people,workspace,templates]=await Promise.all([projectApi.listAll(),projectApi.listContacts(),projectApi.listLineOfWork(),projectApi.listFloorZones(),projectApi.listProjectPeople(),projectApi.getProjectWorkspace(),projectApi.listDrawingTaskMaster()]);
+          let remote,contacts,work,zones,people,workspace,templates;
+          try {
+            const [boot, ws] = await Promise.all([
+              projectApi.bootstrap({ activeOnly: false, includeMaster: true }),
+              projectApi.getProjectWorkspace()
+            ]);
+            if (boot && Array.isArray(boot.projects)) {
+              remote = boot.projects;
+              contacts = boot.projectContacts || [];
+              work = boot.lineOfWork || [];
+              zones = boot.floorZones || [];
+              people = boot.people || [];
+              templates = boot.drawingTaskMaster || [];
+              workspace = ws || {};
+            } else {
+              throw new Error("Bootstrap incomplete");
+            }
+          } catch {
+            [remote,contacts,work,zones,people,workspace,templates]=await Promise.all([
+              projectApi.listAll(),
+              projectApi.listContacts(),
+              projectApi.listLineOfWork(),
+              projectApi.listFloorZones(),
+              projectApi.listProjectPeople(),
+              projectApi.getProjectWorkspace(),
+              projectApi.listDrawingTaskMaster()
+            ]);
+          }
           const projects=(remote||[]).map(r=>{
             const base=backendProjectToFrontend(r,{}),id=String(r.projectId);
             const profile=contactRowsToObject((contacts||[]).filter(c=>String(c.projectId)===id));
@@ -3102,16 +3131,33 @@ function useStudioState() {
           localState={...localState,projects,people:people.map(m=>m.name),teamMaster:people.length?people:[{userId:user.userId,name:user.name,active:true}],templates,intakes:workspaceIntakes(workspace),tasks:[],ratings:{},meetings:workspace.meetings||[],siteVisits:[],scopeSheet:[],currentUser:user};
           setState(localState);return;
         }
-        const [remote, remoteContacts, remoteLineOfWork, remoteFloorZones, remoteTeam, remoteDepartments, remoteDesignations, remoteDrawingTaskMaster] = await Promise.all([
-          projectApi.listAll(),
-          projectApi.listContacts().catch(() => []),
-          projectApi.listLineOfWork().catch(() => []),
-          projectApi.listFloorZones().catch(() => []),
-          projectApi.listTeam().catch(() => []),
-          projectApi.listDepartments().catch(() => []),
-          projectApi.listDesignations().catch(() => []),
-          projectApi.listDrawingTaskMaster().catch(() => [])
-        ]);
+        let remote, remoteContacts, remoteLineOfWork, remoteFloorZones, remoteTeam, remoteDepartments, remoteDesignations, remoteDrawingTaskMaster;
+        try {
+          const boot = await projectApi.bootstrap({ activeOnly: false, includeMaster: true });
+          if (boot && Array.isArray(boot.projects)) {
+            remote = boot.projects;
+            remoteContacts = boot.projectContacts || [];
+            remoteLineOfWork = boot.lineOfWork || [];
+            remoteFloorZones = boot.floorZones || [];
+            remoteTeam = boot.people || [];
+            remoteDepartments = boot.departments || [];
+            remoteDesignations = boot.designations || [];
+            remoteDrawingTaskMaster = boot.drawingTaskMaster || [];
+          } else {
+            throw new Error("Bootstrap incomplete");
+          }
+        } catch {
+          [remote, remoteContacts, remoteLineOfWork, remoteFloorZones, remoteTeam, remoteDepartments, remoteDesignations, remoteDrawingTaskMaster] = await Promise.all([
+            projectApi.listAll(),
+            projectApi.listContacts().catch(() => []),
+            projectApi.listLineOfWork().catch(() => []),
+            projectApi.listFloorZones().catch(() => []),
+            projectApi.listTeam().catch(() => []),
+            projectApi.listDepartments().catch(() => []),
+            projectApi.listDesignations().catch(() => []),
+            projectApi.listDrawingTaskMaster().catch(() => [])
+          ]);
+        }
         const contactsByProject = {};
         (remoteContacts || []).forEach(r => {
           if (!contactsByProject[r.projectId]) contactsByProject[r.projectId] = [];

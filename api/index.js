@@ -3,6 +3,10 @@ import {runCadAction} from '../server/cad.js';
 import {createHmac,timingSafeEqual} from 'node:crypto';
 import {OAuth2Client} from 'google-auth-library';
 const google = new OAuth2Client();
+const SERVER_CACHE = new Map();
+const SERVER_CACHE_TTL_MS = 45 * 1000;
+const CACHEABLE_SERVER_READS = new Set(['listDepartments','listDesignations','listDrawingTaskMaster','getWorkflowCapabilities']);
+const CACHE_CLEARING_MUTATIONS = new Set(['saveDepartment','deleteDepartment','saveDesignation','deleteDesignation','saveDrawingTaskMaster','saveMasterItem']);
 const READ_ACTIONS = new Set(['getProjectCloseout','getWorkflowWorkspace','getWorkflowDelegation','listEmailDrawingIntakes','getProjectOnboarding','getTechnicalWorkbook','listTechnicalTables','getTechnicalTable','listTechnicalFittings','cadStatus','cadViewerToken','getIssueDrawingContext','getDrawingPortal','getPortalDrawingChunk','getDirectoryDrawingAccess','listRecentDrawingRegister','getDriveLibraryConfig','listProjectDrive','listMomTasks','listExecutionVisits','authSession','getProjectWorkspace','listDrawingRegister','getProjectWorkflowTasks','listProjectRoles','listProjectPeople','listSitePunchIns','health','getCurrentUser','bootstrap','listProjects','listProjectContacts','listLineOfWork','getWorkflowCapabilities','listFloorZones','listTeamMembers','listDepartments','listDesignations','listDrawingTaskMaster','getDesignDashboard','getWIH']);
 export async function verifyGoogleIdentity(token, audience) {
   const ticket=await google.verifyIdToken({idToken:token,audience});
@@ -106,7 +110,16 @@ export default async function handler(req,res) {
     if(method==='POST'){try{body=typeof req.body==='string'?JSON.parse(req.body):req.body||{};}catch(_){return send(400,{ok:false,error:{message:'Invalid JSON'}});}}
     const query=req.query||{};const action=method==='GET'?query.action:body.action;
     if(typeof action!=='string'||!action)return send(400,{ok:false,error:{message:'Choose one action'}});
-    if(action==='authConfig'&&method==='GET')return send(200,{ok:true,data:{clientId:process.env.GOOGLE_CLIENT_ID||''}});
+    if(action==='authConfig'&&method==='GET'){res.setHeader('Cache-Control','public, max-age=3600, stale-while-revalidate=86400');return send(200,{ok:true,data:{clientId:process.env.GOOGLE_CLIENT_ID||''}});}
+    if(method==='GET'&&CACHEABLE_SERVER_READS.has(action)){
+      const cacheKey=action+':'+JSON.stringify(query);
+      const hit=SERVER_CACHE.get(cacheKey);
+      if(hit&&Date.now()-hit.time<SERVER_CACHE_TTL_MS){
+        res.setHeader('Cache-Control','public, max-age=30, stale-while-revalidate=60');
+        return send(200,hit.result);
+      }
+    }
+    if(method==='POST'&&CACHE_CLEARING_MUTATIONS.has(action)){SERVER_CACHE.clear();}
     const secret=process.env.ENLIGHTEN_PROXY_SECRET, audience=process.env.GOOGLE_CLIENT_ID,url=process.env.APPS_SCRIPT_URL;
     if(!secret||secret.length<32||!audience||!url)return send(503,{ok:false,error:{message:'Login configuration is incomplete. Configure the Vercel environment variables.'}});
     if(method==='GET'&&!READ_ACTIONS.has(action))return send(405,{ok:false,error:{message:'This action requires POST'}});
@@ -251,6 +264,10 @@ export default async function handler(req,res) {
       const ticket=createUploadTicket({sub:identity.sub,host:requestHost(req),metadata,sessionUrl:result.data?.sessionUrl},secret);
       if(!verifyUploadTicket(ticket,secret,identity,requestHost(req)))return send(502,{ok:false,error:{message:'Google Drive returned an invalid upload session.'}});
       result.data={uploadTicket:ticket,sessionUrl:result.data.sessionUrl,chunkBytes:UPLOAD_CHUNK_BYTES};
+    }
+    if(response.ok&&result.ok&&method==='GET'&&CACHEABLE_SERVER_READS.has(action)){
+      SERVER_CACHE.set(action+':'+JSON.stringify(query),{time:Date.now(),result});
+      res.setHeader('Cache-Control','public, max-age=30, stale-while-revalidate=60');
     }
     return send(response.ok?200:502,result);
   }catch(_){return send(502,{ok:false,error:{message:'The backend request failed. Check the deployment configuration.'}});}
