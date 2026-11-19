@@ -1,4 +1,4 @@
-import React,{useMemo,useState} from 'react';
+import React,{useMemo,useState,useEffect,useRef} from 'react';
 import regular from './invoice-assets/HelveticaNeue-Light.woff2?url';
 import bold from './invoice-assets/HelveticaNeue-Bold.woff2?url';
 import {defaultHighlights,escapeSpecHtml as esc,specSheetRows} from './spec-sheet.mjs';
@@ -20,4 +20,12 @@ export default function ProductSpecSheet({product,fitting,onClose}){
  const html=useMemo(()=>specSheetDocument(product,fitting,context),[product,fitting,context]);
  const download=async()=>{setBusy(true);setError('');try{const p=structuredClone(product),s=p.specs||={},d=s.specSheet||{};const urls=[p.imageUrl,s.diagramUrl,d.photometricUrl,d.symbolsUrl,d.controlDiagramUrl,regular,bold];const embedded=await Promise.all(urls.map(u=>u?inlineUrl(u):''));p.imageUrl=embedded[0];p.specs={...s,diagramUrl:embedded[1],specSheet:{...d,photometricUrl:embedded[2],symbolsUrl:embedded[3],controlDiagramUrl:embedded[4]}};const content=specSheetDocument(p,fitting,context,{regular:embedded[5],bold:embedded[6]});const url=URL.createObjectURL(new Blob([content],{type:'text/html;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=(fitting.fittingType||product.model||'Product').replace(/[^a-z0-9_.-]/gi,'_')+'_Spec_Sheet.html';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){setError(e.message||'Could not embed an image. Use a directly accessible image URL.');}finally{setBusy(false);}};
  return <section><div className="product-actions"><button type="button" onClick={onClose}>Back to product</button><button type="button" disabled={busy} onClick={download}>{busy?'Preparing HTML…':'Download spec sheet HTML'}</button><button type="button" onClick={()=>document.getElementById('product-spec-preview')?.contentWindow?.print()}>Print / Save PDF</button></div><p>Project details apply to this export. Missing manufacturer data stays blank. Print on A4 landscape at 100%, with browser headers and footers off.</p><div className="product-fields">{['project','location','area'].map(k=><label key={k}>{k[0].toUpperCase()+k.slice(1)}<input value={context[k]} onChange={e=>setContext(c=>({...c,[k]:e.target.value}))}/></label>)}</div>{error&&<p role="alert">{error}</p>}<iframe id="product-spec-preview" title="Product specification sheet" srcDoc={html} style={{width:'100%',height:830,border:'1px solid #ddd',background:'#fff',marginTop:16}}/></section>;
+}
+
+export function SpecSheetLivePreview({product,fitting={},context={}}){
+ const host=useRef(null),[width,setWidth]=useState(560);
+ useEffect(()=>{const element=host.current;if(!element)return;const observer=new ResizeObserver(entries=>setWidth(entries[0].contentRect.width));observer.observe(element);return()=>observer.disconnect();},[]);
+ const html=useMemo(()=>specSheetDocument(product,fitting,context),[product,fitting,context]);
+ const scale=Math.min(1,Math.max(1,width)/1123);
+ return <div ref={host} className="spec-live-preview"><div style={{height:794*scale,position:'relative',overflow:'hidden'}}><iframe title="Live product spec sheet" srcDoc={html} style={{width:1123,height:794,border:0,display:'block',transform:`scale(${scale})`,transformOrigin:'top left'}}/></div></div>;
 }

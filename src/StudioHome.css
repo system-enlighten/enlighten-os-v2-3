@@ -178,7 +178,20 @@
  margin:0 0 6px;
 }
 /* Both task columns remain bounded regardless of task count. */
-.studio-home-task-board>.studio-home-card{height:38rem;max-height:38rem;box-sizing:border-box;overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable;overscroll-behavior:contain;min-height:0}
-.studio-home-task-board>.studio-home-card>.studio-home-task-board-heading{position:sticky;top:-16px;background:#faf8f2;z-index:2;padding-block:8px}
+.studio-home-task-board>.studio-home-card{height:30rem;max-height:30rem;box-sizing:border-box;overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable;overscroll-behavior:contain;min-height:0}
+.studio-home-task-board>.studio-home-card>.studio-home-task-board-heading{position:sticky;top:-12px;background:#faf8f2;z-index:2;padding-block:4px}
 .studio-home-task-board .studio-home-pending-scroll{max-height:none;overflow:visible;scrollbar-gutter:auto}
 @media(max-width:480px){.studio-home-task-board>.studio-home-card>.studio-home-task-board-heading{top:-10px}}
+
+/* Compact Home task panels; each column keeps its own scrollbar. */
+.studio-home-task-board>.studio-home-card{padding:12px}
+.studio-home-task-board-heading h2{margin:6px 0}
+.studio-home-task-board .studio-week-calendar{margin:6px 0 8px}
+.studio-home-task-board .studio-week-day{padding-block:5px}
+.studio-home-task-board .studio-home-task-group{margin-top:8px}
+.studio-home .studio-home-task-group .studio-home-deadline-group{margin-top:10px;padding-top:6px}
+.studio-home-task-board .studio-home-task-row{padding:5px 8px;margin-top:4px}
+.studio-home-task-board .studio-home-pending-project + .studio-home-pending-project{margin-top:8px}
+.studio-home-task-board .studio-home-pending-project h3{padding:5px 8px}
+.studio-home-task-board .studio-home-pending-task>summary{padding:5px 8px;margin-top:4px}
+@media(max-width:480px){.studio-home-task-board>.studio-home-card{padding:10px}}
