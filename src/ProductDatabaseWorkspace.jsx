@@ -1,0 +1,8 @@
+import React,{useEffect,useState} from 'react';
+import NomenclaturePage from './NomenclaturePage.jsx';
+export default function ProductDatabaseWorkspace({children,initialFittingId}){
+ const [tab,setTab]=useState('products'),[opened,setOpened]=useState(false);
+ useEffect(()=>{if(initialFittingId)setTab('products')},[initialFittingId]);
+ const select=id=>{setTab(id);if(id==='nomenclature')setOpened(true)};
+ return <section><nav role="tablist" aria-label="Product Database views" style={{display:'flex',gap:4,borderBottom:'1px solid #d9d2c5',marginBottom:24}}>{[['products','Products'],['nomenclature','Nomenclature']].map(([id,label])=><button key={id} id={'product-view-'+id} type="button" role="tab" aria-selected={tab===id} aria-controls={'product-panel-'+id} onClick={()=>select(id)} onKeyDown={e=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();const next=e.key==='Home'?'products':e.key==='End'?'nomenclature':tab==='products'?'nomenclature':'products';select(next);document.getElementById('product-view-'+next)?.focus()}}} tabIndex={tab===id?0:-1} style={{padding:'12px 20px',font:'inherit',fontSize:14,border:0,borderBottom:'3px solid '+(tab===id?'#75c7d1':'transparent'),background:tab===id?'#0c1d33':'transparent',color:tab===id?'white':'#405262',cursor:'pointer'}}>{label}</button>)}</nav><div role="tabpanel" id="product-panel-products" aria-labelledby="product-view-products" hidden={tab!=='products'}>{children}</div><div role="tabpanel" id="product-panel-nomenclature" aria-labelledby="product-view-nomenclature" hidden={tab!=='nomenclature'}>{opened&&<NomenclaturePage/>}</div></section>
+}

@@ -54,3 +54,9 @@ export function serializeTechnicalOutput(data){
  return bom+[data.headers,...data.rows].map(row=>row.map(value=>encode(String(value??''))).join('\t')).join(eol)+(ending?eol:'');
 }
 export function materializeCmfOverrides(data,groups){let result=data;for(const group of groups){if(Object.hasOwn(group.override||{},'cmf'))result=applyOutputEdits(result,group.sourceIndices.map(rowIndex=>({rowIndex,field:'cmf',value:group.override.cmf})),{groupId:group.id});}return result;}
+export function outputCellChanges(data){
+ let original;try{if(data.sourceText)original=parseOutputText(data.sourceText,true)}catch{return new Map()}
+ const changes=new Map();if(!original)return changes;
+ data.rows.forEach((row,r)=>row.forEach((value,c)=>{const old=original.rows[r]?.[c]??'';if(String(value)!==String(old))changes.set(`${r}|${c}`,{before:old,after:value});}));return changes;
+}
+export function downloadTechnicalOutput(data,projectId){const output=serializeTechnicalOutput(data),blob=new Blob([output],{type:'text/plain;charset=utf-8'}),url=URL.createObjectURL(blob),anchor=document.createElement('a');anchor.href=url;anchor.download=(data.sourceName||('Output_'+projectId+'.txt')).replace(/\.txt$/i,'')+'_updated.txt';document.body.appendChild(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);}
