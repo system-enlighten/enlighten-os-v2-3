@@ -5,6 +5,30 @@
 import { Pool } from 'pg';
 import { verifyAppSession, verifyGoogleIdentity, signRequest, fetchAppsScript } from './index.js';
 
+// Use explicit connection fields so SSL query parameters in the URL cannot
+// silently override our verified TLS configuration in node-postgres.
+function databasePool(databaseUrl) {
+  const uri = new URL(databaseUrl.trim());
+  if (!['postgres:', 'postgresql:'].includes(uri.protocol) || !uri.hostname || !uri.pathname.slice(1)) {
+    throw Object.assign(new Error('Invalid database connection configuration'), { code: 'INVALID_DATABASE_URL' });
+  }
+  const ca = String(process.env.SUPABASE_DB_CA || '').replace(/\\n/g, '\n').trim();
+  if (ca && (!ca.includes('-----BEGIN CERTIFICATE-----') || !ca.includes('-----END CERTIFICATE-----'))) {
+    throw Object.assign(new Error('Invalid database CA certificate'), { code: 'INVALID_DATABASE_CA' });
+  }
+  return new Pool({
+    host: uri.hostname,
+    port: uri.port ? Number(uri.port) : 5432,
+    database: decodeURIComponent(uri.pathname.slice(1)),
+    user: decodeURIComponent(uri.username),
+    password: decodeURIComponent(uri.password),
+    ssl: { rejectUnauthorized: true, ...(ca ? { ca } : {}) },
+    max: 1,
+    connectionTimeoutMillis: 10000,
+    idleTimeoutMillis: 1000,
+  });
+}
+
 const cookieName = 'enlighten_session';
 function sessionCookie(req) {
   return String(req.headers.cookie || '').split(';').map(x => x.trim())
@@ -25,16 +49,7 @@ export default async function handler(req, res) {
     if (!db) return respond(res, 503, 'Preview database configuration is missing');
     let diagnosticPool;
     try {
-      const parsed = new URL(db.trim());
-      if (!['postgres:', 'postgresql:'].includes(parsed.protocol))
-        return respond(res, 503, 'Invalid database connection configuration');
-      diagnosticPool = new Pool({
-        connectionString: db.trim(),
-        ssl: { rejectUnauthorized: true },
-        max: 1,
-        connectionTimeoutMillis: 10000,
-        idleTimeoutMillis: 1000,
-      });
+      diagnosticPool = databasePool(db);
       await diagnosticPool.query('SELECT 1 FROM enlighten_import.projects LIMIT 1');
       return res.status(200).json({ ok: true, source: 'supabase-postgresql', connected: true, schemaAccessible: true });
     } catch (error) {
@@ -81,16 +96,7 @@ export default async function handler(req, res) {
 
   let pool;
   try {
-    const uri = new URL(dbUrl.trim());
-    if (!['postgres:', 'postgresql:'].includes(uri.protocol))
-      return respond(res, 503, 'Invalid database connection configuration');
-    pool = new Pool({
-      connectionString: dbUrl.trim(),
-      ssl: { rejectUnauthorized: true },
-      max: 1,
-      connectionTimeoutMillis: 10000,
-      idleTimeoutMillis: 1000,
-    });
+    pool = databasePool(dbUrl);
     const { rows } = await pool.query({
       text: `SELECT cells FROM enlighten_import.projects
              WHERE cells->>'projectId' = $1 LIMIT 2`,
