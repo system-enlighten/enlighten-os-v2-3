@@ -1,40 +1,3 @@
-import {useTimelineCalendar,CalendarPersonalControls,TimelineCalendarDay} from './TimelineCalendar.jsx';
-import ProjectRecords from './ProjectRecords.jsx';
-import TechnicalOutput from './TechnicalOutput.jsx';
-import TechnicalDocumentation from './TechnicalDocumentation.jsx';
-import MomPointsEditor,{SavedMomPoints,MomPhotoLinks} from './MomPoints.jsx';
-import {newMomPoint,splitMomPoints,momPointNotes,prepareMomPoints} from './mom-points.mjs';
-import {House as AccountsHomeIcon} from 'lucide-react';
-import WorkspaceActivity, {StudioLoadingDetail, beginActivity, resetWorkspaceActivity, setActivityPage, trackActivity} from "./WorkspaceActivity.jsx";
-import StudioHeading from './StudioHeading.jsx';
-import { projectCardFloor } from './projectCardFloor.mjs';
-import {scheduledTime,editableTime} from './HomeAgenda.jsx';
-import "./StudioTheme.css";
-import './DashboardOutputUpload.css';
-import {departments as workspaceDepartments,departmentFor,DepartmentPicker,DepartmentWorkspace,DepartmentHeading} from './Departments.jsx';
-import PerformanceAttendance from './PerformanceAttendance.jsx';
-import InternalAreas from './InternalAreas.jsx';
-import TaskDiscussion,{DiscussionDialog} from './TaskDiscussion.jsx';
-import {Pin as WihPin, Flag as WihFlag, MessageSquare as WihComment} from 'lucide-react';
-import ExecutiveAssistant from './ExecutiveAssistant.jsx';
-import StudioHome from './StudioHome.jsx';
-import {useActiveTime, ActiveTimeReport} from './ActiveTime.jsx';
-import DashboardReceivedUpload, {DashboardUploadProgress} from './DashboardReceivedUpload.jsx';
-import {dashboardReceivedKey} from './dashboard-received-upload.js';
-import ZoneColourReview from './ZoneColourReview.jsx';
-import {appendPlanDraft} from './zone-plan-draft.js';
-import FeedbackView from './FeedbackView.jsx';
-import ProjectDiaryTimeline from './ProjectDiaryTimeline.jsx';
-import './WihTheme.css';
-import StudioJournalView from './StudioJournalView.jsx';
-import SiteExecutionView from './SiteExecutionView.jsx';
-import {loadApplications,applicationMatches} from './application-library.js';
-import ApplicationDatabase from './ApplicationDatabase.jsx';
-import ProductBrandPanel from './ProductBrandPanel.jsx';
-import technicalIconMap from './technical-icon-map.json';
-import './TechnicalTable.css';
-import {TECH_COLUMNS,parseCadOutput,buildTechnicalTable} from './technical-engine.js';
-import './WorkflowOverview.css';
 /*
 enLIGHTen OS v2.7.3 — Google Sheets Line of Work
 Changes discussed:
@@ -649,7 +612,7 @@ const PROJECT_SCOPE_SHEET_ROWS = [
   }
 ];
 
-const PROJECT_SCOPE_BOOLEAN_FIELDS = ['Basement', 'Stilt Floor', 'GF', '1F', '2F', '3F', 'Terrace', 'Facade', 'Landscape', 'Bath Elevation', 'Wardrobe', 'Kitchen', 'Art Curation', 'Onboarding'];
+const PROJECT_SCOPE_BOOLEAN_FIELDS = ['Basement', 'Stilt Floor', 'GF', '1F', '2F', '3F', 'Terrace', 'Facade', 'Wall Elevation', 'Landscape', 'Bath Elevation', 'Wardrobe', 'Kitchen', 'Onboarding'];
 
 
 /*
@@ -657,19 +620,17 @@ PROJECT SCOPE — EXACT SOURCE STRUCTURE
 Source workbook: Scope of work.xlsx
 Columns:
 S. No | Current Project | Client | Architect | Basement | Stilt Floor |
-GF | 1F | 2F | 3F | Terrace | Facade | Landscape |
-Bath Elevation | Wardrobe | Kitchen | Art Curation | Onboarding
+GF | 1F | 2F | 3F | Terrace | Facade | Wall Elevation | Landscape |
+Bath Elevation | Wardrobe | Kitchen | Onboarding
 
 Boolean scope fields must be displayed as real interactive checkboxes.
 The stored data remains boolean true/false; the UI must never show the
 raw strings "true" or "false" for these fields.
 */
 
-import './LandingPage.css';
-import QRCode from 'qrcode';
-import React, { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Upload, ClipboardCheck, LayoutGrid, Users, Clock, Plus, X, CheckCircle2, Circle, Timer, FileUp, ChevronRight, Settings2, AlertTriangle, Loader2, Building2, CalendarDays, MapPin, LogIn, LogOut, Navigation, FileText, HardHat, ChevronDown, FolderOpen
+  Upload, ClipboardCheck, LayoutGrid, Users, Clock, Plus, X, CheckCircle2, Circle, Timer, FileUp, ChevronRight, Settings2, AlertTriangle, Loader2, Building2, CalendarDays, MapPin, LogIn, LogOut, Navigation, FileText, HardHat, ChevronDown
 } from "lucide-react";
 
 /* ---------------------------------------------------------------
@@ -683,9 +644,8 @@ const T = {
   navy2: "#122A4D",
   blue: "#1D4E89",
   cyan: "#8FD6E8",
-  paper: "#F4F1E8",
-  surface: "#FAF8F2",
-  paperDim: "#EBE6DA",
+  paper: "#F6F3EA",
+  paperDim: "#EDE8DA",
   ink: "#16202C",
   inkDim: "#5B6472",
   amber: "#C97A1F",
@@ -694,7 +654,7 @@ const T = {
   greenBg: "#E4F0E9",
   redline: "#B34328",
   redlineBg: "#F8E6DF",
-  line: "#D8D0C2",
+  line: "#D8D0BC",
 };
 
 
@@ -2354,8 +2314,6 @@ const ROLE_CATEGORIES = [
   { category: "Design", roles: ["Architect", "Principal Lighting Designer", "Lighting Designer", "Lighting Engineer", "Process Coordinator"] },
   { category: "Construction", roles: ["Site Supervisor", "Electrical Contractor", "POP Contractor", "Stone Contractor", "Furniture Contractor", "Lighting Supplier", "Automation"] },
 ];
-// Preserve the saved Owner role key so existing Sheet rows continue to match.
-const contactRoleLabel = role => role === "Owner" ? "Client" : role;
 const ROLES = ROLE_CATEGORIES.flatMap((c) => c.roles);
 const TEAM_DEPARTMENTS = ["Design", "Execution", "Project Management", "Accounts", "Admin", "Management"];
 const TEAM_DESIGNATIONS = [
@@ -2385,202 +2343,19 @@ function buildDirectory(projects, ratings) {
   (Array.isArray(projects) ? projects : []).filter(Boolean).forEach((p) => {
     const contacts = p.contacts || {};
     Object.entries(contacts).forEach(([role, c]) => {
-      if (!c || !(String(c.name ?? "").trim()||String(c.company ?? "").trim())) return;
-      const key = contactKey(c.name||c.company, c.mobile);
+      if (!c || !String(c.name ?? "").trim()) return;
+      const key = contactKey(c.name, c.mobile);
       if (!byKey.has(key)) {
-        byKey.set(key, { key, name: String(c.name ?? "").trim(), email: String(c.email ?? ""), mobile: String(c.mobile ?? ""), company: String(c.company ?? ""), roles: new Set(), projects: [], rating:0 });
+        byKey.set(key, { key, name: String(c.name ?? "").trim(), email: String(c.email ?? ""), mobile: String(c.mobile ?? ""), company: String(c.company ?? ""), roles: new Set(), projects: [] });
       }
       const entry = byKey.get(key);
       entry.roles.add(role);
-      entry.rating=Math.max(entry.rating,Math.min(5,Math.max(0,Number(c.rating)||0)));
       if (!entry.projects.find((pr) => pr.id === p.id)) entry.projects.push({ id: p.id, name: p.name, no: p.no, status: p.status });
     });
   });
   return Array.from(byKey.values())
-    .map((e) => ({ ...e, roles: Array.from(e.roles), rating: e.rating || (ratings || {})[e.key]?.rating || 0, note: (ratings || {})[e.key]?.note || "" }))
+    .map((e) => ({ ...e, roles: Array.from(e.roles), rating: (ratings || {})[e.key]?.rating || 0, note: (ratings || {})[e.key]?.note || "" }))
     .sort((a, b) => b.projects.length - a.projects.length || a.name.localeCompare(b.name));
-}
-
-function directoryCorrections(projects,keys,values){
-  const selected=new Set(keys);
-  return projects.map(p=>{
-    let changed=false;const contacts={...p.contacts};
-    Object.entries(contacts).forEach(([role,c])=>{
-      if(c&&selected.has(contactKey(c.name||c.company,c.mobile))){contacts[role]={...c,...values};changed=true;}
-    });
-    if(!changed)return p;
-    return {...p,contacts,
-      ...(contacts.Owner?{client:contacts.Owner.name||""}:{}),
-      ...(contacts.Architect?{architect:contacts.Architect.name||""}:{})};
-  });
-}
-
-function directoryRoleAssignments(projects,keys){
-  const selected=new Set(keys);
-  return Object.fromEntries(projects.map(p=>[p.id,Object.entries(p.contacts||{}).filter(([,c])=>c&&selected.has(contactKey(c.name||c.company,c.mobile))).map(([role])=>role)]));
-}
-
-function directoryMergeSelection(editor,entry,checked,projects){
-  const keys=checked?[...new Set([...editor.keys,entry.key])]:editor.keys.filter(k=>k!==entry.key);
-  const incoming=directoryRoleAssignments(projects,[entry.key]),remaining=directoryRoleAssignments(projects,keys);
-  const assignments={...editor.assignments};
-  for(const p of projects){
-    assignments[p.id]=checked?[...new Set([...(assignments[p.id]||[]),...incoming[p.id]])]:(assignments[p.id]||[]).filter(r=>!incoming[p.id].includes(r)||remaining[p.id].includes(r));
-  }
-  return {...editor,keys,assignments};
-}
-
-// Each project has its own explicit role selection. Other people's roles stay intact.
-function directoryProjectChanges(projects,keys,values,projectIds,addRole,assignments){
-  const selected=new Set(keys),linked=new Set(projectIds||[]);
-  return projects.map(p=>{
-    const contacts={...p.contacts};let changed=false;
-    const existing=Object.entries(contacts).filter(([,c])=>c&&selected.has(contactKey(c.name||c.company,c.mobile))).map(([r])=>r);
-    const desired=assignments?(assignments[p.id]||[]):linked.has(p.id)?existing.length?existing:[addRole]:[];
-    for(const role of existing){if(desired.includes(role))contacts[role]={...contacts[role],...values};else delete contacts[role];changed=true;}
-    for(const role of desired){
-      if(existing.includes(role))continue;
-      if(!role)throw new Error("Choose a role for newly added projects.");
-      const occupied=contacts[role];
-      if(occupied&&(occupied.name||occupied.company))throw new Error(`${p.name||p.id}: ${contactRoleLabel(role)} is already assigned. Choose another role or edit that project's team first.`);
-      contacts[role]={...values};changed=true;
-    }
-    if(!changed)return p;
-    return {...p,contacts,
-      ...(JSON.stringify(p.contacts?.Owner)!==JSON.stringify(contacts.Owner)?{client:contacts.Owner?.name||""}:{}),
-      ...(JSON.stringify(p.contacts?.Architect)!==JSON.stringify(contacts.Architect)?{architect:contacts.Architect?.name||""}:{})};
-  });
-}
-
-function DirectoryStars({value=0,onChange,disabled=false,name="contact"}){
-  return <span role="group" aria-label={`Rating for ${name}`} style={{display:"inline-flex",whiteSpace:"nowrap"}}>{[1,2,3,4,5].map(n=><button key={n} type="button" aria-label={`Rate ${name} ${n} out of 5`} aria-pressed={Number(value)===n} disabled={disabled} onClick={()=>onChange(n)} style={{border:0,background:"transparent",padding:"4px 2px",fontSize:23,color:n<=Number(value)?"#B57812":"#878787",cursor:disabled?"wait":"pointer"}}>{n<=Number(value)?"★":"☆"}</button>)}</span>;
-}
-
-const PORTAL_PACKAGES=['General','Electrical','POP','Furniture','Kitchen','Stone'];
-function DrawingPortalAccess({contact,state,onClose}){
-  const [rows,setRows]=useState([]),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[qr,setQr]=useState('');
-  const link=window.location.origin+window.location.pathname+'#drawings';
-  useEffect(()=>{let live=true;setBusy(true);projectApi.getDirectoryDrawingAccess(contact.email).then(r=>{if(live)setRows(r);}).catch(e=>{if(live)setMessage(e.message);}).finally(()=>{if(live)setBusy(false);});QRCode.toDataURL(link,{width:220,margin:2,color:{dark:'#0B1D33',light:'#FFFFFF'}}).then(src=>{if(live)setQr(src);}).catch(()=>{if(live)setMessage('QR could not be generated. Use the portal link below.');});return()=>{live=false;};},[contact.email]);
-  const patch=(id,changes)=>setRows(list=>list.map(r=>r.contactId===id?{...r,...changes}:r));
-  const save=async()=>{setBusy(true);setMessage('');try{for(const row of rows)await projectApi.saveDirectoryDrawingAccess(row);setMessage('Drawing access saved.');}catch(e){setMessage(e.message);}finally{setBusy(false);}};
-  return <div role="dialog" aria-modal="true" aria-label="Directory drawing access" style={{position:'fixed',inset:0,zIndex:15500,background:'rgba(8,25,45,.45)',display:'flex',justifyContent:'flex-end'}}><div style={{width:600,maxWidth:'100%',height:'100%',overflowY:'auto',background:T.paper,padding:22,fontFamily:FONT_BODY}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12}}><h3 style={{fontFamily:FONT_DISPLAY}}>Drawing access · {contact.name||contact.company}</h3><button type="button" disabled={busy} style={smallBtn} onClick={onClose}>Close</button></div><p style={{fontSize:12}}>{contact.email}</p><p style={{fontSize:12,color:T.inkDim}}>Sign in with this Google email to see assigned projects and issued packages. CAD is locked until enabled below.</p>{busy&&<p role="status">Loading / saving…</p>}{message&&<p role="status" style={{fontSize:12}}>{message}</p>}{rows.map(row=><section key={row.contactId} style={{padding:14,background:'#fff',border:`1px solid ${T.line}`,marginBottom:12}}><strong style={{fontSize:13}}>{state.projects.find(p=>p.id===row.projectId)?.name||row.projectId}</strong><p style={{fontSize:12,color:T.inkDim,margin:'4px 0 12px'}}>{contactRoleLabel(row.role)}</p><label style={{fontSize:12,display:'block',marginBottom:10}}><input type="checkbox" disabled={busy} checked={row.enabled} onChange={e=>patch(row.contactId,{enabled:e.target.checked})}/> Portal enabled</label><div style={{display:'flex',gap:12,flexWrap:'wrap',fontSize:12}}>{['All',...PORTAL_PACKAGES].map(pack=><label key={pack}><input type="checkbox" disabled={busy} checked={row.packages.includes(pack)} onChange={e=>patch(row.contactId,{packages:e.target.checked?[...row.packages,pack]:row.packages.filter(p=>p!==pack)})}/> {pack==='All'?'All packages':pack}</label>)}</div><label style={{display:'block',fontSize:12,marginTop:12}}><input type="checkbox" disabled={busy} checked={row.allowCad} onChange={e=>patch(row.contactId,{allowCad:e.target.checked})}/> Allow CAD downloads for these packages</label></section>)}{!rows.length&&!busy&&<p>No saved directory assignments available to manage. Save the contact email and project assignment first.</p>}<button type="button" style={smallBtn} disabled={busy||!rows.length} onClick={save}>Save drawing access</button><section style={{marginTop:24,borderTop:`1px solid ${T.line}`,paddingTop:16}}><h4>Drawing portal QR</h4>{qr&&<img src={qr} alt="QR code for drawing portal" width={220} height={220}/>}<p style={{fontSize:12,color:T.inkDim}}>The QR opens the download portal. Google sign-in and package permissions still apply.</p><input aria-label="Drawing portal link" readOnly value={link} style={inputStyle}/>{qr&&<a download="drawing-portal-qr.png" href={qr} style={{...smallBtn,display:'inline-block',marginTop:12}}>Download QR</a>}</section></div></div>;
-}
-function workDrawingDetails(task,fileName){
-  const raw=task.task||task;let coverage=[];try{coverage=JSON.parse(task.workflowCoverage||raw.workflowCoverage||'[]');}catch{}
-  const source=[fileName,task.drawingCode,raw.drawingCode,task.taskType,raw.taskType,task.title,raw.parentTask].filter(Boolean);let drawingCode='';
-  for(const value of source){const text=String(value).toUpperCase().replace(/FLRCIR?/g,'FLR / CIR'),codes=[];for(const [code,re] of [['ZONES',/\bZONES?\b|\bZONING\b/],['RCP',/\bRCP\b/],['FLR',/\bFLR\b/],['CIR',/\bCIR\b|\bCIRCUIT\b/],['IRF',/\bIRF?\b/],['DETAIL',/\bDETAIL\b/]])if(re.test(text))codes.push(code);if(codes.length){drawingCode=codes.join(' / ');break;}}
-  return {drawingCode:drawingCode||task.taskType||raw.taskType||task.title||'Drawing',drawingFloor:task.floor||raw.floor||[...new Set(coverage.map(r=>r.floor).filter(Boolean))].join(', ')||'Project',drawingArea:task.area||raw.area||[...new Set(coverage.map(r=>r.area).filter(Boolean))].join(', ')||'All areas'};
-}
-function IssueDrawingForm({file,projectId,onIssued}){
-  const id=useRef(uid()),[packages,setPackages]=useState([]),[context,setContext]=useState(null),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[message,setMessage]=useState('');
-  useEffect(()=>{let live=true;setLoading(true);setContext(null);setMessage('');projectApi.getIssueDrawingContext({projectId,driveFileId:file.id}).then(data=>{if(live)setContext(data);}).catch(e=>{if(live)setMessage(e.message);}).finally(()=>{if(live)setLoading(false);});return()=>{live=false;};},[projectId,file.id]);
-  const publish=async()=>{setBusy(true);setMessage('');try{const result=await projectApi.publishPortalDrawing({projectId,driveFileId:file.id,issueId:id.current,packages});setMessage(`Issued ${result.revision||context.revision}. Drawing saved in Sent.`);onIssued?.();}catch(e){setMessage(e.message);}finally{setBusy(false);}};
-  if(!['PDF','DWG','DXF','DWT','DWF'].includes(drawingFileType({fileName:file.name})))return null;
-  return <section aria-label="Issue drawing packages" style={{marginTop:20,borderTop:`1px solid ${T.line}`,paddingTop:14}}><h4 style={{fontFamily:FONT_DISPLAY,fontSize:14,margin:'0 0 10px'}}>Issue drawing</h4>{loading&&<p role="status" style={{fontSize:11,color:T.inkDim}}>Reading Work in Hand drawing details…</p>}{context&&<><p style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim,lineHeight:1.6,margin:'0 0 14px'}}>{context.drawingCode} · {context.floor} · {context.area}<br/>{context.alreadyIssued?'Issued revision':'Next revision'} {context.revision}</p><div style={{display:'grid',gap:8,fontFamily:FONT_BODY,fontSize:12}}>{PORTAL_PACKAGES.map(pack=><label key={pack}><input type="checkbox" disabled={busy} checked={packages.includes(pack)} onChange={e=>setPackages(values=>e.target.checked?[...values,pack]:values.filter(p=>p!==pack))}/> {pack} package</label>)}</div><button type="button" style={{...smallBtn,marginTop:14}} disabled={busy||!packages.length} onClick={publish}>{busy?'Issuing…':'Issue'}</button></>}{message&&<p role="status" style={{fontSize:12,lineHeight:1.5}}>{message}</p>}</section>;
-}
-
-async function downloadPortalDrawing(issueId,onProgress){
-  const first=await projectApi.getPortalDrawingChunk({issueId,offset:0}),parts=[first];let next=first.nextOffset;onProgress?.(Math.round(next/first.total*100));
-  while(next<first.total){const starts=[next];if(next+768*1024<first.total)starts.push(next+768*1024);const chunks=await Promise.all(starts.map(offset=>projectApi.getPortalDrawingChunk({issueId,offset})));for(const chunk of chunks){if(chunk.offset!==next||chunk.total!==first.total)throw Error('Drawing changed during download. Retry.');parts.push(chunk);next=chunk.nextOffset;}onProgress?.(Math.round(next/first.total*100));}
-  const bytes=parts.map(part=>Uint8Array.from(atob(part.data),c=>c.charCodeAt(0))),url=URL.createObjectURL(new Blob(bytes,{type:first.mimeType})),a=document.createElement('a');a.href=url;a.download=first.fileName;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
-}
-function ContractorDrawingPortal({user}){
-  const [data,setData]=useState(null),[projectId,setProjectId]=useState(''),[pack,setPack]=useState('All'),[error,setError]=useState(''),[busy,setBusy]=useState(false),[revision,setRevision]=useState(0),[progress,setProgress]=useState(null);
-  useEffect(()=>{let live=true;setBusy(true);setError('');projectApi.getDrawingPortal().then(r=>{if(live){setData(r);setProjectId(id=>r.projects.some(p=>p.id===id)?id:r.projects[0]?.id||'');}}).catch(e=>{if(live)setError(e.message);}).finally(()=>{if(live)setBusy(false);});return()=>{live=false;};},[revision]);
-  const visible=(data?.drawings||[]).filter(r=>r.projectId===projectId&&(pack==='All'||r.packages.includes(pack))),groups=new Map();for(const row of visible){const key=JSON.stringify([row.drawingCode,row.floor,row.area]);if(!groups.has(key))groups.set(key,{code:row.drawingCode,floor:row.floor,area:row.area,rows:[]});groups.get(key).rows.push(row);}const revisions=[...new Set(visible.map(r=>r.revision))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})),packages=[...new Set((data?.drawings||[]).filter(r=>r.projectId===projectId).flatMap(r=>r.packages))];
-  const download=async row=>{setError('');setProgress({id:row.issueId,percent:0});try{await downloadPortalDrawing(row.issueId,percent=>setProgress({id:row.issueId,percent}));}catch(e){setError(e.message);}finally{setProgress(null);}};
-  const cell={...tdStyle,fontFamily:FONT_BODY,fontSize:12,textAlign:'left',verticalAlign:'top',border:`1px solid ${T.line}`,padding:12};
-  return <main style={{minHeight:'80vh',background:T.paper,color:T.ink,padding:24,fontFamily:FONT_BODY}}><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap"/><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12}}><div><h2 style={{fontFamily:FONT_DISPLAY,margin:'0 0 6px'}}>Issued Drawings</h2><p style={{fontSize:12,color:T.inkDim,margin:0}}>{user.name} · {user.email}</p></div><button type="button" style={smallBtn} disabled={busy} onClick={()=>setRevision(n=>n+1)}>Refresh drawings</button></div>{busy&&<p role="status">Loading issued drawings…</p>}{error&&<p role="alert" style={{color:T.redline,fontSize:12}}>{error}</p>}{progress&&<p role="status" style={{fontSize:12}}>Preparing download · {progress.percent}%</p>}<div style={{display:'flex',gap:8,flexWrap:'wrap',margin:'22px 0'}}>{data?.projects.map(p=><button key={p.id} type="button" style={{...smallBtn,background:projectId===p.id?T.navy:'#fff',color:projectId===p.id?'#fff':T.blue}} onClick={()=>{setProjectId(p.id);setPack('All');}}>{p.no} · {p.name}</button>)}</div><div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:16}}>{['All',...packages].map(name=><button key={name} type="button" style={{...smallBtn,background:pack===name?'#E6EEF4':'#fff'}} onClick={()=>setPack(name)}>{name==='All'?'All issued packages':name+' package'}</button>)}</div><div style={{overflowX:'auto'}}><table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr><th style={{...thStyle,background:'#D2CDC1',textAlign:'left'}}>Drawing / Floor / Area</th>{revisions.map(r=><th key={r} style={{...thStyle,background:'#D2CDC1',textAlign:'left'}}>{r}</th>)}</tr></thead><tbody>{[...groups.values()].map(g=><tr key={JSON.stringify([g.code,g.floor,g.area])}><td style={cell}><strong>{g.code}</strong><div style={{marginTop:4,color:T.inkDim}}>{g.floor} {g.area}</div></td>{revisions.map(rev=><td key={rev} style={cell}>{g.rows.filter(r=>r.revision===rev).map(row=><div key={row.issueId} style={{marginBottom:12}}><div style={{fontSize:11,marginBottom:5,overflowWrap:'anywhere'}}>{row.fileName}</div><button type="button" disabled={!row.canDownload||!!progress} style={{...smallBtn,opacity:row.canDownload?1:.55}} onClick={()=>download(row)}>{row.format==='CAD'&&!row.canDownload?'CAD · Locked':'Download '+row.format}</button><div style={{fontSize:10,color:T.inkDim,marginTop:5}}>Published {formatProjectDate(row.issuedDate)}</div></div>)}</td>)}</tr>)}{!visible.length&&!busy&&<tr><td style={cell} colSpan={1+revisions.length}>No issued drawings in this selection yet.</td></tr>}</tbody></table></div>{!data?.projects.length&&!busy&&<p style={{fontSize:12,color:T.inkDim}}>No active directory project assignments. Ask your project contact to check your email and drawing access.</p>}</main>;
-}
-
-function ProjectDirectory({state,persist}){
-  const [portalContact,setPortalContact]=useState(null);
-  const [query,setQuery]=useState("");
-  const [role,setRole]=useState("All");
-  const [editor,setEditor]=useState(null);
-  const [mergeQuery,setMergeQuery]=useState("");
-  const [projectQuery,setProjectQuery]=useState("");
-  const [message,setMessage]=useState("");
-  const [busy,setBusy]=useState(false);
-  const pendingRef=useRef(false),latestRef=useRef(state);latestRef.current=state;
-  const directory=buildDirectory(state.projects,state.ratings||{});
-  const roles=[...new Set([...ROLES,"Interior Designer",...directory.flatMap(d=>d.roles)])].filter(role=>!["Principal Lighting Designer","Lighting Designer","Lighting Engineer","Process Coordinator","Owner","Client","Site Incharge","Accounts Incharge"].includes(role));
-  const visible=directory.filter(d=>(role==="All"||d.roles.includes(role))&&[d.name,d.company,d.mobile,d.email,...d.roles.map(contactRoleLabel)].join(" ").toLowerCase().includes(query.toLowerCase()));
-  const start=d=>{setMessage("");setEditor({keys:[d.key],name:d.name,company:d.company,email:d.email,mobile:d.mobile,rating:d.rating,assignments:directoryRoleAssignments(state.projects,[d.key])});setMergeQuery("");setProjectQuery("");};
-  const save=async(keys,values,projectIds,addRole,assignments)=>{
-    if(pendingRef.current)return;
-    if(Object.hasOwn(values,"name")&&!values.name.trim()&&!values.company.trim()){setMessage("Enter a name or company before saving.");return;}
-    const before=latestRef.current;
-    let projects;
-    try{projects=assignments||projectIds?directoryProjectChanges(before.projects,keys,values,projectIds,addRole,assignments):directoryCorrections(before.projects,keys,values);}catch(err){setMessage(err.message);return;}
-    const changed=projects.filter((p,i)=>p!==before.projects[i]);
-    if(!changed.length){setEditor(null);return;}
-    const next={...before,projects};latestRef.current=next;
-    pendingRef.current=true;setBusy(true);setEditor(null);setMessage(`Changes applied · Saving ${changed.length} project(s)…`);
-    const failed=[],warnings=[];
-    try{await persist(next);}catch(err){latestRef.current=before;setMessage(err.message);pendingRef.current=false;setBusy(false);return;}
-    for(const project of changed){
-      try{await projectApi.saveContacts(project.id,contactsObjectToRows(project,project.contacts));}
-      catch(err){failed.push({project,error:err});continue;}
-      const original=before.projects.find(p=>p.id===project.id);
-      const summaryContactChanged=original.client!==project.client||original.architect!==project.architect;
-      if(summaryContactChanged){
-        try{const latest=latestRef.current.projects.find(p=>p.id===project.id)||project;await projectApi.update(frontendProjectToBackend(latest,true));}
-        catch(err){warnings.push(project.name||project.id);}
-      }
-    }
-    if(failed.length){
-      const latest=latestRef.current;
-      const restored={...latest,projects:latest.projects.map(p=>{
-        const failure=failed.find(f=>f.project.id===p.id);if(!failure)return p;
-        const original=before.projects.find(x=>x.id===p.id),contacts={...p.contacts};
-        for(const role of new Set([...Object.keys(failure.project.contacts||{}),...Object.keys(original.contacts||{})]))if(JSON.stringify(contacts[role])===JSON.stringify(failure.project.contacts?.[role])){if(original.contacts?.[role])contacts[role]=original.contacts[role];else delete contacts[role];}
-        return {...p,contacts,...(p.client===failure.project.client?{client:original.client}:{}),...(p.architect===failure.project.architect?{architect:original.architect}:{})};
-      })};
-      latestRef.current=restored;await persist(restored);
-    }
-    setMessage(failed.length?`Could not save: ${failed.map(f=>f.project.name||f.project.id).join(", ")}. Their previous values were restored; edit these entries and retry.`:warnings.length?`Contacts and ratings saved. Project summary sync failed for ${warnings.join(", ")}; edit and save again to retry.`:"Directory updated in all linked projects. Ratings saved to Google Sheets.");
-    pendingRef.current=false;setBusy(false);
-  };
-  const cell={...tdStyle,textAlign:"left",verticalAlign:"top",fontFamily:FONT_BODY,fontSize:13,lineHeight:1.5,padding:"14px 12px",borderRight:`1px solid ${T.line}`,overflowWrap:"anywhere"};
-  return <section aria-label="Project contact directory" style={{fontFamily:FONT_BODY,color:T.ink}}>
-    <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:12}}>
-      <input aria-label="Search directory" placeholder="Search name, studio, email or phone" value={query} onChange={e=>setQuery(e.target.value)} style={{...inputStyle,maxWidth:380}}/>
-
-    </div>
-    <div role="group" aria-label="Directory role filters" style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:16}}>{['All',...roles].map(r=><button key={r} type="button" aria-pressed={role===r} onClick={()=>setRole(r)} style={{...smallBtn,padding:'7px 10px',background:role===r?T.navy:'#fff',color:role===r?'#fff':T.blue,borderColor:role===r?T.navy:T.blue}}>{contactRoleLabel(r)}</button>)}</div>
-    {message&&<p role="status" style={{fontSize:12}}>{message}</p>}
-    <div style={{overflowX:"auto"}}><table style={{borderCollapse:"collapse",width:"100%",minWidth:1140,tableLayout:"fixed",border:`1px solid ${T.line}`,fontFamily:FONT_BODY}}><colgroup>{[14,15,15,32,13,11].map((w,i)=><col key={i} style={{width:`${w}%`}}/>)}</colgroup><thead><tr>{["Name","Company / Studio","Role","Projects","Rating","Actions"].map(h=><th key={h} style={{...thStyle,background:"#D2CDC1",color:"#1C1C19",fontFamily:FONT_MONO,textAlign:"left",fontSize:10,padding:"12px",borderRight:`1px solid ${T.line}`,borderBottom:`2px solid ${T.ink}`}}>{h}</th>)}</tr></thead><tbody>{visible.map(d=><tr key={d.key}>
-      <td style={cell}><strong>{d.name||"—"}</strong><div style={{fontSize:12,color:T.inkDim}}>{d.mobile}</div></td><td style={cell}>{d.company||"—"}</td><td style={cell}>{d.roles.map(r=><div key={r}>{contactRoleLabel(r)}</div>)}</td>
-      <td style={{...cell,padding:0}}><div style={{maxHeight:220,overflowY:"auto"}}>{d.projects.filter(p=>role==="All"||Object.entries(state.projects.find(x=>x.id===p.id)?.contacts||{}).some(([r,c])=>r===role&&c&&contactKey(c.name||c.company,c.mobile)===d.key)).map((p,i)=><div key={p.id} style={{padding:"9px 12px",borderTop:i?`1px solid ${T.line}`:"none",textAlign:"left"}}>{p.no&&<span style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginRight:8}}>{p.no}</span>}{p.name||p.id}<div style={{fontSize:11,color:T.inkDim,marginTop:3}}>{Object.entries(state.projects.find(x=>x.id===p.id)?.contacts||{}).filter(([,c])=>c&&contactKey(c.name||c.company,c.mobile)===d.key).map(([r])=>contactRoleLabel(r)).join(" · ")}</div></div>)}</div></td>
-      <td style={cell}><DirectoryStars name={d.name||d.company} value={d.rating} disabled={busy} onChange={rating=>save([d.key],{rating})}/></td>
-      <td style={cell}><div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:12}}><button type="button" disabled={busy} onClick={()=>start(d)} style={{...smallBtn,fontFamily:FONT_BODY}}>Edit / merge</button><button type="button" disabled={busy||!d.email} onClick={()=>setPortalContact(d)} style={{...smallBtn,fontFamily:FONT_BODY}}>Drawings / QR</button></div></td>
-    </tr>)}</tbody></table>{!visible.length&&<p>No matching contacts.</p>}</div>
-    {portalContact&&<DrawingPortalAccess contact={portalContact} state={state} onClose={()=>setPortalContact(null)}/>}
-    {editor&&<div role="dialog" aria-modal="true" aria-label="Edit directory contact" style={{position:"fixed",inset:0,zIndex:15000,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}><div style={{background:T.paper,padding:22,width:760,maxWidth:"100%",maxHeight:"90vh",overflowY:"auto",fontFamily:FONT_BODY,fontSize:13,lineHeight:1.55,color:T.ink}}>
-      <h3 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:"0 0 20px"}}>Edit directory contact</h3>
-      {message&&<p role="status" style={{fontFamily:FONT_BODY,color:T.redline}}>{message}</p>}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(230px,1fr))",gap:12}}>{[["Name","name"],["Company / Studio","company"],["Email","email"],["Mobile","mobile"]].map(([label,key])=><label key={key} style={{display:"grid",gap:6,fontFamily:FONT_BODY,fontSize:12,fontWeight:600,color:T.inkDim}}>{label}<input aria-label={`Directory ${label}`} value={editor[key]} onChange={e=>setEditor(x=>({...x,[key]:e.target.value}))} style={{...inputStyle,fontFamily:FONT_BODY,fontSize:13,fontWeight:400}}/></label>)}</div>
-      <DirectoryStars name="edited contact" value={editor.rating} onChange={rating=>setEditor(x=>({...x,rating}))}/>
-      <p>Choose any duplicate entries below to give them the same details and rating in every linked project. Different people are combined only when you select them.</p>
-      <input aria-label="Find duplicates" placeholder="Find names, studios or designations" value={mergeQuery} onChange={e=>setMergeQuery(e.target.value)} style={{...inputStyle,fontFamily:FONT_BODY,fontSize:13,fontWeight:400}}/>
-      <div style={{maxHeight:240,overflowY:"auto",marginTop:12,border:`1px solid ${T.line}`}}>{directory.filter(d=>[d.name,d.company,d.mobile,...d.roles.map(contactRoleLabel)].join(" ").toLowerCase().includes(mergeQuery.toLowerCase())).map(d=><label key={d.key} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"12px",borderBottom:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:13,lineHeight:1.5,cursor:"pointer"}}><input type="checkbox" aria-label={`Merge ${d.name||d.company}`} style={{width:16,height:16,marginTop:3,flexShrink:0,accentColor:T.navy}} checked={editor.keys.includes(d.key)} onChange={e=>setEditor(x=>directoryMergeSelection(x,d,e.target.checked,state.projects))}/><span style={{minWidth:0}}><strong style={{fontWeight:600}}>{d.name||"Unnamed"}</strong><span style={{display:"block",fontSize:12,color:T.inkDim}}>{d.company||"No studio"} · {d.mobile||"No phone"} · {d.projects.length} project(s)</span><span style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:5}}>{d.roles.map(r=><span key={r} style={{background:T.paperDim,border:`1px solid ${T.line}`,padding:"2px 7px",fontFamily:FONT_BODY,fontSize:11,fontWeight:500,color:T.ink}}>{contactRoleLabel(r)}</span>)}</span></span></label>)}</div>
-      <h4 style={{fontFamily:FONT_DISPLAY,marginBottom:8}}>Project roles</h4>
-      <p style={{fontSize:13}}>Each checkbox is a separate assignment in that project. Uncheck Lighting Designer to remove only that role; Principal Lighting Designer stays selected. Use Add role to assign another designation.</p>
-      <input aria-label="Search linked projects" placeholder="Search project name, number or role" value={projectQuery} onChange={e=>setProjectQuery(e.target.value)} style={{...inputStyle,fontFamily:FONT_BODY,fontSize:13,fontWeight:400}}/>
-      <div style={{maxHeight:360,overflowY:"auto",marginTop:8,border:`1px solid ${T.line}`}}>{state.projects.filter(p=>`${p.no||""} ${p.name||""} ${[...new Set([...(editor.assignments[p.id]||[]),...directoryRoleAssignments([p],editor.keys)[p.id]])].map(contactRoleLabel).join(" ")}`.toLowerCase().includes(projectQuery.toLowerCase())).sort((a,b)=>Number(!!editor.assignments[b.id]?.length)-Number(!!editor.assignments[a.id]?.length)).map(p=>{
-        const original=directoryRoleAssignments([p],editor.keys)[p.id],assigned=editor.assignments[p.id]||[];
-        const shown=[...new Set([...original,...assigned])];
-        return <div key={p.id} style={{padding:12,borderBottom:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:13}}>
-          <strong>{p.no?`${p.no} · `:""}{p.name||p.id}</strong>
-          <div style={{display:"grid",gap:8,margin:"10px 0"}}>{shown.length?shown.map(r=><label key={r} style={{display:"flex",alignItems:"center",gap:9}}><input type="checkbox" aria-label={`${contactRoleLabel(r)} in ${p.name||p.id}`} checked={assigned.includes(r)} onChange={e=>setEditor(x=>({...x,assignments:{...x.assignments,[p.id]:e.target.checked?[...new Set([...(x.assignments[p.id]||[]),r])]:(x.assignments[p.id]||[]).filter(v=>v!==r)}}))}/><span>{contactRoleLabel(r)}</span></label>):<span style={{fontSize:12,color:T.inkDim}}>No roles assigned</span>}</div>
-          <select aria-label={`Add role in ${p.name||p.id}`} value="" style={{...inputStyle,fontFamily:FONT_BODY,fontSize:12,maxWidth:330}} onChange={e=>{const r=e.target.value;if(r)setEditor(x=>({...x,assignments:{...x.assignments,[p.id]:[...new Set([...(x.assignments[p.id]||[]),r])]}}));}}><option value="">Add role…</option>{[...new Set([...ROLES,...original])].filter(r=>!assigned.includes(r)).map(r=>{const c=p.contacts?.[r],occupied=c&&(c.name||c.company)&&!editor.keys.includes(contactKey(c.name||c.company,c.mobile));return <option key={r} value={r} disabled={!!occupied}>{contactRoleLabel(r)}{occupied?` — assigned to ${c.name||c.company}`:""}</option>;})}</select>
-        </div>;
-      })}</div>
-      <p>{Object.values(editor.assignments).filter(rs=>rs.length).length} project(s) · {Object.values(editor.assignments).reduce((n,rs)=>n+rs.length,0)} role assignment(s) selected.</p>
-      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><button style={{...smallBtn,fontFamily:FONT_BODY,fontSize:13,padding:"9px 14px"}} onClick={()=>setEditor(null)}>Cancel</button><button disabled={busy||!editor.keys.length} style={{...smallBtn,fontFamily:FONT_BODY,fontSize:13,padding:"9px 14px",background:T.navy,color:"#fff"}} onClick={()=>{const {keys,assignments,...values}=editor;return save(keys,Object.fromEntries(Object.entries(values).map(([k,v])=>[k,typeof v==="string"?v.trim():v])),undefined,undefined,assignments);}}>Save Changes</button></div>
-    </div></div>}
-  </section>;
 }
 
 // Drawing type -> the task(s) it opens + who's responsible by default.
@@ -2645,135 +2420,20 @@ const canonicalDrawingType = (v) => {
 --------------------------------------------------------------- */
 const ENLIGHTEN_API_URL = "/api";
 
-const WORKFLOW_WORKSPACE_CACHE=new Map();
-function clearWorkflowWorkspaceCache(){WORKFLOW_WORKSPACE_CACHE.clear();}
-function cachedWorkflowWorkspace(projectId){return WORKFLOW_WORKSPACE_CACHE.get(AUTH_SESSION_GENERATION+':'+projectId)?.data;}
-const workflowWrites=new Set([
-  'recordHistoricalWorkflowMeeting','saveLineOfWork','updateWorkflowSchedule','queueWorkflowTask','saveProjectOnboarding',
-  'saveWorkflowDelegation','saveDelegationRules','deleteDelegationRule','saveProjectContacts',
-  'saveFloorZones','deleteFloorZones','updateProject','completeProject',
-  'saveExecutionVisits','recordExecutionVisit','deleteExecutionVisit','saveProjectMeeting','deleteProjectMeeting',
-  'receiveDrawing','receiveAndClassifyDrawing','classifyReceivedDrawing','finishReceivedUpload',
-  'finishPastWorkUpload','editReceivedDrawing','trashProjectDrawing','organizeProjectReceived',
-  'saveProjectCloseout','updateProjectCloseout','saveCloseout','archiveProject'
-]);
-
-function loadWorkflowWorkspace(projectId,retries=2){
-  const generation=AUTH_SESSION_GENERATION,key=generation+':'+projectId;
-  const existing=WORKFLOW_WORKSPACE_CACHE.get(key);
-  if(existing?.promise)return existing.promise;
-  if(existing?.data&&Date.now()-existing.at<15000)return Promise.resolve(existing.data);
-  const entry={};
-  WORKFLOW_WORKSPACE_CACHE.set(key,entry);
-  entry.promise=apiRequest('getWorkflowWorkspace',{projectId},'GET',90000).catch(error=>{if(generation!==AUTH_SESSION_GENERATION||!error.message.includes('connection ended'))throw error;return apiRequest('getWorkflowWorkspace',{projectId},'GET',90000);}).then(data=>{
-    if(generation!==AUTH_SESSION_GENERATION)throw Error('Your session changed. Open the project again.');
-    if(WORKFLOW_WORKSPACE_CACHE.get(key)!==entry){
-      if(retries>0)return loadWorkflowWorkspace(projectId,retries-1);
-      throw Error('The project is still being updated. Try refreshing it again.');
-    }
-    entry.data=data;entry.at=Date.now();return data;
-  }).finally(()=>{entry.promise=null;});
-  return entry.promise;
-}
-
-const PAGE_READ_CACHE=new Map();
-const PAGE_READS=new Set(['getDesignDashboard','getProjectWorkspace','listMomTasks','listExecutionVisits','listDrawingRegister','listFloorZones']);
-const pageReadKey=(action,payload)=>JSON.stringify([AUTH_SESSION_GENERATION,action,Object.entries(payload).sort()]);
-const peekPageRead=(action,payload)=>PAGE_READ_CACHE.get(pageReadKey(action,payload))?.data;
-const POST_READS=new Set(['getAccounts','getAccountsAttendance','getStudioDay','homeAgenda','departmentTeam']);
-const activitySubjects={
-  getAccounts:'Accounts',
-  saveAccounts:'Accounts',
-  getAccountsAttendance:'Payroll attendance',
-  getStudioDay:'Attendance',
-  saveStudioDay:'Attendance',
-  departmentTeam:'Team & Tasks',
-  teamAvailability:'Team availability',
-  attendanceDay:'Attendance',
-  getNativeTechnicalTable:'Technical Table',
-  getTechnicalWorkbook:'Technical Table',
-  getScheduleSpecSheet:'Schedule / Spec Sheet',
-  getWorkflowWorkspace:'Line of Work',
-  getCurrentUser:'Account access',
-  listProjects:'Projects',
-  listProjectContacts:'Project contacts',
-  listLineOfWork:'Line of Work',
-  listFloorZones:'Floor zones',
-  listProjectPeople:'Project team',
-  listTeamMembers:'Studio team',
-  listDepartments:'Departments',
-  listDesignations:'Designations',
-  listDrawingTaskMaster:'Drawing task templates',
-  getProjectWorkspace:'Project workspace',
-  getWIH:'Tasks',
-  listProjectDrive:'Drive',
-  importTechnicalOutput:'Technical Table'
-};
-function requestWithActivity(action,payload,method,timeoutMs,activityPage){
-  const request=()=>requestFromServer(action,payload,method,timeoutMs);
-  // Drawing jobs report the whole transaction, including direct-to-Drive transfer.
-  if(/^(?:begin|finish)(?:Received|BaseDrawing|WorkDrawing|PastWork)Upload$/.test(action)||action==='uploadReceivedChunk'||action==='logActiveTime')return request();
-  const read=method==='GET'||/^(get|list|lookup|search|preview)/.test(action)
-    ||['read','list','feed','review','options','workflow-read','leaveList'].includes(payload.action)
-    ||action==='homeAgenda'&&!payload.action||action==='departmentTeam';
-  const subject = activitySubjects[action] || action
-    .replace(/^(?:get|list|save|update|upload|create)(?=[A-Z])/, '')
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2');
-  return trackActivity(read?'load':/^(upload|importTechnicalOutput)/.test(action)?'upload':'save',subject,request,activityPage);
-}
-
-function apiRequest(action,payload={},method='POST',timeoutMs=0,activityPage){
-  const cacheable=method==='GET'&&(PAGE_READS.has(action)||action==='getWIH'&&payload.fastRead===true&&!payload.includeDiagnostics);
-  if(!cacheable){
-    const writes=method==='POST'&&!POST_READS.has(action)&&!['read','list','feed','review','options'].includes(payload.action);
-    if(writes)PAGE_READ_CACHE.clear();
-    return requestWithActivity(action,payload,method,timeoutMs,activityPage).finally(()=>{
-      if(writes)PAGE_READ_CACHE.clear();
-    });
-  }
-  const key=pageReadKey(action,payload);
-  const cached=PAGE_READ_CACHE.get(key);
-  if(cached&&(cached.pending||Date.now()-cached.savedAt<45000))return cached.promise;
-  const entry={pending:true,savedAt:0};
-  entry.promise=requestWithActivity(action,payload,method,timeoutMs,activityPage).then(data=>{
-    entry.pending=false;
-    entry.savedAt=Date.now();
-    entry.data=data;
-    return data;
-  },error=>{
-    if(PAGE_READ_CACHE.get(key)===entry)PAGE_READ_CACHE.delete(key);
-    throw error;
-  });
-  if(PAGE_READ_CACHE.size>=40)PAGE_READ_CACHE.delete(PAGE_READ_CACHE.keys().next().value);
-  PAGE_READ_CACHE.set(key,entry);
-  return entry.promise;
-}
-
-async function requestFromServer(action, payload = {}, method = "POST", timeoutMs=0) {
-  const changesWorkflow=method==='POST'&&workflowWrites.has(action);
-  let response,raw;
-  const controller=timeoutMs?new AbortController():null;
-  const timeout=controller?setTimeout(()=>controller.abort(),timeoutMs):null;
-  try{
-  const generation=AUTH_SESSION_GENERATION;
-  const authHeaders=AUTH_ID_TOKEN?{Authorization:`Bearer ${AUTH_ID_TOKEN}`}:{ };
+async function apiRequest(action, payload = {}, method = "POST") {
+  let response;
   if (method === "GET") {
     const qs = new URLSearchParams({ action, ...Object.fromEntries(Object.entries(payload).map(([k,v]) => [k, String(v)])) });
-    response = await fetch(`${ENLIGHTEN_API_URL}?${qs.toString()}`,{credentials:"same-origin",headers:authHeaders,...(controller?{signal:controller.signal}:{})});
+    response = await fetch(`${ENLIGHTEN_API_URL}?${qs.toString()}`,{headers:{Authorization:`Bearer ${AUTH_ID_TOKEN}`}});
   } else {
     response = await fetch(ENLIGHTEN_API_URL, {
       method: "POST",
-      credentials:"same-origin",
-      ...(controller?{signal:controller.signal}:{}),
-      headers: { "Content-Type": "text/plain;charset=utf-8", ...authHeaders },
+      headers: { "Content-Type": "text/plain;charset=utf-8", Authorization:`Bearer ${AUTH_ID_TOKEN}` },
       body: JSON.stringify({ action, payload })
     });
   }
-  if(response.status===401&&generation===AUTH_SESSION_GENERATION){AUTH_ID_TOKEN="";window.dispatchEvent(new Event("enlighten-auth-expired"));}
-  raw = await response.text();
-  }catch(err){if(err.name==='AbortError')throw new Error(`The request could not be confirmed within ${Math.round(timeoutMs/1000)} seconds. Your details are retained; retry to check the result.`);if(err instanceof TypeError)throw new Error('The connection ended before the server confirmed the result. Your details are retained. Check your connection, then retry.');throw err;}
-  finally{if(timeout)clearTimeout(timeout);}
-  if(response.status===413)throw new Error("This request exceeds the upload size limit. Redeploy the latest frontend and backend to use drawing uploads in smaller parts.");
+  if(response.status===401){AUTH_ID_TOKEN="";window.dispatchEvent(new Event("enlighten-auth-expired"));}
+  const raw = await response.text();
   let json;
   try { json = JSON.parse(raw); }
   catch (_) {
@@ -2782,39 +2442,17 @@ async function requestFromServer(action, payload = {}, method = "POST", timeoutM
       ? `Apps Script returned an HTML page for ${action}. Re-deploy the latest backend as a new Web App version, then refresh the app.`
       : `Invalid API response for ${action}.`);
   }
-  if (!response.ok || !json?.ok) { const failure=new Error(json?.error?.message || `API request failed: ${action}`);failure.status=response.status;throw failure; }
-  if(changesWorkflow)clearWorkflowWorkspaceCache();
+  if (!response.ok || !json?.ok) throw new Error(json?.error?.message || `API request failed: ${action}`);
   return json.data;
 }
 
 const projectApi = {
-  saveMemberProjectRoles:payload=>apiRequest("saveMemberProjectRoles",payload,"POST",60000),
-  deleteExecutionVisit:p=>apiRequest("deleteExecutionVisit",p),
-  listMomTasks:projectId=>apiRequest("listMomTasks",{projectId},"GET"),
-  updateMomTask:p=>apiRequest("updateMomTask",p),
-  importMomTasks:projectId=>apiRequest("importMomTasks",{projectId}),
-  transcribeVisitMom:p=>apiRequest("transcribeVisitMom",p,"POST",160000),
-  draftVisitMom:p=>apiRequest("draftVisitMom",p,"POST",160000),
-  listExecutionVisits:projectId=>apiRequest("listExecutionVisits",{projectId},"GET"),
-  saveExecutionVisits:(projectId,rows,initializeOnly=false)=>apiRequest("saveExecutionVisits",{projectId,rows,initializeOnly}),
-  recordExecutionVisit:p=>apiRequest("recordExecutionVisit",p),
-  getProjectWorkspace:()=>apiRequest("getProjectWorkspace",{},"GET"),
-  saveProjectMeeting:payload=>apiRequest("saveProjectMeeting",payload),
-  deleteProjectMeeting:payload=>apiRequest("deleteProjectMeeting",payload),
-  getDrawingPortal:()=>apiRequest('getDrawingPortal',{},'GET'),
-  getPortalDrawingChunk:p=>apiRequest('getPortalDrawingChunk',p,'GET'),
-  getDirectoryDrawingAccess:email=>apiRequest('getDirectoryDrawingAccess',{email},'GET'),
-  saveDirectoryDrawingAccess:p=>apiRequest('saveDirectoryDrawingAccess',p),
-  getIssueDrawingContext:p=>apiRequest('getIssueDrawingContext',p,'GET'),
-  publishPortalDrawing:p=>apiRequest('publishPortalDrawing',p),
-  trashProjectDrawing:p=>apiRequest('trashProjectDrawing',p),
-  organizeProjectReceived:projectId=>apiRequest('organizeProjectReceived',{projectId}),
   getCurrentUser: () => apiRequest("getCurrentUser", {}, "GET"),
   listAll: () => apiRequest("listProjects", { activeOnly: false }, "GET"),
   create: payload => apiRequest("createProject", payload),
   update: payload => apiRequest("updateProject", payload),
   delete: projectId => apiRequest("deleteProject", { projectId }),
-  complete: (projectId, completionOutcome) => apiRequest("completeProject", { projectId, completionOutcome }),
+  complete: projectId => apiRequest("completeProject", { projectId }),
   listContacts: projectId => apiRequest("listProjectContacts", projectId ? { projectId } : {}, "GET"),
   saveContacts: (projectId, contacts) => apiRequest("saveProjectContacts", { projectId, contacts }),
   getWorkflowCapabilities: () => apiRequest("getWorkflowCapabilities",{},"GET"),
@@ -2822,25 +2460,9 @@ const projectApi = {
   skipWorkflowSubtask: designTaskId => apiRequest("skipWorkflowSubtask",{designTaskId}),
   acknowledgeWorkflowDrawing: designTaskId => apiRequest("acknowledgeWorkflowDrawing",{designTaskId}),
   queueWorkflowTask: payload => apiRequest("queueWorkflowTask", payload),
-  saveLineOfWork: (projectId, rows) => apiRequest("saveLineOfWork", { projectId, rows },"POST",45000),
-  getProjectWorkflowTasks: projectId => apiRequest('getProjectWorkflowTasks',{projectId},'GET'),
-  updateWorkflowSchedule: payload => apiRequest('updateWorkflowSchedule',payload),
-  listProjectRoles: () => apiRequest('listProjectRoles',{},'GET'),
-  saveProjectRole: payload => apiRequest('saveProjectRole',payload),
-  deleteProjectRole: payload => apiRequest('deleteProjectRole',payload),
-  listProjectPeople: () => apiRequest('listProjectPeople',{},'GET'),
-  listSitePunchIns: projectId => apiRequest('listSitePunchIns',projectId?{projectId}:{},'GET'),
-  saveSitePunchIn: payload => apiRequest('saveSitePunchIn',payload),
-  deleteSitePunchIn: payload => apiRequest('deleteSitePunchIn',payload),
+  saveLineOfWork: (projectId, rows) => apiRequest("saveLineOfWork", { projectId, rows }),
   listFloorZones: projectId => apiRequest("listFloorZones", projectId ? { projectId } : {}, "GET"),
-  deleteFloorZones: (projectId,targets) => apiRequest("deleteFloorZones",{projectId,targets}),
   saveFloorZones: (projectId, rows) => apiRequest("saveFloorZones", { projectId, rows }),
-  getDriveLibraryConfig:()=>apiRequest('getDriveLibraryConfig',{},'GET'),
-  setDriveLibraryRoot:p=>apiRequest('setDriveLibraryRoot',p),
-  linkProjectDrive:p=>apiRequest('linkProjectDrive',p),
-  listProjectDrive:p=>apiRequest('listProjectDrive',p,'GET'),
-  listRecentDrawingRegister: () => apiRequest("listRecentDrawingRegister", {}, "GET"),
-  listDrawingRegister: projectId => apiRequest("listDrawingRegister", {projectId}, "GET"),
   receiveDrawing: payload => apiRequest("receiveDrawing", payload),
   classifyDrawing: payload => apiRequest("classifyReceivedDrawing", payload),
   listTeam: () => apiRequest("listTeamMembers", {}, "GET"),
@@ -2853,7 +2475,7 @@ const projectApi = {
   listDrawingTaskMaster: () => apiRequest("listDrawingTaskMaster", {}, "GET"),
   saveDrawingTaskMaster: templates => apiRequest("saveDrawingTaskMaster", { templates }),
   getDesignDashboard: projectId => apiRequest("getDesignDashboard", { projectId }, "GET"),
-  getWIH: (includeCompleted=true, projectId="", fastRead=false) => apiRequest("getWIH", { includeCompleted, ...(projectId?{projectId}:{}), ...(fastRead?{fastRead}:{}) }, "GET"),
+  getWIH: (includeCompleted=true, projectId="") => apiRequest("getWIH", { includeCompleted, ...(projectId?{projectId}:{}) }, "GET"),
   assignTask: payload => apiRequest("assignDesignTask", payload),
   startTask: designTaskId => apiRequest("startTask", { designTaskId }),
   pauseTask: designTaskId => apiRequest("pauseTask", { designTaskId }),
@@ -2867,7 +2489,7 @@ function contactCategoryForRole(role) {
 }
 
 function contactsObjectToRows(project, contacts) {
-  return Object.entries(contacts || {}).filter(([,c]) => c && (String(c.name ?? "").trim()||String(c.company ?? "").trim())).map(([role,c]) => ({
+  return Object.entries(contacts || {}).filter(([,c]) => c && String(c.name ?? "").trim()).map(([role,c]) => ({
     projectId: project.id, projectNo: project.no || "", projectName: project.name || "",
     category: contactCategoryForRole(role), role,
     name: String(c.name ?? "").trim(), email: String(c.email ?? "").trim(),
@@ -2878,7 +2500,7 @@ function contactsObjectToRows(project, contacts) {
 function contactRowsToObject(rows) {
   const out = {};
   (Array.isArray(rows) ? rows : []).forEach(r => {
-    if (!r?.role || !(String(r.name ?? "").trim()||String(r.company ?? "").trim())) return;
+    if (!r?.role || !String(r.name ?? "").trim()) return;
     out[String(r.role)] = {...r, name:String(r.name ?? ""), email:String(r.email ?? ""),
       mobile:String(r.mobile ?? ""), company:String(r.company ?? ""), rating:r.rating || ""};
   });
@@ -2894,7 +2516,7 @@ function backendProjectToFrontend(row, fallback = {}) {
     architect: row.architect || fallback.architect || fallback.contacts?.Architect?.name || "",
     basement: isTrue(row.basement), stilt_floor: isTrue(row.stiltFloor), gf: isTrue(row.gf),
     "1f": isTrue(row["1f"]), "2f": isTrue(row["2f"]), "3f": isTrue(row["3f"]),
-    terrace: isTrue(row.terrace), facade: isTrue(row.facade), wall_elevation: isTrue(row.wallElevation), art_curation: isTrue(row.artCuration),
+    terrace: isTrue(row.terrace), facade: isTrue(row.facade), wall_elevation: isTrue(row.wallElevation),
     landscape: isTrue(row.landscape), bath_elevation: isTrue(row.bathElevation), wardrobe: isTrue(row.wardrobe),
     kitchen: isTrue(row.kitchen), onboarding: isTrue(row.onboarding)
   };
@@ -2905,13 +2527,11 @@ function backendProjectToFrontend(row, fallback = {}) {
     client: row.client || fallback.client || fallback.contacts?.Owner?.name || "",
     architect: row.architect || fallback.architect || fallback.contacts?.Architect?.name || "",
     address: row.address || fallback.address || "",
-    city: row.city ?? fallback.city ?? "",
     type: row.projectType || fallback.type || "Residence", startDate: row.startDate || fallback.startDate || "",
     endDate: row.plannedCompletionDate || fallback.endDate || "",
     plannedCompletionDate: row.plannedCompletionDate || fallback.plannedCompletionDate || "",
     projectStage: row.currentStage || fallback.projectStage || "Onboarding", status, projectStatus: status,
     blocker: row.blocker || fallback.blocker || "", delayReason: row.delayReason || fallback.delayReason || "",
-    completionOutcome: row.completionOutcome || fallback.completionOutcome || "",
     completed: status === "Completed",
     completedDate: status === "Completed" ? (row.completedDate || fallback.completedDate || "") : "",
     completedAt: isTrue(row.completed) || status === "Completed" ? (row.updatedAt || row.completedDate || fallback.completedAt || "") : "",
@@ -2929,14 +2549,13 @@ function frontendProjectToBackend(p, includeId = true) {
   const pc = p.projectControl || {};
   const payload = {
     projectNo: p.no || s.serial || "", projectName: p.name || s.project || "", client: p.client || s.client || "",
-    architect: p.architect || s.architect || "", address: p.address || "", city: p.city || "", projectType: p.type || "Residence",
+    architect: p.architect || s.architect || "", address: p.address || "", projectType: p.type || "Residence",
     startDate: p.startDate || "", plannedCompletionDate: p.plannedCompletionDate || p.endDate || "",
     currentStage: pc.currentStage || p.projectStage || "Onboarding", projectStatus: pc.projectStatus || p.projectStatus || p.status || "Ongoing",
     blocker: p.blocker || pc.blocker || "", delayReason: p.delayReason || pc.delayReason || "",
-    completionOutcome: p.completionOutcome || "",
     basement: Boolean(s.basement), stiltFloor: Boolean(s.stilt_floor), gf: Boolean(s.gf),
     "1f": Boolean(s["1f"]), "2f": Boolean(s["2f"]), "3f": Boolean(s["3f"]), terrace: Boolean(s.terrace),
-    facade: Boolean(s.facade), wallElevation: Boolean(s.wall_elevation), artCuration: Boolean(s.art_curation), landscape: Boolean(s.landscape),
+    facade: Boolean(s.facade), wallElevation: Boolean(s.wall_elevation), landscape: Boolean(s.landscape),
     bathElevation: Boolean(s.bath_elevation), wardrobe: Boolean(s.wardrobe), kitchen: Boolean(s.kitchen), onboarding: Boolean(s.onboarding)
   };
   if (includeId && p.id) payload.projectId = p.id;
@@ -3002,8 +2621,6 @@ function normalizeStudioState(base) {
   }));
   return {
     projects,
-    pendingProjectCreates: base.pendingProjectCreates||[],
-    pendingReceivedUploads: base.pendingReceivedUploads||[],
     people: base.people || DEFAULT_PEOPLE,
     teamMaster: base.teamMaster || [],
     templates,
@@ -3016,36 +2633,8 @@ function normalizeStudioState(base) {
   };
 }
 
-function workspaceIntakes(workspace){
-  const files=workspace.files||[];
-  return (workspace.drawings||[]).filter(d=>!d.duplicateOf&&!sheetDashboardFlag(d.trashed)&&String(d.direction||'Received').toLowerCase()==='received').map(d=>{
-    const file=files.find(f=>f.linkedEntityId===d.drawingId)||files.find(f=>f.driveFileId&&f.driveFileId===d.driveFileId)||{};
-    let floors=[];try{floors=JSON.parse(d.floorTags||'[]');}catch(_){}
-    return {id:d.drawingId,projectId:d.projectId,floor:d.floor||'',floors:floors.length?floors:String(d.floor||'').split(',').map(x=>x.trim()).filter(Boolean),zone:'',areas:d.area?[d.area]:[],drawingType:canonicalDrawingType(d.drawingType),fileName:d.fileName||file.fileName||'Drawing',driveFileId:d.driveFileId||file.driveFileId||'',mimeType:d.mimeType||file.mimeType||'',driveUrl:d.driveUrl||file.driveUrl||'',note:d.notes||'',date:d.receivedSentDate||'',uploadedAt:d.createdAt||'',classified:d.classified===true||String(d.classified)==='true',source:'Received Upload'};
-  });
-}
-function mergeMemberState(before,next,user){
-  const viewer=user.appAccess.toLowerCase()==='viewer',assigned=id=>!!user.projectRoles?.[id];
-  if(next.projects.length!==before.projects.length||next.projects.some(p=>!before.projects.some(x=>x.id===p.id)))throw Error('Only System Admin can add or remove projects.');
-  for(const p of next.projects){const previous=before.projects.find(x=>x.id===p.id);if(JSON.stringify(p)===JSON.stringify(previous))continue;
-    if(viewer||!assigned(p.id))throw Error('Project is view only.');
-    if(user.projectRoles[p.id]!=='Admin'){
-      const keys=new Set([...Object.keys(p),...Object.keys(previous)]);
-      if([...keys].some(k=>!['floorZones','zones'].includes(k)&&JSON.stringify(p[k])!==JSON.stringify(previous[k])))throw Error('Project Admin controls scope and Line of Work.');
-    }
-  }
-  const result={...before,projects:next.projects};
-  for(const field of ['intakes','tasks','meetings','pendingReceivedUploads']){
-    if(next[field]===undefined||JSON.stringify(next[field])===JSON.stringify(before[field]))continue;
-    if(viewer)throw Error('This account is view only.');
-    if(next[field].some(r=>!assigned(r.projectId||r.metadata?.projectId)))throw Error('Project access required.');
-    result[field]=next[field];
-  }
-  return result;
-}
 function useStudioState() {
   const [state, setState] = useState(null);
-  const stateRef=useRef(state);stateRef.current=state;
   const [loading, setLoading] = useState(true);
   const [saveErr, setSaveErr] = useState(false);
   const [backendErr, setBackendErr] = useState("");
@@ -3057,18 +2646,18 @@ function useStudioState() {
       try {
         const res = await localStateGet(STORE_KEY);
         localState = res?.value ? normalizeStudioState(JSON.parse(res.value)) : normalizeStudioState({
-          projects: [], people: DEFAULT_PEOPLE, templates: DEFAULT_TEMPLATES, intakes: [], tasks: [], ratings: {}, meetings: [], siteVisits: [], scopeSheet: PROJECT_SCOPE_SHEET_ROWS
+          projects: SEED_PROJECTS, people: DEFAULT_PEOPLE, templates: DEFAULT_TEMPLATES, intakes: [], tasks: [], ratings: {}, meetings: [], siteVisits: [], scopeSheet: PROJECT_SCOPE_SHEET_ROWS
         });
       } catch {
         localState = normalizeStudioState({
-          projects: [], people: DEFAULT_PEOPLE, templates: DEFAULT_TEMPLATES, intakes: [], tasks: [], ratings: {}, meetings: [], siteVisits: [], scopeSheet: PROJECT_SCOPE_SHEET_ROWS
+          projects: SEED_PROJECTS, people: DEFAULT_PEOPLE, templates: DEFAULT_TEMPLATES, intakes: [], tasks: [], ratings: {}, meetings: [], siteVisits: [], scopeSheet: PROJECT_SCOPE_SHEET_ROWS
         });
       }
 
       try {
         const user = await projectApi.getCurrentUser();
         setCurrentUser(user);
-        localState={...localState,currentUser:user,pendingProjectCreates:(localState.pendingProjectCreates||[]).filter(j=>j.ownerEmail===user.email),pendingReceivedUploads:(localState.pendingReceivedUploads||[]).filter(j=>j.ownerEmail===user.email)};
+        localState={...localState,currentUser:user};
         if (!user?.authorized) {
           setBackendErr(user?.message || "Admin access required.");
           localState = { ...localState, currentUser: user, accessDenied: true };
@@ -3076,9 +2665,8 @@ function useStudioState() {
           return;
         }
 
-        if(user.appAccess==='Contractor'){clearStudioCaches();localState={projects:[],people:[],tasks:[],intakes:[],templates:[],meetings:[],pendingReceivedUploads:[],currentUser:user};setState(localState);return;}
         if(user.appAccess.toLowerCase()!=="admin"){
-          const [remote,contacts,work,zones,people,workspace,templates]=await Promise.all([projectApi.listAll(),projectApi.listContacts(),projectApi.listLineOfWork(),projectApi.listFloorZones(),projectApi.listProjectPeople(),projectApi.getProjectWorkspace(),projectApi.listDrawingTaskMaster()]);
+          const [remote,contacts,work,zones]=await Promise.all([projectApi.listAll(),projectApi.listContacts(),projectApi.listLineOfWork(),projectApi.listFloorZones()]);
           const projects=(remote||[]).map(r=>{
             const base=backendProjectToFrontend(r,{}),id=String(r.projectId);
             const profile=contactRowsToObject((contacts||[]).filter(c=>String(c.projectId)===id));
@@ -3086,7 +2674,7 @@ function useStudioState() {
             const areas=(zones||[]).filter(x=>String(x.projectId)===id);
             return {...base,contacts:profile,lineOfWorkResidence:plan,lineOfWork:plan,floorZones:areas};
           });
-          localState={...localState,projects,people:people.map(m=>m.name),teamMaster:people.length?people:[{userId:user.userId,name:user.name,active:true}],templates,intakes:workspaceIntakes(workspace),tasks:[],ratings:{},meetings:workspace.meetings||[],siteVisits:[],scopeSheet:[],currentUser:user};
+          localState={projects,people:[user.name],teamMaster:[{userId:user.userId,name:user.name,active:true}],templates:[],intakes:[],tasks:[],ratings:{},meetings:[],siteVisits:[],scopeSheet:[],currentUser:user};
           setState(localState);return;
         }
         const [remote, remoteContacts, remoteLineOfWork, remoteFloorZones, remoteTeam, remoteDepartments, remoteDesignations, remoteDrawingTaskMaster] = await Promise.all([
@@ -3114,8 +2702,7 @@ function useStudioState() {
           if (!floorZonesByProject[r.projectId]) floorZonesByProject[r.projectId] = [];
           floorZonesByProject[r.projectId].push(r);
         });
-        if (!Array.isArray(remote)) throw new Error("Invalid project list from Google Sheets.");
-        if (Array.isArray(remote)) {
+        if (Array.isArray(remote) && remote.length > 0) {
           const localById = new Map((localState.projects || []).map(p => [String(p.id || ""), p]));
           const localByNo = new Map((localState.projects || []).map(p => [String(p.no || "").trim().toLowerCase(), p]));
           const merged = remote.map(r => {
@@ -3146,9 +2733,6 @@ function useStudioState() {
           };
           try { await localStateSet(STORE_KEY, JSON.stringify(localState)); } catch {}
         }
-        const workspace=await projectApi.getProjectWorkspace();
-        const remoteMeetings=workspace.meetings||[],knownMeetingIds=new Set(workspace.meetingIds||remoteMeetings.map(m=>m.id));
-        localState={...localState,intakes:workspaceIntakes(workspace),meetings:[...remoteMeetings,...(localState.meetings||[]).filter(m=>!knownMeetingIds.has(m.id)&&m.active!==false)]};
         setBackendErr("");
       } catch (err) {
         localState={projects:[],people:[],tasks:[],intakes:[],currentUser:null,accessDenied:true};
@@ -3160,16 +2744,10 @@ function useStudioState() {
     })();
   }, []);
 
-  const persist = useCallback(async (update, reportActivity=true) => {
-    const saveLocal=value=>reportActivity?trackActivity("save","On this device",()=>localStateSet(STORE_KEY,value)):localStateSet(STORE_KEY,value);
-    const before=stateRef.current;
-    const next=typeof update==='function'?update(before):update;
-    if(currentUser?.appAccess?.toLowerCase()!=="admin"){
-      const resolved=mergeMemberState(before,next,currentUser);stateRef.current=resolved;setState(resolved);
-      const ok=await saveLocal(JSON.stringify(resolved));setSaveErr(!ok);return resolved;
-    }
-    stateRef.current=next;setState(next);
-    const ok = await saveLocal(JSON.stringify(next));
+  const persist = useCallback(async (next) => {
+    if(currentUser?.appAccess?.toLowerCase()!=="admin")throw new Error("Projects are view only.");
+    setState(next);
+    const ok = await localStateSet(STORE_KEY, JSON.stringify(next));
     setSaveErr(!ok);
     return next;
   }, [currentUser]);
@@ -3180,26 +2758,27 @@ function useStudioState() {
 /* ---------------------------------------------------------------
    SMALL UI PRIMITIVES
 --------------------------------------------------------------- */
-function TitleBlock({ view, sub, page }) {
+function TitleBlock({ view, sub }) {
   const cell = { padding: "10px 16px", borderRight: `1px solid ${T.cyan}33` };
   const label = { fontFamily: FONT_MONO, fontSize: 10, letterSpacing: "0.12em", color: T.cyan, textTransform: "uppercase", opacity: 0.75 };
   const val = { fontFamily: FONT_DISPLAY, fontSize: 14, color: "#fff", marginTop: 3 };
   return (
-    <div className="workspace-title-block" style={{ display: "flex", background: T.navy, borderBottom: `1px solid ${T.cyan}33`, flexWrap: "wrap" }}>
-      <div className="workspace-title-metadata" style={cell}>
+    <div style={{ display: "flex", background: T.navy, borderBottom: `1px solid ${T.cyan}33`, flexWrap: "wrap" }}>
+      <div style={cell}>
         <div style={label}>Sheet</div>
         <div style={val}>{view}</div>
       </div>
-      <div className="workspace-title-metadata" style={cell}>
+      <div style={cell}>
         <div style={label}>Detail</div>
         <div style={val}>{sub || "—"}</div>
       </div>
-      <div className="workspace-title-metadata" style={cell}>
+      <div style={cell}>
         <div style={label}>Date</div>
         <div style={val}>{fmtDate(todayISO())}</div>
       </div>
-      <div className="workspace-title-activity" style={{ ...cell, borderRight: "none", marginLeft: "auto", alignSelf: "center", maxWidth: "100%", boxSizing: "border-box", fontFamily: FONT_DISPLAY, fontSize: 14 }}>
-        <WorkspaceActivity page={page} />
+      <div style={{ ...cell, borderRight: "none", marginLeft: "auto" }}>
+        <div style={label}>Studio</div>
+        <div style={val}>Lighting Design Co.</div>
       </div>
     </div>
   );
@@ -3226,15 +2805,15 @@ function StatusPill({ status }) {
 
 function Btn({ children, onClick, variant = "primary", style, disabled, type = "button" }) {
   const base = {
-    fontFamily: FONT_MONO, fontSize: 10, fontWeight: 700, letterSpacing: "0.02em", padding: "7px 10px",
-    borderRadius: 0, cursor: disabled ? "not-allowed" : "pointer", border: `1px solid ${T.blue}`,
+    fontFamily: FONT_DISPLAY, fontSize: 13, letterSpacing: "0.02em", padding: "10px 18px",
+    borderRadius: 6, cursor: disabled ? "not-allowed" : "pointer", border: "none",
     display: "inline-flex", alignItems: "center", gap: 8, transition: "opacity .15s",
     opacity: disabled ? 0.5 : 1,
   };
   const variants = {
-    primary: { background: "#fff", color: T.blue },
-    ghost: { background: "#fff", color: T.blue },
-    dark: { background: "#E6EEF4", color: T.blue },
+    primary: { background: T.blue, color: "#fff" },
+    ghost: { background: "transparent", color: T.ink, border: `1px solid ${T.line}` },
+    dark: { background: T.navy, color: "#fff" },
   };
   return (
     <button type={type} disabled={disabled} onClick={onClick} style={{ ...base, ...variants[variant], ...style }}
@@ -3254,7 +2833,7 @@ function Field({ label, children }) {
   );
 }
 
-const smallBtn = { padding:"5px 9px", border:`1px solid ${T.blue}`, borderRadius:0, background:"#fff", color:T.blue, cursor:"pointer", fontFamily:FONT_MONO, fontSize:10, fontWeight:700 };
+const smallBtn = { padding:"5px 9px", border:`1px solid ${T.line}`, background:"#fff", color:T.ink, cursor:"pointer", fontFamily:FONT_MONO, fontSize:10 };
 
 const inputStyle = {
   width: "100%", padding: "10px 12px", borderRadius: 6, border: `1px solid ${T.line}`,
@@ -3276,401 +2855,18 @@ function Chip({ active, onClick, children, title }) {
 /* ---------------------------------------------------------------
    VIEW: UPLOAD (Stage 1 of intake)
 --------------------------------------------------------------- */
-function drawingRegisterCoverage(row,project){
-  const areas=project.floorZones||Object.entries(project.zones||{}).map(([zoneCode,z])=>({zoneCode,floor:z.floor,area:z.room}));
-  const coverage=row.coverage||[];
-  const floors=[...new Set(coverage.map(c=>c.floor).filter(Boolean))];
-  return floors.map(floor=>{
-    const selected=coverage.filter(c=>c.floor===floor),known=areas.filter(a=>String(a.floor)===String(floor));
-    const full=selected.some(c=>!c.area)||(known.length>0&&known.every(a=>selected.some(c=>String(c.area).trim().toLowerCase()===String(a.area||a.room).trim().toLowerCase())));
-    const tag=c=>{const saved=known.find(a=>String(a.area||a.room).trim().toLowerCase()===String(c.area).trim().toLowerCase());if(saved?.tag||saved?.category)return saved.tag||saved.category;const name=String(c.area||'');return /bedroom|bed room/i.test(name)?'Bedroom':/toilet|washroom|bathroom|powder/i.test(name)?'Toilets':/kitchen|pantry/i.test(name)?'Kitchen':/stair/i.test(name)?'Staircase':/office|meeting|md room|md cabin/i.test(name)?'Office':/living|lounge|lobby|dining|dinning|reception|porch/i.test(name)?'Social Spaces':/puja|pooja|mandir/i.test(name)?'Mandir':name;};
-    const summary=full?(row.drawingType||'Layout'):[...new Set(selected.map(tag).filter(Boolean))].join(' ∞ ');
-    return {floor,summary:`${floor} | ${summary||row.drawingType||'Drawing'}`,details:selected.map(c=>{const z=known.find(a=>String(a.area||a.room).trim().toLowerCase()===String(c.area||'').trim().toLowerCase());return {floor,zoneCode:c.zoneCode||z?.zoneCode||'',area:c.area||'Whole floor'};})};
-  });
-}
-
-function buildDrawingRegister(project,data){
-  const drawings=(data.drawings||[]).filter(d=>!d.duplicateOf&&!sheetDashboardFlag(d.trashed)&&String(d.projectId)===String(project.id));
-  const files=(data.files||[]).filter(f=>!sheetDashboardFlag(f.trashed)&&String(f.projectId)===String(project.id));
-  const tasks=(data.tasks||[]).filter(t=>String(t.projectId)===String(project.id));
-  const parse=v=>{if(Array.isArray(v))return v;try{const a=JSON.parse(v||'[]');return Array.isArray(a)?a:[];}catch{return [];}};
-  const groups=new Map(),byDrawing=new Map();
-  const addCoverage=(entry,r)=>{const list=r.area?[{floor:r.floor,area:r.area,zoneCode:r.zoneCode||''}]:parse(r.floorTags).length?parse(r.floorTags).map(f=>({floor:f,area:''})):String(r.floor||'').split(',').map(f=>({floor:f.trim(),area:''}));list.filter(c=>c.floor).forEach(c=>{if(!entry.coverage.some(a=>a.floor===c.floor&&a.area===c.area))entry.coverage.push(c);});};
-  for(const d of drawings){
-    if(String(d.direction||'Received').toLowerCase()==='sent')continue;
-    const file=files.find(f=>f.linkedEntityId===d.drawingId)||files.find(f=>d.driveFileId&&f.driveFileId===d.driveFileId);
-    const key=JSON.stringify([d.driveFileId||file?.driveFileId||d.drawingId,d.revisionNo||'',d.drawingType||'']);
-    if(!groups.has(key))groups.set(key,{id:key,date:d.receivedSentDate||d.createdAt||file?.uploadedAt||'',fileName:d.fileName||file?.fileName||'Drawing',drawingType:d.drawingType||'',revisionNo:d.revisionNo??'',driveUrl:d.driveUrl||file?.driveUrl||'',mimeType:d.mimeType||file?.mimeType||'',drawingIds:[],coverage:[],sent:[]});
-    const row=groups.get(key);row.drawingIds.push(String(d.drawingId));addCoverage(row,d);byDrawing.set(String(d.drawingId),row);
-  }
-  // Additional received file rows without a Drawing_Register counterpart remain visible.
-  for(const f of files.filter(f=>String(f.direction).toLowerCase()==='received')){
-    if(drawings.some(d=>f.linkedEntityId===d.drawingId||(f.driveFileId&&f.driveFileId===d.driveFileId)))continue;
-    const key=String(f.fileId||f.driveFileId);if(groups.has(key))continue;
-    const row={id:key,date:sheetDashboardFlag(f.historicalImport)?f.originalDate||'':f.receivedSentDate||f.uploadedAt||'',fileName:f.fileName||'Drawing',drawingType:f.drawingType||'',revisionNo:f.revisionNo??'',driveUrl:f.driveUrl||'',mimeType:f.mimeType||'',coverage:[],sent:[]};addCoverage(row,f);groups.set(key,row);
-  }
-  // Classified area rows supersede the upload's whole-floor tags for the same file.
-  for(const r of groups.values())r.coverage=r.coverage.filter(c=>c.area||!r.coverage.some(a=>a.floor===c.floor&&a.area));
-  const sentSeen=new Map(),standalone=[];
-  for(const f of [...files.filter(f=>String(f.direction).toLowerCase()==='sent'),...drawings.filter(d=>String(d.direction).toLowerCase()==='sent')]){
-    const key=JSON.stringify([f.driveFileId||f.fileId||f.drawingId,f.revisionNo||'',f.drawingType||'']);if(sentSeen.has(key)){addCoverage(sentSeen.get(key),f);continue;}
-    const task=tasks.find(t=>String(t.designTaskId)===String(f.linkedEntityId||f.designTaskId));
-    const row={id:key,date:sheetDashboardFlag(f.historicalImport)?f.originalDate||'':f.receivedSentDate||f.uploadedAt||f.createdAt||task?.completedAt||'',fileName:f.fileName||task?.taskType||'Sent drawing',drawingType:f.drawingType||task?.taskType||'',revisionNo:f.revisionNo??'',driveUrl:f.driveUrl||'',mimeType:f.mimeType||'',coverage:[]};
-    addCoverage(row,{...f,floor:f.floor||task?.floor,area:f.area||task?.area});sentSeen.set(key,row);
-    const source=byDrawing.get(String(f.sourceDrawingId||task?.sourceDrawingId||''));if(source)source.sent.push(row);else standalone.push({id:`sent-${key}`,received:null,sent:[row]});
-  }
-  return [...[...groups.values()].map(r=>({id:r.id,received:r,sent:r.sent})),...standalone].sort((a,b)=>String(b.received?.date||b.sent[0]?.date||'').localeCompare(String(a.received?.date||a.sent[0]?.date||'')));
-}
-
-function drawingFileType(row){
-  const name=String(row.fileName||'').split(/[?#]/)[0].trim();
-  const ext=name.match(/\.([a-z0-9]+)$/i)?.[1]?.toUpperCase();
-  if(ext)return ext==='JPG'||ext==='JPE'?'JPEG':ext;
-  const mime=String(row.mimeType||'').toLowerCase();
-  if(mime.includes('pdf'))return 'PDF';
-  if(mime.includes('jpeg')||mime.includes('jpg'))return 'JPEG';
-  if(mime.includes('dwg')||mime.includes('acad'))return 'DWG';
-  if(mime.includes('png'))return 'PNG';
-  return 'FILE';
-}
-
-function DrawingCoverage({row,project}){
-  const floors=drawingRegisterCoverage(row,project);
-  if(!floors.length)return <span style={{color:T.inkDim}}>Not tagged</span>;
-  return <div style={{display:'grid',gap:8}}>{floors.map(f=><details key={f.floor} style={{display:'block'}}><summary style={{cursor:'pointer',fontWeight:500,lineHeight:1.5}}>{f.summary}</summary><div style={{marginTop:8,maxHeight:220,overflowY:'auto'}}>{f.details.map((c,i)=><div key={i} style={{padding:'6px 0',borderTop:`1px solid ${T.line}`,fontSize:12}}>{c.zoneCode&&<strong>{c.zoneCode} · </strong>}{c.floor} | {c.area}</div>)}</div></details>)}</div>;
-}
-
-function driveFileDate(value){if(!value||isNaN(new Date(value).getTime()))return '—';return new Date(value).toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});}
-function driveFileSize(value){const bytes=Number(value);if(value===null||value===undefined||!Number.isFinite(bytes))return '—';return bytes>=1048576?(bytes/1048576).toFixed(1)+' MB':bytes>=1024?(bytes/1024).toFixed(1)+' KB':bytes+' B';}
-function uploadTransientError(error){return [408,429,500,502,503,504].includes(error.status)||/connection ended|backend request failed|could not be confirmed within|network|failed to fetch|timed out|temporarily unavailable/i.test(error.message||'');}
-async function uploadApiRequest(action,payload,timeout=90000){const generation=AUTH_SESSION_GENERATION;for(let attempt=0;;attempt++){if(generation!==AUTH_SESSION_GENERATION)throw Error('Sign-in changed. Retry after signing in.');try{return await apiRequest(action,payload,'POST',timeout);}catch(e){if(!uploadTransientError(e)||attempt>=2){const label=action.startsWith('begin')?'preparing the Drive folder':action.startsWith('finish')?'saving the drawing register':payload.probe?'checking Drive upload status':'transferring the file';const failure=new Error(`${e.message} [Upload step: ${label}; ${action}]`);failure.status=e.status;throw failure;}await new Promise(resolve=>setTimeout(resolve,1000*(attempt+1)));}}}
-async function transferDrawingToDrive(entry,file,onProgress=()=>{}){
- const probe=()=>uploadApiRequest('uploadReceivedChunk',{uploadTicket:entry.session.uploadTicket,probe:true});
- let result=entry.completion;
- if(result?.complete)return result;
- if(entry.session.sessionUrl&&!entry.directFailed){
-  const u=new URL(entry.session.sessionUrl);if(u.protocol!=='https:'||u.hostname!=='www.googleapis.com'||u.pathname!=='/upload/drive/v3/files'||!u.searchParams.get('upload_id'))throw Error('Invalid Drive upload destination.');
-  result=entry.transferStarted?await probe():{complete:false,nextOffset:0};
-  if(!result.complete){
-   const offset=result.nextOffset;entry.transferStarted=true;
-   try{
-    await new Promise((resolve,reject)=>{const xhr=new XMLHttpRequest();xhr.open('PUT',u.href);xhr.timeout=90000;xhr.setRequestHeader('Content-Type',file.type||'application/octet-stream');xhr.setRequestHeader('Content-Range',`bytes ${offset}-${file.size-1}/${file.size}`);let last=-1;xhr.upload.onprogress=e=>{if(e.lengthComputable){const progress=Math.min(99,Math.floor((offset+e.loaded)/file.size*100));if(progress!==last){last=progress;onProgress(progress);}}};xhr.onload=()=>xhr.status>=200&&xhr.status<300||xhr.status===308?resolve():reject(Error('Direct transfer could not be confirmed.'));xhr.onerror=()=>reject(Error('Direct upload unavailable.'));xhr.ontimeout=()=>reject(Error('Direct upload timed out.'));xhr.send(file.slice(offset));});
-   }catch(e){entry.directFailed=true;}
-   // Only the authenticated server can issue a completion receipt after checking Drive.
-   result=await probe();
-  }
- }else result=result||await probe();
- let stalled=0,recoveries=0;
- while(!result.complete){const offset=result.nextOffset,end=Math.min(offset+Math.min(entry.session.chunkBytes,512*1024),file.size);if(end<=offset)throw Error('Drive has not confirmed completion. Retry to resume.');let next;try{next=await apiRequest('uploadReceivedChunk',{uploadTicket:entry.session.uploadTicket,offset,chunk:await uploadFileBase64(file.slice(offset,end))},'POST',90000);recoveries=0;}catch(e){if(!uploadTransientError(e)||recoveries++>=2)throw Error(e.message+' [Upload step: transferring the file]');await new Promise(resolve=>setTimeout(resolve,1000*recoveries));result=await probe();onProgress(Math.min(99,Math.floor(result.nextOffset/file.size*100)));continue;}stalled=next.nextOffset<=offset?stalled+1:0;if(stalled>1)throw Error('Upload stopped. Retry to resume.');result=next;onProgress(Math.min(99,Math.floor(result.nextOffset/file.size*100)));}
- entry.completion=result;onProgress(100);return result;
-}
-
-function uploadProjectDrawingJob(file,projectId,destination,entry,onProgress,designTaskId){
-  return trackActivity('upload','Drawing to ' + destination,report=>uploadProjectDrawingJobToDrive(file,projectId,destination,entry,progress=>{report(progress);onProgress?.(progress);},designTaskId));
-}
-async function uploadProjectDrawingJobToDrive(file,projectId,destination,entry,onProgress,designTaskId){
-  if(entry.file!==file||entry.projectId!==projectId||entry.destination!==destination||entry.designTaskId!==designTaskId){for(const key of Object.keys(entry))delete entry[key];Object.assign(entry,{file,projectId,destination,designTaskId,uploadId:'PRJ-UPL-'+uid()});}
-  if(entry.saved)return entry.saved;
-  const start=destination==='Base'?'beginBaseDrawingUpload':'beginWorkDrawingUpload',finish=destination==='Base'?'finishBaseDrawingUpload':'finishWorkDrawingUpload';
-  const metadata={projectId,uploadId:entry.uploadId,designTaskId,fileName:file.name,mimeType:file.type||'application/octet-stream',fileSize:file.size};
-  if(entry.session&&entry.failedExpired){entry.session=null;entry.completion=null;entry.transferStarted=false;entry.directFailed=false;entry.failedExpired=false;}
-  if(!entry.session)entry.session=await uploadApiRequest(start,metadata,120000);
-  if(entry.session.file){entry.saved=entry.session.file;return entry.saved;}
-  const result=await transferDrawingToDrive(entry,file,onProgress);
-  entry.completion=result;onProgress?.(100);entry.saved=await uploadApiRequest(finish,{completionTicket:result.completionTicket},120000);return entry.saved;
-}
-function ZonePlanDraftReview({projectId,floor,disabled,onLabels}){
- const [file,setFile]=useState(null),[url,setUrl]=useState(''),[message,setMessage]=useState(''),[uploading,setUploading]=useState(false),[reviewed,setReviewed]=useState(false),[saved,setSaved]=useState(false);
- const job=useRef({}),tagged=useRef(null);
- useEffect(()=>{if(!file)return;const link=URL.createObjectURL(file);setUrl(link);return()=>URL.revokeObjectURL(link);},[file]);
- const acceptFile=f=>{setFile(f);setUrl('');setReviewed(false);setSaved(false);setMessage('');};
- const upload=async()=>{
-  if(!file||!reviewed||uploading||saved)return;
-  setUploading(true);
-  try{
-   if(tagged.current?.source!==file)tagged.current={source:file,file:new File([file],'[Zone plan '+encodeURIComponent(String(floor).trim().toLowerCase())+'] '+file.name,{type:'application/pdf',lastModified:file.lastModified})};
-   await uploadProjectDrawingJob(tagged.current.file,projectId,'Base',job.current);
-   setSaved(true);setMessage('Plan saved to Drive → Base. Submit the draft rows separately.');
-  }catch(e){if(/expired|invalid.*session/i.test(e.message))job.current.failedExpired=true;setMessage(e.message);}
-  finally{setUploading(false);}
- };
- return <details open style={{margin:'10px 0',padding:12,border:`1px solid ${T.line}`,fontSize:12}}>
-  <summary style={{cursor:'pointer',fontWeight:600}}>Read zone plan PDF · {floor||'Select a floor'}</summary>
-  <ZoneColourReview projectId={projectId} request={apiRequest} onLabels={onLabels} onFile={acceptFile} disabled={disabled||uploading}/>
-  {message&&<p role="status">{message}</p>}
-  {file&&url&&<><a href={url} target="_blank" rel="noreferrer">Open PDF in a new tab</a><label style={{display:'block',margin:'8px 0'}}><input type="checkbox" checked={reviewed} disabled={disabled||uploading||saved} onChange={e=>setReviewed(e.target.checked)}/> I reviewed the PDF for this floor.</label><button type="button" style={smallBtn} disabled={disabled||!reviewed||uploading||saved} onClick={upload}>{uploading?'Uploading…':saved?'PDF saved':'Save reviewed PDF to Base'}</button></>}
- </details>;
-}
-
-function BaseDrawingUpload({projectId,onSaved}){
-  const [file,setFile]=useState(null),[busy,setBusy]=useState(false),[progress,setProgress]=useState(0),[error,setError]=useState('');const entry=useRef({}),input=useRef(null);
-  const upload=async()=>{if(!file||busy)return;setBusy(true);setProgress(0);setError('');try{await uploadProjectDrawingJob(file,projectId,'Base',entry.current,setProgress);setFile(null);if(input.current)input.current.value='';onSaved();}catch(e){if(/expired|invalid.*session/i.test(e.message))entry.current.failedExpired=true;setError(e.message);}finally{setBusy(false);}};
-  return <div style={{padding:'0 16px 14px',fontFamily:FONT_BODY}}><div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}><button type="button" disabled={busy} style={smallBtn} onClick={()=>input.current?.click()}>Choose edited base</button><input ref={input} aria-label="Edited base drawing" type="file" disabled={busy} style={{display:'none'}} onChange={e=>{if(e.target.files?.[0]){setFile(e.target.files[0]);setError('');}}}/><span style={{fontSize:11,color:T.inkDim,overflowWrap:'anywhere'}}>{file?.name||'Edited reference/layout files are saved in Base.'}</span>{file&&<button type="button" style={smallBtn} disabled={busy} onClick={upload}>{busy?`Uploading ${progress}%`:'Upload to Base'}</button>}</div>{error&&<p role="alert" style={{color:T.redline,fontSize:12,marginBottom:0}}>{error} Click Upload to Base to retry.</p>}</div>;
-}
-
-function projectSequenceNumber(project){
-  const value=String(project.no||project.projectNo||'').trim();
-  const token=value.includes('-')?value.split('-')[1].trim():value;
-  return /^\d+$/.test(token)?Number(token):Number.POSITIVE_INFINITY;
-}
-function compareProjectSequence(a,b){
-  const left=projectSequenceNumber(a),right=projectSequenceNumber(b);
-  if(!Number.isFinite(left)||!Number.isFinite(right)){if(left!==right)return Number.isFinite(left)?-1:1;}
-  else if(left!==right)return right-left;
-  return String(a.no||a.projectNo||'').localeCompare(String(b.no||b.projectNo||''),undefined,{numeric:true})||String(a.name||'').localeCompare(String(b.name||''));
-}
-function orderedProjects(projects){return [...(projects||[])].sort(compareProjectSequence);}
-
-function ProjectBooksView({state}){
- const [query,setQuery]=useState(''),[status,setStatus]=useState('all'),[projectId,setProjectId]=useState(''),[record,setRecord]=useState(null),[draft,setDraft]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[edit,setEdit]=useState(false);const generation=useRef(0);
- const projects=orderedProjects(state.projects||[]).filter(p=>(status==='all'||projectIsCompleted(p)===(status==='completed'))&&[p.no,p.name].join(' ').toLowerCase().includes(query.toLowerCase()));const project=state.projects.find(p=>String(p.id)===String(projectId));
- const admin=!!project&&(state.currentUser?.appAccess?.toLowerCase()!=='viewer')&&((wihSystemAccount(state.currentUser)&&state.currentUser?.appAccess?.toLowerCase()==='admin')||state.currentUser?.projectRoles?.[String(projectId)]==='Admin');
- const open=async id=>{const n=++generation.current;setProjectId(id);setRecord(null);setDraft(null);setEdit(false);setBusy(true);setError('');try{const r=await apiRequest('getProjectBook',{projectId:id},'POST',90000);if(n===generation.current){setRecord(r);setDraft(r?.book||null);}}catch(e){if(n===generation.current)setError(e.message);}finally{if(n===generation.current)setBusy(false);}};
- const generate=async()=>{if(record&&!window.confirm('Replace the saved book with a new AI draft from current project records? Export your edited text first if you want to keep it.'))return;setBusy(true);setError('');try{const r=await apiRequest('generateProjectBook',{projectId},'POST',240000);setRecord(r);setDraft(r.book);setEdit(false);}catch(e){setError(e.message);}finally{setBusy(false);}};
- const save=async()=>{setBusy(true);setError('');try{const r=await apiRequest('saveProjectBook',{projectId,expectedVersion:record.version,book:draft,sources:record.sources},'POST',90000);setRecord(r);setEdit(false);}catch(e){setError(e.message);}finally{setBusy(false);}};
- const exportBook=()=>{const text=[draft.title,...draft.chapters.flatMap(c=>['\n'+c.title,c.text,'Sources: '+c.sourceIds.join(', ')]),'\nSOURCE INDEX',...(record.sources||[]).map(s=>s.id+' · '+s.title+' '+(s.url||''))].join('\n\n');const url=URL.createObjectURL(new Blob([text],{type:'text/plain;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download=(project?.no||'project')+'-book.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
- const sourceUrl=s=>{try{const u=new URL(s.url);return ['drive.google.com','docs.google.com'].includes(u.hostname)&&u.protocol==='https:'?u.href:'';}catch{return '';}};
- const images=(record?.sources||[]).filter(s=>s.image&&s.driveFileId);
- return <section style={{fontFamily:FONT_BODY}}><div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center'}}>{projectId&&<button type="button" style={smallBtn} disabled={busy} onClick={()=>{setProjectId('');setError('');}}>Back to studio journal</button>}</div>{error&&<AppErrorNotice message={error}/>} {!projectId?<StudioJournalView state={state} request={apiRequest} onOpenBook={open}/>:<>{busy&&<p role="status" style={{fontSize:12}}>Preparing project book… This can take a little time for a large project folder.</p>}<h3 style={{fontFamily:FONT_DISPLAY}}>{project?.no} · {project?.name}</h3><p style={{fontSize:12,color:T.inkDim}}>AI uses saved project records, notes, actions, filenames and metadata, plus supported text files. PDF/CAD/DIALux contents and image pixels are not analysed. Folder scans are bounded; missing or omitted information is marked in the draft.</p>{admin&&<><p style={{fontSize:12}}>Generate sends this project’s source records to OpenAI to create an editable draft. Review the book before sharing it.</p><button type="button" style={smallBtn} disabled={busy} onClick={generate}>{record?'Regenerate AI book':'Generate AI project book'}</button></>}{draft&&<><div style={{display:'flex',gap:10,margin:'16px 0',flexWrap:'wrap'}}><button type="button" disabled={busy} style={smallBtn} onClick={exportBook}>Export book text</button>{admin&&<button type="button" disabled={busy} style={smallBtn} onClick={()=>{setEdit(x=>!x);setDraft(record.book);}}>{edit?'Discard edits':'Edit book'}</button>}{edit&&<button type="button" disabled={busy} style={smallBtn} onClick={save}>Save book</button>}</div><h2 style={{fontFamily:FONT_DISPLAY}}>{draft.title}</h2><p style={{fontSize:11,color:T.inkDim}}>{record.published?'Published project book':'AI draft'} · Saved {formatProjectDate(record.updatedAt)}</p>{draft.chapters.map((c,i)=><article key={i} style={{background:'#fff',border:`1px solid ${T.line}`,padding:20,margin:'14px 0'}}><h3 style={{fontFamily:FONT_DISPLAY}}>{c.title}</h3>{edit?<textarea aria-label={`Edit ${c.title}`} style={{...inputStyle,minHeight:180,width:'100%'}} value={c.text} onChange={e=>setDraft(d=>({...d,chapters:d.chapters.map((v,j)=>j===i?{...v,text:e.target.value}:v)}))}/>:<p style={{whiteSpace:'pre-wrap',fontSize:13,lineHeight:1.8}}>{c.text}</p>}<div style={{display:'flex',gap:8,flexWrap:'wrap'}}>{c.sourceIds.map(id=>{const source=record.sources?.find(s=>s.id===id);return source?<span key={id} title={source.title} style={{fontSize:10,color:T.inkDim}}>{sourceUrl(source)?<a href={sourceUrl(source)} target="_blank" rel="noopener noreferrer">{id} · {source.title}</a>:id+' · '+source.title}</span>:null;})}</div></article>)}{images.length>0&&<section><h3 style={{fontFamily:FONT_DISPLAY}}>Project image archive</h3><p style={{fontSize:12,color:T.inkDim}}>Open original images in Drive. Their recorded filename and source provide context; phase and final-photo status are not inferred.</p><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))',gap:14}}>{images.map(s=><a key={s.id} href={sourceUrl(s)||undefined} target="_blank" rel="noopener noreferrer" style={{border:`1px solid ${T.line}`,padding:12,overflowWrap:'anywhere',fontSize:12}}><TechnicalImage url={'https://drive.google.com/thumbnail?id='+encodeURIComponent(s.driveFileId)+'&sz=w400'} label={s.title}/><div>{s.title}</div></a>)}</div></section>}<details style={{marginTop:20}}><summary>Complete source index</summary>{record.sources?.map(s=><p key={s.id} style={{fontSize:12}}>{s.id} · {s.title} · {s.kind}</p>)}</details></>}{!busy&&!draft&&!error&&<p style={{fontSize:12,color:T.inkDim}}>No book generated yet. A project admin can generate the first draft.</p>}</>}</section>;
-}
-
-function ProjectDriveView({state,persist}){
-  const [trashBusy,setTrashBusy]=useState(false),[trashMessage,setTrashMessage]=useState('');
-  const [folderNotice,setFolderNotice]=useState('');
-  const [selectedFile,setSelectedFile]=useState(null);
-  const [projectStatus,setProjectStatus]=useState('Ongoing');
-  const [projectId,setProjectId]=useState(''),[category,setCategory]=useState(''),[path,setPath]=useState([]),[data,setData]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[revision,setRevision]=useState(0),[search,setSearch]=useState(''),[query,setQuery]=useState(''),[offset,setOffset]=useState(0),[projectSearch,setProjectSearch]=useState('');
-  const [config,setConfig]=useState(null),[rootLink,setRootLink]=useState(''),[projectLink,setProjectLink]=useState(''),[linking,setLinking]=useState(false),[linkMessage,setLinkMessage]=useState('');
-  const admin=state.currentUser?.appAccess?.toLowerCase()==='admin';
-  const project=(state.projects||[]).find(p=>String(p.id)===projectId),categories=['Base','Output','Received','Sent'];
-  const completed=p=>p.completed===true||String(p.completed).toLowerCase()==='true'||!!p.completedAt||[p.status,p.projectStatus,p.projectControl?.projectStatus].some(value=>String(value||'').toLowerCase()==='completed');
-  const projects=orderedProjects(state.projects).filter(p=>completed(p)===(projectStatus==='Completed')).filter(p=>`${p.no} ${p.name}`.toLowerCase().includes(projectSearch.toLowerCase()));
-  const folderId=path.at(-1)?.id||'';
-  const driveListCache=useRef(new Map());
-  useEffect(()=>{let live=true;setSelectedFile(null);setError('');setFolderNotice('');if(!projectId||!category){setData(null);setBusy(false);return;}
-    const key=JSON.stringify([state.currentUser?.email,projectId,category,folderId,offset,query,revision]);
-    const cached=driveListCache.current.get(key);setData(cached||null);setBusy(true);
-    projectApi.listProjectDrive({projectId,category,folderId,offset,query}).then(r=>{if(live){driveListCache.current.set(key,r);setData(r);}}).catch(e=>{if(live)setError(e.message);}).finally(()=>{if(live)setBusy(false);});return()=>{live=false;};
-  },[projectId,category,folderId,offset,query,revision,state.currentUser?.email]);
-  const chooseProject=id=>{setTrashMessage('');setProjectId(String(id));setCategory('');setPath([]);setQuery('');setSearch('');setOffset(0);setProjectLink('');setLinkMessage('');};
-  const openCategory=value=>{setCategory(value);setPath([]);setOffset(0);setSearch('');setQuery('');};
-  const saveLink=async kind=>{setLinking(true);setLinkMessage('');try{if(kind==='root'){const r=await projectApi.setDriveLibraryRoot({folder:rootLink});setConfig(r);setRootLink('');setLinkMessage('Projects folder linked. Select a project to link its folder.');}else{await projectApi.linkProjectDrive({projectId,folder:projectLink});setProjectLink('');setRevision(n=>n+1);setLinkMessage('Project folder linked. Base, Output, Received and Sent are ready.');}}catch(e){setLinkMessage(e.message);}finally{setLinking(false);}};
-  const moveToTrash=async()=>{if(!selectedFile||trashBusy)return;setTrashBusy(true);setTrashMessage('Moving drawing to trash…');try{await projectApi.trashProjectDrawing({projectId,driveFileId:selectedFile.id});setSelectedFile(null);setRevision(n=>n+1);setTrashMessage('Drawing moved to Google Drive trash.');if(persist){try{const workspace=await projectApi.getProjectWorkspace();await persist(latest=>({...latest,intakes:workspaceIntakes(workspace)}));}catch{setTrashMessage('Drawing moved to trash. Refresh the app to update Classify.');}}}catch(e){setTrashMessage(e.message);}finally{setTrashBusy(false);}};
-  const safeUrl=url=>{try{const u=new URL(url);return u.protocol==='https:'&&['drive.google.com','docs.google.com'].includes(u.hostname)?u.href:'';}catch{return '';}};
-  return <section className="studio-drive" style={{fontFamily:FONT_BODY}}><header className="wih-register-head studio-drive-heading"><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12}}><h1 className="studio-page-heading">Drive</h1><button type="button" style={smallBtn} disabled={!projectId||busy} onClick={()=>setRevision(n=>n+1)}>Refresh files</button></div><p style={{fontSize:12,color:T.inkDim,margin:'0 0 18px'}}>Project drawings · Base, Output, Received and Sent</p></header>
-  {admin&&<details className="studio-drive-settings" onToggle={e=>{if(e.currentTarget.open&&!config)projectApi.getDriveLibraryConfig().then(setConfig).catch(e=>setLinkMessage(e.message));}}><summary style={{...smallBtn,display:'inline-block',fontWeight:500}}>Folder settings</summary><div className="studio-drive-settings-body" style={{display:'grid',gap:10,marginTop:10}}><div style={{fontSize:12,color:T.inkDim}}>Projects root: {config?.rootName||'Not linked'}</div><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><input aria-label="Projects root folder link" placeholder="Paste your Google Drive projects folder link" value={rootLink} onChange={e=>setRootLink(e.target.value)} style={{...inputStyle,flex:'1 1 300px'}}/><button type="button" style={smallBtn} disabled={linking||!rootLink.trim()} onClick={()=>saveLink('root')}>Link projects root</button></div>{project&&<><label style={{fontSize:12}}>Link folder for {project.name}</label>{config?.folders?.length>0&&<select aria-label="Existing project Drive folders" value={projectLink} onChange={e=>setProjectLink(e.target.value)} style={inputStyle}><option value="">Choose an existing project folder…</option>{config.folders.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select>}<div style={{display:'flex',gap:8,flexWrap:'wrap'}}><input aria-label="Project Drive folder link" value={projectLink} onChange={e=>setProjectLink(e.target.value)} placeholder="Or paste this project's Drive folder link" style={{...inputStyle,flex:'1 1 300px'}}/><button type="button" style={smallBtn} disabled={linking||!projectLink.trim()} onClick={()=>saveLink('project')}>Link project folder</button></div><p style={{fontSize:11,color:T.inkDim,margin:0}}>Existing Base, Output, Received and Sent folders are reused. Missing folders are created when linked.</p></>}{linkMessage&&<p role="status" style={{fontSize:12,margin:0}}>{linkMessage}</p>}</div></details>}
-  {trashMessage&&<p role="status" style={{fontSize:12,color:T.inkDim}}>{trashMessage}</p>}
-  <div className="project-drive-scroll"><div className={`project-drive-layout${selectedFile?' has-file-details':''}`}><nav aria-label="Drive project status" className="project-drive-status">{['Ongoing','Completed'].map(status=><button key={status} type="button" aria-pressed={projectStatus===status} onClick={()=>{setProjectStatus(status);setProjectSearch('');chooseProject('');}} style={{border:0,borderBottom:`1px solid ${T.line}`,background:projectStatus===status?'#E6EEF4':T.paper,color:projectStatus===status?T.blue:T.inkDim,fontFamily:FONT_BODY,fontSize:12,fontWeight:600,cursor:'pointer',writingMode:'vertical-rl',transform:'rotate(180deg)',padding:'20px 12px'}}>{status}</button>)}</nav><aside className="project-drive-projects" style={{background:'#fff',border:`1px solid ${T.line}`,minWidth:0}}><div style={{padding:12,background:T.paper,fontFamily:FONT_MONO,fontSize:10,letterSpacing:'.06em',color:T.inkDim}}>PROJECTS</div><input aria-label="Search Drive projects" placeholder="Search projects" value={projectSearch} onChange={e=>setProjectSearch(e.target.value)} style={{...inputStyle,width:'calc(100% - 20px)',margin:10}}/><div style={{flex:1,minHeight:0,overflowY:'auto'}}>{projects.map(p=><button key={p.id} type="button" aria-pressed={projectId===String(p.id)} onClick={()=>chooseProject(p.id)} style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:0,borderBottom:0,borderLeft:`2px solid ${projectId===String(p.id)?T.blue:'transparent'}`,background:projectId===String(p.id)?'#E6EEF4':'transparent',color:T.ink,padding:'9px 12px',textAlign:'left',cursor:'pointer',fontFamily:FONT_BODY,fontSize:12}}><FolderOpen size={17} color={T.blue} style={{flexShrink:0}}/><span><span style={{fontFamily:FONT_MONO,fontSize:10,fontWeight:500,color:T.inkDim}}>{p.no||p.projectNo}</span><div style={{marginTop:3,fontSize:12,lineHeight:1.45,fontWeight:400}}>{p.name}</div></span></button>)}{!projects.length&&<p style={{padding:12,fontSize:12,color:T.inkDim}}>No projects found.</p>}</div></aside>
-  <aside aria-label="Project Drive folders" className="project-drive-folders"><div style={{padding:12,background:T.paper,fontFamily:FONT_MONO,fontSize:10,letterSpacing:'.06em',color:T.inkDim}}>FOLDERS</div>{project?<><div style={{padding:12,fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,borderBottom:`1px solid ${T.line}`}}>{project.name}</div>{categories.map(key=><button key={key} type="button" aria-pressed={category===key} onClick={()=>openCategory(key)} style={{display:'flex',alignItems:'center',gap:10,width:'100%',border:0,borderBottom:0,padding:'10px 12px',background:category===key?'#E6EEF4':'transparent',color:category===key?T.blue:T.ink,textAlign:'left',cursor:'pointer',fontFamily:FONT_BODY,fontSize:12}}><FolderOpen size={18} color={T.blue}/>{key}<ChevronRight size={13} style={{marginLeft:'auto'}}/></button>)}</>:<p style={{padding:12,fontSize:12,color:T.inkDim,lineHeight:1.6}}>Choose a project to view its folders.</p>}</aside>
-  <main className="project-drive-files" style={{minWidth:0,border:0,background:'#fff'}}>{!project?<div className="studio-drive-empty"><FolderOpen size={32} color={T.blue} strokeWidth={1.2}/><strong style={{fontFamily:FONT_DISPLAY,fontSize:16,color:T.ink,fontWeight:500}}>Your project drawings</strong><span>Select {projectStatus==='Ongoing'?'an ongoing':'a completed'} project, then choose a folder.</span></div>:<><h3 style={{fontFamily:FONT_DISPLAY,fontSize:16,padding:'14px 16px',borderBottom:`1px solid ${T.line}`,margin:'0 0 12px'}}>{category||'Drawings'}</h3>{category==='Base'&&project&&state.currentUser?.appAccess?.toLowerCase()!=='viewer'&&<BaseDrawingUpload key={projectId} projectId={projectId} onSaved={()=>setRevision(n=>n+1)}/>}{folderNotice&&<p role="status" style={{padding:'0 16px',fontSize:11,color:T.inkDim}}>{folderNotice}</p>}{busy&&<p role="status" style={{padding:'0 16px',fontSize:12,color:T.inkDim}}>{data?'Updating file list…':'Loading file names…'}</p>}{error&&<p role="alert" style={{padding:16,fontSize:12,color:T.redline}}>{error}</p>}{data?.linked===false&&<p style={{padding:16,fontSize:12,color:T.inkDim}}>Project folders are created and linked automatically. If loading failed, check the Drive connection. {admin?'Use Link Google Drive folders above.':'Ask your administrator to link it.'}</p>}{data?.linked&&!category&&<p style={{padding:'0 16px 16px',fontSize:12,color:T.inkDim}}>Choose a folder above to view its files.</p>}{category&&data?.linked&&<><div style={{padding:'0 16px 12px',display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',fontSize:12}}><button type="button" style={smallBtn} onClick={()=>{setPath([]);setOffset(0);setQuery('');setSearch('');}}>{category}</button>{path.map((f,i)=><button type="button" key={f.id} style={smallBtn} onClick={()=>{setPath(p=>p.slice(0,i+1));setOffset(0);setQuery('');setSearch('');}}>› {f.name}</button>)}</div><form onSubmit={e=>{e.preventDefault();setQuery(search);setOffset(0);}} style={{display:'flex',gap:8,padding:'0 16px 12px'}}><input aria-label="Search current Drive folder" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search this folder" style={{...inputStyle,minWidth:0,flex:1}}/><button type="submit" style={smallBtn}>Search</button></form><div aria-label="Drawing files">{(data.entries||[]).filter((item,index,items)=>items.findIndex(other=>other.id===item.id)===index).map(item=><button key={item.id} type="button" aria-label={item.kind==='folder'?`Open ${item.name}`:`Details for ${item.name}`} aria-pressed={selectedFile?.id===item.id} onClick={()=>{if(item.kind==='folder'){setPath(p=>[...p,{id:item.id,name:item.name}]);setOffset(0);setSearch('');setQuery('');}else setSelectedFile(item);}} style={{display:'flex',alignItems:'center',gap:10,width:'100%',padding:'10px 16px',border:0,borderBottom:`1px solid ${T.line}`,background:selectedFile?.id===item.id?'#E6EEF4':'transparent',textAlign:'left',cursor:'pointer',fontFamily:FONT_BODY,color:T.ink}}>{item.kind==='folder'?<FolderOpen size={18} color="#489FC5"/>:<FileText size={17} color={T.blue}/>}<span style={{minWidth:0}}><span style={{display:'block',fontSize:12,lineHeight:1.45,overflowWrap:'anywhere'}}>{item.name}</span><span style={{display:'block',fontSize:10,color:T.inkDim,opacity:.8,lineHeight:1.5,marginTop:3}}>{formatProjectDate(item.receivedDate||item.created||item.modified)}</span></span></button>)}{!data.entries?.length&&<p style={{padding:24,color:T.inkDim,fontSize:12}}>{query?'No matching files in this folder.':'This folder is empty.'}</p>}</div><div style={{display:'flex',gap:8,padding:16}}>{offset>0&&<button type="button" style={smallBtn} onClick={()=>setOffset(n=>Math.max(0,n-100))}>Previous</button>}{data.nextOffset!==null&&data.nextOffset!==undefined&&<button type="button" style={smallBtn} onClick={()=>setOffset(data.nextOffset)}>Next</button>}</div></>}</>}</main>{selectedFile&&<aside aria-label="Drawing information" className="project-drive-file-details" style={{background:'#fff',borderLeft:`1px solid ${T.line}`,padding:18,overflowY:'auto',fontFamily:FONT_BODY}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}><h3 style={{fontFamily:FONT_DISPLAY,fontSize:16,margin:0}}>Information</h3><button type="button" aria-label="Close drawing information" style={smallBtn} onClick={()=>setSelectedFile(null)}>Close</button></div><div style={{display:'grid',justifyItems:'center',gap:12,padding:'18px 8px',color:T.blue}}><FileText size={54} strokeWidth={1}/><span style={{fontFamily:FONT_MONO,fontWeight:600,fontSize:14}}>{drawingFileType({fileName:selectedFile.name,mimeType:selectedFile.mimeType})}</span></div><h4 style={{fontFamily:FONT_DISPLAY,fontSize:16,lineHeight:1.5,overflowWrap:'anywhere',margin:'0 0 16px'}}>{selectedFile.name}</h4><dl style={{margin:0}}>{[['Name',selectedFile.name],['Type',drawingFileType({fileName:selectedFile.name,mimeType:selectedFile.mimeType})],['Size',driveFileSize(selectedFile.size)],['Created',driveFileDate(selectedFile.created)],['Modified',driveFileDate(selectedFile.modified)],['Project',project?.name],['Folder',[category,...path.map(f=>f.name)].join(' / ')]].map(([label,value])=><div key={label} style={{padding:'10px 0',borderBottom:`1px solid ${T.line}`,fontSize:12,lineHeight:1.5}}><dt style={{color:T.inkDim,marginBottom:3}}>{label}</dt><dd style={{margin:0,color:T.ink,overflowWrap:'anywhere'}}>{value||'—'}</dd></div>)}</dl>{safeUrl(selectedFile.url)&&<a href={safeUrl(selectedFile.url)} target="_blank" rel="noreferrer" style={{...smallBtn,display:'inline-block',marginTop:18}}>Open drawing</a>}{project&&(state.currentUser?.appAccess?.toLowerCase()==='admin'||state.currentUser?.appAccess?.toLowerCase()!=='viewer'&&projectRole(state,projectId)==='Admin')&&<div style={{marginTop:16}}><button type="button" disabled={trashBusy} style={smallBtn} onClick={moveToTrash}>{trashBusy?'Moving…':'Move to trash'}</button><p style={{fontSize:11,color:T.inkDim,lineHeight:1.5}}>Moves the selected drawing to Google Drive trash.</p></div>}{['Output','Sent'].includes(category)&&project&&(state.currentUser?.appAccess?.toLowerCase()==='admin'||state.currentUser?.appAccess?.toLowerCase()!=='viewer'&&projectRole(state,projectId)==='Admin')&&<IssueDrawingForm key={selectedFile.id} file={selectedFile} projectId={projectId} onIssued={()=>{setSelectedFile(null);setCategory('Sent');setPath([]);setOffset(0);setSearch('');setQuery('');setRevision(n=>n+1);}}/>}</aside>}</div></div></section>;
-}
-
-function inferDrawingProject(fileName,projects){
-  const normalize=v=>String(v||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
-  const file=' '+normalize(String(fileName||'').replace(/\.[^.]+$/,''))+' ';
-  const scores=(projects||[]).filter(p=>!p.completed&&!p.completedAt&&p.status!=='Completed'&&p.projectControl?.projectStatus!=='Completed').map(p=>{const no=normalize(p.no||p.projectNo),name=normalize(p.name);let score=0;if(no.length>=3&&file.includes(' '+no+' '))score=100+no.length;if(name.length>=5&&file.includes(' '+name+' '))score=Math.max(score,50+name.length);for(const token of [...no.split(' '),...name.split(' ')].filter(t=>t.length>=3&&/[0-9]/.test(t)))if(file.includes(' '+token+' '))score=Math.max(score,20+token.length);return {id:p.id,score};}).filter(p=>p.score).sort((a,b)=>b.score-a.score);
-  return scores.length&&(!scores[1]||scores[0].score>scores[1].score)?scores[0].id:'';
-}
-function projectIsCompleted(project){return [project?.projectControl?.status,project?.projectControl?.projectStatus,project?.status,project?.projectStatus].some(status=>/^(completed|complete|done)$/i.test(String(status||'').trim()))||!!project?.completedAt||project?.completed===true||project?.completed==='true';}
-function ProjectStatusButtons({group,onChange,disabled}){return <div role="group" aria-label="Project status filter" style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:7}}>{['Ongoing','Completed'].map(name=><button key={name} type="button" disabled={disabled} aria-pressed={group===name} onClick={()=>onChange(name)} style={{...smallBtn,padding:'6px 11px',fontFamily:FONT_BODY,background:group===name?T.navy:T.paper,color:group===name?'#fff':T.ink,borderColor:group===name?T.navy:T.line}}>{name} projects</button>)}</div>;}
-function ProjectStatusSelect({projects=[],children,...props}){
- const current=projects.find(p=>String(p.id)===String(props.value));const [group,setGroup]=useState(()=>current&&projectIsCompleted(current)?'Completed':'Ongoing');
- useEffect(()=>{if(current)setGroup(projectIsCompleted(current)?'Completed':'Ongoing');},[props.value,current&&projectIsCompleted(current)]);
- const options=React.Children.toArray(children),ids=new Set(projects.filter(p=>projectIsCompleted(p)===(group==='Completed')).map(p=>String(p.id)));
- const changeGroup=name=>{setGroup(name);const allowed=new Set(projects.filter(p=>projectIsCompleted(p)===(name==='Completed')).map(p=>String(p.id)));if(!allowed.has(String(props.value))){const placeholder=options.find(o=>String(o.props?.value??'')===''),first=options.find(o=>allowed.has(String(o.props?.value)));props.onChange?.({target:{value:placeholder?'':String(first?.props?.value??'')}});}};
- return <div style={{minWidth:0,flex:'1 1 auto',marginBottom:props.style?.marginBottom}}><ProjectStatusButtons group={group} onChange={changeGroup} disabled={props.disabled}/><select {...props} style={{...props.style,marginBottom:0}}>{options.filter(o=>!o.props||String(o.props.value??'')===''||ids.has(String(o.props.value)))}</select>{!ids.size&&<div style={{fontSize:11,color:T.inkDim,marginTop:5}}>No {group.toLowerCase()} projects available.</div>}</div>;
-}
-function DrawingProjectSelect({value,projects=[],onChange}){
- const current=projects.find(p=>String(p.id)===String(value)),[group,setGroup]=useState(()=>current&&projectIsCompleted(current)?'Completed':'Ongoing');
- useEffect(()=>{if(current)setGroup(projectIsCompleted(current)?'Completed':'Ongoing');},[value,current&&projectIsCompleted(current)]);
- const filtered=projects.filter(p=>projectIsCompleted(p)===(group==='Completed'));
- return <div><ProjectStatusButtons group={group} onChange={name=>{setGroup(name);if(current&&projectIsCompleted(current)!==(name==='Completed'))onChange('');}}/><DrawingProjectSelectList value={value} projects={filtered} onChange={onChange}/>{!filtered.length&&<p style={{fontSize:11,color:T.inkDim}}>No {group.toLowerCase()} projects available.</p>}</div>;
-}
-
-function DrawingProjectSelectList({value,projects,onChange}){
-  const [open,setOpen]=useState(false),[active,setActive]=useState(0);
-  const ref=useRef(null),buttonRef=useRef(null),typed=useRef({text:'',at:0});
-  const options=[{value:'',label:'Select a Project'},...(projects||[]).map(p=>({value:String(p.id),label:`${p.no||''} · ${p.name}${p.status==='Completed'||p.completedAt?' · Completed':''}`}))];
-  const selected=Math.max(0,options.findIndex(o=>o.value===String(value)));
-  const choose=index=>{onChange(options[index].value);setOpen(false);buttonRef.current?.focus();};
-  useEffect(()=>{if(!open||typeof document==='undefined')return;const close=e=>{if(!ref.current?.contains(e.target))setOpen(false);};document.addEventListener('pointerdown',close);return()=>document.removeEventListener('pointerdown',close);},[open]);
-  useEffect(()=>{if(open)ref.current?.querySelector?.(`[data-project-option="${active}"]`)?.scrollIntoView?.({block:'nearest'});},[active,open]);
-  const keyDown=e=>{if(['ArrowDown','ArrowUp','Home','End'].includes(e.key)){e.preventDefault();setOpen(true);setActive(i=>e.key==='Home'?0:e.key==='End'?options.length-1:!open?selected:Math.max(0,Math.min(options.length-1,i+(e.key==='ArrowDown'?1:-1))));}else if(e.key==='Enter'||e.key===' '){e.preventDefault();if(open)choose(active);else{setActive(selected);setOpen(true);}}else if(e.key==='Escape'){e.preventDefault();setOpen(false);}else if(e.key==='Tab')setOpen(false);else if(e.key.length===1&&!e.ctrlKey&&!e.metaKey&&!e.altKey){const now=Date.now();typed.current={text:(now-typed.current.at<700?typed.current.text:'')+e.key.toLowerCase(),at:now};const index=options.findIndex(o=>o.label.toLowerCase().startsWith(typed.current.text));if(index>=0){setOpen(true);setActive(index);}}};
-  return <div ref={ref} style={{position:'relative',minWidth:0,fontFamily:FONT_BODY,fontSize:13,fontWeight:400,letterSpacing:0}}><button ref={buttonRef} type="button" role="combobox" aria-label="Drawing register project" aria-expanded={open} aria-haspopup="listbox" aria-controls="drawing-project-options" aria-activedescendant={open?`drawing-project-option-${active}`:undefined} onKeyDown={keyDown} onClick={()=>{setActive(selected);setOpen(v=>!v);}} style={{...inputStyle,fontFamily:FONT_BODY,fontSize:13,fontWeight:400,letterSpacing:0,lineHeight:1.5,display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,textAlign:'left',cursor:'pointer'}}><span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{options[selected].label}</span><ChevronDown size={15} style={{flexShrink:0,marginRight:5}}/></button>{open&&<div role="listbox" id="drawing-project-options" aria-label="Projects" style={{position:'absolute',top:'calc(100% + 4px)',left:0,right:0,zIndex:1000,maxHeight:320,overflowY:'auto',background:T.paper,border:`1px solid ${T.line}`,boxShadow:'0 6px 18px #08192d20',fontFamily:FONT_BODY,fontSize:13,fontWeight:400,letterSpacing:0}}>{options.map((option,i)=><div key={option.value} id={`drawing-project-option-${i}`} role="option" aria-selected={i===selected} data-project-option={i} onMouseDown={e=>e.preventDefault()} onMouseEnter={()=>setActive(i)} onClick={()=>choose(i)} style={{padding:'5px 12px',borderBottom:0,background:i===active?'#E6EEF4':'transparent',color:T.ink,fontFamily:FONT_BODY,fontSize:13,fontWeight:400,letterSpacing:0,lineHeight:1.5,cursor:'pointer',overflowWrap:'anywhere'}}>{option.label}</div>)}</div>}</div>;
-}
-
-function uploadPastWorkFile(row,projectId,entry,onProgress){
-  return trackActivity('upload','Historical drawing',report=>uploadPastWorkFileToDrive(row,projectId,entry,progress=>{report(progress);onProgress?.(progress);}));
-}
-async function uploadPastWorkFileToDrive(row,projectId,entry,onProgress){
- const file=row.file,metadata={projectId,uploadId:entry.uploadId||(entry.uploadId='PAST-'+uid()),destination:row.destination,originalDate:row.originalDate,revisionNo:row.revisionNo,drawingCode:row.drawingCode,floor:row.floor,area:row.area,fileName:file.name,mimeType:file.type||'application/octet-stream',fileSize:file.size};
- if(!entry.session)entry.session=await uploadApiRequest('beginPastWorkUpload',metadata,120000);
- if(entry.session.file)return entry.session.file;
- const result=await transferDrawingToDrive(entry,file,onProgress);
- entry.completion=result;return uploadApiRequest('finishPastWorkUpload',{completionTicket:result.completionTicket},120000);
-}
-function PastWorkImport({state,initialProjectId,onSaved,onClose,initialFiles=[],embedded=false,onBusy}){
- const projects=orderedProjects(state.projects).filter(p=>state.currentUser?.appAccess?.toLowerCase()==='admin'||projectRole(state,p.id)==='Admin');
- const [projectId,setProjectId]=useState(projects.some(p=>String(p.id)===String(initialProjectId))?initialProjectId:''),[rows,setRows]=useState(()=>initialFiles.map(file=>({id:uid(),file,destination:'Received',originalDate:'',revisionNo:'',drawingCode:'',floor:'',area:'',status:file.size>0&&file.size<=100*1024*1024?'Ready':'Invalid',error:file.size>100*1024*1024?'Maximum 100 MB per file.':file.size?'':'File is empty.'}))),[busy,setBusy]=useState(false),[defaults,setDefaults]=useState({destination:'Received',originalDate:'',revisionNo:'',drawingCode:'',floor:'',area:''});
- const jobs=useRef(new Map()),running=useRef(false);
- const patch=(id,values)=>setRows(all=>all.map(r=>r.id===id?{...r,...values}:r));
- const add=files=>setRows(all=>[...all,...Array.from(files||[]).map(file=>({id:uid(),file,...defaults,status:file.size>0&&file.size<=100*1024*1024?'Ready':'Invalid',error:file.size>100*1024*1024?'Maximum 100 MB per file.':file.size?'':'File is empty.'}))]);
- const fields=[['originalDate','Original date'],['revisionNo','Revision'],['drawingCode','Drawing type/code'],['floor','Floor(s)'],['area','Area(s)']];
- const run=async()=>{if(running.current||!projectId)return;running.current=true;setBusy(true);onBusy?.(true);try{for(const row of rows.filter(r=>['Ready','Failed'].includes(r.status))){patch(row.id,{status:'Uploading',error:''});let entry=jobs.current.get(row.id);if(!entry){entry={};jobs.current.set(row.id,entry);}try{await uploadPastWorkFile(row,projectId,entry,n=>patch(row.id,{progress:n}));patch(row.id,{status:'Imported',progress:100});onSaved(projectId);}catch(e){patch(row.id,{status:'Failed',error:e.message});}}}finally{running.current=false;setBusy(false);onBusy?.(false);}};
- const input={...inputStyle,fontFamily:FONT_BODY,fontSize:12,width:'100%',minWidth:100};
- return <section aria-label="Import past work" style={{border:`1px solid ${T.line}`,background:'#fff',padding:18,margin:'16px 0',fontFamily:FONT_BODY}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12}}><h3 style={{fontFamily:FONT_DISPLAY,margin:0,fontSize:18}}>Import Past Work</h3>{!embedded&&<button type="button" disabled={busy} style={smallBtn} onClick={onClose}>Close</button>}</div><p style={{fontSize:12,color:T.inkDim,lineHeight:1.6}}>Archive previous drawings and revisions. Original dates and revisions are optional. This does not create tasks, change project status or share files with contractors. Keep this panel open while importing; failed files can be retried.</p><label style={{display:embedded?'none':'grid',gap:6,fontSize:12,maxWidth:600}}>Project — ongoing or completed<ProjectStatusSelect projects={projects} aria-label="Past work project" disabled={busy||rows.some(r=>['Imported','Failed'].includes(r.status))} style={input} value={projectId} onChange={e=>setProjectId(e.target.value)}><option value="">Select a project</option>{projects.map(p=><option key={p.id} value={p.id}>{p.no} · {p.name}{p.completed||/completed/i.test(p.projectStatus||p.status||'')?' (Completed)':''}</option>)}</ProjectStatusSelect></label><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))',gap:10,marginTop:16}}><label style={{fontSize:12}}>Folder<select aria-label="Past work default folder" disabled={busy} style={input} value={defaults.destination} onChange={e=>setDefaults(d=>({...d,destination:e.target.value}))}>{['Received','Base','Output','Sent'].map(v=><option key={v}>{v}</option>)}</select></label>{fields.map(([key,label])=><label key={key} style={{fontSize:12}}>{label}<input aria-label={`Past work default ${label}`} disabled={busy} type={key==='originalDate'?'date':'text'} style={input} value={defaults[key]} onChange={e=>setDefaults(d=>({...d,[key]:e.target.value}))}/></label>)}</div><div style={{display:'flex',gap:10,flexWrap:'wrap',alignItems:'center',margin:'12px 0'}}><button type="button" style={smallBtn} disabled={busy} onClick={()=>setRows(all=>all.map(r=>r.status==='Ready'?{...r,...defaults}:r))}>Apply details to ready files</button><label style={{...smallBtn,cursor:busy?'default':'pointer'}}>Choose files<input aria-label="Choose historical drawings" multiple type="file" disabled={busy} style={{display:'none'}} onChange={e=>{add(e.target.files);e.target.value='';}}/></label><label style={{...smallBtn,cursor:busy?'default':'pointer'}}>Choose folder<input aria-label="Choose historical drawing folder" type="file" multiple webkitdirectory="" disabled={busy} style={{display:'none'}} onChange={e=>{add(e.target.files);e.target.value='';}}/></label></div><div onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();if(!busy)add(e.dataTransfer.files);}} style={{padding:12,border:`1px dashed ${T.line}`,fontSize:12,color:T.inkDim}}>Drop drawing files here · up to 100 MB each</div>{rows.length>0&&<div style={{overflowX:'auto',marginTop:12}}><table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['File','Folder',...fields.map(f=>f[1]),'Status',''].map((label,i)=><th key={i} style={{padding:8,background:'#D2CDC1',color:T.ink,textAlign:'left',fontSize:11}}>{label}</th>)}</tr></thead><tbody>{rows.map(r=><tr key={r.id}><td style={{padding:8,fontSize:12,minWidth:180,overflowWrap:'anywhere'}}>{r.file.webkitRelativePath||r.file.name}</td><td style={{padding:5}}><select aria-label={`Folder for ${r.file.name}`} disabled={busy||r.status!=='Ready'} value={r.destination} style={input} onChange={e=>patch(r.id,{destination:e.target.value})}>{['Received','Base','Output','Sent'].map(v=><option key={v}>{v}</option>)}</select></td>{fields.map(([key,label])=><td key={key} style={{padding:5}}><input aria-label={`${label} for ${r.file.name}`} disabled={busy||r.status!=='Ready'} type={key==='originalDate'?'date':'text'} style={input} value={r[key]} onChange={e=>patch(r.id,{[key]:e.target.value})}/></td>)}<td role="status" style={{padding:8,fontSize:11,minWidth:130,color:r.error?T.redline:T.inkDim}}>{r.status}{r.status==='Uploading'?` ${r.progress||0}%`:''}{r.error&&<div>{r.error}</div>}</td><td><button type="button" disabled={busy||r.status==='Imported'} style={smallBtn} onClick={()=>setRows(all=>all.filter(x=>x.id!==r.id))}>Remove</button></td></tr>)}</tbody></table></div>}<div style={{display:'flex',gap:12,alignItems:'center',marginTop:16}}><button type="button" style={{...smallBtn,background:T.navy,color:'#fff'}} disabled={busy||!projectId||!rows.some(r=>['Ready','Failed'].includes(r.status))} onClick={run}>{busy?'Importing…':'Import / Retry pending files'}</button><span style={{fontSize:12,color:T.inkDim}}>{rows.filter(r=>r.status==='Imported').length} of {rows.length} imported</span></div></section>;
-}
-
-function UnifiedDrawingUpload({state,persist,file,initialProjectId,onQueued,onImported,onBusy}){
- const projects=orderedProjects(state.projects);
- const [projectId,setProjectId]=useState(initialProjectId||projects[0]?.id||''),[past,setPast]=useState(false),[busy,setBusy]=useState(false);
- const project=projects.find(p=>String(p.id)===String(projectId));
- const completed=!!project&&projectIsCompleted(project);
- const historical=completed||past,canImport=state.currentUser?.appAccess?.toLowerCase()==='admin'||projectRole(state,projectId)==='Admin';
- return <div><label style={{display:'grid',gap:6,fontFamily:FONT_BODY,fontSize:12}}>Project<ProjectStatusSelect projects={projects} aria-label="Upload project" disabled={busy} value={projectId} style={inputStyle} onChange={e=>{setProjectId(e.target.value);setPast(false);}}><option value="">Select a project</option>{projects.map(p=><option key={p.id} value={p.id}>{p.no} · {p.name}</option>)}</ProjectStatusSelect></label>{project&&canImport&&<label style={{display:'flex',alignItems:'center',gap:8,fontFamily:FONT_BODY,fontSize:12,margin:'14px 0'}}><input type="checkbox" aria-label="Import as past work" disabled={busy||completed} checked={historical} onChange={e=>setPast(e.target.checked)}/> Import as past work</label>}{completed&&<p style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>Completed project — historical upload. Original dates and revisions can be entered below. No new Work in Hand tasks will be created.</p>}{project&&(historical?(canImport?<PastWorkImport key={projectId} state={state} initialProjectId={projectId} initialFiles={[file]} embedded onBusy={value=>{setBusy(value);onBusy?.(value);}} onSaved={onImported} onClose={()=>{}}/>:<p role="alert" style={{fontSize:12,color:T.redline}}>A project admin can import historical drawings for this completed project.</p>):<UploadView key={projectId} state={state} persist={persist} initialFile={file} initialProjectId={projectId} hideProjectPicker compact onQueued={onQueued}/>)}</div>;
-}
-
-function AppErrorNotice({message,onRetry}){return <div role="alert" className="app-error-notice" style={{'--app-font-body':FONT_BODY}}><div style={{flex:1,minWidth:0}}><strong style={{display:'block',fontSize:12,fontWeight:600,marginBottom:3}}>Unable to confirm the request</strong><span>{message}</span></div>{onRetry&&<button type="button" onClick={onRetry} style={{...smallBtn,alignSelf:'center',flexShrink:0}}>Retry</button>}</div>;}
-function emailAttachmentDriveId(file){
- if(file.driveFileId)return String(file.driveFileId);
- try{const u=new URL(file.url||'');if(!['drive.google.com','docs.google.com'].includes(u.hostname))return '';return u.pathname.match(/\/d\/([a-zA-Z0-9_-]+)/)?.[1]||u.searchParams.get('id')||'';}catch{return '';}
-}
-function emailReceivedEntries(register,intake,file){
- const id=emailAttachmentDriveId(file);return id?(register.drawings||[]).filter(d=>String(d.projectId)===String(intake.projectId)&&String(d.driveFileId)===id&&!sheetDashboardFlag(d.trashed)&&String(d.direction||'Received').toLowerCase()==='received'):[];
-}
-function syncEmailIntakeRows(rows,register){
- const activeIds=new Set([...(register.drawings||[]),...(register.files||[])].filter(x=>!sheetDashboardFlag(x.trashed)).map(x=>JSON.stringify([String(x.projectId),String(x.driveFileId||'')])));
- return rows.filter(r=>r.status!=='Cancelled').map(r=>({...r,files:r.files.filter(f=>r.status!=='Uploaded'||!emailAttachmentDriveId(f)||activeIds.has(JSON.stringify([String(r.projectId),emailAttachmentDriveId(f)])))})).filter(r=>r.files.length);
-}
-function EmailDrawingInbox({state,persist,onChanged,refreshToken}){
- const [open,setOpen]=useState(window.location.hash==='#email-intake'),[rows,setRows]=useState([]),[options,setOptions]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[chosen,setChosen]=useState(null),[project,setProject]=useState(''),[floors,setFloors]=useState([]),[type,setType]=useState(''),[date,setDate]=useState('');
- const [register,setRegister]=useState({drawings:[],files:[]});const loadSequence=useRef(0);
- const load=async()=>{const seq=++loadSequence.current;setBusy(true);setError('');try{const [r,reg]=await Promise.all([apiRequest('listEmailDrawingIntakes',{},'GET',90000),projectApi.listRecentDrawingRegister()]);if(seq!==loadSequence.current)return;setRows(syncEmailIntakeRows(r,reg));setRegister(reg);}catch(e){if(seq===loadSequence.current)setError(e.message);}finally{if(seq===loadSequence.current)setBusy(false);}};
- useEffect(()=>{if(open)load();return()=>{loadSequence.current++;};},[open,refreshToken]);
- const edit=async r=>{setError('');setChosen(r);setProject('');setFloors([]);setType('');setDate(r.date||'');setBusy(true);try{setOptions(await apiRequest('getEmailIntakeOptions',{},'POST',90000));}catch(e){setError(e.message);}finally{setBusy(false);}};
- const submit=async()=>{setBusy(true);setError('');try{await apiRequest('submitEmailIntake',{intakeId:chosen.id,project,floors,type,date},'POST',180000);setChosen(null);await load();}catch(e){setError(e.message);}finally{setBusy(false);}};
- const cell={padding:'12px 10px',border:`1px solid ${T.line}`,verticalAlign:'top',textAlign:'left',fontFamily:FONT_BODY,fontSize:12,lineHeight:1.5,overflowWrap:'anywhere'};
- const head={...cell,background:'#D2CDC1',color:T.ink,fontFamily:FONT_MONO,fontSize:10,fontWeight:700,border:'1px solid #9D998F',borderBottom:'1px solid #B8B5AC'};
- const entryFor=(r,f)=>emailReceivedEntries(register,r,f)[0];
- const floorsFor=(r,f)=>{const ds=emailReceivedEntries(register,r,f);return ds.length?[...new Set(ds.flatMap(d=>String(d.floor||'').split(',').map(x=>x.trim()).filter(Boolean)))]:r.floors||[];};
- const projectLabel=r=>{const p=(state.projects||[]).find(p=>String(p.id)===String(r.projectId));return p?.no||p?.name||(r.projectId?'Project unavailable':'Awaiting details');};
- const safeUrl=url=>{try{const u=new URL(url);return ['https:','http:'].includes(u.protocol)?u.href:'';}catch{return '';}};
- return <section style={{marginBottom:16,fontFamily:FONT_BODY}}><button type="button" aria-expanded={open} style={smallBtn} onClick={()=>setOpen(v=>!v)}>Incoming email drawings</button>{open&&<div style={{border:`1px solid ${T.line}`,padding:14,marginTop:10}}><div style={{display:'flex',justifyContent:'space-between',gap:12}}><p style={{fontSize:12,color:T.inkDim,marginTop:0}}>Send drawings to the intake mailbox, then sign in to select their details and confirm.</p><button type="button" style={smallBtn} disabled={busy} onClick={load}>Refresh</button></div>{busy&&<p role="status" style={{fontSize:12}}>Loading or saving…</p>}{error&&<AppErrorNotice message={error}/>}<div style={{overflowX:'auto'}}><table aria-label="Incoming email drawing register" style={{width:'100%',minWidth:1380,borderCollapse:'collapse',tableLayout:'fixed'}}><colgroup>{[95,125,160,100,240,65,75,210,160].map((w,i)=><col key={i} style={{width:w}}/>)}</colgroup><thead><tr><th colSpan={7} style={{...head,textAlign:'center',fontSize:12,borderRight:`3px solid ${T.ink}`}}>RECEIVED</th><th colSpan={2} style={{...head,background:T.navy,color:'#fff',textAlign:'center',fontSize:12}}>EMAIL INTAKE</th></tr><tr>{['Date','Project','Floor / Zones','Type','Drawing Name','Rev No.','Link','Sender','Status'].map((h,i)=><th key={h} style={{...head,...(i===7?{borderLeft:`3px solid ${T.ink}`}:{})}}>{h}</th>)}</tr></thead><tbody>{rows.flatMap(r=>r.files.map((f,i)=><tr key={`${r.id}-${i}`}><td style={{...cell,whiteSpace:'nowrap'}}>{formatProjectDate(entryFor(r,f)?.receivedSentDate||r.date||r.createdAt)}</td><td style={cell}>{projectLabel(r)}</td><td style={cell}>{floorsFor(r,f).length?floorsFor(r,f).map(floor=><div key={floor}>{floor}</div>):<span style={{color:T.inkDim}}>Awaiting details</span>}</td><td style={cell}>{entryFor(r,f)?.drawingType||r.drawingType||'—'}</td><td style={cell}>{f.name}</td><td style={cell}>{entryFor(r,f)?.revisionNo||f.revisionNo||'—'}</td><td style={cell}>{safeUrl(f.url)?<a href={safeUrl(f.url)} target="_blank" rel="noopener noreferrer" style={{color:T.blue,fontWeight:600,whiteSpace:'nowrap'}}>{drawingFileType({fileName:f.name})}</a>:<span style={{color:T.inkDim}}>Pending</span>}</td><td style={{...cell,borderLeft:`3px solid ${T.ink}`}}>{r.sender}</td><td style={cell}>{r.status}{r.error&&<div style={{fontSize:11,color:T.redline,marginTop:4}}>{r.error}</div>}{i===0&&r.canSubmit&&!['Uploaded','Cancelled'].includes(r.status)&&<button type="button" disabled={busy} style={{...smallBtn,marginTop:8}} onClick={()=>edit(r)}>Enter details</button>}</td></tr>))}{!rows.length&&!busy&&!error&&<tr><td colSpan={9} style={cell}>No incoming drawings yet.</td></tr>}</tbody></table></div>{chosen&&<div style={{marginTop:16,padding:16,background:T.paper,border:`1px solid ${T.line}`}}><h3 style={{fontFamily:FONT_DISPLAY}}>Drawing details</h3><p style={{fontSize:12}}>{chosen.files.map(f=>f.name).join(', ')}</p><label>Project<select aria-label="Project" style={{...inputStyle,width:'100%'}} value={project} onChange={e=>{setProject(e.target.value);setFloors([]);}}><option value="">Select a project</option>{(options?.projects||[]).map(p=><option key={p.id} value={p.no}>{p.no} · {p.name}</option>)}</select></label><div style={{marginTop:12}}>Floor{(options?.floors?.[(options.projects||[]).find(p=>p.no===project)?.id]||[]).map(f=><label key={f} style={{display:'block',fontSize:12,marginTop:5}}><input type="checkbox" checked={floors.includes(f)} onChange={e=>setFloors(x=>e.target.checked?[...x,f]:x.filter(v=>v!==f))}/> {f}</label>)}</div><label style={{display:'block',marginTop:12}}>Drawing type<select aria-label="Drawing type" style={{...inputStyle,width:'100%'}} value={type} onChange={e=>setType(e.target.value)}><option value="">Select drawing type</option>{(options?.types||[]).map(t=><option key={t}>{t}</option>)}</select></label><label style={{display:'block',marginTop:12}}>Received date<input aria-label="Received date" type="date" style={{...inputStyle,width:'100%'}} value={date} onChange={e=>setDate(e.target.value)}/></label><div style={{display:'flex',gap:8,marginTop:14}}><button type="button" style={smallBtn} disabled={busy||!project||!floors.length||!type||!date} onClick={submit}>Confirm and upload</button><button type="button" style={smallBtn} disabled={busy} onClick={()=>setChosen(null)}>Cancel</button></div><p style={{fontSize:11,color:T.inkDim}}>The same details apply to every attachment in this email.</p></div>}</div>}</section>;
-}
-function ReceivedFileManager({data,state,persist,onChanged,row}){
- const [selected,setSelected]=useState(''),[form,setForm]=useState(null),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
- const canManage=id=>state.currentUser?.appAccess?.toLowerCase()==='admin'||state.currentUser?.projectRoles?.[id]==='Admin';
- const rows=(data.drawings||[]).filter(r=>canManage(r.projectId)&&!sheetDashboardFlag(r.trashed)&&String(r.direction||'Received').toLowerCase()==='received'&&row.drawingIds.includes(String(r.drawingId)));
- if(!rows.length)return null;
- const fileFor=r=>(data.files||[]).find(f=>f.linkedEntityId===r.drawingId)||(data.files||[]).find(f=>r.driveFileId&&f.driveFileId===r.driveFileId)||{};
- const select=id=>{setSelected(id);setMessage('');const r=rows.find(x=>x.drawingId===id);setForm(r?{...r,floors:String(r.floor||'').split(',').map(f=>f.trim()).filter(Boolean),receivedSentDate:String(r.receivedSentDate||'').slice(0,10)}:null);};
- const save=async (trash,target=form)=>{if(busy||!target)return;const form=target;const fileId=form.driveFileId||fileFor(form).driveFileId;if(trash&&!window.confirm('Move this physical file to Google Drive Trash? All received entries sharing this exact file are removed, including its other floor/type parts. Task and time history are retained.'))return;setBusy(true);setMessage('');try{if(trash)await projectApi.trashProjectDrawing({projectId:form.projectId,driveFileId:fileId});else await apiRequest('editReceivedDrawing',{projectId:form.projectId,drawingId:form.drawingId,floors:form.floors,drawingType:form.drawingType,receivedSentDate:form.receivedSentDate,revisionNo:form.revisionNo,receivedFromSentTo:form.receivedFromSentTo,notes:form.notes});setForm(null);setSelected('');setMessage(trash?'File moved to Drive Trash.':'Drawing details saved.');onChanged();if(persist){try{const workspace=await projectApi.getProjectWorkspace();await persist(latest=>({...latest,intakes:workspaceIntakes(workspace)}));}catch{setMessage('Saved. Refresh the app to update Classify.');}}}catch(e){setMessage(e.message);}finally{setBusy(false);}};
- const project=state.projects.find(p=>String(p.id)===String(form?.projectId));
- const floorOptions=[...new Set([...(project?.floorZones||[]).map(z=>z.floor),...Object.values(project?.zones||{}).map(z=>z.floor),...(form?.floors||[])].filter(Boolean))];
- return <div style={{marginTop:8,fontFamily:FONT_BODY,fontSize:12}}><div style={{display:'flex',gap:8}}><button type="button" style={smallBtn} disabled={busy} aria-label={`Edit received ${row.fileName}`} onClick={()=>select(rows[0].drawingId)}>Edit</button><button type="button" style={smallBtn} disabled={busy||!(rows[0].driveFileId||fileFor(rows[0]).driveFileId)} aria-label={`Delete received ${row.fileName}`} onClick={()=>save(true,rows[0])}>Delete</button></div>{form&&<div role="dialog" aria-modal="true" aria-label="Edit received drawing" style={{position:'fixed',inset:0,zIndex:16000,background:'rgba(8,25,45,.45)',display:'flex',justifyContent:'flex-end',textAlign:'left'}}><div style={{width:520,maxWidth:'100%',height:'100%',overflowY:'auto',padding:20,boxSizing:'border-box',background:T.paper}}><h3 style={{fontFamily:FONT_DISPLAY}}>Edit received drawing</h3><p style={{overflowWrap:'anywhere'}}>{row.fileName}</p><label style={{display:'block',marginTop:12}}>Received entry<select disabled={busy} aria-label="Select received entry to manage" style={{...inputStyle,width:'100%'}} value={selected} onChange={e=>select(e.target.value)}><option value="">Select a received drawing</option>{rows.map(r=><option key={r.drawingId} value={r.drawingId}>{state.projects.find(p=>String(p.id)===String(r.projectId))?.no} · {fileFor(r).fileName||r.fileName||r.drawingId} · {r.floor} {r.area} · {r.drawingType} · {r.drawingId}</option>)}</select></label>{form&&<fieldset disabled={busy} style={{border:0,padding:0,marginTop:12,display:'grid',gap:12}}><legend style={{fontFamily:FONT_DISPLAY,fontSize:16}}>Edit received details</legend><label>Drawing type<input disabled={sheetDashboardFlag(form.classified)} style={{...inputStyle,width:'100%'}} value={form.drawingType||''} onChange={e=>setForm({...form,drawingType:e.target.value})}/></label><div>Floors<div style={{display:'flex',gap:12,flexWrap:'wrap',marginTop:6}}>{floorOptions.map(f=><label key={f}><input type="checkbox" disabled={sheetDashboardFlag(form.classified)} checked={form.floors.includes(f)} onChange={e=>setForm({...form,floors:e.target.checked?[...form.floors,f]:form.floors.filter(v=>v!==f)})}/> {f}</label>)}</div></div>{sheetDashboardFlag(form.classified)&&<p style={{margin:0,color:T.inkDim}}>Floor/type tags are protected after classification because work may already be linked to them.</p>}<label>Received date<input type="date" max={todayISO()} style={inputStyle} value={form.receivedSentDate} onChange={e=>setForm({...form,receivedSentDate:e.target.value})}/></label>{[['revisionNo','Revision'],['receivedFromSentTo','Received from'],['notes','Notes']].map(([k,label])=><label key={k}>{label}<input style={{...inputStyle,width:'100%'}} value={form[k]||''} onChange={e=>setForm({...form,[k]:e.target.value})}/></label>)}<p style={{margin:0,color:T.inkDim}}>Each selection is one received entry. Trash removes the physical file and all its shared parts. Changing the received date updates the register; its existing Drive folder is retained.</p><div style={{display:'flex',gap:10}}><button type="button" style={smallBtn} onClick={()=>save(false)}>Save changes</button><button type="button" style={smallBtn} disabled={!(form.driveFileId||fileFor(form).driveFileId)} onClick={()=>save(true)}>Move file to Trash</button><button type="button" style={smallBtn} onClick={()=>select('')}>Cancel</button></div></fieldset>}</div></div>}{busy&&<p role="status">Saving…</p>}{message&&<p role="status" style={{overflowWrap:'anywhere'}}>{message}</p>}</div>;
-}
-
-function ReceivedWorkspaceView({state,persist}){
- const [tab,setTab]=useState('upload');
- const viewer=state.currentUser?.appAccess?.toLowerCase()==='viewer';
- const pending=(state.intakes||[]).filter(i=>!i.classified).length;
- return <div><div role="tablist" aria-label="Received / Sent sections" style={{display:'flex',alignItems:'center',gap:0,borderBottom:`1px solid ${T.line}`,marginBottom:18,overflowX:'auto',background:'#fff'}}>{[['upload','Upload'],['classify','Classify']].map(([id,label])=><button type="button" role="tab" aria-selected={tab===id} aria-controls={`received-panel-${id}`} id={`received-tab-${id}`} key={id} disabled={id==='classify'&&viewer} onClick={()=>setTab(id)} style={{padding:'11px 16px',border:'none',borderBottom:`3px solid ${tab===id?T.cyan:'transparent'}`,background:tab===id?T.navy:'transparent',color:tab===id?'#fff':T.inkDim,cursor:id==='classify'&&viewer?'not-allowed':'pointer',fontFamily:FONT_BODY,fontSize:12,fontWeight:tab===id?700:500,whiteSpace:'nowrap',opacity:(id==='classify'&&viewer)?0.5:1}}>{label}{id==='classify'&&pending>0?` (${pending})`:''}</button>)}</div><div role="tabpanel" id={`received-panel-${tab}`} aria-labelledby={`received-tab-${tab}`}>{tab==='upload'?<ReceivedSentView state={state} persist={persist}/>:!viewer?<ClassifyView state={state} persist={persist}/>:null}</div></div>;
-}
-
-function ReceivedSentView({state,persist}){
-  const [historicalBusy,setHistoricalBusy]=useState(false);
-  const [projectId,setProjectId]=useState('');
-  const [dropFile,setDropFile]=useState(null),[dragging,setDragging]=useState(false),[dropError,setDropError]=useState(''),[uploadHint,setUploadHint]=useState('');
-  const dropInput=useRef(null),dropButton=useRef(null),dragDepth=useRef(0);
-  const canReceive=!!persist&&state.currentUser?.appAccess?.toLowerCase()!=='viewer'&&!!state.currentUser;
-  const openDrawing=files=>{setDragging(false);dragDepth.current=0;setDropError('');if(!canReceive)return;if(files?.length!==1){setDropError('Drop one drawing at a time. You can tag multiple floors in the form.');return;}if(!files[0].size){setDropError('Choose a non-empty drawing file.');return;}setDropFile(files[0]);};
-  const closeUpload=()=>{if(historicalBusy)return;setDropFile(null);dropButton.current?.focus();};
-  const [result,setResult]=useState(null),[error,setError]=useState(''),[loading,setLoading]=useState(false),[query,setQuery]=useState(''),[revision,setRevision]=useState(0);
-  const project=(state.projects||[]).find(p=>String(p.id)===String(projectId));
-  useEffect(()=>{let live=true;setResult(null);setError('');setLoading(true);(projectId?projectApi.listDrawingRegister(projectId):projectApi.listRecentDrawingRegister()).then(data=>{if(live)setResult({projectId,data});}).catch(err=>{if(live)setError(err.message||'Could not load drawing register.');}).finally(()=>{if(live)setLoading(false);});return()=>{live=false;};},[projectId,revision,state.intakes,state.projects]);
-  const groups=result?.projectId===projectId?(project?[project]:state.projects||[]).flatMap(p=>buildDrawingRegister(p,result.data).map(g=>({...g,project:p,id:JSON.stringify([p.id,g.id])}))).sort((a,b)=>String(b.received?.date||b.sent[0]?.date||'').localeCompare(String(a.received?.date||a.sent[0]?.date||''))):[];
-  const filtered=groups.filter(g=>[g.received,...g.sent].filter(Boolean).some(r=>[g.project.name,g.project.no,r.fileName,r.drawingType,r.revisionNo,...r.coverage.flatMap(c=>[c.floor,c.area])].join(' ').toLowerCase().includes(query.toLowerCase())));
-  const cell={padding:'12px 10px',border:`1px solid ${T.line}`,verticalAlign:'top',textAlign:'left',fontFamily:FONT_BODY,fontSize:12,lineHeight:1.5,overflowWrap:'anywhere'};
-  const head={...cell,background:'#D2CDC1',color:T.ink,fontFamily:FONT_MONO,fontSize:10,fontWeight:700,border:'1px solid #9D998F',borderBottom:'1px solid #B8B5AC'};
-  const safeLink=url=>{try{const u=new URL(url);return ['https:','http:'].includes(u.protocol)?u.href:'';}catch{return '';}};
-  const link=r=>safeLink(r.driveUrl)?<a href={safeLink(r.driveUrl)} target="_blank" rel="noreferrer" aria-label={`Open ${drawingFileType(r)} file ${r.fileName}`} style={{color:T.blue,fontWeight:600,whiteSpace:'nowrap'}}>{drawingFileType(r)}</a>:<span style={{color:T.inkDim}}>No file link</span>;
-  return <section style={{fontFamily:FONT_BODY}}><h1 className="studio-page-heading">Upload</h1><p style={{fontSize:13,color:T.inkDim}}>Project drawing register. Expand a floor summary to see every selected zone. Sent files are recorded design outputs; opening this page does not send files.</p>
-    <EmailDrawingInbox state={state} persist={persist} refreshToken={revision} onChanged={()=>setRevision(n=>n+1)}/>{canReceive&&<><div className={`received-drawing-drop${dragging?' is-dragging':''}${dropFile?' is-open':''}`} onDragEnter={e=>{e.preventDefault();dragDepth.current++;setDragging(true);}} onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect='copy';}} onDragLeave={e=>{e.preventDefault();dragDepth.current=Math.max(0,dragDepth.current-1);if(!dragDepth.current)setDragging(false);}} onDrop={e=>{e.preventDefault();openDrawing(e.dataTransfer.files);}}><button ref={dropButton} type="button" aria-label="Upload received drawing" style={{border:0,background:'transparent',cursor:'pointer',padding:4}} onClick={()=>dropInput.current?.click()}><img src="/received-drawing-folder.png" alt="" className="received-drawing-folder"/></button><div><strong style={{fontFamily:FONT_DISPLAY,fontSize:15}}>Drop a received drawing here</strong><p style={{fontSize:12,color:T.inkDim,margin:'5px 0'}}>or click the folder to choose a file. Confirm project, floors and drawing details before logging.</p></div><input ref={dropInput} type="file" aria-label="Choose received drawing" style={{display:'none'}} onChange={e=>{openDrawing(e.target.files);e.target.value='';}}/></div>{dropError&&<p role="alert" style={{color:T.redline,fontSize:12}}>{dropError}</p>}{uploadHint&&<p role="status" style={{fontSize:12,color:T.inkDim}}>{uploadHint}</p>}<PendingReceivedUploads state={state} persist={persist}/></>}
-    {dropFile&&<div role="dialog" aria-modal="true" aria-label="Log received drawing" onKeyDown={e=>{if(e.key==='Escape')closeUpload();if(e.key==='Tab'){const items=[...e.currentTarget.querySelectorAll('button:not(:disabled),select:not(:disabled),input:not(:disabled),textarea:not(:disabled)')].filter(n=>n.type!=='hidden');const first=items[0],last=items.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}}} style={{position:'fixed',inset:0,zIndex:15000,background:'rgba(8,25,45,.45)',display:'flex',justifyContent:'flex-end'}}><div style={{background:T.paper,width:520,maxWidth:'100%',height:'100%',display:'flex',flexDirection:'column',boxShadow:'-8px 0 30px #08192d20',fontFamily:FONT_BODY}}><div style={{padding:'18px 20px',borderBottom:`1px solid ${T.line}`,display:'flex',justifyContent:'space-between',alignItems:'center',gap:12}}><h3 style={{fontFamily:FONT_DISPLAY,fontSize:18,margin:0}}>Received — Upload</h3><button autoFocus type="button" disabled={historicalBusy} style={smallBtn} onClick={closeUpload}>Close</button></div><div style={{padding:20,overflowY:'auto',flex:1}}><p style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>{inferDrawingProject(dropFile.name,state.projects)?'Project matched from the filename. Please confirm it below.':'No unique project match found in the filename. Please confirm the project below.'}</p><UnifiedDrawingUpload key={dropFile.name+dropFile.lastModified} state={state} persist={persist} file={dropFile} initialProjectId={inferDrawingProject(dropFile.name,state.projects)||projectId} onBusy={setHistoricalBusy} onImported={()=>{setRevision(n=>n+1);setUploadHint("Historical drawing imported. It is available in the register and Drive archive.");}} onQueued={id=>{setProjectId(current=>current?id:'');setUploadHint('Drawing queued for upload. This register refreshes automatically when Google Drive and Sheets confirm the save.');closeUpload();}}/></div></div></div>}
-    <div style={{display:'flex',gap:12,alignItems:'flex-end',flexWrap:'wrap',marginBottom:16}}><div style={{display:'grid',gap:6,fontSize:12,flex:'1 1 320px'}}><span>Project</span><DrawingProjectSelect value={projectId} projects={state.projects||[]} onChange={id=>{setProjectId(id);setQuery('');}}/></div><input aria-label="Search drawing register" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search drawing, floor, area, type or revision" style={{...inputStyle,flex:'1 1 260px'}}/><button type="button" style={smallBtn} disabled={loading} onClick={()=>setRevision(n=>n+1)}>Refresh</button></div>
-    {!!result?.data?.files?.some(f=>sheetDashboardFlag(f.historicalImport)&&(!projectId||String(f.projectId)===String(projectId)))&&<details style={{margin:'16px 0',border:`1px solid ${T.line}`,padding:12}}><summary style={{cursor:'pointer',fontFamily:FONT_BODY,fontSize:13}}>Past work archive — all folders and revisions</summary><div style={{overflowX:'auto',marginTop:10}}><table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}><thead><tr>{['Project','Drawing','Folder','Original date','Revision','Type','Floor / Area','File'].map(h=><th key={h} style={{padding:8,textAlign:'left',background:'#D2CDC1',color:T.ink}}>{h}</th>)}</tr></thead><tbody>{result.data.files.filter(f=>sheetDashboardFlag(f.historicalImport)&&!sheetDashboardFlag(f.trashed)&&(!projectId||String(f.projectId)===String(projectId))).sort((a,b)=>String(b.originalDate||'').localeCompare(String(a.originalDate||''))).map(f=><tr key={f.fileId}>{[(state.projects||[]).find(p=>String(p.id)===String(f.projectId))?.no||'',f.fileName,f.direction,formatProjectDate(f.originalDate),f.revisionNo||'—',f.drawingCode||'—',[f.floor,f.area].filter(Boolean).join(' / ')||'—'].map((v,i)=><td key={i} style={{padding:8,borderBottom:`1px solid ${T.line}`}}>{v}</td>)}<td style={{padding:8}}>{link(f)}</td></tr>)}</tbody></table></div></details>}
-    {loading&&<p role="status" style={{fontFamily:FONT_BODY,fontSize:13,fontWeight:400,lineHeight:1.5,color:T.inkDim,margin:"12px 0"}}>Loading drawing register…</p>}{error&&<AppErrorNotice message={error} onRetry={()=>setRevision(n=>n+1)}/>}
-    {!loading&&!error&&result&&<><p style={{fontSize:12,color:T.inkDim}}>{groups.filter(g=>g.received).length} received file(s) · {groups.reduce((n,g)=>n+g.sent.length,0)} sent file(s)</p><div style={{overflowX:'auto'}}><table style={{width:'100%',minWidth:1380,borderCollapse:'collapse',tableLayout:'fixed'}}><colgroup>{[85,125,205,85,190,60,80,205,160,60,85,80].map((w,i)=><col key={i} style={{width:w}}/>)}</colgroup><thead><tr><th colSpan={7} style={{...head,background:'#D2CDC1',textAlign:'center',fontSize:12,borderRight:`3px solid ${T.ink}`}}>RECEIVED</th><th colSpan={5} style={{...head,background:T.navy,color:'#fff',textAlign:'center',fontSize:12,borderLeft:`3px solid ${T.ink}`}}>SENT</th></tr><tr>{['Date','Project','Floor / Zones','Type','Drawing Name','Rev No.','Link','Floor / Type','Drawing Name','Rev No.','Issue Date','Link'].map((h,i)=><th key={i} style={{...head,...(i===7?{borderLeft:`3px solid ${T.ink}`}:{})}}>{h}</th>)}</tr></thead><tbody>{filtered.flatMap(g=>Array.from({length:Math.max(1,g.sent.length)},(_,i)=>{const project=g.project,r=g.received,sent=g.sent[i],span=Math.max(1,g.sent.length);return <tr key={`${g.id}-${i}`} style={{background:i%2?'#fff':'transparent'}}>{i===0&&(r?<><td rowSpan={span} style={cell}>{formatProjectDate(r.date)}</td><td rowSpan={span} style={cell}>{project.no||project.name}</td><td rowSpan={span} style={cell}><DrawingCoverage row={r} project={project}/></td><td rowSpan={span} style={cell}>{r.drawingType||'—'}</td><td rowSpan={span} style={cell}>{r.fileName}{r.drawingIds?.length>0&&<ReceivedFileManager row={r} data={result.data} state={state} persist={persist} onChanged={()=>setRevision(n=>n+1)}/>}</td><td rowSpan={span} style={cell}>{r.revisionNo!==''?r.revisionNo:'—'}</td><td rowSpan={span} style={{...cell,borderRight:`3px solid ${T.ink}`}}>{link(r)}</td></>:<td colSpan={7} rowSpan={span} style={{...cell,color:T.inkDim}}>{project.no||project.name} · Sent drawing · no received source linked</td>)}{sent?<><td style={{...cell,borderLeft:`3px solid ${T.ink}`}}><DrawingCoverage row={sent} project={project}/><div style={{fontSize:11,color:T.inkDim,marginTop:6}}>{sent.drawingType}</div></td><td style={cell}>{sent.fileName}</td><td style={cell}>{sent.revisionNo!==''?sent.revisionNo:'—'}</td><td style={cell}>{formatProjectDate(sent.date)}</td><td style={cell}>{link(sent)}</td></>:<td colSpan={5} style={{...cell,color:T.inkDim,borderLeft:`3px solid ${T.ink}`}}>No sent drawing linked yet</td>}</tr>;}))}{!filtered.length&&<tr><td colSpan={12} style={cell}>No drawings found{project?' for this project':''}{query?' matching your search':''}.</td></tr>}</tbody></table></div></>}
-  </section>;
-}
-
-const RECEIVED_UPLOAD_JOBS=new Map();
-let receivedUploadChain=Promise.resolve();
-const uploadFileBase64=file=>new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||'').split(',')[1]||'');reader.onerror=()=>reject(Error('Could not read this file. Select it again.'));reader.readAsDataURL(file);});
-function runReceivedUploadJob(persist,job,file){
-  let entry=RECEIVED_UPLOAD_JOBS.get(job.id);
-  if(entry?.work)return entry.work;
-  if(!entry){entry={file};RECEIVED_UPLOAD_JOBS.set(job.id,entry);}else if(file)entry.file=file;
-  const generation=AUTH_SESSION_GENERATION;
-  const report=beginActivity('upload','Received drawing','upload');
-  const update=patch=>generation===AUTH_SESSION_GENERATION?persist(latest=>({...latest,pendingReceivedUploads:(latest.pendingReceivedUploads||[]).map(j=>j.id===job.id?{...j,...patch}:j)}),false):Promise.resolve();
-  const work=receivedUploadChain.catch(()=>{}).then(async()=>{
-    if(generation!==AUTH_SESSION_GENERATION)return;
-    try{
-      if(!entry.file)throw Error('Select the same file again to resume this upload.');
-      const metadata={...job.metadata,drawingId:job.id};
-      let saved;
-      await update({status:'uploading',error:'',progress:0,phase:'Preparing drawing…'});
-        if(!entry.session){
-          await update({phase:'Opening Google Drive upload…'});
-          entry.session=await uploadApiRequest('beginReceivedUpload',metadata,120000);
-        }
-        if(entry.session.drawing)saved=entry.session.drawing;
-        else{
-          await update({phase:'Uploading directly to Google Drive…'});
-          const result=await transferDrawingToDrive(entry,entry.file,progress=>{report(undefined,progress);update({progress,phase:'Uploading drawing to Google Drive…'});});
-          entry.completion=result;
-          report(undefined,100);
-          await update({progress:100,phase:'File uploaded · saving drawing register…'});
-          saved=await uploadApiRequest('finishReceivedUpload',{completionTicket:result.completionTicket},120000);
-        }
-      if(generation!==AUTH_SESSION_GENERATION)return;
-      const records=Array.isArray(saved.parts)?saved.parts:[saved];
-      const newIntakes=records.map(row=>{let tagged=metadata.floors;try{tagged=JSON.parse(row.floorTags||'[]');}catch{}return {id:row.drawingId,projectId:metadata.projectId,floor:row.floor||tagged.join(', '),floors:tagged,zone:row.area||metadata.area||'',areas:row.area||metadata.area?[row.area||metadata.area]:[],drawingType:canonicalDrawingType(row.drawingType||metadata.drawingType),fileName:metadata.fileName,driveUrl:row.driveUrl||'',driveFileId:row.driveFileId||'',mimeType:metadata.mimeType,note:metadata.notes,date:row.receivedSentDate||metadata.receivedSentDate,uploadedAt:row.createdAt||new Date().toISOString(),classified:row.classified===true||String(row.classified)==='true',source:'Received Upload'};});
-      await persist(latest=>({...latest,intakes:[...newIntakes,...(latest.intakes||[]).filter(i=>!newIntakes.some(n=>n.id===i.id))],pendingReceivedUploads:(latest.pendingReceivedUploads||[]).filter(j=>j.id!==job.id)}),false);
-      report(true);
-      RECEIVED_UPLOAD_JOBS.delete(job.id);
-    }catch(e){
-      if(/session.*expired|invalid or expired/i.test(e.message)){entry.session=null;entry.completion=null;entry.transferStarted=false;entry.directFailed=false;}
-      await update({status:'error',error:e.message||'Upload could not be confirmed. Retry to check or resume it.'});
-    }finally{report(false);entry.work=null;}
-  });
-  entry.work=work;receivedUploadChain=work;return work;
-}
-function PendingReceivedUploads({state,persist}){
-  const jobs=state.pendingReceivedUploads||[];
-  if(!jobs.length)return null;
-  return <div style={{display:'grid',gap:10,marginBottom:18,fontFamily:FONT_BODY,fontSize:13}}><div style={{color:T.inkDim}}>Uploads continue while you use other pages. Keep this browser tab open until they finish.</div>{jobs.map(job=>{
-    const entry=RECEIVED_UPLOAD_JOBS.get(job.id),running=!!entry?.work;
-    const retry=file=>runReceivedUploadJob(persist,job,file);
-    return <div key={job.id} role={job.error?'alert':'status'} style={{padding:12,border:`1px solid ${T.line}`,background:T.paperDim}}><strong>{job.metadata.fileName}</strong><div style={{marginTop:4,color:job.error?T.redline:T.inkDim}}>{job.error|| (running?(job.phase||'Waiting for another upload…'):'Upload interrupted. Retry to check or resume it.')}</div>{running&&<progress aria-label={`Upload progress ${job.metadata.fileName}`} max="100" value={job.progress>0?job.progress:undefined} style={{width:'100%',marginTop:8}}/>}{!running&&(entry?.file?<button type="button" style={{...smallBtn,marginTop:8}} onClick={()=>retry()}>Retry upload</button>:<label style={{display:'block',marginTop:8}}>Select the same file to retry<input type="file" onChange={e=>{const f=e.target.files?.[0];if(!f)return;if(f.name!==job.metadata.fileName||f.size!==job.metadata.fileSize){alert('Choose the same drawing file for this upload.');return;}retry(f);}}/></label>)}</div>;
-  })}</div>;
-}
-function UploadView({ state, persist, initialFile=null, initialProjectId, compact=false, onQueued, hideProjectPicker=false }) {
+function UploadView({ state, persist }) {
   // Keep this helper local: ProjectsView has its own helper that is not in scope here.
   const uploadProjectIsCompleted = p =>
     p?.status === "Completed" ||
     p?.projectControl?.projectStatus === "Completed" ||
     Boolean(p?.completedAt);
   const activeProjects=(state.projects||[]).filter(p=>!uploadProjectIsCompleted(p));
-  const [projectId, setProjectId] = useState(initialProjectId||activeProjects[0]?.id || "");
-  const [floors, setFloors] = useState([]);
-  const [drawingParts,setDrawingParts]=useState([]);
+  const [projectId, setProjectId] = useState(activeProjects[0]?.id || "");
+  const [floor, setFloor] = useState("");
   const [drawingType, setDrawingType] = useState(canonicalDrawingType((state.templates||DEFAULT_TEMPLATES)[0]?.drawingType || "Layout"));
-  const [file, setFile] = useState(initialFile);
+  const [file, setFile] = useState(null);
   const [note, setNote] = useState("");
-  const [receivedDate,setReceivedDate]=useState(todayISO);
-  const validReceivedDate=/^\d{4}-\d{2}-\d{2}$/.test(receivedDate)&&!isNaN(Date.parse(receivedDate))&&new Date(receivedDate).toISOString().slice(0,10)===receivedDate&&receivedDate<=todayISO();
   const [saving,setSaving]=useState(false);
   const [justAdded, setJustAdded] = useState(false);
   const fileRef=useRef(null);
@@ -3690,63 +2886,79 @@ function UploadView({ state, persist, initialFile=null, initialProjectId, compac
   const project=activeProjects.find(p=>p.id===projectId);
   const floorDefs=[
     ["basement","Basement"],["stilt_floor","Stilt Floor"],["gf","GF"],["1f","1F"],["2f","2F"],["3f","3F"],
-    ["terrace","Terrace"],["facade","Facade"],["landscape","Landscape"],
-    ["bath_elevation","Bath Elevation"],["wardrobe","Furniture"],["art_curation","Art Curation"]];
-  const availableFloors=(()=>{
+    ["terrace","Terrace"],["facade","Facade"],["wall_elevation","Wall Elevation"],["landscape","Landscape"],
+    ["bath_elevation","Bath Elevation"],["wardrobe","Wardrobe"],["kitchen","Kitchen"]
+  ];
+  const selectedFloors=(()=>{
     const ps=project?.scope||{};
     return floorDefs.filter(([key])=>Boolean(ps[key])).map(([,label])=>label);
   })();
 
   useEffect(()=>{
     let live=true;
-    setFloors([]);setDrawingParts([]);
+    setFloor("");
     if(!projectId)return;
     return()=>{live=false;};
   },[projectId]);
 
   useEffect(()=>{
-    setFloors(current=>current.filter(f=>availableFloors.includes(f)));
+    if(floor && !selectedFloors.includes(floor)){setFloor("");}
   },[projectId,project?.scope]);
 
-  const submitLock=useRef(false);
-  const submit = () => {
-    if(!projectId||(!floors.length&&!drawingParts.length)||!drawingType||!file||!validReceivedDate||submitLock.current)return;
-    if(!file.size){alert('Choose a non-empty drawing file.');return;}
-    submitLock.current=true;
-    const entries=[...drawingParts,...(floors.length?[{drawingType,floors:[...floors]}]:[])];
-    const first=entries[0];const metadata={projectId,drawingParts:entries,floor:first.floors.join(', '),floors:first.floors,area:'',drawingType:first.drawingType,fileName:file.name,mimeType:file.type||'application/octet-stream',fileSize:file.size,fileLastModified:file.lastModified,notes:note,receivedSentDate:receivedDate};
-    const duplicate=(state.pendingReceivedUploads||[]).some(j=>j.metadata.projectId===projectId&&String(j.metadata.fileName||'').trim().toLowerCase()===file.name.trim().toLowerCase()&&j.metadata.fileSize===file.size&&[...(j.metadata.floors||[])].sort().join('|')===[...floors].sort().join('|')&&j.metadata.drawingType===drawingType&&j.metadata.receivedSentDate===receivedDate&&(!j.metadata.fileLastModified||j.metadata.fileLastModified===file.lastModified)&&RECEIVED_UPLOAD_JOBS.get(j.id)?.file===file);
-    if(duplicate){submitLock.current=false;alert('This drawing is already in the upload queue. Use its Retry button if needed.');return;}
-    const job={id:'DRW-UPL-'+crypto.randomUUID(),metadata,ownerEmail:state.currentUser?.email||'',status:'queued',phase:'Waiting to upload…',progress:0};
-    const selectedFile=file;
-    const savedLocally=persist(latest=>({...latest,pendingReceivedUploads:[...(latest.pendingReceivedUploads||[]),job]}));
+  const fileToBase64=(f)=>new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(String(reader.result||"").split(",")[1]||"");
+    reader.onerror=reject;
+    reader.readAsDataURL(f);
+  });
+
+  const submit = async () => {
+    if (!projectId || !floor || !drawingType || !file || saving) return;
     setSaving(true);
-    Promise.resolve(savedLocally).then(()=>{setFile(null);setDrawingParts([]);setFloors([]);setNote('');setReceivedDate(todayISO());if(fileRef.current)fileRef.current.value='';setJustAdded(true);if(!compact)setTimeout(()=>setJustAdded(false),2200);submitLock.current=false;setSaving(false);runReceivedUploadJob(persist,job,selectedFile);onQueued?.(projectId);}).catch(e=>{submitLock.current=false;setSaving(false);alert(e.message);});
+    try{
+      const fileBase64=await fileToBase64(file);
+      const saved=await projectApi.receiveDrawing({
+        projectId,floor,area:"",drawingType,
+        fileName:file.name,mimeType:file.type||"application/octet-stream",fileBase64,
+        notes:note,receivedSentDate:todayISO()
+      });
+      const newIntake={
+        id:saved?.drawingId||uid(), projectId, floor, zone:"", areas:[], drawingType:canonicalDrawingType(drawingType),
+        fileName:file.name, driveUrl:saved?.driveUrl||"", note, date:saved?.receivedSentDate||todayISO(),
+        uploadedAt:saved?.createdAt||new Date().toISOString(), classified:false, source:"Received Upload"
+      };
+      await persist({ ...state, intakes: [newIntake, ...(state.intakes||[])] });
+      setFile(null); setNote("");
+      if(fileRef.current)fileRef.current.value="";
+      setJustAdded(true); setTimeout(()=>setJustAdded(false),2200);
+    }catch(err){
+      alert(`Received drawing save failed: ${err?.message||err}`);
+    }finally{setSaving(false);}
   };
 
   const pending = (state.intakes||[]).filter((i) => !i.classified);
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: compact?"1fr":"1fr 1fr", gap: compact?0:32 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32 }}>
       <div>
-        {!compact&&<h2 style={{ fontFamily: FONT_DISPLAY, fontSize: 20, margin: "4px 0 18px", color: T.ink }}>Received — Upload</h2>}
-        <div style={{display:hideProjectPicker?"none":"block"}}><Field label="Project">
-          <ProjectStatusSelect projects={activeProjects} style={inputStyle} value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+        <h2 style={{ fontFamily: FONT_DISPLAY, fontSize: 20, margin: "4px 0 18px", color: T.ink }}>Received — Upload</h2>
+        <Field label="Project">
+          <select style={inputStyle} value={projectId} onChange={(e) => setProjectId(e.target.value)}>
             {activeProjects.map((p) => <option key={p.id} value={p.id}>{p.no} — {p.name}</option>)}
-          </ProjectStatusSelect>
-        </Field></div>
+          </select>
+        </Field>
 
-        <Field label="Received Date"><input aria-label="Drawing received date" type="date" required max={todayISO()} disabled={saving} value={receivedDate} onChange={e=>setReceivedDate(e.target.value)} style={inputStyle}/><div style={{fontSize:11,color:T.inkDim,marginTop:5}}>Date the drawing arrived by email, WhatsApp or another source.</div>{!validReceivedDate&&<div role="alert" style={{fontSize:11,color:T.redline,marginTop:4}}>Choose a valid received date on or before today.</div>}</Field>
-
-        <Field label="Floors in this drawing — select all that apply">
-          <div style={{display:'flex',flexWrap:'wrap',gap:12,padding:12,border:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:12,color:T.ink}}>{availableFloors.map(f=><label key={f} style={{display:'inline-flex',alignItems:'center',gap:4}}><input type="checkbox" aria-label={`Upload floor ${f}`} checked={floors.includes(f)} disabled={saving} onChange={e=>setFloors(current=>e.target.checked?[...new Set([...current,f])]:current.filter(x=>x!==f))}/> {f}</label>)}</div>
-          <div style={{fontSize:12,color:T.inkDim,marginTop:6}}>{floors.length?`${floors.length} floor(s) tagged: ${floors.join(', ')}`:'Select at least one floor. One file can cover several floors.'}</div>
-          {project && availableFloors.length===0 && <div style={{fontSize:11,color:T.redline,marginTop:5}}>No floors selected for this project in Projects & Scope.</div>}
+        <Field label="Floor from Project & Scope">
+          <select style={inputStyle} value={floor} onChange={(e)=>setFloor(e.target.value)}>
+            <option value="">Select floor</option>
+            {selectedFloors.map(f=><option key={f} value={f}>{f}</option>)}
+          </select>
+          {project && selectedFloors.length===0 && <div style={{fontSize:11,color:T.red,marginTop:5}}>No floors selected for this project in Projects & Scope.</div>}
         </Field>
 
         <Field label="Drawing file">
-          <div style={{...inputStyle,padding:8,display:'flex',alignItems:'center',gap:10,minWidth:0}}><button type="button" disabled={saving} style={{...smallBtn,flexShrink:0}} onClick={()=>fileRef.current?.click()}>Choose File</button><span aria-live="polite" aria-label="Selected drawing filename" title={file?.name||'No file chosen'} style={{fontFamily:FONT_BODY,fontSize:12,minWidth:0,whiteSpace:'normal',overflowWrap:'anywhere'}}>{file?.name||'No file chosen'}</span><input ref={fileRef} type="file" aria-label="Choose drawing file" tabIndex={-1} style={{display:'none'}} disabled={saving} onChange={e=>{const selected=e.target.files?.[0];if(selected)setFile(selected);}}/></div>
-          {file&&<div style={{fontFamily:FONT_MONO,fontSize:11,marginTop:6,color:T.inkDim}}>Format: {drawingFileType({fileName:file.name})}</div>}
+          <input ref={fileRef} type="file" style={{...inputStyle,padding:8}} onChange={e=>setFile(e.target.files?.[0]||null)} />
+          {file && <div style={{fontFamily:FONT_MONO,fontSize:11,marginTop:6,color:T.inkDim}}>{file.name}</div>}
         </Field>
 
         <Field label="File type">
@@ -3758,22 +2970,19 @@ function UploadView({ state, persist, initialFile=null, initialProjectId, compac
           </select>
         </Field>
 
-        {drawingParts.map((part,index)=><div key={index} style={{fontFamily:FONT_BODY,fontSize:12,padding:10,border:`1px solid ${T.line}`,marginBottom:8,overflowWrap:'anywhere'}}><strong>{part.drawingType}</strong> · {part.floors.join(', ')} <button type="button" disabled={saving} style={smallBtn} onClick={()=>setDrawingParts(rows=>rows.filter((_,i)=>i!==index))}>Remove part</button></div>)}
-        <button type="button" style={{...smallBtn,marginBottom:12}} disabled={saving||!floors.length||drawingParts.length>=19} onClick={()=>{setDrawingParts(rows=>[...rows,{drawingType,floors:[...floors]}]);setFloors([]);}}>Add another drawing type / part</button>
-        <p style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>Choose the next type and floors above. All parts share this file; areas are confirmed separately in Classify.</p>
         <div style={{fontFamily:FONT_MONO,fontSize:11,color:T.blue,margin:"4px 0 16px"}}>ZONE / AREA WILL BE SELECTED BY THE TECHNICAL PERSON IN CLASSIFY.</div>
 
         <Field label="Note (optional)">
           <textarea style={{ ...inputStyle, minHeight: 70, resize: "vertical" }} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Received via email from architect" />
         </Field>
-        <Btn onClick={submit} disabled={!file||(!floors.length&&!drawingParts.length)||!validReceivedDate||saving}>
+        <Btn onClick={submit} disabled={!file||!floor||saving}>
           <Upload size={14} /> {saving?"Uploading to Google Drive…":"Log received drawing"}
         </Btn>
-        {justAdded && <div style={{ marginTop: 12, fontFamily: FONT_MONO, fontSize: 12, color: T.green }}>Added to the upload queue. It will appear for classification after Google Drive and Sheets confirm the save.</div>}
+        {justAdded && <div style={{ marginTop: 12, fontFamily: FONT_MONO, fontSize: 12, color: T.green }}>Saved to Google Sheets + project Drive folder — technical area classification is the next step →</div>}
       </div>
 
-      {!compact&&<div>
-        <PendingReceivedUploads state={state} persist={persist}/><h2 style={{ fontFamily: FONT_DISPLAY, fontSize: 20, margin: "4px 0 18px", color: T.ink }}>Awaiting classification ({pending.length})</h2>
+      <div>
+        <h2 style={{ fontFamily: FONT_DISPLAY, fontSize: 20, margin: "4px 0 18px", color: T.ink }}>Awaiting classification ({pending.length})</h2>
         {pending.length === 0 && <div style={{ color: T.inkDim, fontFamily: FONT_BODY, fontSize: 13 }}>Nothing waiting — every received drawing has been classified into tasks.</div>}
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {pending.map((i) => {
@@ -3790,7 +2999,7 @@ function UploadView({ state, persist, initialFile=null, initialProjectId, compac
             );
           })}
         </div>
-      </div>}
+      </div>
     </div>
   );
 }
@@ -3798,51 +3007,12 @@ function UploadView({ state, persist, initialFile=null, initialProjectId, compac
 /* ---------------------------------------------------------------
    VIEW: CLASSIFY (Stage 2 — zone letters + drawing type -> tasks)
 --------------------------------------------------------------- */
-function classifyDrawingPreviewInfo(row){
-  const type=drawingFileType(row||{});let original='',id='',resource='';
-  try{const url=new URL(row?.driveUrl||'');if(url.protocol==='https:'&&url.hostname==='drive.google.com'){original=url.href;id=url.pathname.match(/\/file\/d\/([\w-]+)/)?.[1]||url.searchParams.get('id')||'';resource=url.searchParams.get('resourcekey')||'';}}catch{}
-  if(!id&&/^[\w-]{5,200}$/.test(String(row?.driveFileId||'')))id=row.driveFileId;
-  if(!/^[\w-]{5,200}$/.test(id))id='';
-  if(id&&!original)original=`https://drive.google.com/file/d/${id}/view`;
-  const suffix=resource?'?resourcekey='+encodeURIComponent(resource):'';
-  return {type,original,preview:id?`https://drive.google.com/file/d/${id}/preview${suffix}`:'',download:id?`https://drive.google.com/uc?export=download&id=${id}${resource?'&resourcekey='+encodeURIComponent(resource):''}`:'',canPreview:['PDF','JPEG','PNG','GIF','WEBP','BMP','TIFF','TIF','DXF'].includes(type),cad:['DWG','DWT','DWF'].includes(type)};
-}
-let autodeskSdkPromise;
-function loadAutodeskSdk(){
- if(window.Autodesk?.Viewing)return Promise.resolve();
- if(!autodeskSdkPromise)autodeskSdkPromise=new Promise((resolve,reject)=>{if(!document.getElementById('enlighten-aps-css')){const css=document.createElement('link');css.id='enlighten-aps-css';css.rel='stylesheet';css.href='https://developer.api.autodesk.com/modelderivative/v2/viewers/7.*/style.min.css';document.head.appendChild(css);}const script=document.createElement('script');script.src='https://developer.api.autodesk.com/modelderivative/v2/viewers/7.*/viewer3D.min.js';script.onload=()=>resolve();script.onerror=()=>{script.remove();autodeskSdkPromise=null;reject(Error('Autodesk viewer could not load. Check your connection and retry.'));};document.head.appendChild(script);});return autodeskSdkPromise;
-}
-function AutodeskDrawingPreview({drawing}){
- const info=classifyDrawingPreviewInfo(drawing),driveFileId=drawing.driveFileId||info.original.match(/\/file\/d\/([\w-]+)/)?.[1]||'';
- const [status,setStatus]=useState('checking'),[message,setMessage]=useState('Checking for a prepared CAD preview…'),[run,setRun]=useState(0);
- const container=useRef(null),viewer=useRef(null),generation=useRef(0);
- useEffect(()=>{const gen=++generation.current;let stopped=false,timer;setStatus('checking');setMessage(run>0?'Sending the selected drawing securely to Autodesk…':'Checking for a prepared CAD preview…');
-   const alive=()=>!stopped&&gen===generation.current;
-   const payload={projectId:drawing.projectId,driveFileId};
-   const show=async result=>{await loadAutodeskSdk();if(!alive())return;
-     window.Autodesk.Viewing.Initializer({env:'AutodeskProduction2',api:'streamingV2',getAccessToken:async callback=>{try{const fresh=await apiRequest('cadViewerToken',payload,'GET',90000);if(!fresh.accessToken)throw Error('The preview version changed. Refresh the drawing and retry.');if(alive())callback(fresh.accessToken,fresh.expiresIn);}catch(e){if(alive()){setStatus('error');setMessage(e.message);}}}},()=>{if(!alive()||!container.current)return;const instance=new window.Autodesk.Viewing.GuiViewer3D(container.current,{extensions:['Autodesk.DocumentBrowser']});viewer.current=instance;const code=instance.start();if(code){setStatus('error');setMessage('WebGL viewer could not start. Check browser hardware acceleration.');return;}window.Autodesk.Viewing.Document.load('urn:'+result.urn,doc=>{if(!alive())return;const node=doc.getRoot().getDefaultGeometry();if(!node){setStatus('error');setMessage('No viewable layout was found in this drawing.');return;}instance.loadDocumentNode(doc,node).then(()=>{if(alive()){setStatus('ready');setMessage('');}}).catch(()=>{if(alive()){setStatus('error');setMessage('The drawing preview could not be displayed. Retry or open the original.');}});},()=>{if(alive()){setStatus('error');setMessage('Autodesk could not load the prepared drawing. Check APS setup and retry.');}});});
-   };
-   const check=async prepare=>{try{const result=await apiRequest(prepare?'cadPrepare':'cadStatus',payload,prepare?'POST':'GET',prepare?290000:90000);if(!alive())return;setStatus(result.status);setMessage(result.message||'');if(result.status==='ready'){setStatus('loading');setMessage('Opening drawing…');await show(result);}else if(result.status==='processing')timer=setTimeout(()=>check(false),5000);}catch(e){if(alive()){setStatus('error');setMessage(e.message);}}};
-   check(run>0);return()=>{stopped=true;clearTimeout(timer);viewer.current?.finish();viewer.current=null;};
- },[drawing.projectId,driveFileId,run]);
- return <div style={{padding:12}}><div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',marginBottom:10}}>{!['checking','processing','loading','ready'].includes(status)&&<button type="button" style={{...smallBtn,background:T.navy,color:'#fff'}} onClick={()=>setRun(n=>n+1)}>{status==='not-prepared'?'View CAD drawing':'Retry CAD preview'}</button>}{status==='ready'&&<button type="button" style={smallBtn} onClick={()=>viewer.current?.fitToView()}>Fit drawing</button>}{message&&<span role={status==='error'||status==='failed'?'alert':'status'} style={{fontSize:12,color:status==='error'||status==='failed'?T.redline:T.inkDim}}>{message}</span>}</div>{status==='not-prepared'&&<p style={{fontSize:11,color:T.inkDim}}>The selected drawing will be sent securely from Drive to Autodesk for preview processing. Subsequent openings reuse the prepared preview.</p>}<div ref={container} aria-label="Autodesk CAD drawing viewer" style={{position:'relative',width:'100%',height:status==='ready'||status==='loading'?'min(70vh,650px)':0,minHeight:status==='ready'||status==='loading'?360:0,overflow:'hidden'}}/></div>;
-}
-
-function ClassifyDrawingPreview({drawing}){
-  const [open,setOpen]=useState(true),[failed,setFailed]=useState(false);
-  const info=classifyDrawingPreviewInfo(drawing);
-  return <section aria-label="Attached drawing preview" style={{border:`1px solid ${T.line}`,background:'#fff',marginBottom:20,fontFamily:FONT_BODY}}><div style={{display:'flex',gap:10,alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',padding:'10px 12px',background:'#D2CDC1'}}><strong style={{fontSize:12}}>Drawing preview · {info.type}</strong><div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>{info.original&&<a href={info.original} target="_blank" rel="noreferrer" style={smallBtn}>Open {info.type}</a>}{info.download&&<a href={info.download} target="_blank" rel="noreferrer" style={smallBtn}>Download</a>}{info.canPreview&&info.preview&&<button type="button" style={smallBtn} aria-expanded={open} onClick={()=>setOpen(v=>!v)}>{open?'Hide preview':'Show preview'}</button>}</div></div>
-  {!info.original?<p style={{fontSize:12,padding:12,color:T.inkDim}}>No saved file link is available for this drawing yet.</p>:info.cad?<AutodeskDrawingPreview key={drawing.driveFileId||drawing.id} drawing={drawing}/>:info.canPreview&&info.preview?open&&<><iframe key={info.preview} title={`Preview ${drawing.fileName||info.type}`} src={info.preview} loading="lazy" allowFullScreen referrerPolicy="no-referrer" onError={()=>setFailed(true)} style={{display:'block',width:'100%',height:'min(65vh,620px)',minHeight:320,border:0}}/><p style={{fontSize:11,color:T.inkDim,padding:'8px 12px',margin:0}}>{failed?'Preview could not load. ':''}If the preview is unavailable, use Open {info.type} above with your Google account.</p></>:<p style={{fontSize:12,padding:12,color:T.inkDim}}>Use Open {info.type} to view this attachment.</p>}
-  </section>;
-}
-
 function ClassifyView({ state, persist }) {
   const pending = state.intakes.filter((i) => !i.classified);
   const [selectedId, setSelectedId] = useState(pending[0]?.id || null);
   const [zones, setZones] = useState([]);
   const [drawingType, setDrawingType] = useState(state.templates[0]?.drawingType || "");
   const [done, setDone] = useState(false);
-  const [parts,setParts]=useState([]),[saving,setSaving]=useState(false);
 
   useEffect(() => {
     if (!selectedId && pending.length) setSelectedId(pending[0].id);
@@ -3854,22 +3024,18 @@ function ClassifyView({ state, persist }) {
   useEffect(() => {
     const selected = state.intakes.find((i) => i.id === selectedId);
     if (selected?.drawingType) setDrawingType(canonicalDrawingType(selected.drawingType));
-    setZones([]);setParts([]);
+    setZones([]);
   }, [selectedId]);
 
   const toggleZone = (z) => setZones((zs) => zs.includes(z) ? zs.filter((x) => x !== z) : [...zs, z]);
 
   const intake = state.intakes.find((i) => i.id === selectedId);
-  const lockedDrawingType = canonicalDrawingType(drawingType || intake?.drawingType);
-  const baseProject = intake && state.projects.find((p) => p.id === intake.projectId);
-  const project = baseProject ? {...baseProject,zones:{...(baseProject.zones||{}),...Object.fromEntries((baseProject.floorZones||[]).filter(z=>z.zoneCode).map(z=>[z.zoneCode,{floor:z.floor,room:z.area||z.room}]))}} : null;
+  const lockedDrawingType = canonicalDrawingType(intake?.drawingType || drawingType);
+  const project = intake && state.projects.find((p) => p.id === intake.projectId);
   const letters = project ? sortedZoneLetters(project) : [];
-  const floors=[...new Set(letters.map(z=>project.zones[z]?.floor).filter(Boolean))];
-  const toggleFloor=(floor,checked)=>{const ids=letters.filter(z=>project.zones[z]?.floor===floor);setZones(current=>checked?[...new Set([...current,...ids])]:current.filter(z=>!ids.includes(z)));};
 
   const submit = async () => {
-    if (!selectedId || saving || (!parts.length&&zones.length===0) || !lockedDrawingType) return;
-    const entries=[...parts,...(zones.length?[{drawingType:lockedDrawingType,zones:[...zones]}]:[])];setSaving(true);
+    if (!selectedId || zones.length === 0 || !lockedDrawingType) return;
     const template = state.templates.find((t) => drawingTypeKey(t.drawingType) === drawingTypeKey(lockedDrawingType));
 
     const newTasks = (template?.tasks || []).map((t) => ({
@@ -3887,24 +3053,27 @@ function ClassifyView({ state, persist }) {
     }));
 
     try {
-      const savedTasks=[];const savedDrawings=[];
-      for(const entry of entries){const coverage=entry.zones.map(z=>({floor:project.zones?.[z]?.floor||intake.floor,area:project.zones?.[z]?.room||z}));
-        const result=await projectApi.classifyDrawing({drawingId:selectedId,projectId:project.id,drawingType:entry.drawingType,coverage});
-        savedTasks.push(...(result?.tasks||[]));savedDrawings.push(...(result?.drawings||[]));
+      const areaNames = zones.map(z => project.zones?.[z]?.room || z);
+      if(new Set(zones.map(z=>project.zones?.[z]?.floor||intake.floor)).size>1){
+        let capabilities;try{capabilities=await projectApi.getWorkflowCapabilities();}catch(_){throw new Error("Install the updated Apps Script backend before classifying a package across multiple floors.");}
+        if(!capabilities?.multiFloorCoverage)throw new Error("The connected backend does not support multi-floor drawing packages.");
       }
-      const saved={tasks:savedTasks};const allZones=[...new Set(entries.flatMap(e=>e.zones))],areaNames=allZones.map(z=>project.zones?.[z]?.room||z);
+      const saved = await projectApi.classifyDrawing({
+        drawingId: selectedId, projectId: project.id, floor: intake.floor,
+        areas: areaNames, coverage:zones.map(z=>({floor:project.zones?.[z]?.floor||intake.floor,area:project.zones?.[z]?.room||z})), drawingType:lockedDrawingType
+      });
       const backendTasks = Array.isArray(saved?.tasks) ? saved.tasks.map(t => ({
         id:t.designTaskId||uid(), designTaskId:t.designTaskId, designNo:t.designNo,
-        projectId:project.id, projectName:project.name, zones:[t.area||""], drawingType:t.dependencyDrawingType||lockedDrawingType,
+        projectId:project.id, projectName:project.name, zones:[t.area||""], drawingType:lockedDrawingType,
         title:t.taskType||t.title||"Design Task", assignee:t.assigneeName||"", status:t.status||STATUS.TODO,
         date:todayISO(), hours:Number(t.actualHours||0), sourceFile:intake.fileName
       })) : newTasks;
-      const nextIntakes = state.intakes.map((i) => i.id === selectedId ? { ...i, classified: true, zones:allZones, classifications:entries, floors:[...new Set(allZones.map(z=>project.zones[z].floor))], coverage:allZones.map(z=>({floor:project.zones[z].floor,area:project.zones[z].room||z})), areas:areaNames, drawingType:lockedDrawingType } : i);
-      await persist({ ...state, intakes: nextIntakes, tasks: [...new Map([...state.tasks,...backendTasks].map(t=>[t.designTaskId||t.id,t])).values()] });
+      const nextIntakes = state.intakes.map((i) => i.id === selectedId ? { ...i, classified: true, zones, areas:areaNames, drawingType:lockedDrawingType } : i);
+      await persist({ ...state, intakes: nextIntakes, tasks: [...backendTasks, ...state.tasks] });
     } catch(err) {
-      alert(`Classification could not finish: ${err?.message||err}. Your selections are retained; retry to finish the remaining entries.`);setSaving(false); return;
+      alert(`Classification failed: ${err?.message||err}`); return;
     }
-    setZones([]);setParts([]);setSaving(false); setDone(true);
+    setZones([]); setDone(true);
     setTimeout(() => setDone(false), 2400);
   };
 
@@ -3922,7 +3091,7 @@ function ClassifyView({ state, persist }) {
   }
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "260px minmax(0,1fr)", gap: 28 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: 28 }}>
       <div>
         <div style={{ fontFamily: FONT_MONO, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: T.inkDim, marginBottom: 10 }}>Pending drawings</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -3930,11 +3099,11 @@ function ClassifyView({ state, persist }) {
             const p = state.projects.find((pr) => pr.id === i.projectId);
             const active = i.id === selectedId;
             return (
-              <button key={i.id} disabled={saving} onClick={() => { setSelectedId(i.id); setZones([]); }} style={{
-                minWidth:0,width:"100%",boxSizing:"border-box",overflowWrap:"anywhere",whiteSpace:"normal",textAlign: "left", padding: "10px 12px", borderRadius: 6, cursor: "pointer",
+              <button key={i.id} onClick={() => { setSelectedId(i.id); setZones([]); }} style={{
+                textAlign: "left", padding: "10px 12px", borderRadius: 6, cursor: "pointer",
                 border: `1px solid ${active ? T.blue : T.line}`, background: active ? "#EAF1FB" : "#fff",
               }}>
-                <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: T.ink,overflowWrap:"anywhere",wordBreak:"break-word",whiteSpace:"normal" }}>{i.fileName}</div>
+                <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: T.ink }}>{i.fileName}</div>
                 <div style={{ fontFamily: FONT_BODY, fontSize: 11, color: T.inkDim }}>{p?.no || "—"} · {p?.name || "Unknown project"}</div>
                 <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.inkDim, marginTop: 3 }}>{i.drawingType || "—"} · {fmtDateTime(i.uploadedAt || i.createdAt || i.date)}</div>
               </button>
@@ -3946,9 +3115,7 @@ function ClassifyView({ state, persist }) {
       <div>
         <h2 style={{ fontFamily: FONT_DISPLAY, fontSize: 20, margin: "4px 0 4px", color: T.ink }}>Classify drawing</h2>
         <div style={{ fontFamily: FONT_BODY, fontSize: 13, color: T.inkDim, marginBottom: 6 }}><strong>{project?.no || "—"} — {project?.name || "Unknown project"}</strong></div>
-        <div style={{ fontFamily: FONT_BODY, fontSize: 13, color: T.inkDim, marginBottom: 20,overflowWrap:"anywhere" }}>{intake?.fileName} · Uploaded {fmtDateTime(intake?.uploadedAt || intake?.createdAt || intake?.date)}</div>
-
-        {intake&&<ClassifyDrawingPreview key={intake.id} drawing={intake}/>}
+        <div style={{ fontFamily: FONT_BODY, fontSize: 13, color: T.inkDim, marginBottom: 20 }}>{intake?.fileName} · Uploaded {fmtDateTime(intake?.uploadedAt || intake?.createdAt || intake?.date)}</div>
 
         <Field label={`Zone(s) — select every floor / area this drawing package covers`}>
           {letters.length === 0 ? (
@@ -3956,10 +3123,11 @@ function ClassifyView({ state, persist }) {
               This project has no zones mapped yet on the Floor | Zone sheet — add its floor/zone breakdown there first.
             </div>
           ) : (
-            <div style={{fontFamily:FONT_BODY,fontSize:12,color:T.ink}}><p style={{fontSize:12,color:T.inkDim}}>Select one or more floors. Each floor selects its areas; untick any area not covered by this drawing.</p>{floors.map(f=>{
-              const ids=letters.filter(z=>project.zones[z]?.floor===f),selected=ids.filter(z=>zones.includes(z));
-              return <fieldset key={f} style={{border:`1px solid ${T.line}`,padding:12,marginBottom:12}}><legend style={{fontFamily:FONT_BODY,fontSize:12}}><label><input type="checkbox" aria-label={`Classify floor ${f}`} checked={selected.length>0} onChange={e=>toggleFloor(f,e.target.checked)}/> {f} <span style={{fontSize:11}}>({selected.length}/{ids.length} areas)</span></label></legend><div style={{display:'flex',gap:12,flexWrap:'wrap',fontFamily:FONT_BODY,fontSize:12}}>{ids.map(z=><label key={z} style={{display:'inline-flex',alignItems:'center',gap:4}}><input type="checkbox" aria-label={`Classify area ${f} ${project.zones[z].room||z}`} checked={zones.includes(z)} onChange={()=>toggleZone(z)}/> {z} · {project.zones[z].room||z}</label>)}</div></fieldset>;
-            })}</div>
+            <div>{letters.map((z) => (
+              <Chip key={z} active={zones.includes(z)} onClick={() => toggleZone(z)}>
+                {z} <span style={{ opacity: 0.7 }}>| {project.zones[z].floor}{project.zones[z].room ? " | " + project.zones[z].room : ""}</span>
+              </Chip>
+            ))}</div>
           )}
         </Field>
 
@@ -3969,12 +3137,10 @@ function ClassifyView({ state, persist }) {
           </div>
         )}
 
-        <Field label="Drawing type for this part of the file">
-          <select aria-label="Classification drawing type" style={inputStyle} disabled={saving} value={lockedDrawingType} onChange={e=>setDrawingType(e.target.value)}>{[...new Set([lockedDrawingType,...state.templates.map(t=>canonicalDrawingType(t.drawingType))])].filter(Boolean).map(type=><option key={type} value={type}>{type}</option>)}</select>
+        <Field label="Drawing type — picked from Received · Upload">
+          <div style={{...inputStyle, background:T.paperDim, fontWeight:700}}>{lockedDrawingType || "—"}</div>
+          <div style={{fontFamily:FONT_MONO,fontSize:10,color:T.green,marginTop:5}}>LOCKED FROM UPLOAD — select Zone / Area below/above to classify.</div>
         </Field>
-        {parts.length>0&&<div style={{marginBottom:14,fontFamily:FONT_BODY,fontSize:12}}>{parts.map((entry,index)=><div key={index} style={{padding:10,border:`1px solid ${T.line}`,marginBottom:6,overflowWrap:'anywhere'}}><strong>{entry.drawingType}</strong> · {entry.zones.map(z=>`${project.zones[z]?.floor} · ${project.zones[z]?.room||z}`).join('; ')} <button style={smallBtn} disabled={saving} onClick={()=>setParts(rows=>rows.filter((_,i)=>i!==index))}>Remove part</button></div>)}</div>}
-        <button type="button" style={{...smallBtn,marginBottom:14}} disabled={saving||!zones.length} onClick={()=>{setParts(rows=>[...rows,{drawingType:lockedDrawingType,zones:[...zones]}]);setZones([]);}}>Add another drawing type / part</button>
-        <p style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>Each part has its own type and floor/area selection. All parts use the same uploaded file; their work is tracked separately.</p>
 
         {previewTasks.length > 0 && (
           <div style={{ background: T.paperDim, border: `1px solid ${T.line}`, borderRadius: 8, padding: "12px 14px", marginBottom: 20 }}>
@@ -3988,8 +3154,8 @@ function ClassifyView({ state, persist }) {
           </div>
         )}
 
-        <Btn onClick={submit} disabled={saving||(!zones.length&&!parts.length)}>
-          <ClipboardCheck size={14} /> {saving?"Saving classifications…":"Save all parts & open tasks"}
+        <Btn onClick={submit} disabled={zones.length === 0}>
+          <ClipboardCheck size={14} /> Open tasks in timesheet
         </Btn>
         {done && <div style={{ marginTop: 12, fontFamily: FONT_MONO, fontSize: 12, color: T.green }}>Tasks created and assigned.</div>}
       </div>
@@ -4000,217 +3166,12 @@ function ClassifyView({ state, persist }) {
 /* ---------------------------------------------------------------
    VIEW: TIMESHEET
 --------------------------------------------------------------- */
-function wihAddDays(date,days){return new Date(Date.parse(date+'T00:00:00Z')+Number(days)*86400000).toISOString().slice(0,10);}
-function wihTatDate(received,days){
- const count=Number(days);
- return /^\d{4}-\d{2}-\d{2}$/.test(received||'')&&Number.isFinite(Date.parse(received))&&Number.isInteger(count)&&count>=1&&count<=365?wihAddDays(received,count):'';
-}
-function wihTatDays(received,date){
- if(!received||!date)return '';
- const count=(Date.parse(date+'T00:00:00Z')-Date.parse(received+'T00:00:00Z'))/86400000;
- return Number.isInteger(count)?count:'';
-}
-function WihTatFields({received,days,date,onChange,disabled}){
- return <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:10}}>
-  <label style={{fontSize:12}}>TAT (calendar days)<input type="number" min="1" max="365" value={days} disabled={disabled} style={inputStyle} onChange={e=>onChange(e.target.value,wihTatDate(received,e.target.value))}/></label>
-  <label style={{fontSize:12}}>Internal deadline<input type="date" min={wihTatDate(received,1)||undefined} max={wihTatDate(received,365)||undefined} value={date} disabled={disabled} style={inputStyle} onChange={e=>onChange(wihTatDays(received,e.target.value),e.target.value)}/></label>
- </div>;
-}
-
-function wihLocalDate(date){const d=new Date(date);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
-function wihLocalInput(date){const d=new Date(date);return `${wihLocalDate(d)}T${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;}
-async function syncWihCalendarEvent(token,task,plan,email){
- const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(location.origin+'|'+email.toLowerCase()+'|'+task.designTaskId));
- const id='en'+Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,'0')).join('');
- const event={summary:`${/completed|^done$/i.test(task.status)?'✓ ':''}${task.projectName} · ${task.floor||''}–${task.drawingType||''} · ${task.title}`,description:`enLIGHTen Work in Hand\nDrawing: ${task.receipt?.fileName||''}\nArea: ${task.area||'Whole floor'}\nReceived: ${plan.receivedDate}\nTAT: ${plan.tatDays} calendar days\nInternal due: ${plan.internalDueDate}\nSuggested client date (+1 day): ${plan.clientDueDate}\nStatus: ${task.status}\nEdit the schedule in enLIGHTen and sync again. Calendar changes do not update WIH.`,start:{dateTime:plan.plannedStart,timeZone:plan.timeZone},end:{dateTime:plan.plannedEnd,timeZone:plan.timeZone},extendedProperties:{private:{enlightenTaskId:String(task.designTaskId)}},visibility:'private',transparency:'opaque'};
- const base='https://www.googleapis.com/calendar/v3/calendars/primary/events',headers={Authorization:'Bearer '+token,'Content-Type':'application/json'};
- let response=await fetch(base+'/'+id+'?sendUpdates=none',{method:'PATCH',headers,body:JSON.stringify(event)});
- if(response.status===404){response=await fetch(base+'?sendUpdates=none',{method:'POST',headers,body:JSON.stringify({id,...event})});if(response.status===409)response=await fetch(base+'/'+id+'?sendUpdates=none',{method:'PATCH',headers,body:JSON.stringify(event)});}
- if(!response.ok){const error=await response.json().catch(()=>({}));throw Error(error.error?.message||'Google Calendar sync failed. Reconnect and retry.');}return response.json();
-}
-function wihUrgency(task,now=Date.now()){
- const done=/completed|^done$/i.test(task.status);if(done)return {urgent:false,label:''};
- if(task.plan?.internalDueDate&&task.plan.internalDueDate<wihLocalDate(new Date(now)))return {urgent:true,label:'URGENT · deadline passed'};
- // Missing TAT is not a missed delivery deadline; late entry is tracked separately for review.
- return {urgent:false,label:''};
-}
-function wihPerformanceReport(tasks,quarter='all'){
- const day=(value,tz)=>{if(!value)return '';const d=new Date(value);if(isNaN(d))return '';try{return new Intl.DateTimeFormat('en-CA',{timeZone:tz||'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).format(d);}catch{return d.toISOString().slice(0,10);}};
- const quarterOf=value=>{const match=String(value).match(/^(\d{4})-(\d{2})/);return match?match[1]+'-Q'+(Math.floor((Number(match[2])-1)/3)+1):'';};
- const rows=tasks.filter(t=>/completed|^done$/i.test(t.status)&&!/^Skipped:/i.test(t.task?.remarks||'')).map(t=>{
-  const completed=day(t.task?.completedAt||t.stopAt,t.plan?.timeZone),due=String(t.plan?.internalDueDate||'').slice(0,10);
-  const hours=Number(t.task?.actualHours)>0?Number(t.task.actualHours):Number(t.hours)>0?Number(t.hours):null;
-  return {...t,completedDate:completed,performanceQuarter:quarterOf(completed),actualWorkHours:hours,outcome:!completed||!due?'Unrated':completed>due?'Delayed':'On time',delayDays:completed&&due?Math.max(0,Math.round((Date.parse(completed)-Date.parse(due))/86400000)):null};
- }).filter(t=>quarter==='all'||t.performanceQuarter===quarter);
- const timed=rows.filter(t=>t.actualWorkHours!==null),rated=rows.filter(t=>t.outcome!=='Unrated'),groups=new Map();
- rows.forEach(t=>{const key=String(t.title||'Task').trim();if(!groups.has(key))groups.set(key,[]);groups.get(key).push(t);});
- const groupsReport=[...groups].map(([title,list])=>{const timed=list.filter(t=>t.actualWorkHours!==null).sort((a,b)=>a.actualWorkHours-b.actualWorkHours);return {title,count:list.length,onTime:list.filter(t=>t.outcome==='On time').length,delayed:list.filter(t=>t.outcome==='Delayed').length,lowest:timed[0]||null,highest:timed.at(-1)||null,average:timed.length?timed.reduce((a,t)=>a+t.actualWorkHours,0)/timed.length:null};});
- return {rows,groups:groupsReport,total:rows.length,onTime:rows.filter(t=>t.outcome==='On time').length,delayed:rows.filter(t=>t.outcome==='Delayed').length,unrated:rows.length-rated.length,onTimeRate:rated.length?100*rows.filter(t=>t.outcome==='On time').length/rated.length:null,average:timed.length?timed.reduce((a,t)=>a+t.actualWorkHours,0)/timed.length:null,lowest:timed.sort((a,b)=>a.actualWorkHours-b.actualWorkHours)[0]||null,highest:timed.at(-1)||null};
-}
-function PerformanceView({state,request=apiRequest}){
- const [rows,setRows]=useState([]),[busy,setBusy]=useState(true),[error,setError]=useState(''),[employee,setEmployee]=useState(String(state.currentUser?.userId||'')),[revision,setRevision]=useState(0);
- const generation=useRef(0),manager=state.currentUser?.appAccess?.toLowerCase()!=='viewer'&&((wihSystemAccount(state.currentUser)&&state.currentUser?.appAccess?.toLowerCase()==='admin')||Object.values(state.currentUser?.projectRoles||{}).includes('Admin'));
- useEffect(()=>{const n=++generation.current;setBusy(true);setError('');request('getWIH',{includeCompleted:true},'GET').then(data=>{if(n!==generation.current)return;setRows(Array.isArray(data)?data:data?.rows||[]);}).catch(e=>{if(n===generation.current)setError(e.message||'Could not load performance.');}).finally(()=>{if(n===generation.current)setBusy(false);});return()=>{generation.current++;};},[revision,state.currentUser?.userId,request]);
- const projectIds=new Set((state.projects||[]).map(p=>String(p.id)));
- const accessible=rows.filter(r=>projectIds.has(String(r.projectId))&&wihCanSeeTask(state.currentUser,r));
- const members=[...new Map(accessible.map(r=>[String(r.assigneeUserId||''),r.assigneeName||r.task?.assigneeName||'Unassigned'])).entries()];
- const selected=manager?employee:String(state.currentUser?.userId||'');
- const tasks=accessible.filter(r=>selected==='all'||String(r.assigneeUserId||'')===selected).map(r=>({...r,title:r.task?.taskType||'Design Task',projectName:(state.projects||[]).find(p=>String(p.id)===String(r.projectId))?.name||r.task?.projectName||'',floor:r.task?.floor||'',area:r.task?.area||'',assignee:r.assigneeName||r.task?.assigneeName||'',hours:Number(r.totalMinutes||0)/60,status:String(r.status||r.task?.status||'Not Started')}));
- const [projectFilter,setProjectFilter]=useState('');
- const timeRows=tasks.filter(t=>(!projectFilter||String(t.projectId)===projectFilter)&&Number(t.totalMinutes)>0);
- const minutes=timeRows.reduce((sum,t)=>sum+Number(t.totalMinutes),0);
- const elapsed=n=>Math.floor(n/60)+' h '+Math.floor(n%60)+' min';
- return <div className="studio-performance"><StudioHeading title="Performance"/><div style={{display:'flex',gap:12,alignItems:'center',flexWrap:'wrap',marginBottom:18}}>{manager&&<label style={{fontSize:12}}>Team member <select aria-label="Performance team member" value={employee} onChange={e=>setEmployee(e.target.value)} style={{...inputStyle,width:'auto'}}><option value="all">All accessible members</option>{!members.some(([id])=>id===String(state.currentUser?.userId))&&<option value={String(state.currentUser?.userId||'')}>{state.currentUser?.name||'My performance'}</option>}{members.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label>}<button style={smallBtn} disabled={busy} onClick={()=>setRevision(n=>n+1)}>Refresh performance</button>{busy&&<span role="status">Updating performance…</span>}</div>{error&&<p role="alert" style={{fontSize:12,color:T.redline}}>{error}</p>}<section aria-label="Tracked task time" style={{marginBottom:24,padding:12,border:`1px solid ${T.line}`,fontFamily:FONT_BODY}}><h3>Tracked task time</h3><p style={{fontSize:12}}>Time recorded with the Tasks timer.</p><label>Project <select style={{...inputStyle,width:'auto'}} value={projectFilter} onChange={e=>setProjectFilter(e.target.value)}><option value="">All projects</option>{(state.projects||[]).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label><p><strong>{elapsed(minutes)}</strong> recorded across {timeRows.length} tasks</p>{timeRows.length?<div style={{overflowX:'auto',maxHeight:420}}><table style={{width:'100%',textAlign:'left',borderCollapse:'collapse',fontSize:12}}><thead><tr>{['Team member','Project','Task','Floor / Area','Status','Recorded time'].map(h=><th key={h} style={{padding:8,background:'#D2CDC1'}}>{h}</th>)}</tr></thead><tbody>{timeRows.map(t=><tr key={t.designTaskId}>{[t.assignee,t.projectName,t.title,[t.floor,t.area].filter(Boolean).join(' · '),t.status,elapsed(Number(t.totalMinutes))].map((value,i)=><td key={i} style={{padding:8,borderBottom:`1px solid ${T.line}`}}>{value||'—'}</td>)}</tr>)}</tbody></table></div>:<p>{busy?'Loading tracked time…':'No timer minutes recorded for this selection.'}</p>}</section><ActiveTimeReport request={request} projects={state.projects||[]} employee={selected}/><WihPerformance tasks={tasks} person="All" currentUser={state.currentUser} reportTitle={selected==='all'?'Accessible team':members.find(([id])=>id===selected)?.[1]||state.currentUser?.name||'My performance'}/></div>;
-}
-function WihPerformance({tasks,person,currentUser,reportTitle}){
- const now=new Date(),currentQuarter=now.getFullYear()+'-Q'+(Math.floor(now.getMonth()/3)+1);
- const [quarter,setQuarter]=useState(currentQuarter);
- const scoped=tasks.filter(t=>person==='All'||t.assignee===person),all=wihPerformanceReport(scoped),report=wihPerformanceReport(scoped,quarter);
- const quarters=[...new Set([currentQuarter,...all.rows.map(t=>t.performanceQuarter).filter(Boolean)])].sort().reverse();
- const hours=n=>n===null||n===undefined?'—':n.toFixed(2)+' h';
- const th={padding:'10px 12px',textAlign:'left',fontSize:11,fontWeight:600,background:'#D2CDC1',borderBottom:`1px solid ${T.line}`,whiteSpace:'nowrap'},td={padding:'9px 12px',fontSize:12,borderBottom:`1px solid ${T.line}`,verticalAlign:'top'};
- const detail=t=>t?<><strong>{hours(t.actualWorkHours)}</strong><div style={{fontSize:11,color:T.inkDim,marginTop:4}}>{t.projectName} · {t.floor||'—'} · {t.area||'—'} · {t.assignee||'Unassigned'}</div></>:'—';
- const exportReport=()=>{const values=[['Project','Task','Person','Floor','Area','Completed date','Original deadline','Result','Delay days','Actual work hours'],...report.rows.map(t=>[t.projectName,t.title,t.assignee,t.floor,t.area,t.completedDate,t.plan?.internalDueDate||'',t.outcome,t.delayDays??'',t.actualWorkHours??''])];const csv=values.map(row=>row.map(v=>'"'+String(v??'').replace(/^[=+@-]/,"'$&").replace(/"/g,'""')+'"').join(',')).join('\r\n');const url=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='enLIGHTen-performance-'+quarter+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
- return <section style={{fontFamily:FONT_BODY}}><div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap',marginBottom:12}}><h3 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:0}}>Performance · {reportTitle||(person==='All'?'Accessible team':person||currentUser?.name)}</h3><label style={{fontSize:12,marginLeft:'auto'}}>Period <select aria-label="Performance period" style={{...inputStyle,width:'auto'}} value={quarter} onChange={e=>setQuarter(e.target.value)}><option value="all">All time</option>{quarters.map(q=><option key={q}>{q}</option>)}</select></label><button style={smallBtn} disabled={!report.total} onClick={exportReport}>Download report</button></div><p style={{fontSize:12,color:T.inkDim}}>Completed work is grouped by completion quarter. On time means completed by the original locked TAT deadline. Work time excludes recorded pauses; it is not elapsed calendar time.</p><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:10,margin:'16px 0'}}>{[['Completed',report.total],['On time',report.onTime],['Delayed',report.delayed],['Missing deadline / date',report.unrated],['On-time rate',report.onTimeRate===null?'—':report.onTimeRate.toFixed(1)+'%'],['Average work time',hours(report.average)]].map(([label,value])=><div key={label} style={{background:T.paper,border:`1px solid ${T.line}`,padding:14}}><div style={{fontSize:11,color:T.inkDim}}>{label}</div><strong style={{display:'block',fontSize:24,marginTop:6,color:T.navy}}>{value}</strong></div>)}</div><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(230px,1fr))',gap:12,marginBottom:20}}>{[['Lowest task time',report.lowest],['Highest task time',report.highest]].map(([label,t])=><div key={label} style={{padding:14,border:`1px solid ${T.line}`,fontSize:12}}><div style={{color:T.inkDim,marginBottom:6}}>{label}</div>{t&&<div style={{marginBottom:5}}>{t.title}</div>}{detail(t)}</div>)}</div><h4 style={{fontSize:14}}>Task time comparison</h4><div style={{overflowX:'auto'}}><table style={{borderCollapse:'collapse',width:'100%',minWidth:700}}><thead><tr>{['Task','Completed','On time','Delayed','Lowest time','Highest time','Average'].map(h=><th key={h} style={th}>{h}</th>)}</tr></thead><tbody>{report.groups.map(g=><tr key={g.title}><td style={td}>{g.title}</td><td style={td}>{g.count}</td><td style={td}>{g.onTime}</td><td style={td}>{g.delayed}</td><td style={td}>{detail(g.lowest)}</td><td style={td}>{detail(g.highest)}</td><td style={td}>{hours(g.average)}</td></tr>)}</tbody></table></div><p style={{fontSize:11,color:T.inkDim}}>Compare similar scope and floor/area before interpreting lowest and highest times. Skipped optional steps are excluded. Missing time is excluded from time statistics; missing deadlines or completion dates are unrated.</p><h4 style={{fontSize:14}}>Completed task details</h4>{!report.total&&<p role="status">No completed work recorded for this period.</p>}<div style={{overflowX:'auto'}}><table style={{borderCollapse:'collapse',width:'100%',minWidth:760}}><thead><tr>{['Project / Task','Person','Original deadline','Completed','Result','Delay','Work time'].map(h=><th key={h} style={th}>{h}</th>)}</tr></thead><tbody>{report.rows.map(t=><tr key={t.designTaskId}><td style={td}><strong>{t.projectName}</strong><div>{t.title} · {t.floor} · {t.area}</div></td><td style={td}>{t.assignee||'Unassigned'}</td><td style={td}>{t.plan?.internalDueDate?formatProjectDate(t.plan.internalDueDate):'—'}</td><td style={td}>{t.completedDate?formatProjectDate(t.completedDate):'—'}</td><td style={{...td,color:t.outcome==='Delayed'?T.redline:T.ink}}>{t.outcome}</td><td style={td}>{t.delayDays===null?'—':t.delayDays+' days'}</td><td style={td}>{hours(t.actualWorkHours)}</td></tr>)}</tbody></table></div></section>;
-}
-function WihPlanner({state,tasks,requestedTask,onSaved,onDismiss,onAction,onComplete,busyId}){
- const [open,setOpen]=useState(true),[selected,setSelected]=useState(''),[draft,setDraft]=useState(null),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[clientId,setClientId]=useState(''),[connected,setConnected]=useState(false),[week,setWeek]=useState(()=>wihLocalDate(new Date()));
- const calendarAuth=useRef(null),tokenClient=useRef(null);
- const email=String(state.currentUser?.email||'').toLowerCase(),userId=String(state.currentUser?.userId||'');
- const personalCalendar=useTimelineCalendar(apiRequest,week,userId);
- const calendarEditable=state.currentUser?.appAccess?.toLowerCase()!=='viewer';
- const manageable=t=>state.currentUser?.appAccess?.toLowerCase()!=='viewer'&&!!userId&&String(t.assigneeUserId)===userId;
- const task=tasks.find(t=>String(t.designTaskId)===String(selected));
- const choose=t=>{setOpen(true);setSelected(String(t.designTaskId));setMessage('');const plan=t.plan;setDraft({tatDays:plan?.tatDays||'',dueDate:String(plan?.internalDueDate||'').slice(0,10),plannedStart:wihLocalInput(plan?.plannedStart||new Date()),hours:plan?.plannedStart&&plan?.plannedEnd?Math.max(.25,(Date.parse(plan.plannedEnd)-Date.parse(plan.plannedStart))/3600000):Number(t.task?.estimatedHours)||2});};
- useEffect(()=>{if(typeof document!=='undefined'&&!window.google?.accounts?.oauth2&&!document.getElementById('enlighten-google-login')){const script=document.createElement('script');script.id='enlighten-google-login';script.src='https://accounts.google.com/gsi/client';script.async=true;document.head.appendChild(script);}fetch('/api?action=authConfig',{credentials:'same-origin'}).then(r=>r.json()).then(r=>setClientId(r.data?.clientId||'')).catch(()=>{});return()=>{calendarAuth.current=null;};},[]);
- useEffect(()=>{if(requestedTask)choose(requestedTask);},[requestedTask]);
- const connect=()=>{setMessage('');if(!clientId||!window.google?.accounts?.oauth2){setMessage('Google Calendar setup is unavailable. Check the Google client configuration and reload.');return;}
- tokenClient.current=window.google.accounts.oauth2.initTokenClient({client_id:clientId,scope:'openid email https://www.googleapis.com/auth/calendar.events.owned',login_hint:email,callback:async response=>{try{if(response.error||!response.access_token)throw Error(response.error_description||'Calendar permission was not granted.');if(!window.google.accounts.oauth2.hasGrantedAllScopes(response,'https://www.googleapis.com/auth/calendar.events.owned'))throw Error('Grant Calendar permission to connect.');const result=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+response.access_token}});const identity=await result.json();if(!result.ok||String(identity.email||'').toLowerCase()!==email||!identity.email_verified)throw Error('Choose the same Google account used to sign in to enLIGHTen.');calendarAuth.current={token:response.access_token,expires:Date.now()+Number(response.expires_in||3600)*1000};setConnected(true);setMessage('Google Calendar connected. Use Sync my time blocks, or save a plan to sync it.');}catch(e){calendarAuth.current=null;setConnected(false);setMessage(e.message);}},error_callback:e=>setMessage(e.type==='popup_closed'?'Calendar connection cancelled.':'Allow the Google consent popup and try again.')});tokenClient.current.requestAccessToken({prompt:''});};
- const auth=()=>{const value=calendarAuth.current;if(!value||value.expires<=Date.now()+30000){setConnected(false);calendarAuth.current=null;throw Error('Connect Google Calendar again to sync.');}return value.token;};
- const sync=async()=>{setBusy(true);setMessage('');let count=0;try{const token=auth();for(const t of tasks.filter(t=>String(t.assigneeUserId)===userId&&!!userId&&t.plan?.plannedStart&&t.plan?.plannedEnd)){await syncWihCalendarEvent(token,t,t.plan,email);count++;}setMessage(`${count} work session(s) synced to your Google Calendar.`);}catch(e){setMessage(`${count} session(s) synced. ${e.message}`);}finally{setBusy(false);}};
- const save=async(tatOnly=false)=>{if(!task||!draft||!due||busy)return;setBusy(true);setMessage('');let saved=false;try{const start=new Date(draft.plannedStart),hours=Number(draft.hours);if(!tatOnly&&(isNaN(start)||!hours||hours<=0||hours>24))throw Error('Enter a valid start time and duration of up to 24 hours.');const plan=await apiRequest('saveWihPlan',{designTaskId:task.designTaskId,tatOnly:tatOnly===true,conflictPolicy:draft.conflictPolicy||'reject',tatDays:Number(draft.tatDays),plannedStart:start.toISOString(),plannedEnd:new Date(start.getTime()+hours*3600000).toISOString(),timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone},'POST',120000);saved=true;onSaved(task.designTaskId,plan);if(!tatOnly&&connected&&String(task.assigneeUserId)===userId)await syncWihCalendarEvent(auth(),task,plan,email);setMessage(tatOnly?'TAT saved and locked.':connected&&String(task.assigneeUserId)===userId?'Plan saved and synced.':'Plan saved. Connect Google Calendar to sync your own work.');}catch(e){setMessage((saved?'Plan saved; calendar not synced. ':'')+e.message);}finally{setBusy(false);}};
- const commitments=[...new Set(tasks.map(t=>t.receipt?.drawingId).filter(Boolean))].map(id=>{const work=tasks.filter(t=>t.receipt?.drawingId===id&&!/completed|^done$/i.test(t.status));const dates=work.map(t=>t.plan?.clientDueDate).filter(Boolean).sort();return {id,name:work[0]?.receipt?.fileName,project:work[0]?.projectName,due:dates.at(-1),unplanned:work.filter(t=>!t.plan).length,count:work.length};}).filter(g=>g.count);
- const days=Array.from({length:7},(_,i)=>wihAddDays(week,i));
- const deadlines=new Map(days.map(day=>[day,[]]));
- for(const item of tasks)deadlines.get(String(item.plan?.internalDueDate||'').slice(0,10))?.push(item);
- const due=task?.plan?.internalDueDate||wihTatDate(task?.receipt?.receivedDate,draft?.tatDays);
- return <section style={{fontFamily:FONT_BODY,marginBottom:16}}><div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>{open&&<><button type="button" style={smallBtn} disabled={busy} onClick={connect}>{connected?'Reconnect Google Calendar':'Connect Google Calendar'}</button><button type="button" style={smallBtn} disabled={busy||!connected} onClick={sync}>Sync my time blocks</button>{connected&&<button type="button" style={smallBtn} onClick={()=>{calendarAuth.current=null;setConnected(false);setMessage('Disconnected in this session. Existing calendar events remain.');}}>Disconnect</button>}</>}</div>{open&&<div style={{padding:16,background:'#fff',border:`1px solid ${T.line}`,marginTop:10}}><p style={{fontSize:12,color:T.inkDim,marginTop:0}}>Enter TAT within 24 hours of task creation. Once saved, TAT and the delivery deadline are locked. Moving a calendar session does not change them. TAT uses calendar days from receipt. Client date = internal due date + 1 day. Calendar sync is one way from WIH to your own Google Calendar; no client messages are sent.</p><CalendarPersonalControls calendar={personalCalendar} canEdit={calendarEditable}/><div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',marginBottom:12}}><button type="button" style={smallBtn} onClick={()=>setWeek(d=>wihAddDays(d,-7))}>Previous week</button><input aria-label="Calendar week" type="date" value={week} style={{...inputStyle,width:170}} onChange={e=>{if(e.target.value)setWeek(e.target.value);}}/><button type="button" style={smallBtn} onClick={()=>setWeek(d=>wihAddDays(d,7))}>Next week</button></div><details style={{margin:'12px 0',fontSize:12}}><summary style={{cursor:'pointer'}}>Drawing delivery dates for the displayed work</summary>{commitments.map(g=><div key={g.id} style={{padding:'8px 0',borderBottom:`1px solid ${T.line}`}}>{g.project} · {g.name} · {g.due?formatProjectDate(g.due):'TAT not entered'}{g.unplanned?` · Provisional: ${g.unplanned} task(s) still need TAT`:''}</div>)}<p style={{fontSize:11,color:T.inkDim}}>Uses the latest client date across displayed tasks for each received drawing. Check all assigned people and outstanding work before confirming a full drawing delivery.</p></details><div style={{overflowX:'auto'}}><div style={{display:'grid',gridTemplateColumns:'repeat(7,minmax(145px,1fr))',minWidth:1015}}>{days.map(day=><div key={day} style={{border:`1px solid ${T.line}`,minHeight:150,padding:8}}><div style={{fontSize:11,fontWeight:600,marginBottom:8}}>{formatProjectDate(day)}</div><TimelineCalendarDay calendar={personalCalendar} day={day} canEdit={calendarEditable}/>{deadlines.get(day).map(t=><div key={'due-'+t.designTaskId} className="wih-calendar-deadline"><small>TAT deadline</small><strong>{t.title}</strong><span>{[t.projectName,t.assignee].filter(Boolean).join(' · ')}</span><WihDashboardStatus task={t}/></div>)}{tasks.filter(t=>String(t.assigneeUserId)===userId&&t.plan?.plannedStart&&wihLocalDate(t.plan.plannedStart)===day).map(t=><div key={t.designTaskId} style={{width:'100%',boxSizing:'border-box',textAlign:'left',padding:8,marginBottom:6,border:0,background:'#E6EEF4',color:T.ink,fontFamily:FONT_BODY,fontSize:11}}><strong>{t.projectName}</strong><div>{t.floor}–{t.drawingType}</div><div>{t.title}</div><div>{new Date(t.plan.plannedStart).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}–{new Date(t.plan.plannedEnd).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})} · {t.assignee}</div><WihDashboardStatus task={t}/>{wihUrgency(t).urgent&&<div style={{color:T.redline,fontWeight:600}}>{wihUrgency(t).label}</div>}<div>TAT {t.plan.tatDays}d · Due {formatProjectDate(t.plan.internalDueDate)}</div><div style={{display:'flex',gap:4,flexWrap:'wrap',marginTop:6}}><button style={smallBtn} onClick={()=>choose(t)}>Edit time block</button>{manageable(t)&&!/completed|^done$/i.test(t.status)&&<><button style={smallBtn} disabled={busyId===t.designTaskId||/blocked/i.test(t.status)} onClick={()=>onAction(t,/in progress/i.test(t.status)?'pause':/paused/i.test(t.status)?'resume':'start')}>{/in progress/i.test(t.status)?'Pause':/paused/i.test(t.status)?'Resume':'Start'}</button><button style={smallBtn} disabled={busyId===t.designTaskId||/blocked/i.test(t.status)} onClick={()=>onComplete(t)}>Complete / Upload</button></>}</div></div>)}</div>)}</div></div><label style={{display:'grid',gap:6,fontSize:12,marginTop:14}}>Block time for a task<select aria-label="Choose a task for a time block" value={selected} style={inputStyle} onChange={e=>{const t=tasks.find(t=>String(t.designTaskId)===e.target.value);if(t)choose(t);}}><option value="">Select a task</option>{tasks.filter(t=>manageable(t)).map(t=><option key={t.designTaskId} value={t.designTaskId}>{t.projectName} · {t.floor}–{t.drawingType} · {t.title}</option>)}</select></label>{task&&draft&&<div style={{marginTop:14,padding:14,border:`1px solid ${T.line}`}}><strong style={{fontSize:13}}>{task.title} · {task.floor}–{task.drawingType}</strong><div style={{fontSize:11,color:T.inkDim,marginTop:5}}>Received: {task.receipt?.fileName} · {formatProjectDate(task.receipt?.receivedDate)}</div><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:12,marginTop:12}}><WihTatFields received={task.receipt?.receivedDate} days={draft.tatDays} date={draft.dueDate} disabled={busy||!!task.plan} onChange={(tatDays,dueDate)=>setDraft(d=>({...d,tatDays,dueDate}))}/><label style={{fontSize:12}}>Work session starts<input aria-label="Planned work start" type="datetime-local" value={draft.plannedStart} style={inputStyle} onChange={e=>setDraft(d=>({...d,plannedStart:e.target.value}))}/></label><label style={{fontSize:12}}>Planned hours<input aria-label="Planned work hours" type="number" min="0.25" step="0.25" max="24" value={draft.hours} style={inputStyle} onChange={e=>setDraft(d=>({...d,hours:e.target.value}))}/></label></div><p style={{fontSize:12}}>Internal due: <strong>{due?formatProjectDate(due):'Set a valid received date and TAT'}</strong> · Suggested client date: <strong>{due?formatProjectDate(wihAddDays(due,1)):'—'}</strong>{due&&due<wihLocalDate(new Date())&&<span style={{color:T.redline}}> · Overdue</span>}</p><label style={{display:'block',fontSize:12,marginBottom:12}}>If this slot overlaps other work<select aria-label="Calendar conflict handling" style={inputStyle} value={draft.conflictPolicy||'reject'} onChange={e=>setDraft(d=>({...d,conflictPolicy:e.target.value}))}><option value="reject">Keep other tasks — choose a free slot / postpone this task</option><option value="shift">Extend this slot and shift following tasks</option></select></label><button type="button" disabled={busy||!due||!manageable(task)||/completed|^done$/i.test(task.status)} style={{...smallBtn,background:T.navy,color:'#fff'}} onClick={()=>save(false)}>{busy?'Saving…':task.plan?'Save time block':'Save TAT and time block'}</button>{!task.plan&&<button type="button" style={{...smallBtn,marginLeft:8}} disabled={busy||!due||!manageable(task)} onClick={()=>save(true)}>Save TAT only</button>}</div>}{message&&<p role="status" style={{fontSize:12,color:T.inkDim}}>{message}</p>}</div>}</section>;
-}
-
-function WihDashboardStatus({task}){
-  const status=sheetDashboardStatus([{...task.task,...task,plannedStartDate:task.plan?.plannedStart||task.plannedStartDate,actualStatus:task.status,status:task.status}]);
-  const tone=sheetDashboardTone(status);
-  return <span title={status==='Pending'?`Not started${task.status?' · '+task.status:''}`:status} style={{display:'inline-flex',alignItems:'center',gap:6,whiteSpace:'nowrap',fontFamily:FONT_BODY,fontSize:11,fontWeight:500,padding:'4px 9px',borderRadius:12,background:tone.bg,color:tone.fg}}><span aria-hidden="true" style={{width:6,height:6,borderRadius:'50%',background:tone.fg,flexShrink:0}}/>{status}</span>;
-}
-
-function TechnicalImage({url,label,kind='image',size=80}){
- const source=technicalIconMap[url]||url;const [failed,setFailed]=useState(false);
- useEffect(()=>setFailed(false),[source]);
- return <span className={`technical-media technical-media--${kind}`} style={{width:size,height:size}}>{source&&!failed?<img src={source} alt={label||'Luminaire illustration'} loading="lazy" decoding="async" onError={()=>setFailed(true)}/>:<span style={{fontSize:10,color:T.inkDim}}>{source?'Image unavailable':'—'}</span>}</span>;
-}
-function LocalTechnicalDatabase({state,initialFittingId}){
- const [projectId,setProjectId]=useState(''),[tab,setTab]=useState('database'),[seed,setSeed]=useState({fittings:[],lookups:{}}),[overrides,setOverrides]=useState([]),[tables,setTables]=useState([]),[zones,setZones]=useState([]),[selected,setSelected]=useState(''),[version,setVersion]=useState(''),[meta,setMeta]=useState({title:'',floor:'',drawingType:'',revision:''}),[text,setText]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[query,setQuery]=useState(''),[editor,setEditor]=useState(null),[dbLimit,setDbLimit]=useState(60),[productFitting,setProductFitting]=useState(null),[brandFilter,setBrandFilter]=useState(''),[applicationImages,setApplicationImages]=useState([]);
- const request=useRef(0),project=(state.projects||[]).find(p=>String(p.id)===String(projectId)),admin=state.currentUser?.appAccess?.toLowerCase()==='admin',canEdit=!!project&&state.currentUser?.appAccess?.toLowerCase()!=='viewer';
- useEffect(()=>{let live=true;(window.__enlightenStandardsPromise||(window.__enlightenStandardsPromise=fetch('/technical-library/database.json').then(r=>{if(!r.ok)throw Error('Fitting database could not load.');return r.json();}).catch(e=>{window.__enlightenStandardsPromise=null;throw e;}))).then(r=>{if(live)setSeed(r);}).catch(e=>{if(live)setMessage(e.message);});apiRequest('listTechnicalFittings',{},'GET',90000).then(r=>{if(live)setOverrides(r);}).catch(e=>{if(live)setMessage(e.message);});return()=>{live=false;};},[]);
- useEffect(()=>{const generation=++request.current;setTables([]);setZones([]);setSelected('');setVersion('');setText('');setMessage('');setMeta({title:'',floor:'',drawingType:'',revision:''});if(!projectId)return;Promise.all([apiRequest('listTechnicalTables',{projectId},'GET',90000),apiRequest('listFloorZones',{projectId},'GET',90000)]).then(([list,areas])=>{if(request.current===generation){setTables(list);setZones(areas);}}).catch(e=>{if(request.current===generation)setMessage(e.message);});},[projectId]);
- useEffect(()=>{let live=true;loadApplications(apiRequest).then(r=>{if(live)setApplicationImages(r.records)}).catch(()=>{});return()=>{live=false}},[]);
- useEffect(()=>{if(initialFittingId)setProductFitting(initialFittingId)},[initialFittingId]);
- const database=React.useMemo(()=>{const map=new Map(seed.fittings.map(f=>[f.id,f]));overrides.forEach(f=>map.set(f.id,f));return [...map.values()];},[seed,overrides]);
- const parsed=React.useMemo(()=>{try{let skipped=0;const rows=parseCadOutput(text,{onSkipped:n=>{skipped=n;}});return {rows,warning:skipped?skipped+' CAD rows have no supported luminaire CN and will not be imported. Review sensor and control rows in the original export.':'',error:''};}catch(e){return {rows:[],error:e.message};}},[text]);
- const technical=React.useMemo(()=>buildTechnicalTable(parsed.rows,database,zones,meta.floor),[parsed.rows,database,zones,meta.floor]);
- const shown=technical.filter(r=>[r.cn,r.zone,r.details,r.control].join(' ').toLowerCase().includes(query.toLowerCase()));const flagged=technical.filter(r=>r.warnings.length);
- const open=async id=>{if(!id)return;const generation=request.current;setBusy(true);setMessage('');try{const saved=await apiRequest('getTechnicalTable',{tableId:id},'GET',90000);if(generation!==request.current)return;setSelected(saved.tableId);setVersion(saved.activeVersion);setMeta({title:saved.title,floor:saved.floor||'',drawingType:saved.drawingType||'',revision:saved.revision||''});setText([TECH_COLUMNS.join('\t'),...saved.rows.map(r=>r.map(v=>/[\t\n"]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v).join('\t'))].join('\n'));setTab('table');}catch(e){setMessage(e.message);}finally{setBusy(false);}};
- const save=async()=>{if(!canEdit||!parsed.rows.length||parsed.error)return;setBusy(true);setMessage('');try{const row=await apiRequest('saveTechnicalTable',{projectId,tableId:selected,expectedVersion:version,...meta,rows:parsed.rows},'POST',120000);setSelected(row.tableId);setVersion(row.activeVersion);setTables(all=>[...all.filter(x=>x.tableId!==row.tableId),row]);setMessage('Output and Technical Table saved.');}catch(e){setMessage(e.message);}finally{setBusy(false);}};
- const saveFitting=async()=>{setBusy(true);try{const fitting=await apiRequest('saveTechnicalFitting',{fitting:editor},'POST',90000);setOverrides(all=>[...all.filter(x=>x.id!==fitting.id),fitting]);setEditor(null);setMessage('Database updated. Technical Tables now use the revised fitting.');}catch(e){setMessage(e.message);}finally{setBusy(false);}};
- const exportCsv=()=>{const safe=v=>{v=String(v??'');if(/^[=+@-]/.test(v))v="'"+v;return '"'+v.replace(/"/g,'""')+'"';};const fields=['zone','cn','fittingType','details','illuminance','optics','height','colour','control','quantity','unit','totalWattage','bufferedWattage','ip'];const csv=[fields,...technical.map(r=>fields.map(k=>r[k]))].map(row=>row.map(safe).join(',')).join('\r\n');const link=document.createElement('a');link.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));link.download='technical-table.csv';link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);};
- const input={...inputStyle,fontFamily:FONT_BODY,fontSize:12};
- const fittingByCode=React.useMemo(()=>new Map([...database].reverse().map(f=>[f.fittingType,f])),[database]);
- const brands=React.useMemo(()=>[...new Map(database.flatMap(f=>f.products||[]).map(p=>[p.brand.trim().toLowerCase(),{name:p.brand,logo:p.brandLogoUrl||''}])).values()].sort((a,b)=>a.name.localeCompare(b.name)),[database]);
- const uploadProductAsset=async file=>{if(file.size>3*1024*1024)throw Error('Use a file smaller than 3 MB.');const base64=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=()=>reject(Error('Could not read file.'));reader.readAsDataURL(file);});return apiRequest('uploadTechnicalProductAsset',{name:file.name,mimeType:file.type,base64},'POST',120000);};
- return <section className="technical-module" style={{fontFamily:FONT_BODY}}>{productFitting&&<ProductBrandPanel application={applicationImages.find(a=>{const f=database.find(f=>f.id===productFitting);return f&&applicationMatches(a,f)})} onAi={payload=>apiRequest('draftProductFromSpreadsheet',{...payload,fittingCode:(database.find(f=>f.id===productFitting)?.fittingType||'')+' '+(database.find(f=>f.id===productFitting)?.category||'')},'POST',180000)} brands={brands} onUpload={uploadProductAsset} fitting={database.find(f=>f.id===productFitting)||{}} admin={admin} onClose={()=>setProductFitting(null)} renderImage={(url,label)=><TechnicalImage url={url} label={label} size={120}/>} onSave={async fitting=>{const saved=await apiRequest('saveTechnicalFitting',{fitting},'POST',90000);setOverrides(all=>[...all.filter(x=>x.id!==saved.id),saved]);}}/>}{message&&<p role="status">{message}</p>}{tab==='database'&&<div><div style={{display:'flex',gap:12,alignItems:'center',flexWrap:'wrap',marginBottom:12}}><span style={{fontSize:12,color:T.inkDim}}>{database.length} fitting entries · Standards Database catalogue</span>{admin&&<button type="button" style={smallBtn} onClick={()=>setEditor({id:'fitting-'+uid(),fittingType:'',iconUrl:'',thumbnailUrl:'',brand:'',x:'',pcbWidth:'',standardLengths:'',wattage:''})}>Add fitting</button>}</div>{editor&&<div style={{padding:16,border:`1px solid ${T.line}`,marginBottom:16}}><h3 style={{fontSize:15}}>Edit fitting</h3><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:10}}>{[['fittingType','Fitting type'],['iconUrl','Icon URL'],['thumbnailUrl','Thumbnail URL'],['brand','Brand / IP / Article'],['x','X'],['pcbWidth','PCB width'],['standardLengths','Standard lengths'],['wattage','Wattage (W or W/m)']].map(([k,label])=><label key={k} style={{fontSize:12}}>{label}<input style={{...input,width:'100%'}} value={editor[k]||''} onChange={e=>setEditor(d=>({...d,[k]:e.target.value}))}/></label>)}</div><div style={{display:'flex',gap:10,marginTop:12}}><button type="button" style={smallBtn} disabled={busy} onClick={saveFitting}>Save fitting</button><button type="button" style={smallBtn} disabled={busy} onClick={()=>setEditor(null)}>Cancel</button></div></div>}<div className="product-brand-tiles" aria-label="Filter catalogue by brand"><button type="button" aria-pressed={!brandFilter} style={smallBtn} onClick={()=>setBrandFilter('')}>All brands / Go-to</button>{brands.map(b=><button type="button" key={b.name} aria-pressed={brandFilter===b.name} onClick={()=>setBrandFilter(b.name)} style={{...smallBtn,background:brandFilter===b.name?T.navy:'#fff',color:brandFilter===b.name?'#fff':T.ink}}>{b.logo&&<img src={b.logo} alt="" style={{width:70,height:40,objectFit:'contain'}}/>}{b.name}</button>)}</div><div className="standards-catalogue" style={{overflowX:'auto',maxHeight:'75vh',overflowY:'auto',background:'#fff'}}><table aria-label="Standards Database catalogue" style={{borderCollapse:'collapse',tableLayout:'fixed',width:seed.catalogue?.widths.reduce((a,b)=>a+b,0)*0.7||2400}}><colgroup>{seed.catalogue?.widths.map((w,i)=><col key={i} style={{width:w*0.7}}/>)}</colgroup><tbody>{seed.catalogue?.rows.map((row,r)=><tr key={r} style={{height:row.some(c=>c.image)?76:seed.catalogue.heights[r]*0.7,contentVisibility:'auto',containIntrinsicSize:`auto ${seed.catalogue.heights[r]*0.7}px`}}>{row.map((cell,c)=>{if(cell.merged)return null;const fitting=fittingByCode.get(cell.text.trim());const product=fitting||fittingByCode.get(seed.catalogue?.rows[r+1]?.[c]?.text?.trim());const photo=cell.image&&!/sketch-icon-/.test(technicalIconMap[cell.image]||cell.image);const candidates=(product?.products||[]).filter(p=>!brandFilter||p.brand===brandFilter);const preferred=candidates.find(p=>p.id===product?.preferredProductId)||candidates[0];const visible=!query||!fitting||[fitting.fittingType,fitting.brand].join(' ').toLowerCase().includes(query.toLowerCase());return <td key={c} className={cell.image&&!/sketch-icon-/.test(technicalIconMap[cell.image]||cell.image)?"catalogue-photo-cell":undefined} rowSpan={cell.span?.[0]||1} colSpan={cell.span?.[1]||1} style={{padding:'3px 5px',border:`1px solid ${T.line}`,background:r===0?'#D2CDC1':'#fff',color:T.ink,verticalAlign:'middle',textAlign:c===0?'left':'center',whiteSpace:'pre-line',fontFamily:'"Helvetica Neue", Helvetica, Arial, sans-serif',fontSize:Math.max(10,(cell.size||14)*0.7)+4/3,fontWeight:500,opacity:visible?1:0.18}}>{cell.image&&(photo&&product?<button type="button" aria-label={`View brand products for ${product.fittingType}`} onClick={()=>setProductFitting(product.id)} style={{display:'block',width:'100%',height:'100%',border:0,padding:0,background:'transparent',cursor:'pointer'}}><TechnicalImage url={brandFilter&&!preferred?'':preferred?.imageUrl||cell.image} label={preferred?`${preferred.brand} ${preferred.model}`:product.fittingType} kind="image" size={64}/></button>:<TechnicalImage url={cell.image} label={cell.text||`Luminaire illustration row ${r+1} column ${c+1}`} kind={photo?'image':'icon'} size={64}/>)}{fitting?<button type="button" title="View brand products" onClick={()=>setProductFitting(fitting.id)} style={{font:'inherit',color:'inherit',background:'transparent',border:0,padding:0,cursor:'pointer'}}>{cell.text}</button>:cell.text}</td>})}</tr>)}</tbody></table></div><details style={{marginTop:20}}><summary style={{fontSize:12,cursor:'pointer'}}>Reference lists copied from Database</summary>{Object.entries(seed.lookups||{}).map(([name,rows])=><details key={name} style={{padding:10}}><summary>{name}</summary><table><tbody>{rows.map((row,i)=><tr key={i}>{row.map((v,j)=><td key={j} style={{padding:'4px 12px'}}>{v}</td>)}</tr>)}</tbody></table></details>)}</details></div>}
- </section>;
-}
-
-
-function ScheduleSpecSheetView({state,initialProjectId='',embedded=false}){
- const [tab,setTab]=useState(embedded?'spec':'schedule');
- const [selectedProjectId,setProjectId]=useState(initialProjectId||(embedded?'':null)),[data,setData]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[refresh,setRefresh]=useState(0),[headerRow,setHeaderRow]=useState(''),[appliedHeader,setAppliedHeader]=useState(''),[query,setQuery]=useState('');const request=useRef(0);
- const projects=orderedProjects(state.projects);
- const defaultProject=projects.find(p=>!projectIsCompleted(p))??projects[0];
- const projectId=selectedProjectId??String(defaultProject?.id??'');
- useEffect(()=>{const n=++request.current;setData(null);setError('');if(!projectId){setBusy(false);return;}setBusy(true);apiRequest('getScheduleSpecSheet',{projectId,view:tab,...(appliedHeader?{headerRow:Number(appliedHeader)}:{})},'POST',90000).then(r=>{if(request.current===n)setData(r);}).catch(e=>{if(request.current===n)setError(e.message);}).finally(()=>{if(request.current===n)setBusy(false);});return()=>{request.current++;};},[projectId,refresh,appliedHeader,tab]);
- useEffect(()=>{if(!projectId)return;const id=setInterval(()=>{if(!document.hidden)setRefresh(x=>x+1);},60000);return()=>clearInterval(id);},[projectId]);
- const scheduleImages=new Map();
- for(const image of data?.images||[]){const row=data.rows[image.row];if(!scheduleImages.get(row))scheduleImages.set(row,new Map());scheduleImages.get(row).set(image.column,image.url);}
- const rows=(data?.rows||[]).filter(r=>r.join(' ').toLowerCase().includes(query.toLowerCase()));
- const exportCsv=()=>{const quote=v=>{let t=String(v??'');if(/^[\s]*[=+@-]/.test(t))t="'"+t;return '"'+t.replace(/"/g,'""')+'"';};const csv=[data.headers,...rows].map(r=>r.map(quote).join(',')).join('\r\n');const url=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download='schedule-spec-sheet.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
- const cell={padding:'9px 10px',border:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:12,textAlign:'left',verticalAlign:'top',overflowWrap:'anywhere'};
- return <section style={{fontFamily:FONT_BODY}}>{!embedded&&<nav className="studio-worksheet-tabs" aria-label="Schedule views" data-sheet-tabs>{[['schedule','Schedule'],['spec','Spec Sheet']].map(([id,label])=><button type="button" key={id} aria-pressed={tab===id} onClick={()=>{if(tab===id)return;setTab(id);setData(null);setQuery('');setHeaderRow('');setAppliedHeader('');}}>{label}</button>)}</nav>}<header className={embedded?undefined:"studio-technical-heading"}><h1 className="studio-page-heading">{embedded?'Technical Table source':tab==='schedule'?'Luminaire Schedule':'Spec Sheet'}</h1></header>{projectId&&<h2 className="studio-worksheet-project">{state.projects.find(p=>String(p.id)===String(projectId))?.name}</h2>}<ProjectStatusSelect hidden={embedded} projects={projects} aria-label="Schedule project" style={{...inputStyle,width:'100%'}} value={projectId} onChange={e=>{setProjectId(e.target.value);setHeaderRow('');setAppliedHeader('');setQuery('');}}><option value="">Select a project</option>{projects.map(p=><option key={p.id} value={p.id}>{p.no} · {p.name}</option>)}</ProjectStatusSelect>{projectId&&<><div style={{display:'flex',gap:10,flexWrap:'wrap',alignItems:'center',margin:'14px 0'}}><button type="button" style={smallBtn} disabled={busy} onClick={()=>setRefresh(x=>x+1)}>Refresh schedule</button>{data?.sourceUrl&&<a href={data.sourceUrl} target="_blank" rel="noopener noreferrer" style={{...smallBtn,textDecoration:'none'}}>Open source sheet</a>}<button type="button" style={smallBtn} disabled={!data?.rows?.length||busy} onClick={exportCsv}>Export CSV</button><input aria-label="Search schedule" placeholder="Search schedule" style={{...inputStyle,flex:'1 1 220px'}} value={query} onChange={e=>setQuery(e.target.value)}/></div><details style={{fontSize:12,marginBottom:12}}><summary>Column heading settings</summary><label>Header row (leave blank for automatic detection)<input aria-label="Schedule header row" type="number" min="1" max="5000" style={{...inputStyle,width:100,margin:8}} value={headerRow} onChange={e=>setHeaderRow(e.target.value)}/></label><button type="button" style={smallBtn} disabled={busy} onClick={()=>{setAppliedHeader(headerRow);setRefresh(x=>x+1);}}>Apply</button></details></>}{busy&&<p role="status" style={{fontSize:12}}>Generating schedule…</p>}{error&&<AppErrorNotice message={error} onRetry={()=>setRefresh(x=>x+1)}/>} {!projectId&&<p style={{fontSize:12,color:T.inkDim}}>Select a project to generate its schedule automatically.</p>}{data&&<><p style={{fontSize:11,color:T.inkDim}}>{rows.length} schedule row(s) · Source header row {data.headerRow}. </p><div style={{overflowX:'auto',maxHeight:'70vh'}}><table className={tab==='schedule'?'studio-lumina-worksheet':undefined} aria-label={tab==='schedule'?'Luminaire Schedule':'Spec Sheet'} style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{data.headers.map((h,i)=><th key={i} style={{...cell,background:'#D2CDC1',fontFamily:FONT_MONO,fontSize:10,position:'sticky',top:0,minWidth:100}}>{h}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={i}>{r.map((v,j)=><td key={j} style={{...cell,color:/^#(REF!|N\/A|VALUE!|DIV\/0!|ERROR!|NAME\?)/.test(v)?T.redline:T.ink}}>{scheduleImages.get(r)?.has(j)?<img loading="lazy" src={scheduleImages.get(r).get(j)} alt="Fixture"/>:v||'—'}</td>)}</tr>)}</tbody></table></div>{!data.rows.length&&<p>No rows found in the source sheet.</p>}</>}</section>;
-}
-
-function TechnicalTableView({state}){
- const [selectedProjectId,setProjectId]=useState(null),[tab,setTab]=useState('table'),[outputOpen,setOutputOpen]=useState(false),[config,setConfig]=useState(null),[url,setUrl]=useState(''),[data,setData]=useState(null),[text,setText]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState(''),[query,setQuery]=useState(''),[limit,setLimit]=useState(100),[header,setHeader]=useState(''),[database,setDatabase]=useState([]);const [applicationTarget,setApplicationTarget]=useState('');const generation=useRef(0),fileInput=useRef(null);
- const projects=orderedProjects(state.projects);
- const defaultProject=projects.find(p=>!projectIsCompleted(p))??projects[0];
- const projectId=selectedProjectId??String(defaultProject?.id??'');
- const viewer=state.currentUser?.appAccess?.toLowerCase()==='viewer',admin=!!projectId&&!viewer&&((wihSystemAccount(state.currentUser)&&state.currentUser?.appAccess?.toLowerCase()==='admin')||state.currentUser?.projectRoles?.[String(projectId)]==='Admin');
- const project=state.projects.find(p=>String(p.id)===String(projectId));
- useEffect(()=>{let live=true;Promise.all([fetch('/technical-library/database.json').then(r=>{if(!r.ok)throw Error();return r.json();}),apiRequest('listTechnicalFittings',{},'GET',90000)]).then(([seed,overrides])=>{if(live){const all=new Map((seed.fittings||[]).map(f=>[f.id,f]));overrides.forEach(f=>all.set(f.id,f));setDatabase([...all.values()]);}}).catch(()=>{});return()=>{live=false;};},[]);
- const loadTable=async(id=projectId,heading=header)=>{if(!id)return;const r=await apiRequest('getNativeTechnicalTable',{projectId:id,...(heading?{headerRow:Number(heading)}:{})},'POST',90000);return r;};
- useEffect(()=>{const n=++generation.current;setConfig(null);setData(null);setUrl('');setText('');setError('');setMessage('');setHeader('');setLimit(100);setOutputOpen(false);if(!projectId){setBusy(false);return;}setBusy(true);apiRequest('getTechnicalWorkbook',{projectId},'GET',90000).then(async cfg=>{if(n!==generation.current)return;setConfig(cfg);setUrl(cfg.workbookId?`https://docs.google.com/spreadsheets/d/${cfg.workbookId}/edit`:'');if(cfg.workbookId){const table=await loadTable(projectId,'');if(n===generation.current)setData(table);}}).catch(e=>{if(n===generation.current)setError(e.message);}).finally(()=>{if(n===generation.current)setBusy(false);});return()=>{generation.current++;};},[projectId]);
- const refresh=async()=>{setBusy(true);setError('');try{setData(await loadTable());setLimit(100);}catch(e){setError(e.message);}finally{setBusy(false);}};
- const connect=async kind=>{setBusy(true);setError('');setMessage('');try{const cfg=await apiRequest(kind==='copy'?'copyTechnicalProjectWorkbook':kind==='create'?'createTechnicalWorkbook':'saveTechnicalWorkbook',{projectId,url,expectedWorkbookId:config?.workbookId||''},'POST',150000);setConfig(cfg);setUrl(`https://docs.google.com/spreadsheets/d/${cfg.workbookId}/edit`);setMessage(kind==='copy'?'Dedicated project workbook created.':'Workbook linked.');setData(await loadTable());}catch(e){setError(e.message);}finally{setBusy(false);}};
- const parsed=React.useMemo(()=>{try{let skipped=0;const columns=text.replace(/^\uFEFF/,'').split(/\r?\n/,1)[0].split('\t').map(v=>v.trim().replace(/^"|"$/g,'').toUpperCase());if(text&&!['HANDLE','BLOCKNAME','NAME','CN'].every(v=>columns.includes(v)))throw Error('Use the original tab-separated CAD .txt export with HANDLE, BLOCKNAME, NAME and CN headings.');const rows=parseCadOutput(text,{onSkipped:n=>{skipped=n;}});rows.sort((a,b)=>a[0].match(/^[A-Z]+/)[0].length-b[0].match(/^[A-Z]+/)[0].length||a[0].localeCompare(b[0],undefined,{numeric:true}));return {rows,warning:skipped?skipped+' CAD rows have no supported luminaire CN and will not be imported. Review sensor and control rows in the original export.':'',error:''};}catch(e){return {rows:[],error:e.message};}},[text]);
- const importOutput=async()=>{if(!parsed.rows.length||!window.confirm('Replace the raw Output input data in this project workbook? An Output backup sheet will be created; formula columns will be preserved.'))return;setBusy(true);setError('');setMessage('');try{const r=await apiRequest('importTechnicalOutput',{projectId,rows:parsed.rows},'POST',180000);setMessage(`${r.imported} Output rows saved. ${r.circuits??0} circuits in CAL. ${r.gaps?.length?'Missing: '+r.gaps.join(', ')+'. ':''}Backup: ${r.backupSheet}.`);setData(await loadTable());setOutputOpen(false);setLimit(100);}catch(e){setError(e.message);}finally{setBusy(false);}};
- const computed=React.useMemo(()=>buildTechnicalTable(data?.output||[],database,project?.floorZones||[],''),[data,database,project]);const byCn=new Map(computed.map(r=>[String(r.cn).toUpperCase(),r]));const cnColumn=(data?.headers||[]).findIndex(h=>String(h).trim().toUpperCase()==='CN');
- const filtered=(data?.rows||[]).map((row,index)=>({row,index})).filter(x=>x.row.join(' ').toLowerCase().includes(query.toLowerCase()));
- const cell={padding:'10px 9px',border:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:12,verticalAlign:'top',textAlign:'left',whiteSpace:'pre-wrap',overflowWrap:'anywhere'};
- return <section className="technical-module" style={{fontFamily:FONT_BODY}}><div role="tablist" aria-label="Technical Table sections" style={{display:'flex',borderBottom:`1px solid ${T.line}`,marginBottom:18,background:'#fff'}}>{[['zones','Zones'],['table','Technical Table'],['output','Output'],['logic','Column Logic'],['nomenclature','Nomenclature'],['database','Product Database'],['applications','Application Database'],['linked','Linked Workbook']].map(([id,label])=><button type="button" role="tab" key={id} aria-selected={tab===id} onClick={()=>setTab(id)} style={{padding:'11px 16px',border:0,borderBottom:`3px solid ${tab===id?T.cyan:'transparent'}`,background:tab===id?T.navy:'transparent',color:tab===id?'#fff':T.inkDim,fontFamily:FONT_BODY,fontSize:12,cursor:'pointer'}}>{label}</button>)}</div>{tab==='applications'?<ApplicationDatabase state={state} request={apiRequest} onOpenFitting={id=>{setApplicationTarget(id);setTab("database")}}/>:tab==='database'?<LocalTechnicalDatabase state={state} initialFittingId={applicationTarget}/>:['zones','table','nomenclature','output','logic'].includes(tab)?<><header className="studio-technical-heading"><h1 className="studio-page-heading">{tab==='zones'?'Zones':tab==='nomenclature'?'Nomenclature':tab==='output'?'Output':tab==='logic'?'Column Logic':'Technical Table'}</h1></header><ProjectStatusSelect projects={projects} aria-label="Documentation project" style={{...inputStyle,width:"100%"}} value={projectId} onChange={e=>setProjectId(e.target.value)}><option value="">Select a project</option>{projects.map(p=><option key={p.id} value={p.id}>{p.no} · {p.name}</option>)}</ProjectStatusSelect>{["output","logic"].includes(tab)?<TechnicalOutput projectId={projectId} request={apiRequest} canEdit={admin} mode={tab}/>:<TechnicalDocumentation view={tab}/>}</>:<><header className="studio-technical-heading"><h1 className="studio-page-heading">Technical Table</h1></header>{project&&<h2 className="studio-worksheet-project">{project.name}</h2>}<ProjectStatusSelect projects={projects} aria-label="Technical table project" disabled={busy} style={{...inputStyle,width:'100%'}} value={projectId} onChange={e=>setProjectId(e.target.value)}><option value="">Select a project</option>{projects.map(p=><option key={p.id} value={p.id}>{p.no} · {p.name}</option>)}</ProjectStatusSelect>{projectId&&<div style={{display:'flex',gap:10,flexWrap:'wrap',margin:'14px 0'}}><button type="button" aria-expanded={outputOpen} disabled={busy} style={smallBtn} onClick={()=>setOutputOpen(x=>!x)}>Output</button><button type="button" disabled={busy||!config?.workbookId} style={smallBtn} onClick={refresh}>Refresh technical table</button>{config?.workbookId&&<a href={`https://docs.google.com/spreadsheets/d/${config.workbookId}/edit`} target="_blank" rel="noopener noreferrer" style={{...smallBtn,textDecoration:'none'}}>Open workbook in Google Sheets</a>}</div>}{projectId&&(outputOpen||config&&!config.workbookId)&&<div style={{padding:16,border:`1px solid ${T.line}`,marginBottom:16,background:T.paper}}><h3 style={{fontFamily:FONT_DISPLAY}}>Output</h3>{admin?<><label>Google Sheets workbook link<input aria-label="Technical workbook link" style={{...inputStyle,width:'100%',margin:'8px 0'}} value={url} disabled={busy} onChange={e=>setUrl(e.target.value)}/></label><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><button type="button" style={smallBtn} disabled={busy||!url} onClick={()=>connect('link')}>Link workbook</button><button type="button" style={smallBtn} disabled={busy} onClick={()=>connect('copy')}>{config?.workbookId?'Create project copy':'Create project workbook'}</button></div><p style={{fontSize:12,color:T.inkDim}}>Use a dedicated project copy. Shared templates and workbooks linked to other projects are protected from import.</p><label style={{display:'grid',gap:8}}>Upload original AutoCAD export (.txt)<input ref={fileInput} type="file" accept=".txt" disabled={busy} onChange={async e=>{const file=e.target.files?.[0];setText('');setError('');setMessage('');if(!file)return;if(!/\.txt$/i.test(file.name)||file.size>1200000){setError('Choose an original CAD .txt export under 1.2 MB.');return;}try{setText(await file.text());}catch{setError('Could not read the CAD file.');}}}/></label><p style={{fontSize:12}}>{parsed.error||`${parsed.rows.length} Output row(s) ready.`}</p><button type="button" style={smallBtn} disabled={busy||!config?.workbookId||!parsed.rows.length||!!parsed.error} onClick={importOutput}>Import Output & update Technical Table</button><p style={{fontSize:11,color:T.inkDim}}>Imports up to 2000 rows. The linked workbook’s formulas calculate the Technical Table; the app reads those calculated values directly. Source formula errors remain visible.</p></>:<p style={{fontSize:12}}>A project admin can link a workbook or import Output. You can view the generated Technical Table once it is linked.</p>}</div>}{projectId&&config?.workbookId&&<details style={{fontSize:12,marginBottom:12}}><summary>Column heading settings</summary><input aria-label="Technical Table header row" type="number" min="1" max="5000" placeholder="Automatic" style={inputStyle} value={header} onChange={e=>setHeader(e.target.value)}/><button type="button" style={smallBtn} disabled={busy} onClick={refresh}>Apply header row</button></details>}{busy&&<p role="status" style={{fontSize:12}}>Updating technical table…</p>}{message&&<p role="status" style={{fontSize:12}}>{message}</p>}{error&&<AppErrorNotice message={error}/>} {data&&<><div style={{display:'flex',gap:10,alignItems:'center',margin:'12px 0',flexWrap:'wrap'}}><input aria-label="Search native technical table" placeholder="Search CN, area, fitting or specification" style={{...inputStyle,flex:'1 1 280px'}} value={query} onChange={e=>{setQuery(e.target.value);setLimit(100);}}/><span style={{fontSize:11,color:T.inkDim}}>{filtered.length} row(s)</span></div><div style={{overflow:'auto',maxHeight:'72vh',border:`1px solid ${T.line}`}}><table className="studio-technical-worksheet" aria-label="Native project technical table" style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{data.headers.map((h,j)=><th key={j} style={{...cell,background:'#D2CDC1',fontFamily:FONT_MONO,fontSize:10,position:'sticky',top:0,minWidth:/details|description/i.test(h)?260:90}}>{h}</th>)}</tr></thead><tbody>{filtered.slice(0,limit).map(({row,index},position)=>{const zone=r=>String(r?.[cnColumn]||'').trim().toUpperCase().match(/^[A-Z]+(?=\d)/)?.[0];const previous=zone(filtered[position-1]?.row),current=zone(row);return <React.Fragment key={index}>{previous&&current&&previous!==current&&<tr aria-hidden="true"><td colSpan={data.headers.length} style={{background:'#000',height:18,padding:0,border:0}}/></tr>}<tr>{row.map((v,j)=>{const direct=data.images?.find(im=>im.row===index&&im.column===j)?.url,fit=cnColumn>=0?byCn.get(String(row[cnColumn]).toUpperCase()):null,thumb=/thumbnail|image|icon/i.test(data.headers[j])?(/icon/i.test(data.headers[j])?fit?.iconUrl:fit?.thumbnailUrl):'';if(fit&&/luminaire details/i.test(data.headers[j]))v=fit.details;return <td key={j} style={{...cell,verticalAlign:'middle',textAlign:direct||thumb?'center':cell.textAlign,color:/^#(REF!|N\/A|VALUE!|DIV\/0!|ERROR!|NAME\?)/.test(v)?T.redline:T.ink}}>{/^#(REF!|N\/A|VALUE!|DIV\/0!|ERROR!|NAME\?)/.test(v)?v:direct||thumb?<TechnicalImage url={/icon/i.test(data.headers[j])?thumb||direct:direct||thumb} kind={/icon/i.test(data.headers[j])?'icon':'image'} size={64} label={String(row[cnColumn]||data.headers[j])}/>:v||'—'}</td>;})}</tr></React.Fragment>;})}</tbody></table></div>{filtered.length>limit&&<button type="button" style={{...smallBtn,marginTop:12}} onClick={()=>setLimit(n=>n+100)}>Show next 100 rows</button>}{!data.rows.length&&<p>No calculated technical rows found. Use Output to import project data.</p>}</>}{!projectId&&<p style={{fontSize:12,color:T.inkDim}}>Select a project to load its Technical Table.</p>}</>}</section>;
-}
-
-function wihSystemAccount(user){return String(user?.email||'').trim().toLowerCase()==='system.enlighten@gmail.com';}
-function wihProjectRole(user,id){if(wihSystemAccount(user)&&String(user?.appAccess).toLowerCase()==='admin')return 'Admin';const role=user?.projectRoles?.[String(id)]||'';return String(user?.appAccess).toLowerCase()==='viewer'?(role?'User':''):role;}
-function wihCanSeeTask(user,row){const role=wihProjectRole(user,row.projectId||row.task?.projectId);return !!role&&(role==='Admin'||!!user?.userId&&String(row.assigneeUserId)===String(user.userId));}
-const registerTabsStyle={display:'flex',alignItems:'center',borderBottom:`1px solid ${T.line}`,marginBottom:18,overflowX:'auto',background:'#fff'};
-const registerTabStyle=active=>({padding:'11px 16px',border:0,borderBottom:`3px solid ${active?T.cyan:'transparent'}`,background:active?T.navy:'transparent',color:active?'#fff':T.inkDim,cursor:'pointer',fontFamily:FONT_BODY,fontSize:12,fontWeight:active?700:500,whiteSpace:'nowrap'});
-
-function projectCardTaskGroups(tasks, splitAcrossFloors=true){
- const groups=new Map();
- for(const task of tasks){
-  const title=String(task.title||'').trim().replace(/^bathroom elevation(?: drawings)?$/i,'Bathroom Elevation');
-  const coverage=Array.isArray(task.batchCoverage)?task.batchCoverage:[];
-  const floors=[...new Set([task.floor,...coverage.map(area=>area?.floor)].map(projectCardFloor).filter(Boolean))];
-  for(const floor of floors.length&&(splitAcrossFloors||floors.length===1)?floors:['']){
-   const key=JSON.stringify(floor?[title.toLowerCase(),floor]:[task.designTaskId]);
-   if(!groups.has(key))groups.set(key,{key,floor,title,tasks:[]});
-   groups.get(key).tasks.push(task);
-  }
- }
- return [...groups.values()];
-}
-
-function TimesheetView({ state, persist, calendarOnly=false }) {
-  const [groupWork,setGroupWork]=useState(false),[taskThread,setTaskThread]=useState(null),[taskComment,setTaskComment]=useState(''),[threadPending,setThreadPending]=useState(false),[threadNotice,setThreadNotice]=useState('');
-  const markKey='enlighten-wih-marks:'+String(state.currentUser?.userId||'');
-  const [taskMarks,setTaskMarks]=useState(()=>{try{return JSON.parse(localStorage.getItem(markKey)||'{}')||{};}catch{return {};}});
-  const markTask=(id,patch)=>{const next={...taskMarks,[id]:{...taskMarks[id],...patch}};setTaskMarks(next);try{localStorage.setItem(markKey,JSON.stringify(next));}catch{}};
-  const threadAction=async(t,action,priority=false)=>{setThreadPending(true);setThreadNotice('');if(action==='read'){setTaskThread({task:t});setTaskComment('');}try{const data=await apiRequest('assignedWorkThread',{designTaskId:t.designTaskId,action,priority,comment:taskComment},'POST');setTaskThread({task:t,...data});if(action==='comment')setTaskComment('');}catch(e){setThreadNotice(e.message);}finally{setThreadPending(false);}};
-  const [expandedTaskGroups,setExpandedTaskGroups]=useState(()=>new Set());
-  const [collapsedProjects,setCollapsedProjects]=useState(()=>new Set());
-  const [planningTask,setPlanningTask]=useState(null);
-  const [tatEditor,setTatEditor]=useState(null),[tatBusy,setTatBusy]=useState(false),[tatError,setTatError]=useState('');
-  const [taskTab,setWorkTab]=useState('todo'),[clock,setClock]=useState(Date.now());
-  const workTab=calendarOnly?'calendar':taskTab;
-  useEffect(()=>{const id=setInterval(()=>setClock(Date.now()),15000);return()=>clearInterval(id);},[]);
-  const workUploadJob=useRef({});
-  const [workUploadProgress,setWorkUploadProgress]=useState(null);
-  const showWihFilters=wihSystemAccount(state.currentUser);
-  const assignProject=id=>state.currentUser?.appAccess?.toLowerCase()!=="viewer"&&wihProjectRole(state.currentUser,id)==="Admin";
-  const canAssign=(state.projects||[]).some(p=>assignProject(p.id));
+function TimesheetView({ state, persist }) {
+  const canAssign=state.currentUser?.appAccess?.toLowerCase()==="admin";
   const canWork=canAssign||state.currentUser?.permissions?.wih==="own-edit";
   const [person, setPerson] = useState("All");
   const [taskSection, setTaskSection] = useState("Pending");
-  const WIH_CACHE_KEY = "enlighten_wih_art_scope_v1:"+String(state.currentUser?.userId||state.currentUser?.googleSubject||"anonymous");
+  const WIH_CACHE_KEY = "enlighten_wih_permissions_v21115:"+String(state.currentUser?.userId||state.currentUser?.googleSubject||"anonymous");
   const WIH_CACHE_MS = 30000;
   const readWihCache = () => {
     try {
@@ -4218,78 +3179,97 @@ function TimesheetView({ state, persist, calendarOnly=false }) {
       return x && Array.isArray(x.rows) ? x : null;
     } catch (_) { return null; }
   };
-  const [initialWihCache] = useState(readWihCache);
+  const initialWihCache = readWihCache();
   const [remoteTasks, setRemoteTasks] = useState(() => initialWihCache?.rows || []);
-  const [loadingRemote, setLoadingRemote] = useState(() => !initialWihCache);
+  const [loadingRemote, setLoadingRemote] = useState(() => !(initialWihCache?.rows?.length));
   const [syncingRemote, setSyncingRemote] = useState(false);
-  const [reconciling,setReconciling]=useState(false),[reconcileError,setReconcileError]=useState('');
-  const wihRequestSeq=useRef(0),wihRecovery=useRef(false),wihMounted=useRef(true);
-  const [wihError,setWihError]=useState("");
-  const [wihDiagnostics,setWihDiagnostics]=useState(()=>initialWihCache?.diagnostics||null);
   const [completeEditor, setCompleteEditor] = useState(null);
   const [busyId, setBusyId] = useState("");
+  const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
+  const [bulkProjectId, setBulkProjectId] = useState("");
+  const [bulkAssignments, setBulkAssignments] = useState({});
+  const [bulkSaving, setBulkSaving] = useState(false);
   const activeTeam=(state.teamMaster||[]).filter(m=>m.active!==false&&String(m.active).toLowerCase()!=="false");
   const teamNames=activeTeam.map(m=>m.name).filter(Boolean);
 
   const refresh=async(force=false)=>{
     const cached = readWihCache();
     const freshCache = cached && (Date.now() - Number(cached.savedAt || 0) < WIH_CACHE_MS);
-    if (!force && freshCache && Array.isArray(cached.diagnostics?.repairCandidates)) {
-      setRemoteTasks(cached.rows);setWihDiagnostics(cached.diagnostics||null);
+    if (!force && freshCache) {
+      setRemoteTasks(cached.rows);
       setLoadingRemote(false);
-      return cached.diagnostics||null;
+      return;
     }
     if (!remoteTasks.length) setLoadingRemote(true);
-    const seq=++wihRequestSeq.current,generation=AUTH_SESSION_GENERATION;
-    setSyncingRemote(true);setWihError("");
+    setSyncingRemote(true);
     try{
       // Only admins may augment WIH with project-wide dashboard records.
       // WIH must show EVERY real Design Task / Design No. across every active project.
       // getWIH can contain only tasks that already have a WIH/timesheet row, so merge it
       // with each project's authoritative Design Dashboard task IDs from Google Sheets.
-      const wihRows=await apiRequest('getWIH',{includeCompleted:true,includeDiagnostics:true,fastRead:true},'GET',120000);
-      if(!wihMounted.current||seq!==wihRequestSeq.current||generation!==AUTH_SESSION_GENERATION)return null;
-      if(!Array.isArray(wihRows)&&!Array.isArray(wihRows?.rows))throw Error('The backend returned an unexpected work list. Redeploy the included Code.gs and refresh.');
-      const base=Array.isArray(wihRows)?wihRows:wihRows.rows;const diagnostics=wihRows?.diagnostics||null;setWihDiagnostics(diagnostics);
-      if(base.some(r=>!Object.prototype.hasOwnProperty.call(r,"receipt")))throw Error("Update and redeploy the included Apps Script backend, then refresh WIH. The running backend is missing received-drawing links.");
-      const byId=new Map(base.filter(r=>r?.designTaskId&&(r.receipt?.drawingId||String(r.task?.workflowActivationKey||'').startsWith('assistant:'))).map(r=>[String(r.designTaskId),r]));
+      const wihRows=await projectApi.getWIH(true);
+      const base=Array.isArray(wihRows)?wihRows:[];
+      const byId=new Map(base.filter(r=>r?.designTaskId).map(r=>[String(r.designTaskId),r]));
+      const taskDefs=[
+        {id:"conceptTaskId",no:"conceptDesignNo",st:"conceptStatus",title:"Concept | 2D | Preliminary Budgeting",drawingType:"Layout"},
+        {id:"renders3dTaskId",no:"renders3dDesignNo",st:"renders3dStatus",title:"3D Renders",drawingType:"3D"},
+        {id:"decorativeSelectionTaskId",no:"decorativeSelectionDesignNo",st:"decorativeSelectionStatus",title:"Decorative Selection",drawingType:"Detail"},
+        {id:"wallElectricalTaskId",no:"wallElectricalDesignNo",st:"wallElectricalStatus",title:"Wall Electricals Drawings",drawingType:"Wall Electrical"},
+        {id:"falseCeilingTaskId",no:"falseCeilingDesignNo",st:"falseCeilingStatus",title:"False Ceiling Drawings",drawingType:"False Ceiling"},
+        {id:"lightTaskId",no:"lightDesignNo",st:"lightStatus",title:"LIGHT Drawings",drawingType:"Layout"},
+        {id:"slabElectricalTaskId",no:"slabElectricalDesignNo",st:"slabElectricalStatus",title:"Slab Electrical Drawings",drawingType:"Wall Electrical"},
+        {id:"facadeElevationTaskId",no:"facadeElevationDesignNo",st:"facadeElevationStatus",title:"Facade Elevation Drawings",drawingType:"Detail"},
+        {id:"bathroomElevationTaskId",no:"bathroomElevationDesignNo",st:"bathroomElevationStatus",title:"Bathroom Elevation",drawingType:"Detail"},
+        {id:"documentationBoqTaskId",no:"documentationBoqDesignNo",st:"documentationBoqStatus",title:"Documentation & BOQ",drawingType:"Detail"},
+        {id:"furnitureTaskId",no:"furnitureDesignNo",st:"furnitureStatus",title:"Furniture / Joinery",drawingType:"Detail"}
+      ];
+      const projects=(state.projects||[]).filter(p=>!p.completed&&!/completed/i.test(String(p.projectStatus||p.status||"")));
+      const dashboards=canAssign?await Promise.all(projects.map(async p=>{
+        try{return {p,payload:await projectApi.getDesignDashboard(p.id)};}catch(e){console.warn("WIH dashboard sync failed",p.id,e);return {p,payload:null};}
+      })):[];
+      dashboards.forEach(({p,payload})=>{
+        const rows=Array.isArray(payload?.rows)?payload.rows:[];
+        rows.forEach(r=>taskDefs.forEach(d=>{
+          const taskId=String(r?.[d.id]||"").trim();
+          const designNo=String(r?.[d.no]||"").trim();
+          if(!taskId&&!designNo)return;
+          const key=taskId||designNo;
+          const existing=byId.get(key)||base.find(x=>String(x?.task?.designNo||"")===designNo);
+          if(existing){
+            byId.set(key,{...existing,designTaskId:taskId||existing.designTaskId,projectId:p.id,task:{...(existing.task||{}),taskType:existing.task?.taskType || d.title,projectName:p.name,floor:r.floor||existing.task?.floor||"",area:r.area||existing.task?.area||"",dependencyDrawingType:d.drawingType,designNo:designNo||existing.task?.designNo||"",status:r?.[d.st]||existing.task?.status||existing.status||"Not Started"},status:r?.[d.st]||existing.status||existing.task?.status||"Not Started"});
+          }else{
+            byId.set(key,{designTaskId:taskId||key,projectId:p.id,assigneeName:"",totalMinutes:0,status:String(r?.[d.st]||"Not Started"),task:{taskType:existing.task?.taskType || d.title,projectName:p.name,floor:r.floor||"",area:r.area||"",dependencyDrawingType:d.drawingType,designNo:designNo||key,status:String(r?.[d.st]||"Not Started")}});
+          }
+        }));
+      });
       const nextRows=[...byId.values()];
       setRemoteTasks(nextRows);
-      try { localStorage.setItem(WIH_CACHE_KEY, JSON.stringify({savedAt:Date.now(), rows:nextRows,diagnostics})); } catch (_) {}
-      return diagnostics;
+      try { localStorage.setItem(WIH_CACHE_KEY, JSON.stringify({savedAt:Date.now(), rows:nextRows})); } catch (_) {}
     }
     catch(e){
-      if(wihMounted.current&&seq===wihRequestSeq.current&&generation===AUTH_SESSION_GENERATION){console.warn("WIH backend load failed",e);setWihError(e.message||"Could not load Work in Hand.");}
+      console.warn("WIH backend load failed",e);
       // Keep the last cached/current rows visible if Google Sheets is temporarily slow.
     }
-    finally{if(wihMounted.current&&seq===wihRequestSeq.current&&generation===AUTH_SESSION_GENERATION){setLoadingRemote(false);setSyncingRemote(false);}}
+    finally{setLoadingRemote(false);setSyncingRemote(false);}
   };
-  const refreshAndRecover=async(force=false)=>{
-    const diagnostics=await refresh(force);if(!wihMounted.current||wihRecovery.current||!Array.isArray(diagnostics?.repairCandidates))return;
-    const generation=AUTH_SESSION_GENERATION,cacheKey=WIH_CACHE_KEY+':all-project-drawing-batches',ttl=10*60*1000;let known={};
-    try{known=JSON.parse(localStorage.getItem(cacheKey)||'{}')||{};}catch{}
-    const candidates=diagnostics.repairCandidates.filter(c=>c?.projectId&&typeof c.revision==='string'&&(force||!known[c.projectId]||known[c.projectId].revision!==c.revision||Date.now()-Number(known[c.projectId].at||0)>ttl));
-    if(!candidates.length&&!force)return;wihRecovery.current=true;setReconciling(true);setReconcileError('');let successful=0,failed=false;
-    try{for(const c of candidates){if(!wihMounted.current||generation!==AUTH_SESSION_GENERATION)break;try{await apiRequest('reconcileWihProject',{projectId:c.projectId},'POST',120000);if(!wihMounted.current||generation!==AUTH_SESSION_GENERATION)break;known[c.projectId]={revision:c.revision,at:Date.now()};successful++;try{localStorage.setItem(cacheKey,JSON.stringify(known));}catch{}}catch(e){failed=true;console.warn('WIH project recovery failed',e);}}
-      if(wihMounted.current&&generation===AUTH_SESSION_GENERATION){
-        try{const result=await apiRequest('consolidateOpenDrawingTasks',{},'POST',120000);if(result.merged)successful++;}
-        catch(e){failed=true;console.warn('Drawing task consolidation failed',e);}
-      }
-      if(successful&&wihMounted.current&&generation===AUTH_SESSION_GENERATION)await refresh(true);
-      if(wihMounted.current&&generation===AUTH_SESSION_GENERATION){if(failed)setReconcileError('Some project work could not be updated. Use Refresh work to retry.');}
-    }finally{wihRecovery.current=false;if(wihMounted.current&&generation===AUTH_SESSION_GENERATION)setReconciling(false);}
-  };
-  useEffect(()=>{wihMounted.current=true;refreshAndRecover(false);return()=>{wihMounted.current=false;wihRequestSeq.current++;};},[]);
+  useEffect(()=>{
+    const cached = readWihCache();
+    if (cached?.rows?.length) {
+      setRemoteTasks(cached.rows);
+      setLoadingRemote(false);
+      // Show cache immediately, then silently check for newer Google Sheets data.
+      refresh(true);
+    } else {
+      refresh(true);
+    }
+  },[]);
 
-  const currentProjectIds=new Set((state.projects||[]).map(p=>String(p.id)));
-  const visibleRemoteTasks=remoteTasks.filter(r=>(r.receipt?.drawingId||String(r.task?.workflowActivationKey||'').startsWith('assistant:'))&&currentProjectIds.has(String(r.projectId||r.task?.projectId))&&wihCanSeeTask(state.currentUser,r));
-  const displayTasks=visibleRemoteTasks.length?visibleRemoteTasks.map(r=>({
+  const displayTasks=remoteTasks.length?remoteTasks.map(r=>({
     ...r,
     id:r.designTaskId,
     designTaskId:r.designTaskId,
     projectId:r.projectId,
     title:r.task?.taskType||"Design Task",
-    taskCategory:r.task?.taskCategory||'',meetingMode:r.task?.meetingMode||'',meetingChannel:r.task?.meetingChannel||'',meetingLink:r.task?.meetingLink||'',
     optional:r.task?.optional===true||String(r.task?.optional)==="true",
     drawingReviewRequired:r.task?.drawingReviewRequired===true||String(r.task?.drawingReviewRequired)==="true",
     milestone:r.task?.milestone||"", parentTask:r.task?.parentTask||"", parentDesignTaskId:r.task?.parentDesignTaskId||"",
@@ -4297,138 +3277,101 @@ function TimesheetView({ state, persist, calendarOnly=false }) {
     projectName:(state.projects||[]).find(p=>String(p.id)===String(r.projectId))?.name||r.task?.projectName||"",
     floor:r.task?.floor||"",
     area:r.task?.area||"",
-    batchCoverage:(()=>{try{return JSON.parse(r.task?.workflowCoverage||"[]");}catch{return [];}})(),
     drawingType:r.task?.dependencyDrawingType||"",
     designNo:r.task?.designNo||"",
     assignee:r.assigneeName||r.task?.assigneeName||"",
     hours:Number(r.totalMinutes||0)/60,
     status:String(r.status||r.task?.status||"Not Started")
-  })):[];
+  })):(state.tasks||[]);
   const isDone=s=>/completed|done/i.test(String(s));
   const isProgress=s=>/in progress/i.test(String(s));
   const isPaused=s=>/paused/i.test(String(s));
   const isBlocked=s=>/blocked/i.test(String(s));
-  const own=t=>!!state.currentUser?.userId&&String(t.assigneeUserId)===String(state.currentUser.userId);
-  const run=t=>own(t)&&state.currentUser?.appAccess?.toLowerCase()!=='viewer';
-  const matches=t=>person==='All'||(person==='@me'?own(t):t.assignee===person);
-  const [assign,setAssign]=useState(null);
-  const openAssign=async task=>{
-    setAssign({task,options:[],id:'',busy:true});
-    try{const options=await apiRequest('reportingAssignment',{designTaskId:task.designTaskId,action:'options'},'POST');setAssign(x=>x?.task===task?{...x,options,busy:false}:x);}
-    catch(e){setAssign(x=>x?.task===task?{...x,error:e.message,busy:false}:x);}
-  };
-  const saveAssign=async()=>{
-    if(!assign?.id||assign.busy)return;
-    setAssign({...assign,busy:true,error:''});
-    try{await apiRequest('reportingAssignment',{designTaskId:assign.task.designTaskId,action:'assign',assigneeUserId:assign.id},'POST');setAssign(null);await refresh(true);}
-    catch(e){setAssign({...assign,busy:false,error:e.message});}
-  };
-  const priorityRank=t=>taskMarks[t.designTaskId]?.pinned?0:taskMarks[t.designTaskId]?.priority==='high'?1:taskMarks[t.designTaskId]?.priority==='low'?3:2;
-  const icon={appearance:'none',boxShadow:'none',display:'inline-grid',placeItems:'center',width:23,height:27,padding:0,border:0,background:'transparent',color:T.inkDim,cursor:'pointer'};
   const sectionCounts={
-    Pending:displayTasks.filter(t=>!isDone(t.status)).length,
+    Pending:displayTasks.filter(t=>!isDone(t.status)&&!!t.assignee).length,
     Completed:displayTasks.filter(t=>isDone(t.status)).length,
-    Unallotted:displayTasks.filter(t=>!isDone(t.status)&&!t.assigneeUserId).length,
+    Unallotted:displayTasks.filter(t=>!isDone(t.status)&&!t.assignee).length,
     All:displayTasks.length
   };
-  const sectionTasks=displayTasks.filter(t=>taskSection==="All"?true:taskSection==="Completed"?isDone(t.status):taskSection==="Unallotted"?!isDone(t.status)&&!t.assigneeUserId:!isDone(t.status));
-  const tasks=sectionTasks.filter(matches).sort((a,b)=>Number(wihUrgency(b,clock).urgent)-Number(wihUrgency(a,clock).urgent)||String(a.plan?.internalDueDate||'9999').localeCompare(String(b.plan?.internalDueDate||'9999')));
-  const endedSessions=displayTasks.filter(t=>matches(t)&&run(t)&&t.plan&&!isDone(t.status)&&Date.parse(t.plan.plannedEnd)<=clock);
-  const people=[...new Set(teamNames)];
-  useEffect(()=>{if(person!=="All"&&person!=="@me"&&!people.includes(person))setPerson("All");},[person,people.join("\u0000")]);
+  const sectionTasks=displayTasks.filter(t=>taskSection==="All"?true:taskSection==="Completed"?isDone(t.status):taskSection==="Unallotted"?!isDone(t.status)&&!t.assignee:!isDone(t.status)&&!!t.assignee);
+  const tasks=sectionTasks.filter(t=>person==="All"||t.assignee===person);
+  const people=[...new Set([...(teamNames.length?teamNames:(state.people||[])),...displayTasks.map(t=>t.assignee).filter(Boolean)])];
+  const bulkProjects=[...new Map(displayTasks.filter(t=>!isDone(t.status)).map(t=>[String(t.projectId),{id:String(t.projectId),name:t.projectName||String(t.projectId)}])).values()];
+  const bulkProjectTasks=displayTasks.filter(t=>String(t.projectId)===String(bulkProjectId)&&!isDone(t.status)&&t.designTaskId);
+  const bulkTaskGroups=[...new Map(bulkProjectTasks.map(t=>[t.title,{title:t.title,tasks:bulkProjectTasks.filter(x=>x.title===t.title)}])).values()];
+  const openBulkAssign=()=>{
+    const first=bulkProjects[0]?.id||"";
+    setBulkProjectId(first);
+    setBulkAssignments({});
+    setBulkAssignOpen(true);
+  };
+  const saveBulkAssignments=async()=>{
+    const selected=bulkTaskGroups.filter(g=>bulkAssignments[g.title]);
+    if(!bulkProjectId)return alert("Select a project.");
+    if(!selected.length)return alert("Select a team member for at least one task type.");
+    setBulkSaving(true);
+    try{
+      for(const group of selected){
+        const name=bulkAssignments[group.title];
+        const member=activeTeam.find(m=>m.name===name);
+        for(const t of group.tasks){
+          await projectApi.assignTask({designTaskId:t.designTaskId,assigneeUserId:member?.userId||member?.employeeId||"",assigneeName:name});
+        }
+      }
+      await refresh(true);
+      setBulkAssignOpen(false);
+    }catch(e){alert(`Project task assignment failed: ${e?.message||e}`);}
+    finally{setBulkSaving(false);}
+  };
+
+  const assign=async(t,name)=>{
+    if(!t.designTaskId)return;
+    const member=activeTeam.find(m=>m.name===name);
+    setBusyId(t.designTaskId);
+    try{await projectApi.assignTask({designTaskId:t.designTaskId,assigneeUserId:member?.userId||member?.employeeId||"",assigneeName:name});await refresh(true);}
+    catch(e){alert(`Task assignment failed: ${e?.message||e}`);}finally{setBusyId("");}
+  };
   const action=async(t,kind)=>{
-    if(!t.designTaskId||(["start","pause","resume"].includes(kind)&&!run(t)))return;
+    if(!t.designTaskId)return;
     setBusyId(t.designTaskId);
     try{if(kind==="start")await projectApi.startTask(t.designTaskId);if(kind==="pause")await projectApi.pauseTask(t.designTaskId);if(kind==="resume")await projectApi.resumeTask(t.designTaskId );if(kind==="review")await projectApi.acknowledgeWorkflowDrawing(t.designTaskId);if(kind==="skip")await projectApi.skipWorkflowSubtask(t.designTaskId);await refresh(true);}
     catch(e){alert(`Task update failed: ${e?.message||e}`);}finally{setBusyId("");}
   };
   const fileToBase64=f=>new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result||"").split(",")[1]||"");r.onerror=reject;r.readAsDataURL(f);});
   const finish=async()=>{
-    const x=completeEditor;if(!x||busyId===x.task.designTaskId)return; if(x.task.completionUploadRequired!==false&&!x.file)return alert("Please upload the completed drawing/file.");
+    const x=completeEditor;if(!x)return; if(x.task.completionUploadRequired!==false&&!x.file)return alert("Please upload the completed drawing/file.");
     const hrs=Number(x.actualHours);if(!hrs||hrs<=0)return alert("Please enter actual time taken in hours.");
     setBusyId(x.task.designTaskId);
-    try{let upload={};if(x.file){setWorkUploadProgress(0);const row=await uploadProjectDrawingJob(x.file,x.task.projectId||x.task.task?.projectId,'Output',workUploadJob.current,setWorkUploadProgress,x.task.designTaskId);upload={fileName:row.fileName,mimeType:row.mimeType,completionFileId:row.fileId};}await projectApi.completeTask({designTaskId:x.task.designTaskId,...upload,drawingCode:x.drawingCode,drawingFloor:x.drawingFloor,drawingArea:x.drawingArea,actualHours:hrs,notes:x.notes||""});setCompleteEditor(null );setWorkUploadProgress(null);await refresh(true);}
-    catch(e){if(/expired|invalid.*session/i.test(e?.message||''))workUploadJob.current.failedExpired=true;alert(`Task completion failed: ${e?.message||e}`);}finally{setBusyId("");}
+    try{const upload=x.file?{fileName:x.file.name,mimeType:x.file.type||"application/octet-stream",fileBase64:await fileToBase64(x.file)}:{};await projectApi.completeTask({designTaskId:x.task.designTaskId,...upload,actualHours:hrs,notes:x.notes||""});setCompleteEditor(null );await refresh(true);}
+    catch(e){alert(`Task completion failed: ${e?.message||e}`);}finally{setBusyId("");}
   };
-  const byProject=new Map();
-  const projectRowOrder=t=>[t.floor,t.drawingType,t.task?.parentTask||t.title].join('|');
-  const sortedTasks=[...tasks].sort((a,b)=>(workTab==='todo'&&groupWork?projectRowOrder(a).localeCompare(projectRowOrder(b)):0)||priorityRank(a)-priorityRank(b)||Number(own(b))-Number(own(a)));
-  for(const task of sortedTasks){
-    const key=String(task.projectId);
-    if(!byProject.has(key))byProject.set(key,[]);
-    byProject.get(key).push(task);
-  }
-  const projectGroups=[...byProject].sort((a,b)=>String(a[1][0].projectName).localeCompare(String(b[1][0].projectName),undefined,{numeric:true}));
-  const projectAnchor=id=>'wih-project-'+encodeURIComponent(id);
-  const loggingButton=(t,showDisabled=false)=>(showDisabled||run(t)&&!isDone(t.status))&&<button type="button" className="wih-compact-button" style={smallBtn} disabled={!!busyId||!run(t)||isDone(t.status)} title={isDone(t.status)?'Task completed':!run(t)?'Only the assigned team member can log time':undefined} onClick={()=>action(t,/in.?progress|running/i.test(t.status)?'pause':/paused/i.test(t.status)?'resume':'start')}>{String(busyId)===String(t.designTaskId)?'Updating…':/in.?progress|running/i.test(t.status)?'Pause logging':/paused/i.test(t.status)?'Resume logging':'Start logging'}</button>;
-  return <div className="wih-workspace">
-    {assign&&<div style={{position:'fixed',inset:0,zIndex:1000,background:'#0c1c3466',display:'grid',placeItems:'center',padding:16}}><section role="dialog" aria-modal="true" aria-labelledby="wih-assign-title" onKeyDown={e=>{if(e.key==='Escape'&&!assign.busy)setAssign(null);}} style={{background:T.paper||'#fff',border:'1px solid '+T.line,padding:24,width:'min(100%,440px)'}}><h3 id="wih-assign-title">Assign task</h3><p>{assign.task.projectName} · {assign.task.title}</p><label>Project team <select value={assign.id} disabled={assign.busy} onChange={e=>setAssign({...assign,id:e.target.value})}><option value="">{assign.busy?'Please wait…':assign.options.length?'Choose a team member':'No eligible team members'}</option>{assign.options.map(m=><option key={m.userId} value={m.userId}>{m.name}</option>)}</select></label>{assign.error&&<p role="alert">{assign.error}</p>}<div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:18}}><button autoFocus type="button" style={smallBtn} disabled={assign.busy} onClick={()=>setAssign(null)}>Cancel</button><button type="button" style={smallBtn} disabled={!assign.id||assign.busy} onClick={saveAssign}>Assign task</button></div></section></div>}
-    {!calendarOnly&&<div className="register-tabs" role="tablist" aria-label="Task sections" style={registerTabsStyle}>{[['todo','To-do'],['project','Project-wise'],['internal','Internal work']].map(([id,label])=><button key={id} role="tab" aria-selected={workTab===id} type="button" onClick={()=>{setWorkTab(id);if(id==='project')setTaskSection('All');setPlanningTask(null);}} style={registerTabStyle(workTab===id)}>{label}</button>)}</div>}
-    {workTab==='internal'?<InternalAreas request={apiRequest} buttonStyle={smallBtn} inputStyle={inputStyle}/>:<>
-    {!calendarOnly&&<header className="wih-register-head">
-      <h1 className="studio-page-heading">Tasks</h1>
-      <p className="wih-intro"><span>Classify received drawings to create their tasks.</span><span>Enter TAT within 24 hours. The original delivery commitment stays fixed.</span></p>
-    </header>}
-    {workTab==='todo'&&projectGroups.length>0&&<nav className="wih-project-jump" aria-label="Jump to project">{projectGroups.map(([id,list])=><button type="button" key={id} style={smallBtn} onClick={()=>{setCollapsedProjects(previous=>{const next=new Set(previous);next.delete(id);return next;});const row=document.getElementById(projectAnchor(id));row?.scrollIntoView({block:'start'});row?.focus({preventScroll:true});}}>{list[0].projectName||'Project'}</button>)}</nav>}
-    <div className="wih-register-controls">
-    {showWihFilters&&<div className="wih-quiet-filters"><div className="wih-status-filters" role="group" aria-label="Filter tasks by status"><span className="wih-filter-label">Tasks</span>{["Pending","Completed","Unallotted","All"].map(x=><button type="button" key={x} aria-pressed={taskSection===x} className={taskSection===x?'is-active':''} onClick={()=>setTaskSection(x)}>{x}<span>{loadingRemote&&!remoteTasks.length?'…':sectionCounts[x]}</span></button>)}</div><div className="wih-person-filter"><label htmlFor="wih-person-filter">Employee</label>{canAssign?<select id="wih-person-filter" aria-label="Filter work by employee" value={person} onChange={e=>setPerson(e.target.value)}><option value="All">All employees</option><option value="@me">My tasks</option>{people.map(p=><option key={p} value={p}>{p}</option>)}</select>:<span>{state.currentUser?.name} · Own tasks only</span>}</div></div>}
-    <div className="wih-sync-toolbar"><button type="button" style={smallBtn} disabled={syncingRemote} onClick={()=>refreshAndRecover(true)}>Refresh work</button>{reconciling&&<span role="status" style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>Updating project work…</span>}{reconcileError&&<span role="alert" style={{fontFamily:FONT_BODY,fontSize:12,color:T.redline}}>{reconcileError}</span>}{wihError&&<span role="alert" style={{fontSize:12,color:T.redline}}>{wihError}</span>}</div>
-    {workTab==='todo'&&<label className="wih-register-group"><input type="checkbox" checked={groupWork} onChange={e=>setGroupWork(e.target.checked)}/> Group work</label>}
+  return <div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18,flexWrap:"wrap",gap:10}}>
+      <div><h2 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:0,color:T.ink}}>WIH Sheet</h2><div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,marginTop:4}}>Assigned area tasks and workflow subtasks appear here. Starting a parent task opens its subtasks; the next subtask unlocks after completion. <span style={{fontFamily:FONT_MONO,fontSize:10,color:syncingRemote?T.orange:T.green}}>{syncingRemote?"• Syncing Google Sheets…":"• Synced"}</span></div></div>
     </div>
-    {workTab==='calendar'&&endedSessions.length>0&&<div role="alert" style={{padding:12,border:`1px solid ${T.orange}`,fontSize:12,marginBottom:12}}>Session ended — resolve now. {endedSessions.map(t=><div key={t.designTaskId} style={{marginTop:6}}>{t.projectName} · {t.title} <button style={smallBtn} onClick={()=>setPlanningTask({...t})}>Extend / postpone</button><button style={smallBtn} disabled={busyId===t.designTaskId||isBlocked(t.status)} onClick={()=>setCompleteEditor({task:t,file:null,...workDrawingDetails(t),actualHours:t.hours||'',notes:''})}>Complete</button></div>)}<div style={{marginTop:6}}>The original TAT remains unchanged.</div></div>}
-    {(workTab==='calendar'||planningTask)&&<WihPlanner onAction={action} busyId={busyId} onComplete={t=>setCompleteEditor({task:t,file:null,...workDrawingDetails(t),actualHours:t.hours||'',notes:''})} state={state} tasks={tasks} requestedTask={planningTask} onSaved={(id,plan)=>{setRemoteTasks(rows=>rows.map(r=>String(r.designTaskId)===String(id)?{...r,plan}:r));try{localStorage.removeItem(WIH_CACHE_KEY);}catch{}setPlanningTask(null);refresh(true);}}/>}
-
-    {loadingRemote&&remoteTasks.length===0&&<div role="status" style={{fontFamily:FONT_BODY,fontSize:12,fontWeight:400,lineHeight:1.5,color:T.inkDim,padding:"6px 0"}}>Loading work…</div>}
-    {!loadingRemote&&!reconciling&&tasks.length===0&&<div style={{color:T.inkDim,fontFamily:FONT_BODY,fontSize:13,padding:"6px 0"}}>{displayTasks.length>0?'No tasks match this selection.':wihError?'The work list could not be refreshed. Please retry Refresh work.':<><strong>No received-drawing tasks are available yet.</strong><div style={{marginTop:8}}>{wihDiagnostics?.pendingClassification??(state.intakes||[]).filter(i=>!i.classified).length} drawing(s) awaiting classification. Open Classify, confirm the project, drawing type and floor / area, then refresh work.</div>{!!wihDiagnostics?.missingReceivedLink&&<div style={{marginTop:8}}>{wihDiagnostics.missingReceivedLink} existing task(s) have no valid received-drawing link. Check that their received files are linked to the same project and have not been trashed.</div>}</>}</div>}
-    {workTab==='project'&&<div className="wih-project-cards">{projectGroups.map(([id,list])=><section key={id}><h3>{list[0].projectName||'Project'}</h3><ul>{projectCardTaskGroups(list).map(({key,floor,title,tasks})=>{
-      const label=floor?floor+' · '+title:title;
-      if(tasks.length===1)return <li key={key}><strong>{label}</strong>{loggingButton(tasks[0],true)}</li>;
-      const eligible=tasks.filter(t=>run(t)&&!isDone(t.status));
-      return <li key={key} className="wih-ceiling-floor"><details>
-        <summary><strong>{label}</strong></summary>
-        <ul>{tasks.map(t=><li key={t.designTaskId}><span>{t.area||'Floor drawing'}</span>{loggingButton(t,true)}</li>)}</ul>
-      </details>{eligible.length<=1?loggingButton(eligible[0]||tasks[0],true):
-        <button type="button" className="wih-compact-button" style={smallBtn} disabled={!!busyId} title="Choose the area to log time for" onClick={event=>{
-          const details=event.currentTarget.previousElementSibling;
-          details.open=true;
-          details.querySelector('button:not(:disabled)')?.focus();
-        }}>Start logging</button>}
-      </li>;
-    })}</ul></section>)}</div>}
-    {workTab==='todo'&&<><div className="wih-task-table" style={{overflowX:'auto',background:'#fff',border:`1px solid ${T.line}`}}><table style={{width:'100%',borderCollapse:'collapse',minWidth:1100,fontFamily:FONT_BODY}}><colgroup>{['4%','17%','19%','6%','10%','5%','9%','5%','6%','6%','7%','6%'].map((width,index)=><col key={index} style={{width}}/>)}</colgroup><thead><tr>{['','Task','Project','City','Floor / Zone','Type','Subtype','Estimate','TAT','Status','Assigned to','Action'].map(label=><th key={label} style={{background:'#D2CDC1',fontSize:12,padding:'11px 10px',textAlign:'left'}}>{label}</th>)}</tr></thead><tbody>{projectGroups.map(([key,list])=>{const groups=projectCardTaskGroups(list,false);return <React.Fragment key={key}><tr id={projectAnchor(key)} tabIndex={-1} className="wih-project-band"><th colSpan={12}><button type="button" className="wih-project-toggle" aria-expanded={!collapsedProjects.has(key)} onClick={()=>setCollapsedProjects(previous=>{const next=new Set(previous);if(next.has(key))next.delete(key);else next.add(key);return next;})}><span aria-hidden="true">{collapsedProjects.has(key)?'▸':'▾'}</span><span>{list[0].projectName||'Project'}</span><small>{groups.length} {groups.length===1?'task':'tasks'}</small></button></th></tr>{!collapsedProjects.has(key)&&groups.map(group=>{
-       const groupId=JSON.stringify([key,group.key]);
-       const expanded=expandedTaskGroups.has(groupId);
-       const grouped=group.tasks.length>1;
-       const eligible=group.tasks.filter(t=>run(t)&&!isDone(t.status));
-       const areas=new Set(group.tasks.flatMap(t=>{
-        const coverage=Array.isArray(t.batchCoverage)?t.batchCoverage.filter(area=>projectCardFloor(area?.floor)===group.floor):[];
-        return coverage.length?coverage.map(area=>area.floorZoneId||area.zoneCode||area.area).filter(Boolean):[t.area||t.designTaskId];
-       })).size;
-       const toggleAreas=()=>setExpandedTaskGroups(previous=>{
-        const next=new Set(previous);
-        if(next.has(groupId))next.delete(groupId);else next.add(groupId);
-        return next;
-       });
-       return <React.Fragment key={group.key}>
-        {grouped&&<tr className="wih-task-floor-group">
-         <td/>
-         <td><strong>{group.floor} · {group.title}</strong></td>
-         <td>{list[0].projectName}</td><td/>
-         <td><button type="button" className="wih-area-toggle" aria-expanded={expanded} onClick={toggleAreas}><span aria-hidden="true">{expanded?'▾':'▸'}</span> {areas} {areas===1?'area':'areas'}</button></td>
-         <td colSpan={6}/>
-         <td>{eligible.length===1?loggingButton(eligible[0],true):
-          <button type="button" className="wih-compact-button" style={smallBtn} disabled={!eligible.length||!!busyId} onClick={()=>setExpandedTaskGroups(previous=>new Set([...previous,groupId]))}>{eligible.length>1?'Choose area':'Start logging'}</button>}</td>
-        </tr>}
-        {(!grouped||expanded)&&group.tasks.map(t=>{
-       const editable=canWork&&(assignProject(t.projectId)||t.assigneeUserId===state.currentUser?.userId),cell={padding:'8px 10px',fontSize:12,borderBottom:`1px solid ${T.line}`,verticalAlign:'middle'},marks=taskMarks[t.designTaskId]||{},project=(state.projects||[]).find(p=>String(p.id)===String(t.projectId));
-       return <tr className="wih-task-row" key={t.designTaskId}><td style={cell}><div style={{display:'flex',alignItems:'center',gap:1,whiteSpace:'nowrap'}}><input type="checkbox" checked={isDone(t.status)} className="wih-complete-check" disabled={!run(t)||isDone(t.status)} aria-label={'Complete '+t.title} onChange={()=>setCompleteEditor({task:t,file:null,...workDrawingDetails(t),actualHours:t.hours||'',notes:''})}/></div></td><td style={cell}><span className="wih-task-name"><span className="wih-task-marks"><button type="button" className="wih-row-icon" style={{...icon,'--wih-icon-color':marks.pinned?'#a13427':icon.color}} title={marks.pinned?'Unpin':'Pin'} aria-label={marks.pinned?'Unpin task':'Pin task'} aria-pressed={!!marks.pinned} onClick={()=>markTask(t.designTaskId,{pinned:!marks.pinned})}><WihPin size={15} aria-hidden="true" fill={marks.pinned?'currentColor':'none'}/></button><button type="button" className="wih-row-icon" style={{...icon,'--wih-icon-color':marks.priority==='high'?'#a13427':marks.priority==='low'?'#41765a':icon.color}} title={marks.priority==='high'?'High priority · click for low':marks.priority==='low'?'Low priority · click to clear':'Set high priority'} aria-label={(marks.priority||'Normal')+' priority for '+t.title+'. '+(marks.priority==='high'?'Set low':marks.priority==='low'?'Clear priority':'Set high')} onClick={()=>markTask(t.designTaskId,{priority:marks.priority==='high'?'low':marks.priority==='low'?'':'high'})}><WihFlag size={16} aria-hidden="true" fill={marks.priority?'currentColor':'none'}/></button></span><strong>{t.title}</strong></span></td><td style={cell}>{t.projectName}</td><td style={cell}>{project?.city||project?.projectControl?.city||'—'}</td><td style={cell}>{t.batchCoverage?.length>1?<details><summary>{t.batchCoverage.length} areas</summary>{t.batchCoverage.map(z=><div key={JSON.stringify([z.floor,z.area])}>{z.floor} · {z.area}</div>)}</details>:[t.floor||t.batchCoverage?.[0]?.floor,t.area||t.batchCoverage?.[0]?.area].filter(Boolean).join(' · ')||'—'}</td><td style={cell}>{t.drawingType||'—'}</td><td style={cell}><span className="wih-subtype"><span>{t.task?.taskCategory||t.task?.taskType||'—'}</span><button type="button" title="Comments" aria-label="Task comments" className="wih-row-icon" style={{...icon,'--wih-icon-color':taskThread?.task?.designTaskId===t.designTaskId?T.blue:icon.color}} disabled={threadPending} onClick={()=>threadAction(t,'read')}><WihComment size={16} aria-hidden="true" fill={taskThread?.task?.designTaskId===t.designTaskId?T.cyan:"none"}/></button></span></td><td style={cell}>{Number(t.task?.estimatedHours)>0?`${Number(t.task.estimatedHours)} h`:'—'}</td><td style={cell}>{t.plan?.internalDueDate?<><div>{t.plan.tatDays?`${t.plan.tatDays} d`:'—'} · {formatProjectDate(t.plan.internalDueDate)}</div>{wihUrgency(t,clock).urgent&&<div style={{fontSize:11,color:T.redline,fontWeight:600,marginTop:3}} className="wih-urgent-label">Urgent</div>}</>:editable&&!isDone(t.status)?<button className="wih-compact-button" style={smallBtn} onClick={()=>{setTatError('');setTatEditor({task:t,days:'',date:''});}}>Enter TAT</button>:<span style={{color:T.inkDim}}>TAT not entered</span>}</td><td style={cell}><WihDashboardStatus task={t}/></td><td style={cell}>{t.assigneeUserId?(t.assignee||'Assigned'):assignProject(t.projectId)&&!isDone(t.status)?<button type="button" className="wih-compact-button" style={smallBtn} onClick={()=>openAssign(t)}>Assign</button>:'Not assigned'}</td><td className="wih-action-cell" style={cell}>{loggingButton(t)}</td></tr>;
-      })}</React.Fragment>;})}</React.Fragment>;})}
-    </tbody></table></div></>}
-    {taskThread&&<DiscussionDialog task={taskThread.task} data={taskThread} error={threadNotice} busy={threadPending} text={taskComment} setText={setTaskComment} showPriority onPost={priority=>threadAction(taskThread.task,'comment',priority)} onClose={()=>setTaskThread(null)} buttonStyle={smallBtn}/>}
-
-    {tatEditor&&<div style={{position:'fixed',inset:0,zIndex:14000,background:'rgba(8,25,45,.45)',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}><div role="dialog" aria-modal="true" aria-label="Enter TAT" style={{width:'min(420px,95vw)',background:T.paper,padding:22,border:`1px solid ${T.line}`,fontFamily:FONT_BODY}}><h3 style={{fontFamily:FONT_DISPLAY,marginTop:0}}>Enter TAT</h3><p style={{fontSize:12}}>{tatEditor.task.projectName} · {tatEditor.task.title}</p><p style={{fontSize:12}}>Drawing received: {formatProjectDate(tatEditor.task.receipt?.receivedDate)||'—'}</p><WihTatFields received={tatEditor.task.receipt?.receivedDate} days={tatEditor.days} date={tatEditor.date} disabled={tatBusy} onChange={(days,date)=>setTatEditor(current=>({...current,days,date}))}/><p style={{fontSize:12}}>TAT and the calculated deadline are locked after saving.</p>{tatError&&<p role="alert" style={{fontSize:12,color:T.redline}}>{tatError}</p>}<div style={{display:'flex',gap:8,justifyContent:'flex-end'}}><button style={smallBtn} disabled={tatBusy} onClick={()=>setTatEditor(null)}>Cancel</button><button style={smallBtn} disabled={tatBusy||!wihTatDate(tatEditor.task.receipt?.receivedDate,tatEditor.days)} onClick={async()=>{if(tatBusy)return;setTatBusy(true);setTatError('');try{const plan=await apiRequest('saveWihPlan',{designTaskId:tatEditor.task.designTaskId,tatDays:Number(tatEditor.days),tatOnly:true},'POST',120000);setRemoteTasks(rows=>rows.map(r=>String(r.designTaskId)===String(tatEditor.task.designTaskId)?{...r,plan}:r));try{localStorage.removeItem(WIH_CACHE_KEY);}catch{}setTatEditor(null);}catch(e){setTatError(e.message);}finally{setTatBusy(false);}}}>{tatBusy?'Saving…':'Save TAT'}</button></div></div></div>}
-    {completeEditor&&<div style={{position:"fixed",inset:0,zIndex:14000,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}><div style={{width:"min(650px,96vw)",background:T.paper,border:`1px solid ${T.line}`}}><div style={{background:T.navy,color:"#fff",padding:14,fontFamily:FONT_DISPLAY,fontSize:18}}>Complete WIH Task · {completeEditor.task.designNo||completeEditor.task.title}</div><div style={{padding:16}}><p style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>The completed drawing is saved in this project’s Output folder. Issue it from Drive to move it to Sent.</p>{workUploadProgress!==null&&<p role="status" style={{fontSize:12}}>Uploading to Output · {workUploadProgress}%</p>}<ExecutiveAssistant profileApi={apiRequest} userId={state.currentUser?.userId} project={completeEditor.task.projectName} task={completeEditor.task.title} theme={T} buttonStyle={smallBtn} inputStyle={inputStyle} onApply={(draft,kind)=>setCompleteEditor(current=>current?{...current,...(kind==='time'?{actualHours:draft.hours}:{}),notes:draft.body}:current)}/><Field label={completeEditor.task.completionUploadRequired===false?"Output / meeting record (optional)":"Completed drawing / output file *"}><input type="file" style={{...inputStyle,padding:8}} onChange={e=>setCompleteEditor(x=>({...x,file:e.target.files?.[0]||null,...workDrawingDetails(x.task,e.target.files?.[0]?.name)}))}/></Field>{completeEditor.file&&<div style={{borderTop:`1px solid ${T.line}`,paddingTop:12,marginTop:12}}><p style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim}}>Picked from the task and file. Confirm once here; these details carry through to issue.</p>{[['Drawing code','drawingCode'],['Floor(s)','drawingFloor'],['Zone / Area','drawingArea']].map(([label,key])=><Field key={key} label={label}><input aria-label={`Work drawing ${key}`} disabled={busyId===completeEditor.task.designTaskId} value={completeEditor[key]||''} onChange={e=>setCompleteEditor(x=>({...x,[key]:e.target.value}))} style={inputStyle}/></Field>)}</div>}<Field label="Actual time taken (hours) *"><input type="number" min="0.01" step="0.25" value={completeEditor.actualHours} onChange={e=>setCompleteEditor(x=>({...x,actualHours:e.target.value}))} style={inputStyle}/></Field><Field label={completeEditor.task.taskCategory==='Meeting'?"Meeting minutes / outcome *":"Completion remarks"}><textarea value={completeEditor.notes} onChange={e=>setCompleteEditor(x=>({...x,notes:e.target.value}))} style={{...inputStyle,minHeight:70}}/></Field></div><div style={{padding:14,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}><button disabled={busyId===completeEditor.task.designTaskId} onClick={()=>{setCompleteEditor(null);setWorkUploadProgress(null);}} style={{...smallBtn,background:"#fff"}}>Cancel</button><button disabled={busyId===completeEditor.task.designTaskId} onClick={finish} style={{...smallBtn,background:T.navy,color:"#fff"}}>Upload & Complete Task</button></div></div></div>}
-    </>}
+    <div style={{background:"#fff",border:`1px solid ${T.line}`,borderRadius:8,padding:"12px 14px",marginBottom:14}}>
+      <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>
+        <span style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginRight:4}}>TASK SECTION</span>
+        {["Pending","Completed","Unallotted","All"].map(x=><Chip key={x} active={taskSection===x} onClick={()=>setTaskSection(x)}>{x} ({sectionCounts[x]})</Chip>)}
+        {canAssign&&<button onClick={openBulkAssign} disabled={!bulkProjects.length} style={{...smallBtn,background:T.navy,color:"#fff",padding:"9px 13px",marginLeft:"auto"}}>PROJECT-WISE ASSIGNMENT</button>}
+      </div>
+      <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+        <span style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginRight:4}}>EMPLOYEE</span>
+        {canAssign&&<><Chip active={person==="All"} onClick={()=>setPerson("All")}>All Employees</Chip>{people.map(p=><Chip key={p} active={person===p} onClick={()=>setPerson(p)}>{p}</Chip>)}</>}
+        {!canAssign&&<span>{state.currentUser?.name} · Own tasks only</span>}
+      </div>
+    </div>
+    {loadingRemote&&remoteTasks.length===0&&<div style={{fontFamily:FONT_BODY,color:T.inkDim,padding:"10px 0"}}>Loading WIH tasks for the first time…</div>}
+    {!loadingRemote&&tasks.length===0&&<div style={{color:T.inkDim,fontFamily:FONT_BODY,fontSize:13,padding:"20px 0"}}>No WIH tasks yet. Received drawings create tasks automatically.</div>}
+    <div style={{display:"flex",flexDirection:"column",gap:8}}>{tasks.map(t=><div key={t.id} style={{background:"#fff",border:`1px solid ${T.line}`,borderRadius:8,padding:"12px 14px",display:"grid",gridTemplateColumns:"1.5fr 1fr 150px 90px 230px",gap:10,alignItems:"center"}}>
+      <div><div style={{fontFamily:FONT_BODY,fontSize:13,fontWeight:700}}>{t.title}</div>{t.milestone&&<div style={{fontFamily:FONT_BODY,fontSize:11,color:T.blue,marginTop:3}}>{t.milestone} → {t.parentTask}</div>}{t.drawingReviewRequired&&<div style={{fontSize:11,color:T.orange,marginTop:3}}>Additional / revised drawing received — review scope</div>}{isBlocked(t.status)&&<div style={{fontSize:11,color:T.inkDim,marginTop:3}}>Waiting for preceding subtask</div>}<div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginTop:3}}>{t.projectName} · {t.floor||"—"} · {t.area||"—"} · {t.drawingType||"—"}</div>{t.designNo&&<div style={{fontFamily:FONT_MONO,fontSize:11,color:T.blue,fontWeight:800,marginTop:3}}>{t.designNo}</div>}</div>
+      {canAssign?<select disabled={!t.designTaskId||busyId===t.designTaskId||isDone(t.status)} value={t.assignee||""} onChange={e=>assign(t,e.target.value)} style={{...inputStyle,padding:"7px 8px",fontSize:12}}><option value="">Assign team member</option>{people.map(n=><option key={n}>{n}</option>)}</select>:<span style={{fontSize:12}}>{t.assignee}</span>}
+      <StatusPill status={isDone(t.status)?"Done":isBlocked(t.status)?"Blocked":isProgress(t.status)?"In progress":"To do"}/>
+      <div style={{fontFamily:FONT_MONO,fontSize:12}}>{Number(t.hours||0).toFixed(2)} h</div>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{canWork&&t.optional&&!isDone(t.status)&&!isBlocked(t.status)&&<button disabled={busyId===t.designTaskId} onClick={()=>action(t,"skip")} style={smallBtn}>SKIP OPTIONAL STEP</button>}{canWork&&t.drawingReviewRequired&&<button disabled={busyId===t.designTaskId} onClick={()=>action(t,"review")} style={smallBtn}>MARK DRAWING REVIEWED</button>}{canWork&&!isDone(t.status)&&!isProgress(t.status)&&!isPaused(t.status)&&<button disabled={!t.assignee||busyId===t.designTaskId||isBlocked(t.status)} onClick={()=>action(t,"start")} style={smallBtn}>START</button>}{canWork&&isProgress(t.status)&&<button disabled={busyId===t.designTaskId} onClick={()=>action(t,"pause")} style={smallBtn}>PAUSE</button>}{canWork&&isPaused(t.status)&&<button disabled={busyId===t.designTaskId} onClick={()=>action(t,"resume")} style={smallBtn}>RESUME</button>}{canWork&&!isDone(t.status)&&<button disabled={!t.assignee||busyId===t.designTaskId||isBlocked(t.status)} onClick={()=>setCompleteEditor({task:t,file:null,actualHours:t.hours||"",notes:""})} style={{...smallBtn,background:T.navy,color:"#fff"}}>COMPLETE / UPLOAD</button>}</div>
+    </div>)}</div>
+    {bulkAssignOpen&&<div style={{position:"fixed",inset:0,zIndex:13900,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}><div style={{width:"min(760px,96vw)",maxHeight:"88vh",overflow:"auto",background:T.paper,border:`1px solid ${T.line}`}}><div style={{background:T.navy,color:"#fff",padding:15,fontFamily:FONT_DISPLAY,fontSize:19}}>Project-wise Task Assignment</div><div style={{padding:16}}><div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,marginBottom:14}}>Select one project, then assign each task type once. The selected team member will be applied to every open task of that type in this project.</div><Field label="PROJECT"><select value={bulkProjectId} onChange={e=>{setBulkProjectId(e.target.value);setBulkAssignments({});}} style={inputStyle}>{bulkProjects.map(p=><option key={p.id} value={p.id}>{p.no||p.projectNo||"—"} — {p.name}</option>)}</select></Field>{bulkTaskGroups.length===0?<div style={{fontFamily:FONT_BODY,color:T.inkDim,padding:"14px 0"}}>No open WIH tasks for this project.</div>:<div style={{border:`1px solid ${T.line}`}}>{bulkTaskGroups.map(g=><div key={g.title} style={{display:"grid",gridTemplateColumns:"1.4fr 90px 1fr",gap:10,alignItems:"center",padding:"11px 12px",borderBottom:`1px solid ${T.line}`,background:"#fff"}}><div><div style={{fontFamily:FONT_BODY,fontWeight:700,fontSize:13}}>{g.title}</div><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim}}>{g.tasks.length} open task{g.tasks.length===1?"":"s"}</div></div><div style={{fontFamily:FONT_MONO,fontSize:11,color:T.inkDim}}>{[...new Set(g.tasks.map(t=>t.floor).filter(Boolean))].join(", ")||"—"}</div><select value={bulkAssignments[g.title]||""} onChange={e=>setBulkAssignments(x=>({...x,[g.title]:e.target.value}))} style={{...inputStyle,padding:"7px 8px",fontSize:12}}><option value="">Keep current / unassigned</option>{people.map(n=><option key={n}>{n}</option>)}</select></div>)}</div>}<div style={{marginTop:12,fontFamily:FONT_MONO,fontSize:11,color:T.inkDim}}>{bulkProjectTasks.length} total open task{bulkProjectTasks.length===1?"":"s"} in selected project.</div></div><div style={{padding:14,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}><button disabled={bulkSaving} onClick={()=>setBulkAssignOpen(false)} style={{...smallBtn,background:"#fff"}}>Cancel</button><button disabled={bulkSaving||!bulkTaskGroups.length} onClick={saveBulkAssignments} style={{...smallBtn,background:T.navy,color:"#fff",padding:"9px 14px"}}>{bulkSaving?"SAVING…":"SAVE PROJECT ASSIGNMENTS"}</button></div></div></div>}
+    {completeEditor&&<div style={{position:"fixed",inset:0,zIndex:14000,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}><div style={{width:"min(650px,96vw)",background:T.paper,border:`1px solid ${T.line}`}}><div style={{background:T.navy,color:"#fff",padding:14,fontFamily:FONT_DISPLAY,fontSize:18}}>Complete WIH Task · {completeEditor.task.designNo||completeEditor.task.title}</div><div style={{padding:16}}><Field label={completeEditor.task.completionUploadRequired===false?"Output / meeting record (optional)":"Completed drawing / output file *"}><input type="file" style={{...inputStyle,padding:8}} onChange={e=>setCompleteEditor(x=>({...x,file:e.target.files?.[0]||null}))}/></Field><Field label="Actual time taken (hours) *"><input type="number" min="0.01" step="0.25" value={completeEditor.actualHours} onChange={e=>setCompleteEditor(x=>({...x,actualHours:e.target.value}))} style={inputStyle}/></Field><Field label="Completion remarks"><textarea value={completeEditor.notes} onChange={e=>setCompleteEditor(x=>({...x,notes:e.target.value}))} style={{...inputStyle,minHeight:70}}/></Field></div><div style={{padding:14,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}><button onClick={()=>setCompleteEditor(null)} style={{...smallBtn,background:"#fff"}}>Cancel</button><button onClick={finish} style={{...smallBtn,background:T.navy,color:"#fff"}}>Upload & Complete Task</button></div></div></div>}
   </div>;
 }
 
@@ -4437,76 +3380,21 @@ function TimesheetView({ state, persist, calendarOnly=false }) {
    projects across the top, zone letters down the side, each cell
    showing that zone's floor + room, colored by live task status.
 --------------------------------------------------------------- */
-// Excel-style zone ordering: A ... Z, AA ... AZ, BA ... ZZ, AAA ...
-const zoneOrdinal = code => {
-  const value=String(code||'').trim().toUpperCase();
-  if(!/^[A-Z]+$/.test(value))return Number.POSITIVE_INFINITY;
-  return [...value].reduce((n,ch)=>n*26+ch.charCodeAt(0)-64,0);
-};
-const compareZoneCodes=(a,b)=>zoneOrdinal(a)-zoneOrdinal(b)||String(a).localeCompare(String(b),undefined,{numeric:true});
 function DashboardView({ state, persist }) {
   const [projectId,setProjectId]=useState("");
-  const [projectGroup,setProjectGroup]=useState("ongoing");
   const [editor,setEditor]=useState(null);
   const [bulkEditor,setBulkEditor]=useState(null);
-  const [areaSaving,setAreaSaving]=useState(false);
-  const [bulkSaving,setBulkSaving]=useState(false);
-  const [deletingProjects,setDeletingProjects]=useState({});
-  const [deleteMessage,setDeleteMessage]=useState("");
-  const deleteQueueRef=useRef(new Map()),persistRef=useRef(persist);persistRef.current=persist;
-  const projectRows=p=>p.floorZones||Object.entries(p.zones||{}).map(([zoneCode,v],i)=>({floorZoneId:"",zoneCode,floor:v?.floor||"",area:v?.room||"",seq:i+1}));
-  const rowKey=r=>r.floorZoneId?`id:${r.floorZoneId}`:`zone:${r.zoneCode}`;
-  const setRows=(p,list)=>({...p,floorZones:list,zones:Object.fromEntries(list.map(r=>[r.zoneCode,{floor:r.floor,room:r.area||r.room}]))});
-  const drainDeletes=async(id,entry)=>{
-    if(entry.running)return;entry.running=true;
-    while(entry.pending.length){
-      const batch=entry.pending.splice(0),removed=batch.flat();
-      try{await projectApi.deleteFloorZones(id,removed.map(r=>({floorZoneId:r.floorZoneId||"",zoneCode:r.zoneCode,floor:r.floor})));}
-      catch(err){
-        try{await persistRef.current(latest=>({...latest,projects:latest.projects.map(p=>{
-          if(p.id!==id)return p;const current=projectRows(p),keys=new Set(current.map(rowKey));
-          const restored=[...current,...removed.filter(r=>!keys.has(rowKey(r)))].sort((a,b)=>(Number(a.seq)||0)-(Number(b.seq)||0)||compareZoneCodes(a.zoneCode,b.zoneCode));
-          return setRows(p,restored);
-        })}));}catch(_){}
-        entry.failed=true;entry.errorMessage=`Could not delete areas in ${entry.name}: ${err.message||err}. The affected rows were restored. Please retry.`;setDeleteMessage(entry.errorMessage);
-      }
-    }
-    deleteQueueRef.current.delete(id);setDeletingProjects(current=>{const next={...current};delete next[id];return next;});
-    setDeleteMessage(entry.failed?entry.errorMessage:`Zone deletions saved for ${entry.name}.`);
-  };
-  const removeRows=async(targets)=>{
-    if(!project||areaSaving||bulkSaving||!targets.length)return;
-    const id=project.id,keys=new Set(targets.map(rowKey));let removed=[];
-    try{
-      await persistRef.current(latest=>({...latest,projects:latest.projects.map(p=>{
-        if(p.id!==id)return p;const current=projectRows(p);removed=current.filter(r=>keys.has(rowKey(r)));
-        return removed.length?setRows(p,current.filter(r=>!keys.has(rowKey(r)))):p;
-      })}));
-    }catch(err){setDeleteMessage(`Could not update areas: ${err.message||err}`);return;}
-    if(!removed.length)return;
-    let entry=deleteQueueRef.current.get(id);if(!entry){entry={pending:[],running:false,name:project.name||project.no||id,failed:false};deleteQueueRef.current.set(id,entry);}
-    entry.pending.push(removed);setDeletingProjects(current=>({...current,[id]:true}));setDeleteMessage("Areas removed · Saving deletions in the background…");
-    return drainDeletes(id,entry);
-  };
-  const completed=p=>[p.status,p.projectStatus,p.projectControl?.projectStatus].some(v=>String(v||"").toLowerCase()==="completed")||p.completed===true||String(p.completed).toLowerCase()==="true"||Boolean(p.completedAt)||Boolean(p.completedDate);
-  const allProjects=orderedProjects(state.projects);
-  const ongoingProjects=allProjects.filter(p=>!completed(p)),completedProjects=allProjects.filter(completed);
-  const projects=projectGroup==="completed"?completedProjects:ongoingProjects;
-  const switchGroup=group=>{if(areaSaving||bulkSaving)return;setProjectGroup(group);setProjectId("");setEditor(null);setBulkEditor(null);};
+  const projects=(state.projects||[]).filter(p=>p.status!=="Completed"&&p.projectControl?.projectStatus!=="Completed");
   const project=projects.find(p=>String(p.id)===String(projectId))||null;
-
+  const scopeFloors=project?designDashboardScopeFloors(project):[];
   const rows=project?(project.floorZones||Object.entries(project.zones||{}).map(([zoneCode,v],i)=>({floorZoneId:"",zoneCode,floor:v?.floor||"",area:v?.room||"",seq:i+1}))):[];
 
-  const scopeFloors=project?[...new Set([...designDashboardScopeFloors(project),...rows.map(r=>String(r.floor||"")).filter(Boolean)])]:[];
-
-  const projectDeleting=!!deletingProjects[project?.id];
-  const addRow=f=>{if(deleteQueueRef.current.has(project?.id))return;setEditor({mode:"add",floorZoneId:"",zoneCode:"",floor:f||scopeFloors[0]||"",area:""});};
-  const editRow=r=>{if(deleteQueueRef.current.has(project?.id))return;setEditor({mode:"edit",floorZoneId:r.floorZoneId||"",zoneCode:r.zoneCode||"",floor:r.floor||"",area:r.area||r.room||""});};
+  const addRow=f=>setEditor({mode:"add",floorZoneId:"",zoneCode:"",floor:f||scopeFloors[0]||"",area:""});
+  const editRow=r=>setEditor({mode:"edit",floorZoneId:r.floorZoneId||"",zoneCode:r.zoneCode||"",floor:r.floor||"",area:r.area||r.room||""});
   const save=async()=>{
-    if(areaSaving||bulkSaving||deleteQueueRef.current.has(project?.id))return;
     if(!project||!editor?.floor||!editor?.area?.trim())return alert("Select a floor and enter Area / Room.");
     let zoneCode=String(editor.zoneCode||"").trim().toUpperCase();
-    if(!/^[A-Z]+$/.test(zoneCode))return alert("Enter a valid Zone Code using letters A–Z (for example A, Z, AA, AB, AZ, BA).");
+    if(!zoneCode)return alert("Enter the Zone Code. Zone Code must be added by the doer.");
     const used=new Set(rows.map(r=>String(r.zoneCode||"").toUpperCase()).filter(Boolean));
     const duplicate=rows.some(r=>{
       const sameRow=editor.floorZoneId?String(r.floorZoneId||"")===String(editor.floorZoneId):String(r.zoneCode||"").toUpperCase()===String(editor.zoneCode||"").toUpperCase();
@@ -4517,7 +3405,6 @@ function DashboardView({ state, persist }) {
     if(editor.mode==="edit"){
       next=rows.map(r=>(editor.floorZoneId&&r.floorZoneId===editor.floorZoneId)||(!editor.floorZoneId&&r.zoneCode===editor.zoneCode)?{...r,zoneCode,floor:editor.floor,area:editor.area.trim()}:r);
     }else next=[...rows,{floorZoneId:"",zoneCode,floor:editor.floor,area:editor.area.trim(),seq:rows.length+1}];
-    setAreaSaving(true);
     try{
       const saved=await projectApi.saveFloorZones(project.id,next);
       const finalRows=(saved||next);
@@ -4526,7 +3413,6 @@ function DashboardView({ state, persist }) {
       await persist({...state,projects:(state.projects||[]).map(p=>p.id===project.id?updated:p)});
       setEditor(null);
     }catch(e){alert(`Floor / Zone save failed: ${e?.message||e}`);}
-    finally{setAreaSaving(false);}
   };
 
   const parseBulkPreview=()=>{
@@ -4538,12 +3424,11 @@ function DashboardView({ state, persist }) {
       const zoneCode=String(parts.shift()||"").trim().toUpperCase();
       const area=parts.join("|").trim();
       const floor=String(bulkEditor.floor||scopeFloors[0]||"").trim();
-      return {lineIndex:item.lineIndex,zoneCode,floor,area,valid:usedFloors.has(floor)&&/^[A-Z]+$/.test(zoneCode)&&!!area};
+      return {lineIndex:item.lineIndex,zoneCode,floor,area,valid:usedFloors.has(floor)&&!!zoneCode&&!!area};
     });
   };
 
   const saveBulk=async()=>{
-    if(bulkSaving||areaSaving||deleteQueueRef.current.has(project?.id))return;
     if(!project||!bulkEditor)return;
     const preview=parseBulkPreview();
     if(!preview.length)return alert("Enter at least one Zone Code | Area / Room line.");
@@ -4560,7 +3445,6 @@ function DashboardView({ state, persist }) {
     }
 
     const next=[...rows,...pending];
-    setBulkSaving(true);
     try{
       const saved=await projectApi.saveFloorZones(project.id,next);
       const finalRows=(saved||next);
@@ -4569,51 +3453,44 @@ function DashboardView({ state, persist }) {
       await persist({...state,projects:(state.projects||[]).map(p=>p.id===project.id?updated:p)});
       setBulkEditor(null);
     }catch(e){alert(`Bulk Floor / Zone save failed: ${e?.message||e}`);}
-    finally{setBulkSaving(false);}
   };
-  const remove=r=>removeRows([r]);
-  const removeFloor=f=>{
-    const targets=rows.filter(r=>String(r.floor)===String(f));
-    if(!targets.length)return;
-    if(window.confirm(`Delete all ${targets.length} areas on ${f} in ${project.name||project.no}? This removes the floor's zone list.`))return removeRows(targets);
+  const remove=async r=>{
+    if(!project)return;
+    const next=rows.filter(x=>x!==r && !(r.floorZoneId&&x.floorZoneId===r.floorZoneId));
+    try{
+      const saved=await projectApi.saveFloorZones(project.id,next);
+      const finalRows=saved||next,zones={}; finalRows.forEach(x=>{zones[x.zoneCode]={floor:x.floor,room:x.area};});
+      const updated={...project,floorZones:finalRows,zones};
+      await persist({...state,projects:(state.projects||[]).map(p=>p.id===project.id?updated:p)});
+    }catch(e){alert(`Floor / Zone delete failed: ${e?.message||e}`);}
   };
 
   return <div>
-    {(deleteMessage||Object.keys(deletingProjects).length>0)&&<p role="status" style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim}}>{Object.keys(deletingProjects).length?"Saving zone deletions in the background…":deleteMessage}</p>}
     <h2 style={{fontFamily:FONT_DISPLAY,fontSize:22,margin:"4px 0"}}>Floor / Zone</h2>
     <div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim,marginBottom:16}}>Projects come from Project → Projects & Scope. Only floors selected in that project's scope are available here. Saved areas automatically flow into Design Dashboard.</div>
-    <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"center",marginBottom:14}} role="group" aria-label="Floor / Zone project status">
-      {[["ongoing","Ongoing Projects",ongoingProjects.length],["completed","Completed Projects",completedProjects.length]].map(([id,label,count])=><button key={id} type="button" aria-pressed={projectGroup===id} disabled={areaSaving||bulkSaving} onClick={()=>switchGroup(id)} style={{...smallBtn,fontFamily:FONT_BODY,fontSize:13,padding:"10px 14px",background:projectGroup===id?T.navy:"#fff",color:projectGroup===id?"#fff":T.ink}}>{`${label} (${count})`}</button>)}
-    </div>
-    {projectGroup==="completed"&&<div role="status" style={{padding:"10px 12px",marginBottom:14,background:T.paperDim,border:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:13}}>Completed project records: select a project to add or update its floors and areas. Saving here keeps the project completed.</div>}
-    <label style={{display:"grid",gap:6,fontFamily:FONT_BODY,fontSize:12,maxWidth:560,marginBottom:16}}>Find and open a project<ProjectStatusSelect projects={projects} aria-label="Floor / Zone project" value={project?.id||""} disabled={areaSaving||bulkSaving} onChange={e=>{setProjectId(e.target.value);setEditor(null);setBulkEditor(null);}} style={inputStyle}><option value="">Select {projectGroup==="completed"?"a completed":"an ongoing"} project…</option>{projects.map(p=><option key={p.id} value={p.id}>{p.no||p.projectNo||""} · {p.name||p.id}</option>)}</ProjectStatusSelect></label>
-    <div style={{fontFamily:FONT_MONO,fontSize:10,fontWeight:700,color:T.inkDim,marginBottom:8}}>FLOOR / ZONE MATRIX · SELECT A PROJECT COLUMN TO EDIT ITS AREAS BELOW</div>
-    <div style={{border:`1px solid ${T.line}`,background:"transparent",marginBottom:18,overflow:"auto",maxHeight:"68vh"}}>
-      {(()=>{
-        const floorOrder=["-1F","SF","GF","1F","2F","3F","4F","Terrace","Facade","Landscape"];
-        const allFloors=[...new Set([...floorOrder,...projects.flatMap(p=>designDashboardScopeFloors(p))])];
-        const zoneCodes=[...new Set(projects.flatMap(p=>(p.floorZones||Object.entries(p.zones||{}).map(([zoneCode,v])=>({zoneCode,...v}))).map(r=>String(r.zoneCode||"").trim().toUpperCase()).filter(Boolean)))].sort(compareZoneCodes);
-        const cell={padding:"7px 8px",borderRight:`1px solid ${T.line}`,borderBottom:`1px solid ${T.line}`,fontFamily:FONT_MONO,fontSize:11,whiteSpace:"nowrap",textAlign:"left"};
-        return <table style={{borderCollapse:"separate",borderSpacing:0,width:"max-content",minWidth:"100%"}}>
-          <thead><tr><th style={{...cell,position:"sticky",left:0,top:0,zIndex:4,minWidth:90,background:"#D2CDC1",borderBottom:`2px solid ${T.ink}`}}>Zone</th>{projects.map(p=><th key={p.id} style={{...cell,position:"sticky",top:0,zIndex:3,minWidth:235,maxWidth:300,background:String(p.id)===String(projectId)?"#c9dce4":"#D2CDC1",borderBottom:`2px solid ${T.ink}`}}><button type="button" onClick={()=>setProjectId(String(p.id))} title="Select this project to manage its areas" style={{border:0,background:"transparent",font:"inherit",fontWeight:800,cursor:"pointer",textAlign:"left",color:T.ink,whiteSpace:"normal"}}>{p.name||p.no||p.projectNo}</button><div style={{fontSize:9,fontWeight:400,marginTop:3}}>{p.no||p.projectNo}</div></th>)}</tr></thead>
-          <tbody>
-            {allFloors.map((f,i)=><tr key={'floor-'+f}><th style={{...cell,position:"sticky",left:0,zIndex:2,background:"#fff",fontWeight:800}}>{f}</th>{projects.map(p=>{const scope=designDashboardScopeFloors(p);return <td key={p.id} style={{...cell,background:"transparent"}}>{scope.includes(f)?f:""}</td>})}</tr>)}
-            {zoneCodes.map((z,i)=><tr key={'zone-'+z}><th style={{...cell,position:"sticky",left:0,zIndex:2,background:"#fff",fontWeight:800}}>{z}</th>{projects.map(p=>{const r=(p.floorZones||Object.entries(p.zones||{}).map(([zoneCode,v])=>({zoneCode,floor:v?.floor,area:v?.room}))).find(x=>String(x.zoneCode||"").trim().toUpperCase()===z);return <td key={p.id} style={{...cell,background:"transparent"}}>{r?[r.floor,r.area||r.room].filter(Boolean).join(" | "):""}</td>})}</tr>)}
-            {!projects.length&&<tr><td style={{...cell,padding:16}}>No {projectGroup=== "completed"?"completed":"ongoing"} projects found.</td></tr>}
-          </tbody>
-        </table>;
-      })()}
+    <div style={{border:`1px solid ${T.line}`,background:"#fff",marginBottom:18,overflowX:"auto"}}>
+      <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,tableLayout:"fixed"}}>
+        <colgroup><col style={{width:"9%"}}/><col style={{width:"18%"}}/><col style={{width:"55%"}}/><col style={{width:"8%"}}/><col style={{width:"10%"}}/></colgroup>
+        <thead><tr style={{background:T.paper2}}>{["Project No.","Project","Scope / Floors","Areas","Action"].map(h=><th key={h} style={{padding:10,textAlign:"left",borderBottom:`1px solid ${T.line}`,whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
+        <tbody>{projects.map(p=>{const count=(p.floorZones||Object.keys(p.zones||{})).length;return <tr key={p.id}>
+          <td style={{padding:10,borderBottom:`1px solid ${T.line}`,fontFamily:FONT_MONO}}>{p.no||p.projectNo}</td>
+          <td style={{padding:10,borderBottom:`1px solid ${T.line}`,fontWeight:700}}>{p.name}</td>
+          <td style={{padding:10,borderBottom:`1px solid ${T.line}`,whiteSpace:"normal",overflowWrap:"anywhere",wordBreak:"break-word",lineHeight:1.45,minWidth:260,maxWidth:520}}>{designDashboardScopeFloors(p).join(", ")||"No scope selected"}</td>
+          <td style={{padding:10,borderBottom:`1px solid ${T.line}`}}>{count}</td>
+          <td style={{padding:10,borderBottom:`1px solid ${T.line}`}}><button type="button" onClick={()=>setProjectId(String(p.id))} style={{...smallBtn,background:T.navy,color:"#fff"}}>OPEN</button></td>
+        </tr>})}</tbody>
+      </table>
     </div>
 
     {project&&<div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-        <div><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.cyan}}>SELECTED PROJECT · {project.no||project.projectNo}</div><h3 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:"3px 0"}}>{project.name}</h3><span style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>Status: {completed(project)?"Completed":project.status||"Ongoing"}</span></div>
-        <div style={{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"flex-end"}}><button type="button" disabled={!scopeFloors.length||projectDeleting||areaSaving||bulkSaving} onClick={()=>setBulkEditor({floor:scopeFloors[0]||"",text:""})} style={{...smallBtn,background:T.navy,color:"#fff",padding:"9px 14px"}}>+ BULK ADD AREAS</button><button type="button" disabled={!scopeFloors.length||projectDeleting||areaSaving||bulkSaving} onClick={()=>addRow(scopeFloors[0])} style={{...smallBtn,background:"#fff",padding:"9px 14px"}}>+ ADD ONE</button></div>
+        <div><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.cyan}}>SELECTED PROJECT · {project.no||project.projectNo}</div><h3 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:"3px 0"}}>{project.name}</h3></div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"flex-end"}}><button type="button" disabled={!scopeFloors.length} onClick={()=>setBulkEditor({floor:scopeFloors[0]||"",text:""})} style={{...smallBtn,background:T.navy,color:"#fff",padding:"9px 14px"}}>+ BULK ADD AREAS</button><button type="button" disabled={!scopeFloors.length} onClick={()=>addRow(scopeFloors[0])} style={{...smallBtn,background:"#fff",padding:"9px 14px"}}>+ ADD ONE</button></div>
       </div>
       {scopeFloors.map(f=>{const fr=rows.filter(r=>String(r.floor)===f);return <div key={f} style={{border:`1px solid ${T.line}`,background:"#fff",marginBottom:10}}>
-        <div style={{display:"flex",justifyContent:"space-between",padding:"10px 12px",background:T.paper2,borderBottom:`1px solid ${T.line}`}}><strong>{f} · {fr.length} areas</strong><div style={{display:"flex",gap:8}}>{fr.length>0&&<button type="button" disabled={areaSaving||bulkSaving} aria-label={`Delete all areas on ${f}`} onClick={()=>removeFloor(f)} style={{...smallBtn,background:"#fff",color:T.redline}}>DELETE FLOOR AREAS</button>}<button type="button" disabled={projectDeleting||areaSaving||bulkSaving} onClick={()=>addRow(f)} style={{...smallBtn,background:"#fff"}}>+ AREA</button></div></div>
+        <div style={{display:"flex",justifyContent:"space-between",padding:"10px 12px",background:T.paper2,borderBottom:`1px solid ${T.line}`}}><strong>{f} · {fr.length} areas</strong><button type="button" onClick={()=>addRow(f)} style={{...smallBtn,background:"#fff"}}>+ AREA</button></div>
         <div style={{display:"grid",gridTemplateColumns:"100px 1fr 180px",fontSize:11,fontWeight:700,borderBottom:`1px solid ${T.line}`}}><div style={{padding:8}}>Zone</div><div style={{padding:8}}>Area / Room</div><div style={{padding:8}}>Action</div></div>
-        {fr.map((r,i)=><div key={r.floorZoneId||r.zoneCode||i} style={{display:"grid",gridTemplateColumns:"100px 1fr 180px",fontSize:12,borderBottom:i<fr.length-1?`1px solid ${T.line}`:"none"}}><div style={{padding:8,fontFamily:FONT_MONO}}>{r.zoneCode||"—"}</div><div style={{padding:8,fontWeight:600}}>{r.area||r.room}</div><div style={{padding:6,display:"flex",gap:6}}><button type="button" disabled={projectDeleting||areaSaving||bulkSaving} onClick={()=>editRow(r)} style={{...smallBtn,background:"#fff"}}>EDIT</button><button type="button" disabled={areaSaving||bulkSaving} onClick={()=>remove(r)} style={{...smallBtn,background:"#fff"}}>DELETE</button></div></div>)}
+        {fr.map((r,i)=><div key={r.floorZoneId||r.zoneCode||i} style={{display:"grid",gridTemplateColumns:"100px 1fr 180px",fontSize:12,borderBottom:i<fr.length-1?`1px solid ${T.line}`:"none"}}><div style={{padding:8,fontFamily:FONT_MONO}}>{r.zoneCode||"—"}</div><div style={{padding:8,fontWeight:600}}>{r.area||r.room}</div><div style={{padding:6,display:"flex",gap:6}}><button type="button" onClick={()=>editRow(r)} style={{...smallBtn,background:"#fff"}}>EDIT</button><button type="button" onClick={()=>remove(r)} style={{...smallBtn,background:"#fff"}}>DELETE</button></div></div>)}
         {!fr.length&&<div style={{padding:10,fontSize:11,color:T.inkDim}}>No areas entered for {f}.</div>}
       </div>})}
     </div>}
@@ -4622,11 +3499,11 @@ function DashboardView({ state, persist }) {
       <div style={{width:"min(650px,96vw)",background:T.paper,border:`1px solid ${T.line}`}}>
         <div style={{background:T.navy,color:"#fff",padding:14,fontFamily:FONT_DISPLAY,fontSize:18}}>{editor.mode==="edit"?"Edit":"Add"} Floor / Zone · {project.no}</div>
         <div style={{padding:16,display:"grid",gridTemplateColumns:"160px 1fr",gap:12}}>
-          <Field label="Zone Code"><input value={editor.zoneCode} onChange={e=>setEditor(x=>({...x,zoneCode:e.target.value.toUpperCase()}))} placeholder="Zone Code (A, Z, AA, AB, BA…)" style={inputStyle}/></Field>
+          <Field label="Zone Code"><input value={editor.zoneCode} onChange={e=>setEditor(x=>({...x,zoneCode:e.target.value.toUpperCase()}))} placeholder="Enter Zone Code (e.g. A)" style={inputStyle}/></Field>
           <Field label="Floor from Project Scope"><select value={editor.floor} onChange={e=>setEditor(x=>({...x,floor:e.target.value}))} style={inputStyle}>{scopeFloors.map(f=><option key={f}>{f}</option>)}</select></Field>
           <div style={{gridColumn:"1 / -1"}}><Field label="Area / Room"><input value={editor.area} onChange={e=>setEditor(x=>({...x,area:e.target.value}))} placeholder="Living Room, Bedroom, Washroom..." style={inputStyle}/></Field></div>
         </div>
-        <div style={{padding:14,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}><button type="button" onClick={()=>setEditor(null)} style={{...smallBtn,background:"#fff"}}>Cancel</button><button type="button" onClick={save} disabled={areaSaving} style={{...smallBtn,background:T.navy,color:"#fff"}}>{areaSaving?"Saving area…":"Save Floor / Zone"}</button></div>
+        <div style={{padding:14,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}><button type="button" onClick={()=>setEditor(null)} style={{...smallBtn,background:"#fff"}}>Cancel</button><button type="button" onClick={save} style={{...smallBtn,background:T.navy,color:"#fff"}}>Save Floor / Zone</button></div>
       </div>
     </div>}
 
@@ -4634,37 +3511,28 @@ function DashboardView({ state, persist }) {
       <div style={{width:"min(760px,96vw)",background:T.paper,border:`1px solid ${T.line}`,maxHeight:"90vh",overflowY:"auto"}}>
         <div style={{background:T.navy,color:"#fff",padding:14,fontFamily:FONT_DISPLAY,fontSize:18}}>Bulk Add Areas / Zones · {project.no}</div>
         <div style={{padding:16}}>
-          <div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,marginBottom:12}}>Choose a floor and upload a plan to draft zone rows, or enter them manually. Review all codes and names before submitting.</div>
+          <div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,marginBottom:12}}>Add many rooms/spaces in one save. Enter <b>Zone Code | Area / Room</b>, one per line. The selected floor above is applied to every line. Zone Code must be entered by the doer.</div>
           <Field label="Default Floor">
             <select value={bulkEditor.floor} onChange={e=>setBulkEditor(x=>({...x,floor:e.target.value}))} style={inputStyle}>{scopeFloors.map(f=><option key={f}>{f}</option>)}</select>
           </Field>
-          <ZonePlanDraftReview key={project.id+":"+bulkEditor.floor} projectId={project.id} floor={bulkEditor.floor} disabled={bulkSaving} onLabels={labels=>setBulkEditor(current=>current&&current.floor===bulkEditor.floor?{...current,text:appendPlanDraft(current.text,labels,rows,bulkEditor.floor).text}:current)}/>
           <div style={{marginTop:12}}>
             <Field label="Areas / Rooms — one per line">
               <textarea autoFocus value={bulkEditor.text} onChange={e=>setBulkEditor(x=>({...x,text:e.target.value}))} placeholder={'A | Living Room\nB | Dining Room\nC | Kitchen\nD | Guest Bedroom\nE | Master Bedroom'} style={{...inputStyle,minHeight:180,resize:"vertical",fontFamily:FONT_BODY}}/>
             </Field>
           </div>
           {parseBulkPreview().length>0&&<div style={{marginTop:12,border:`1px solid ${T.line}`,background:"#fff"}}>
-            <div style={{padding:"9px 10px",background:T.paper2,fontFamily:FONT_MONO,fontSize:10,fontWeight:700}}>REVIEW DRAFT — edit before submitting</div>
+            <div style={{padding:"9px 10px",background:T.paper2,fontFamily:FONT_MONO,fontSize:10,fontWeight:700}}>PREVIEW — exactly what will be saved</div>
             <div style={{display:"grid",gridTemplateColumns:"100px 150px 1fr",fontSize:11,fontWeight:700,borderTop:`1px solid ${T.line}`}}><div style={{padding:8}}>Zone Code</div><div style={{padding:8}}>Floor</div><div style={{padding:8}}>Area / Room</div></div>
-            {parseBulkPreview().map(r=>{
-              const edit=(code,name)=>setBulkEditor(current=>{const lines=current.text.split(/\r?\n/);lines[r.lineIndex]=code.replace(/[|\r\n]/g,'')+' | '+name.replace(/[\r\n]/g,' ');return {...current,text:lines.join('\n')};});
-              const rawName=String(bulkEditor.text.split(/\r?\n/)[r.lineIndex]||'').split('|').slice(1).join('|').replace(/^ /,'');
-              const duplicate=rows.some(saved=>String(saved.zoneCode||'').trim().toUpperCase()===r.zoneCode)||parseBulkPreview().some(other=>other.lineIndex!==r.lineIndex&&other.zoneCode===r.zoneCode);
-              return <div key={r.lineIndex} style={{display:'grid',gridTemplateColumns:'100px 90px minmax(120px,1fr) auto',gap:6,padding:8,borderTop:`1px solid ${T.line}`,alignItems:'center'}}>
-                <input aria-label={`Zone code for row ${r.lineIndex+1}`} style={inputStyle} placeholder="Code" value={r.zoneCode} disabled={bulkSaving} onChange={e=>edit(e.target.value.toUpperCase(),r.area)}/>
-                <span>{r.floor}</span>
-                <input aria-label={`Area name for row ${r.lineIndex+1}`} style={inputStyle} placeholder="Area / Room" value={rawName} disabled={bulkSaving} onChange={e=>edit(r.zoneCode,e.target.value)}/>
-                <button type="button" style={smallBtn} disabled={bulkSaving} onClick={()=>setBulkEditor(current=>({...current,text:current.text.split(/\r?\n/).filter((_,i)=>i!==r.lineIndex).join('\n')}))}>Remove</button>
-                {(!r.valid||duplicate)&&<small style={{gridColumn:'1 / -1',color:T.redline}}>{duplicate?'Zone code already used. Correct or remove this row.':'Enter a letter zone code and an area name.'}</small>}
-              </div>;
-            })}
+            {parseBulkPreview().map((r,i)=><div key={r.lineIndex} style={{display:"grid",gridTemplateColumns:"100px 150px 1fr",fontSize:12,borderTop:`1px solid ${T.line}`,alignItems:"center"}}>
+              <div style={{padding:8,fontFamily:FONT_MONO,fontWeight:700,color:r.valid?T.ink:"#b00020"}}>{r.zoneCode||"MISSING"}</div>
+              <div style={{padding:8}}>{r.floor}</div><div style={{padding:8,fontWeight:600}}>{r.area||"MISSING"}</div>
+            </div>)}
           </div>}
-          <div style={{marginTop:10,padding:10,background:T.paper2,border:`1px solid ${T.line}`,fontFamily:FONT_MONO,fontSize:10,lineHeight:1.6}}>Example:<br/><b>A | Living Room</b><br/><b>B | Dining Room</b><br/><b>Only this format is applicable: Zone Code | Area / Room, one per line.</b><br/><b>Review each zone code before submitting; the selected floor applies to every row.</b></div>
+          <div style={{marginTop:10,padding:10,background:T.paper2,border:`1px solid ${T.line}`,fontFamily:FONT_MONO,fontSize:10,lineHeight:1.6}}>Example:<br/><b>A | Living Room</b><br/><b>B | Dining Room</b><br/><b>Only this format is applicable: Zone Code | Area / Room, one per line.</b><br/><b>Zone Code is entered by the doer; the selected floor is applied automatically.</b></div>
         </div>
         <div style={{padding:14,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}>
-          <button type="button" disabled={bulkSaving} onClick={()=>setBulkEditor(null)} style={{...smallBtn,background:"#fff"}}>Cancel</button>
-          <button type="button" disabled={bulkSaving} onClick={saveBulk} style={{...smallBtn,background:T.navy,color:"#fff",opacity:bulkSaving?.65:1,cursor:bulkSaving?"wait":"pointer"}}>{bulkSaving?"Saving areas…":"Submit reviewed areas"}</button>
+          <button type="button" onClick={()=>setBulkEditor(null)} style={{...smallBtn,background:"#fff"}}>Cancel</button>
+          <button type="button" onClick={saveBulk} style={{...smallBtn,background:T.navy,color:"#fff"}}>Save All Areas</button>
         </div>
       </div>
     </div>}
@@ -4688,20 +3556,69 @@ function emptyDraft() {
 // Grouped role/contact form used both when onboarding a new project and
 // when editing an existing one's contacts — categories match the sheet's
 // own Owner / Design / Construction sections.
-function ContactFields({contacts,onChange}) {
-  return <ProjectTeamContactFields contacts={contacts} onChange={onChange}/>;
-}
-
-// Display project calendar dates without the timestamp or timezone shifts.
-function formatProjectDate(value) {
-  if(!value)return "—";
-  const raw=String(value).trim();
-  const iso=raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:$|[T\s])/);
-  if(iso)return `${iso[3]}/${iso[2]}/${iso[1]}`;
-  const dmy=raw.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})(?:$|\s)/);
-  if(dmy)return `${dmy[1].padStart(2,'0')}/${dmy[2].padStart(2,'0')}/${dmy[3]}`;
-  const date=new Date(raw);
-  return Number.isNaN(date.getTime())?"—":new Intl.DateTimeFormat('en-GB',{day:'2-digit',month:'2-digit',year:'numeric',timeZone:'Asia/Kolkata'}).format(date);
+function ContactFields({ contacts, onChange, teamMaster = [] }) {
+  const activeMembers = (teamMaster || []).filter(m => m.active !== false && String(m.active).toLowerCase() !== "false");
+  const membersForRole = (role) => activeMembers.filter(m => (m.role || "").trim().toLowerCase() === role.trim().toLowerCase());
+  const selectMember = (role, userId) => {
+    const member = activeMembers.find(m => m.userId === userId);
+    if (!member) {
+      onChange(role, "name", "");
+      onChange(role, "email", "");
+      onChange(role, "mobile", "");
+      onChange(role, "teamUserId", "");
+      return;
+    }
+    onChange(role, "teamUserId", member.userId);
+    onChange(role, "name", member.name || "");
+    onChange(role, "email", member.email || "");
+    onChange(role, "mobile", member.mobile || "");
+  };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 18, maxHeight: 500, overflowY: "auto", paddingRight: 4 }}>
+      {ROLE_CATEGORIES.map(({ category, roles }) => (
+        <div key={category}>
+          <div style={{
+            display: "inline-block", fontFamily: FONT_MONO, fontSize: 10, letterSpacing: "0.08em",
+            textTransform: "uppercase", color: categoryColor(category), background: `${categoryColor(category)}18`,
+            padding: "3px 9px", borderRadius: 4, marginBottom: 8,
+          }}>{category}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {roles.map((role) => {
+              const roleChoices = membersForRole(role);
+              const isDesignRole = category === "Design";
+              // Every Design contact is selected from Team Master. Prefer matching-role
+              // employees first, but keep all active employees available so a project can
+              // assign a person even while their master designation is being updated.
+              const choices = isDesignRole
+                ? [...roleChoices, ...activeMembers.filter(m => !roleChoices.some(r => r.userId === m.userId))]
+                : roleChoices;
+              const current = contacts[role] || {};
+              const matched = activeMembers.find(m => m.userId === current.teamUserId || (m.name && m.name === current.name));
+              return (
+                <div key={role} style={{ display: "grid", gridTemplateColumns: "170px 1fr 1fr 1fr", gap: 8, alignItems: "center" }}>
+                  <div style={{ fontFamily: FONT_BODY, fontSize: 12.5, color: T.inkDim }}>{role}</div>
+                  {(isDesignRole || choices.length) ? (
+                    <select
+                      style={{ ...inputStyle, padding: "7px 10px", fontSize: 12.5 }}
+                      value={matched?.userId || ""}
+                      onChange={(e) => selectMember(role, e.target.value)}
+                    >
+                      <option value="">Select from Team Master</option>
+                      {choices.map(m => <option key={m.userId} value={m.userId}>{m.name}{isDesignRole && m.role ? ` — ${m.role}` : ""}</option>)}
+                    </select>
+                  ) : (
+                    <input style={{ ...inputStyle, padding: "7px 10px", fontSize: 12.5 }} placeholder="Name" value={current.name || ""} onChange={(e) => onChange(role, "name", e.target.value)} />
+                  )}
+                  <input style={{ ...inputStyle, padding: "7px 10px", fontSize: 12.5, background:isDesignRole?"#f4f2eb":"#fff" }} placeholder="Email" value={current.email || ""} readOnly={isDesignRole} onChange={(e) => !isDesignRole && onChange(role, "email", e.target.value)} />
+                  <input style={{ ...inputStyle, padding: "7px 10px", fontSize: 12.5, background:isDesignRole?"#f4f2eb":"#fff" }} placeholder="Mobile" value={current.mobile || ""} readOnly={isDesignRole} onChange={(e) => !isDesignRole && onChange(role, "mobile", e.target.value)} />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 const PROJECT_STATUSES = ["Ongoing", "On Hold", "Completed"];
@@ -4735,62 +3652,27 @@ function lineOfWorkDefaults(project, people) {
 
 /* stale ProjectSelector removed cleanly */
 
-const PROJECT_CREATE_JOBS=new Map();
-function runProjectCreateJob(persist,job){
-  if(PROJECT_CREATE_JOBS.has(job.id))return PROJECT_CREATE_JOBS.get(job.id);
-  const work=(async()=>{
-    try{
-      await persist(latest=>({...latest,pendingProjectCreates:(latest.pendingProjectCreates||[]).map(j=>j.id===job.id?{...j,status:'saving',error:''}:j)}));
-      const project=job.project,contacts=contactsObjectToRows(project,project.contacts);
-      const row=await projectApi.create({...frontendProjectToBackend(project,true),initialContacts:contacts});
-      // Compatible with an older backend while deployments roll out.
-      if(row.initialContactsSaved!==true&&contacts.length)await projectApi.saveContacts(row.projectId||project.id,contacts.map(c=>({...c,projectId:row.projectId||project.id})));
-      const created=backendProjectToFrontend(row,project);
-      await persist(latest=>({...latest,projects:latest.projects.some(p=>p.id===created.id)?latest.projects.map(p=>p.id===created.id?{...p,...created}:p):[...latest.projects,created],pendingProjectCreates:(latest.pendingProjectCreates||[]).filter(j=>j.id!==job.id)}));
-      return created;
-    }catch(err){
-      await persist(latest=>({...latest,pendingProjectCreates:(latest.pendingProjectCreates||[]).map(j=>j.id===job.id?{...j,status:'error',error:err.message||String(err)}:j)}));
-      return null;
-    }finally{PROJECT_CREATE_JOBS.delete(job.id);}
-  })();
-  PROJECT_CREATE_JOBS.set(job.id,work);return work;
-}
-
-function PendingProjectCreations({state,persist}){
-  const jobs=state.pendingProjectCreates||[];if(!jobs.length)return null;
-  return <div style={{margin:'12px 0',display:'grid',gap:8}}>{jobs.map(job=>{
-    const saving=job.status==='saving'&&PROJECT_CREATE_JOBS.has(job.id);
-    return <div key={job.id} role="status" style={{border:`1px solid ${T.line}`,background:T.paperDim,padding:'12px 14px',fontFamily:FONT_BODY,fontSize:13,display:'flex',justifyContent:'space-between',gap:12,alignItems:'center'}}><div><strong>{job.project.no} · {job.project.name}</strong><div style={{color:job.error?T.redline:T.inkDim,marginTop:4}}>{saving?'Saving new project in the background…':job.error||'Creation was interrupted. Retry to finish saving; your details are retained.'}</div></div>{!saving&&<button type="button" style={smallBtn} onClick={()=>runProjectCreateJob(persist,job)}>Retry</button>}</div>;
-  })}</div>;
-}
-
-function ProjectOnboarding({ state, persist, selectedId, setSelectedId, initialMode = "browse", projectEditor=null }) {
+function ProjectOnboarding({ state, persist, selectedId, setSelectedId, initialMode = "browse" }) {
   const [mode, setMode] = useState(initialMode);
   const [draft, setDraft] = useState(emptyDraft());
   const [saved, setSaved] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const creatingRef=useRef(false);
 
   const saveNew = async () => {
-    if (!draft.name.trim() || creatingRef.current) return;
-    const duplicate=[...(state.projects||[]),...(state.pendingProjectCreates||[]).map(j=>j.project)].some(p=>String(p.no||'').trim().toLowerCase()===draft.no.trim().toLowerCase()&&String(p.name||'').trim().toLowerCase()===draft.name.trim().toLowerCase());
-    if(duplicate){alert('This project already exists or is being saved.');return;}
-    creatingRef.current=true;setCreating(true);
+    if (!draft.name.trim()) return;
     const cleanContacts = {};
     Object.entries(draft.contacts).forEach(([role, c]) => {
-      if (c && (String(c.name||"").trim()||String(c.company||"").trim())) cleanContacts[role] = { name:String(c.name||"").trim(), company:String(c.company||"").trim(), email:String(c.email||"").trim(), mobile:String(c.mobile||"").trim() };
+      if (c && (c.name || "").trim()) cleanContacts[role] = { name: c.name.trim(), email: (c.email || "").trim(), mobile: (c.mobile || "").trim() };
     });
     const ownerName = (cleanContacts.Owner?.name || "").trim();
     const architectName = (cleanContacts.Architect?.name || "").trim();
 
     const project = {
-      id: 'PRJ-'+(globalThis.crypto?.randomUUID?.()||uid()+uid()),
+      id: uid(),
       no: draft.no.trim() || "—",
       name: draft.name.trim(),
       client: ownerName,
       architect: architectName,
       address: draft.address.trim(),
-      city: (draft.city||"").trim(),
       type: draft.type,
       startDate: draft.startDate,
       endDate: draft.endDate,
@@ -4813,13 +3695,21 @@ function ProjectOnboarding({ state, persist, selectedId, setSelectedId, initialM
       },
       lineOfWork: []
     };
-    const job={id:project.id,ownerEmail:state.currentUser?.email||'',project,status:'saving',error:''};
-    const localSave=persist(latest=>({...latest,pendingProjectCreates:[...(latest.pendingProjectCreates||[]),job]}));
-    setDraft(emptyDraft());setMode('browse');setSaved(false);setCreating(false);
-    setSelectedId(selectedId||state.projects?.[0]?.id||null);
-    try{await localSave;return await runProjectCreateJob(persist,job);}
-    catch(err){alert(`Could not queue this project: ${err.message||err}`);}
-    finally{creatingRef.current=false;}
+    let created = project;
+    try {
+      const row = await projectApi.create(frontendProjectToBackend(project, false));
+      created = backendProjectToFrontend(row, project);
+      if (Object.keys(cleanContacts).length) {
+        await projectApi.saveContacts(created.id, contactsObjectToRows(created, cleanContacts));
+        created = {...created, contacts: cleanContacts};
+      }
+    } catch (err) {
+      alert(`Google Sheets save failed: ${err?.message || err}`);
+      return;
+    }
+    await persist({ ...state, projects: [...state.projects, created] });
+    setDraft(emptyDraft()); setSelectedId(created.id); setMode("browse"); setSaved(true);
+    setTimeout(() => setSaved(false), 2400);
   };
 
   const updateProject = async (projectId, patch) => {
@@ -4862,13 +3752,12 @@ function ProjectOnboarding({ state, persist, selectedId, setSelectedId, initialM
             <Field label="Project no."><input style={inputStyle} value={draft.no} onChange={(e) => setDraft({ ...draft, no: e.target.value })} placeholder="e.g. 058" /></Field>
             <Field label="Project name"><input style={inputStyle} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="e.g. Sector 12, Gurugram" /></Field>
             <Field label="Address"><input style={inputStyle} value={draft.address} onChange={(e) => setDraft({ ...draft, address: e.target.value })} /></Field>
-            <Field label="City"><input style={inputStyle} maxLength={100} value={draft.city||""} onChange={e=>setDraft({...draft,city:e.target.value})}/></Field>
             <Field label="Project type"><select style={inputStyle} value={draft.type} onChange={(e) => setDraft({ ...draft, type: e.target.value })}><option>Residence</option><option>Commercial</option><option>Hospitality</option><option>Retail</option></select></Field>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <Field label="Start date"><input type="date" style={inputStyle} value={draft.startDate} onChange={(e) => setDraft({ ...draft, startDate: e.target.value })} /></Field>
               <Field label="Target completion"><input type="date" style={inputStyle} value={draft.endDate} onChange={(e) => setDraft({ ...draft, endDate: e.target.value })} /></Field>
             </div>
-            <Btn onClick={saveNew} disabled={!draft.name.trim() || creating}><ClipboardCheck size={14} /> {creating ? "Creating project…" : "Create project"}</Btn>
+            <Btn onClick={saveNew} disabled={!draft.name.trim()}><ClipboardCheck size={14} /> Create project</Btn>
           </div>
           <div>
             <div style={{ fontFamily: FONT_MONO, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: T.inkDim, marginBottom: 10 }}>Initial team / contacts</div>
@@ -4878,7 +3767,7 @@ function ProjectOnboarding({ state, persist, selectedId, setSelectedId, initialM
       ) : (
         <div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 10 }}>
-            {orderedProjects(state.projects).map((p) => {
+            {state.projects.map((p) => {
               const stage = p.projectStage || "Onboarding";
               const status = p.projectStatus || p.status || "Ongoing";
               const isSelected = p.id === selectedId;
@@ -4894,8 +3783,7 @@ function ProjectOnboarding({ state, persist, selectedId, setSelectedId, initialM
         </div>
       )}
 
-      {mode === "browse" && projectEditor}
-      {mode === "browse" && !projectEditor && selected && (() => {
+      {mode === "browse" && selected && (() => {
         const stage = selected.projectStage || "Onboarding";
         const status = selected.projectStatus || selected.status || "Ongoing";
         const planned = selected.plannedCompletionDate || selected.endDate || "";
@@ -4948,10 +3836,10 @@ function ProjectScopeView({ state, persist, selectedId }) {
   useEffect(() => {
     if (!project) return;
     const found = allRows.find(r => (r.project || "").trim().toLowerCase() === (project.name || "").trim().toLowerCase());
-    setRow(found ? {...found} : {serial:"",project:project.name,client:"",architect:"",basement:false,stilt_floor:false,gf:false,"1f":false,"2f":false,"3f":false,terrace:false,facade:false,wall_elevation:false,art_curation:false,landscape:false,bath_elevation:false,wardrobe:false,kitchen:false,onboarding:false});
+    setRow(found ? {...found} : {serial:"",project:project.name,client:"",architect:"",basement:false,stilt_floor:false,gf:false,"1f":false,"2f":false,"3f":false,terrace:false,facade:false,wall_elevation:false,landscape:false,bath_elevation:false,wardrobe:false,kitchen:false,onboarding:false});
   }, [project?.id, state.scopeSheet]);
   if (!project || !row) return null;
-  const boolFields = [["basement","Basement"],["stilt_floor","Stilt Floor"],["gf","GF"],["1f","1F"],["2f","2F"],["3f","3F"],["terrace","Terrace"],["facade","Facade"],["landscape","Landscape"],["bath_elevation","Bath Elevation"],["wardrobe","Furniture"],["art_curation","Art Curation"],["onboarding","Onboarding"]];
+  const boolFields = [["basement","Basement"],["stilt_floor","Stilt Floor"],["gf","GF"],["1f","1F"],["2f","2F"],["3f","3F"],["terrace","Terrace"],["facade","Facade"],["wall_elevation","Wall Elevation"],["landscape","Landscape"],["bath_elevation","Bath Elevation"],["wardrobe","Wardrobe"],["kitchen","Kitchen"],["onboarding","Onboarding"]];
   const update = (patch) => setRow(r => ({...r,...patch}));
   const save = async () => {
     const next = allRows.some(r => (r.project||"").trim().toLowerCase() === (project.name||"").trim().toLowerCase())
@@ -4979,10 +3867,10 @@ function ProjectScopeView({ state, persist, selectedId }) {
 function ProjectTeamContactFields({contacts, onChange}) {
   return <div style={{display:"flex",flexDirection:"column",gap:18,marginBottom:16}}>
     {ROLE_CATEGORIES.map(({category,roles}) => <div key={category}>
-      <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".08em",textTransform:"uppercase",color:categoryColor(category),marginBottom:8}}>{contactRoleLabel(category)}</div>
-      <div style={{borderTop:`2px solid ${T.ink}`}}>{roles.map(role => <div key={role} style={{display:"grid",gridTemplateColumns:"170px repeat(4,minmax(110px,1fr))",gap:8,padding:"10px 0",borderBottom:`1px solid ${T.line}`,alignItems:"center"}}>
-        <div style={{fontFamily:FONT_MONO,fontSize:11.5,color:T.inkDim}}>{contactRoleLabel(role)}</div>
-        {[["name","Contact name"],["company","Company / Studio"],["email","Email"],["mobile","Mobile"]].map(([field,label]) => <input key={field} aria-label={`${contactRoleLabel(role)} ${label}`} style={inputStyle} placeholder={label} value={contacts[role]?.[field] || ""} onChange={e=>onChange(role,field,e.target.value)}/>)}
+      <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".08em",textTransform:"uppercase",color:categoryColor(category),marginBottom:8}}>{category}</div>
+      <div style={{borderTop:`2px solid ${T.ink}`}}>{roles.map(role => <div key={role} style={{display:"grid",gridTemplateColumns:"170px 1fr 1fr 1fr",gap:8,padding:"10px 0",borderBottom:`1px solid ${T.line}`,alignItems:"center"}}>
+        <div style={{fontFamily:FONT_MONO,fontSize:11.5,color:T.inkDim}}>{role}</div>
+        {[["name","Name"],["email","Email"],["mobile","Mobile"]].map(([field,label]) => <input key={field} aria-label={`${role} ${label}`} style={inputStyle} placeholder={label} value={contacts[role]?.[field] || ""} onChange={e=>onChange(role,field,e.target.value)}/>)}
       </div>)}</div>
     </div>)}
   </div>;
@@ -4996,81 +3884,53 @@ function ProjectTeamView({ state, persist, selectedId }) {
   const [draft, setDraft] = useState({});
   const [saving, setSaving] = useState(false);
   const [loadedContacts, setLoadedContacts] = useState(null);
-  const [saveMessage,setSaveMessage]=useState("");
-  const latestRef=useRef(state);latestRef.current=state;
-  const selectedRef=useRef(project?.id);selectedRef.current=project?.id;
-  const savePendingRef=useRef(false);
-  const workflowProjectRef=useRef(project?.id);workflowProjectRef.current=project?.id;
-  const contactsRevisionRef=useRef(0);
   useEffect(() => {
     let active = true;
     setEditing(false);
     setLoadedContacts(null);
-    setSaveMessage("");
-    const revision=++contactsRevisionRef.current;
     if (project) projectApi.listContacts(project.id).then(rows => {
       const contacts = contactRowsToObject(rows || []);
-      if (active && revision===contactsRevisionRef.current && Object.keys(contacts).length) setLoadedContacts(contacts);
+      if (active && Object.keys(contacts).length) setLoadedContacts(contacts);
     }).catch(err => console.warn("ProjectContacts background load failed", err));
     return () => { active = false; };
   }, [project?.id]);
   if (!project) return <div style={{color:T.inkDim}}>No project available.</div>;
-  const contacts = Object.fromEntries(Object.entries(loadedContacts || project.contacts || {}).filter(([,c]) => c && (String(c.name ?? "").trim()||String(c.company ?? "").trim())).map(([role,c]) => [role, {...c,
+  const contacts = Object.fromEntries(Object.entries(loadedContacts || project.contacts || {}).filter(([,c]) => c && String(c.name ?? "").trim()).map(([role,c]) => [role, {...c,
     name:String(c.name ?? ""), email:String(c.email ?? ""), mobile:String(c.mobile ?? ""), company:String(c.company ?? "")}]));
   const directoryProjects = (state.projects || []).map(p => p.id === project.id ? {...p, contacts} : p);
   const start = () => {
-    if(savePendingRef.current)return;
-    ++contactsRevisionRef.current;
     const next = JSON.parse(JSON.stringify(contacts));
-    if (!next.Owner?.name && !next.Owner?.company && project.client) next.Owner = {name:String(project.client), email:"", mobile:""};
-    if (!next.Architect?.name && !next.Architect?.company && project.architect) next.Architect = {name:String(project.architect), email:"", mobile:""};
+    if (!next.Owner?.name && project.client) next.Owner = {name:String(project.client), email:"", mobile:""};
+    if (!next.Architect?.name && project.architect) next.Architect = {name:String(project.architect), email:"", mobile:""};
     setDraft(next); setDirectoryMode(false); setEditing(true);
   };
   const save = async () => {
-    if(savePendingRef.current)return;
-    const clean={};
-    Object.entries(draft).forEach(([role,c])=>{
-      if(c&&(String(c.name??"").trim()||String(c.company??"").trim()))clean[role]={...c,name:String(c.name??"").trim(),company:String(c.company??"").trim(),email:String(c.email??"").trim(),mobile:String(c.mobile??"").trim()};
+    if (saving) return;
+    const clean = {};
+    Object.entries(draft).forEach(([role,c]) => {
+      if (c && String(c.name ?? "").trim()) clean[role] = {...c, name:String(c.name ?? "").trim(), email:String(c.email ?? "").trim(), mobile:String(c.mobile ?? "").trim()};
     });
-    const before=project,previousContacts=contacts,draftSnapshot=draft,id=project.id;
-    const next={...project,contacts:clean,client:clean.Owner?.name||"",architect:clean.Architect?.name||""};
-    const latest=latestRef.current;
-    const optimistic={...latest,projects:latest.projects.map(p=>p.id===id?{...p,contacts:clean,client:next.client,architect:next.architect}:p)};
-    savePendingRef.current=true;++contactsRevisionRef.current;
-    latestRef.current=optimistic;
-    const localSave=persist(optimistic);
-    setLoadedContacts(clean);setEditing(false);setSaving(true);
-    setSaveMessage("Changes applied · Saving to Google Sheets…");
+    setSaving(true);
     try {
-      await localSave;
-      await projectApi.saveContacts(id,contactsObjectToRows(next,clean));
-    } catch(err) {
-      const latest=latestRef.current;
-      const restored={...latest,projects:latest.projects.map(p=>p.id===id?{...p,
-        ...(JSON.stringify(p.contacts)===JSON.stringify(clean)?{contacts:before.contacts}:{}),
-        ...(p.client===next.client?{client:before.client}:{}),
-        ...(p.architect===next.architect?{architect:before.architect}:{})}:p)};
-      latestRef.current=restored;await persist(restored);
-      if(selectedRef.current===id){setLoadedContacts(previousContacts);setDraft(draftSnapshot);setEditing(true);setSaveMessage(`Save failed. Your draft is retained; please retry. ${err?.message||err}`);}
-      savePendingRef.current=false;setSaving(false);return;
-    }
-    try {
-      const current=latestRef.current.projects.find(p=>p.id===id);
-      if(current)await projectApi.update(frontendProjectToBackend(current,true));
-      if(selectedRef.current===id)setSaveMessage("Saved to Google Sheets.");
-    } catch(err) {
-      if(selectedRef.current===id)setSaveMessage(`Contacts saved, but the project summary could not sync. Please save again. ${err?.message||err}`);
-    } finally {
-      savePendingRef.current=false;setSaving(false);
-    }
+      await projectApi.saveContacts(project.id, contactsObjectToRows(project, clean));
+      const next = {...project, contacts:clean, client:clean.Owner?.name || project.client || "", architect:clean.Architect?.name || project.architect || ""};
+      try { await projectApi.update(frontendProjectToBackend(next, true)); }
+      catch (err) { console.warn("Project client/architect sync failed", err); }
+      await persist({...state, projects:(state.projects || []).map(p => p.id === project.id ? next : p)});
+      setLoadedContacts(clean);
+      setEditing(false);
+    } catch (err) { alert(`Google Sheets contact save failed: ${err?.message || err}`); }
+    finally { setSaving(false); }
   };
   const directory = buildDirectory(directoryProjects, state.ratings || {});
   const filtered = roleFilter === "All" ? directory : directory.filter(d=>d.roles.includes(roleFilter));
   const roles = Array.from(new Set(directory.flatMap(d=>d.roles))).sort();
   return <div>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}><div><h2 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:0,color:T.ink}}>Team & Ratings</h2><div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim,marginTop:4}}>Project contacts are shown here by default. Turn on Directory to see the consolidated directory view.</div></div><div style={{display:"flex",gap:8}}>{!editing && <Btn disabled={saving} variant="ghost" onClick={start}>Edit / add contacts</Btn>}<Btn variant="ghost" style={directoryMode ? {borderColor:"transparent"} : undefined} disabled={saving} onClick={()=>{setEditing(false);setDirectoryMode(v=>!v);}}>{directoryMode?"Directory On":"Directory"}</Btn></div></div>
-    {saveMessage&&<p role="status" style={{fontFamily:FONT_BODY,fontSize:12}}>{saveMessage}</p>}
-    {directoryMode ? <ProjectDirectory state={{...state,projects:directoryProjects}} persist={async next=>{++contactsRevisionRef.current;latestRef.current=next;const current=next.projects.find(p=>p.id===selectedRef.current);if(current)setLoadedContacts(current.contacts||{});await persist(next);}}/> : editing ? <><ProjectTeamContactFields contacts={draft} onChange={(role,field,value)=>setDraft(d=>({...d,[role]:{...(d[role]||{}),[field]:value}}))}/><div style={{display:"flex",gap:8}}><Btn disabled={saving} onClick={save}><ClipboardCheck size={14}/> {saving ? "Saving…" : "Save contacts"}</Btn><Btn disabled={saving} variant="ghost" onClick={()=>setEditing(false)}>Cancel</Btn></div></> : <div style={{display:"flex",flexDirection:"column",gap:16}}>{ROLE_CATEGORIES.map(({category,roles})=>{const entries=roles.filter(r=>contacts?.[r]);if(!entries.length)return null;return <div key={category}><div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".08em",textTransform:"uppercase",color:categoryColor(category),marginBottom:8}}>{contactRoleLabel(category)}</div><div style={{borderTop:`2px solid ${T.ink}`,borderBottom:`1px solid ${T.line}`}}>{entries.map((role,idx)=>{const c=contacts[role];return <div key={role} style={{display:"grid",gridTemplateColumns:"170px repeat(4,minmax(100px,1fr))",padding:"10px 0",borderTop:idx===0?"none":`1px solid ${T.line}`}}><div style={{fontFamily:FONT_MONO,fontSize:11.5,color:T.inkDim}}>{contactRoleLabel(role)}</div><div style={{fontFamily:FONT_BODY,fontSize:13}}>{c.name||"—"}</div><div style={{fontFamily:FONT_BODY,fontSize:13}}>{c.company||"—"}</div><div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>{c.email||"—"}</div><div style={{fontFamily:FONT_MONO,fontSize:12,color:T.blue}}>{c.mobile||"—"}</div></div>})}</div></div>})}{Object.keys(contacts).length===0&&<div style={{color:T.inkDim}}>No contacts on file.</div>}</div>}
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}><div><h2 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:0,color:T.ink}}>Team & Ratings</h2><div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim,marginTop:4}}>Project contacts are shown here by default. Turn on Directory to see the consolidated directory view.</div></div><div style={{display:"flex",gap:8}}>{!editing && <Btn variant="ghost" onClick={start}>Edit / add contacts</Btn>}<Btn variant="ghost" style={directoryMode ? {borderColor:"transparent"} : undefined} disabled={saving} onClick={()=>{setEditing(false);setDirectoryMode(v=>!v);}}>{directoryMode?"Directory On":"Directory"}</Btn></div></div>
+    {directoryMode ? <div>
+      <div style={{display:"flex",gap:0,borderBottom:`1px solid ${T.ink}`,marginBottom:12,flexWrap:"wrap"}}>{["All",...roles].map(f=><button key={f} onClick={()=>setRoleFilter(f)} style={{border:"none",borderRight:`1px solid ${T.line}`,borderRadius:0,padding:"8px 12px",background:roleFilter===f?T.navy:T.paperDim,color:roleFilter===f?"#fff":T.ink,cursor:"pointer",fontFamily:FONT_MONO,fontSize:10}}>{f}</button>)}</div>
+      <table style={{borderCollapse:"collapse",width:"100%",border:`1px solid ${T.line}`}}><thead><tr>{["Name","Company","Role","Projects","Rating"].map(h=><th key={h} style={{...thStyle,background:T.paperDim,color:T.ink,textAlign:"left",borderRadius:0}}>{h}</th>)}</tr></thead><tbody>{filtered.map((d,i)=><tr key={i}><td style={tdStyle}>{d.name}</td><td style={tdStyle}>{d.company||"—"}</td><td style={tdStyle}>{d.roles.join(", ")}</td><td style={tdStyle}>{d.projects.map(p => typeof p === "string" ? p : p.name || p.no || p.id).join(", ")}</td><td style={tdStyle}>{d.rating||"—"}</td></tr>)}</tbody></table>
+    </div> : editing ? <><ProjectTeamContactFields contacts={draft} onChange={(role,field,value)=>setDraft(d=>({...d,[role]:{...(d[role]||{}),[field]:value}}))}/><div style={{display:"flex",gap:8}}><Btn disabled={saving} onClick={save}><ClipboardCheck size={14}/> {saving ? "Saving…" : "Save contacts"}</Btn><Btn disabled={saving} variant="ghost" onClick={()=>setEditing(false)}>Cancel</Btn></div></> : <div style={{display:"flex",flexDirection:"column",gap:16}}>{ROLE_CATEGORIES.map(({category,roles})=>{const entries=roles.filter(r=>contacts?.[r]);if(!entries.length)return null;return <div key={category}><div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".08em",textTransform:"uppercase",color:categoryColor(category),marginBottom:8}}>{category}</div><div style={{borderTop:`2px solid ${T.ink}`,borderBottom:`1px solid ${T.line}`}}>{entries.map((role,idx)=>{const c=contacts[role];return <div key={role} style={{display:"grid",gridTemplateColumns:"170px 1fr 1fr 1fr",padding:"10px 0",borderTop:idx===0?"none":`1px solid ${T.line}`}}><div style={{fontFamily:FONT_MONO,fontSize:11.5,color:T.inkDim}}>{role}</div><div style={{fontFamily:FONT_BODY,fontSize:13}}>{c.name}</div><div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>{c.email||"—"}</div><div style={{fontFamily:FONT_MONO,fontSize:12,color:T.blue}}>{c.mobile||"—"}</div></div>})}</div></div>})}{Object.keys(contacts).length===0&&<div style={{color:T.inkDim}}>No contacts on file.</div>}</div>}
   </div>;
 }
 
@@ -5117,7 +3977,6 @@ function splitDesignExecutionRows(project, people){
   return {design:all.slice(0,firstMilestone), execution:all.slice(firstMilestone)};
 }
 
-const DESIGN_TASK_FLOW_TEMPLATE = [{"id": "DESIGN-01-01", "workflowVersion": "2", "milestone": "Concept | Freeze Products", "tasks": "Concept | Freeze Products", "startingMilestone": "Receive Layout \u00b7 floor & zone wise", "subtask": "Meeting with CL | Architect to understand Theme", "taskCategory": "Meeting", "meetingMode": "In person", "triggerDrawingType": "LAYOUT", "triggerTaskType": "Concept | 2D", "scope": "Stage", "subtaskOrder": 1, "responsible": "", "hours": "", "completionUploadRequired": false, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-01-02", "workflowVersion": "2", "milestone": "Concept | Freeze Products", "tasks": "Concept | Freeze Products", "startingMilestone": "Receive Layout \u00b7 floor & zone wise", "subtask": "Initial Concept", "taskCategory": "Design", "meetingMode": "", "triggerDrawingType": "LAYOUT", "triggerTaskType": "Concept | 2D", "scope": "Stage", "subtaskOrder": 2, "responsible": "", "hours": "", "completionUploadRequired": true, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-01-03", "workflowVersion": "2", "milestone": "Concept | Freeze Products", "tasks": "Concept | Freeze Products", "startingMilestone": "Receive Layout \u00b7 floor & zone wise", "subtask": "Present & Discuss with CL | Architect", "taskCategory": "Meeting", "meetingMode": "In person", "triggerDrawingType": "LAYOUT", "triggerTaskType": "Concept | 2D", "scope": "Stage", "subtaskOrder": 3, "responsible": "", "hours": "", "completionUploadRequired": false, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-01-04", "workflowVersion": "2", "milestone": "Concept | Freeze Products", "tasks": "Concept | Freeze Products", "startingMilestone": "Receive Layout \u00b7 floor & zone wise", "subtask": "Preliminary Budgeting", "taskCategory": "Meeting", "meetingMode": "In person", "triggerDrawingType": "LAYOUT", "triggerTaskType": "Concept | 2D", "scope": "Stage", "subtaskOrder": 4, "responsible": "", "hours": "", "completionUploadRequired": false, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-02-01", "workflowVersion": "2", "milestone": "Control Finalisation", "tasks": "Control Finalisation", "startingMilestone": "Concept approved \u00b7 showcase wired/wireless options and budget", "subtask": "Showcase Wireless | Wired Options with budget", "taskCategory": "Design", "meetingMode": "", "triggerDrawingType": "MANUAL", "triggerTaskType": "Control Finalisation", "scope": "Stage", "subtaskOrder": 1, "responsible": "", "hours": "", "completionUploadRequired": true, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-03-01", "workflowVersion": "2", "milestone": "Wall Electrical", "tasks": "Wall Electrical", "startingMilestone": "Receive WE \u00b7 integrate final keypad and lamp socket locations", "subtask": "Meeting with Controls Vendor | CL | Architect [if req.]", "taskCategory": "Meeting", "meetingMode": "Phone / Zoom allowed", "triggerDrawingType": "WE", "triggerTaskType": "Wall Electrical Drawings", "scope": "Stage", "subtaskOrder": 1, "responsible": "", "hours": "", "completionUploadRequired": false, "optional": true, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-03-02", "workflowVersion": "2", "milestone": "Wall Electrical", "tasks": "Wall Electrical", "startingMilestone": "Receive WE \u00b7 integrate final keypad and lamp socket locations", "subtask": "Lighting User Interface | Draw", "taskCategory": "Design", "meetingMode": "", "triggerDrawingType": "WE", "triggerTaskType": "Wall Electrical Drawings", "scope": "Stage", "subtaskOrder": 2, "responsible": "", "hours": "", "completionUploadRequired": true, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-03-03", "workflowVersion": "2", "milestone": "Wall Electrical", "tasks": "Wall Electrical", "startingMilestone": "Receive WE \u00b7 integrate final keypad and lamp socket locations", "subtask": "Issue & Discuss | Revision [if req.] | Approval Final [Milestone]", "taskCategory": "Meeting", "meetingMode": "Phone / Zoom allowed", "triggerDrawingType": "WE", "triggerTaskType": "Wall Electrical Drawings", "scope": "Stage", "subtaskOrder": 3, "responsible": "", "hours": "", "completionUploadRequired": false, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-04-01", "workflowVersion": "2", "milestone": "False Ceiling Corrections", "tasks": "False Ceiling Corrections", "startingMilestone": "Receive FC \u00b7 floor & zone wise", "subtask": "Typical Section Detail | Draw", "taskCategory": "Design", "meetingMode": "", "triggerDrawingType": "FC", "triggerTaskType": "False Ceiling Drawings", "scope": "Stage", "subtaskOrder": 1, "responsible": "", "hours": "", "completionUploadRequired": true, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-04-02", "workflowVersion": "2", "milestone": "False Ceiling Corrections", "tasks": "False Ceiling Corrections", "startingMilestone": "Receive FC \u00b7 floor & zone wise", "subtask": "Issue & Discuss | Revision [if req.] | Approval Final [Milestone]", "taskCategory": "Meeting", "meetingMode": "Phone / Zoom allowed", "triggerDrawingType": "FC", "triggerTaskType": "False Ceiling Drawings", "scope": "Stage", "subtaskOrder": 2, "responsible": "", "hours": "", "completionUploadRequired": false, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-05-01", "workflowVersion": "2", "milestone": "Night Renders", "tasks": "Night Renders", "startingMilestone": "Receive 3D \u00b7 zone wise", "subtask": "3D Renders", "taskCategory": "Design", "meetingMode": "", "triggerDrawingType": "3D", "triggerTaskType": "3D Renders", "scope": "Stage", "subtaskOrder": 1, "responsible": "", "hours": "", "completionUploadRequired": true, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-05-02", "workflowVersion": "2", "milestone": "Night Renders", "tasks": "Night Renders", "startingMilestone": "Receive 3D \u00b7 zone wise", "subtask": "Final Concept Meeting", "taskCategory": "Meeting", "meetingMode": "In person", "triggerDrawingType": "3D", "triggerTaskType": "3D Renders", "scope": "Stage", "subtaskOrder": 2, "responsible": "", "hours": "", "completionUploadRequired": false, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-06-01", "workflowVersion": "2", "milestone": "Wiring Drawings", "tasks": "Wiring Drawings", "startingMilestone": "Receive FC clubbed with AC/Fan locations and levels \u00b7 lighting layout RCP/FLR/CIR", "subtask": "RCP/FLR/CIR | Draw", "taskCategory": "Design", "meetingMode": "", "triggerDrawingType": "FC", "triggerTaskType": "Lighting Layout / Wiring", "scope": "Stage", "subtaskOrder": 1, "responsible": "", "hours": "", "completionUploadRequired": true, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-06-02", "workflowVersion": "2", "milestone": "Wiring Drawings", "tasks": "Wiring Drawings", "startingMilestone": "Receive FC clubbed with AC/Fan locations and levels \u00b7 lighting layout RCP/FLR/CIR", "subtask": "Issue & Discuss | Revision [if req.] | Approval Final [Milestone]", "taskCategory": "Meeting", "meetingMode": "Phone / Zoom allowed", "triggerDrawingType": "FC", "triggerTaskType": "Lighting Layout / Wiring", "scope": "Stage", "subtaskOrder": 2, "responsible": "", "hours": "", "completionUploadRequired": false, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-07-01", "workflowVersion": "2", "milestone": "Documentation", "tasks": "Documentation", "startingMilestone": "Technical Table \u00b7 floor & zone wise", "subtask": "Documentation- Tech Table", "taskCategory": "Design", "meetingMode": "", "triggerDrawingType": "MANUAL", "triggerTaskType": "Technical Table / Documentation", "scope": "Stage", "subtaskOrder": 1, "responsible": "", "hours": "", "completionUploadRequired": true, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-07-02", "workflowVersion": "2", "milestone": "Documentation", "tasks": "Documentation", "startingMilestone": "Technical Table \u00b7 floor & zone wise", "subtask": "Documentation- Luminaire Schedule", "taskCategory": "Design", "meetingMode": "", "triggerDrawingType": "MANUAL", "triggerTaskType": "Technical Table / Documentation", "scope": "Stage", "subtaskOrder": 2, "responsible": "", "hours": "", "completionUploadRequired": true, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-07-03", "workflowVersion": "2", "milestone": "Documentation", "tasks": "Documentation", "startingMilestone": "Technical Table \u00b7 floor & zone wise", "subtask": "Internal Review", "taskCategory": "Meeting", "meetingMode": "Phone / Zoom allowed", "triggerDrawingType": "MANUAL", "triggerTaskType": "Technical Table / Documentation", "scope": "Stage", "subtaskOrder": 3, "responsible": "", "hours": "", "completionUploadRequired": false, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-07-04", "workflowVersion": "2", "milestone": "Documentation", "tasks": "Documentation", "startingMilestone": "Technical Table \u00b7 floor & zone wise", "subtask": "Arranging samples for CL Review", "taskCategory": "Design", "meetingMode": "", "triggerDrawingType": "MANUAL", "triggerTaskType": "Technical Table / Documentation", "scope": "Stage", "subtaskOrder": 4, "responsible": "", "hours": "", "completionUploadRequired": true, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-07-05", "workflowVersion": "2", "milestone": "Documentation", "tasks": "Documentation", "startingMilestone": "Technical Table \u00b7 floor & zone wise", "subtask": "External Review | Mockup | Discuss BOQ", "taskCategory": "Meeting", "meetingMode": "In person", "triggerDrawingType": "MANUAL", "triggerTaskType": "Technical Table / Documentation", "scope": "Stage", "subtaskOrder": 5, "responsible": "", "hours": "", "completionUploadRequired": false, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-07-06", "workflowVersion": "2", "milestone": "Documentation", "tasks": "Documentation", "startingMilestone": "Technical Table \u00b7 floor & zone wise", "subtask": "Present final BOQ with colour test | Close", "taskCategory": "Design", "meetingMode": "", "triggerDrawingType": "MANUAL", "triggerTaskType": "Technical Table / Documentation", "scope": "Stage", "subtaskOrder": 6, "responsible": "", "hours": "", "completionUploadRequired": true, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-08-01", "workflowVersion": "2", "milestone": "Documentation", "tasks": "Documentation", "startingMilestone": "Execution Bundle | GFCs \u00b7 final consolidated drawing approval", "subtask": "Dialux Modelling", "taskCategory": "Design", "meetingMode": "", "triggerDrawingType": "MANUAL", "triggerTaskType": "Execution Bundle | GFCs", "scope": "Stage", "subtaskOrder": 1, "responsible": "", "hours": "", "completionUploadRequired": true, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-08-02", "workflowVersion": "2", "milestone": "Documentation", "tasks": "Documentation", "startingMilestone": "Execution Bundle | GFCs \u00b7 final consolidated drawing approval", "subtask": "Light Marking Sheet | Arrange All Samples", "taskCategory": "Design", "meetingMode": "", "triggerDrawingType": "MANUAL", "triggerTaskType": "Execution Bundle | GFCs", "scope": "Stage", "subtaskOrder": 2, "responsible": "", "hours": "", "completionUploadRequired": true, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-08-03", "workflowVersion": "2", "milestone": "Documentation", "tasks": "Documentation", "startingMilestone": "Execution Bundle | GFCs \u00b7 final consolidated drawing approval", "subtask": "Site Execution Sheet", "taskCategory": "Design", "meetingMode": "", "triggerDrawingType": "MANUAL", "triggerTaskType": "Execution Bundle | GFCs", "scope": "Stage", "subtaskOrder": 3, "responsible": "", "hours": "", "completionUploadRequired": true, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-09-01", "workflowVersion": "2", "milestone": "Bathroom Stone", "tasks": "Bathroom Stone", "startingMilestone": "Receive Bathroom 3Ds/Elevations \u00b7 bathroom/wall elevation zone wise", "subtask": "3D Renders", "taskCategory": "Design", "meetingMode": "", "triggerDrawingType": "BATHROOM", "triggerTaskType": "Bathroom Elevation Drawings", "scope": "Stage", "subtaskOrder": 1, "responsible": "", "hours": "", "completionUploadRequired": true, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-09-02", "workflowVersion": "2", "milestone": "Bathroom Stone", "tasks": "Bathroom Stone", "startingMilestone": "Receive Bathroom 3Ds/Elevations \u00b7 bathroom/wall elevation zone wise", "subtask": "Present & Discuss with CL | Architect", "taskCategory": "Meeting", "meetingMode": "In person", "triggerDrawingType": "BATHROOM", "triggerTaskType": "Bathroom Elevation Drawings", "scope": "Stage", "subtaskOrder": 2, "responsible": "", "hours": "", "completionUploadRequired": false, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-09-03", "workflowVersion": "2", "milestone": "Bathroom Stone", "tasks": "Bathroom Stone", "startingMilestone": "Receive Bathroom 3Ds/Elevations \u00b7 bathroom/wall elevation zone wise", "subtask": "Typical Section Detail | Draw", "taskCategory": "Design", "meetingMode": "", "triggerDrawingType": "BATHROOM", "triggerTaskType": "Bathroom Elevation Drawings", "scope": "Stage", "subtaskOrder": 3, "responsible": "", "hours": "", "completionUploadRequired": true, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-09-04", "workflowVersion": "2", "milestone": "Bathroom Stone", "tasks": "Bathroom Stone", "startingMilestone": "Receive Bathroom 3Ds/Elevations \u00b7 bathroom/wall elevation zone wise", "subtask": "CL Meeting | Revision | Approval Final [Milestone]", "taskCategory": "Meeting", "meetingMode": "Phone / Zoom allowed", "triggerDrawingType": "BATHROOM", "triggerTaskType": "Bathroom Elevation Drawings", "scope": "Stage", "subtaskOrder": 4, "responsible": "", "hours": "", "completionUploadRequired": false, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-10-01", "workflowVersion": "2", "milestone": "Facade", "tasks": "Facade", "startingMilestone": "Receive Facade 3Ds/Elevations \u00b7 facade/wall elevation", "subtask": "3D Renders", "taskCategory": "Design", "meetingMode": "", "triggerDrawingType": "FACADE", "triggerTaskType": "Facade Elevation Drawings", "scope": "Stage", "subtaskOrder": 1, "responsible": "", "hours": "", "completionUploadRequired": true, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-10-02", "workflowVersion": "2", "milestone": "Facade", "tasks": "Facade", "startingMilestone": "Receive Facade 3Ds/Elevations \u00b7 facade/wall elevation", "subtask": "Present & Discuss with CL | Architect", "taskCategory": "Meeting", "meetingMode": "In person", "triggerDrawingType": "FACADE", "triggerTaskType": "Facade Elevation Drawings", "scope": "Stage", "subtaskOrder": 2, "responsible": "", "hours": "", "completionUploadRequired": false, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-10-03", "workflowVersion": "2", "milestone": "Facade", "tasks": "Facade", "startingMilestone": "Receive Facade 3Ds/Elevations \u00b7 facade/wall elevation", "subtask": "Typical Section Detail | Draw | Approval Final [Milestone]", "taskCategory": "Design", "meetingMode": "", "triggerDrawingType": "FACADE", "triggerTaskType": "Facade Elevation Drawings", "scope": "Stage", "subtaskOrder": 3, "responsible": "", "hours": "", "completionUploadRequired": true, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-10-04", "workflowVersion": "2", "milestone": "Facade", "tasks": "Facade", "startingMilestone": "Receive Facade 3Ds/Elevations \u00b7 facade/wall elevation", "subtask": "Facade Mockup", "taskCategory": "Meeting", "meetingMode": "In person", "triggerDrawingType": "FACADE", "triggerTaskType": "Facade Elevation Drawings", "scope": "Stage", "subtaskOrder": 4, "responsible": "", "hours": "", "completionUploadRequired": false, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-11-01", "workflowVersion": "2", "milestone": "Furniture", "tasks": "Furniture", "startingMilestone": "Receive Furniture on-site or off-site docket from Architect", "subtask": "Typical Section Detail | Draw", "taskCategory": "Design", "meetingMode": "", "triggerDrawingType": "FURNITURE", "triggerTaskType": "Furniture / Joinery", "scope": "Stage", "subtaskOrder": 1, "responsible": "", "hours": "", "completionUploadRequired": true, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-11-02", "workflowVersion": "2", "milestone": "Furniture", "tasks": "Furniture", "startingMilestone": "Receive Furniture on-site or off-site docket from Architect", "subtask": "Arranging samples for production", "taskCategory": "Design", "meetingMode": "", "triggerDrawingType": "FURNITURE", "triggerTaskType": "Furniture / Joinery", "scope": "Stage", "subtaskOrder": 2, "responsible": "", "hours": "", "completionUploadRequired": true, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-11-03", "workflowVersion": "2", "milestone": "Furniture", "tasks": "Furniture", "startingMilestone": "Receive Furniture on-site or off-site docket from Architect", "subtask": "Meeting with Furniture Vendor | Architect", "taskCategory": "Meeting", "meetingMode": "In person", "triggerDrawingType": "FURNITURE", "triggerTaskType": "Furniture / Joinery", "scope": "Stage", "subtaskOrder": 3, "responsible": "", "hours": "", "completionUploadRequired": false, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}, {"id": "DESIGN-11-04", "workflowVersion": "2", "milestone": "Furniture", "tasks": "Furniture", "startingMilestone": "Receive Furniture on-site or off-site docket from Architect", "subtask": "Freeze Documentation", "taskCategory": "Design", "meetingMode": "", "triggerDrawingType": "FURNITURE", "triggerTaskType": "Furniture / Joinery", "scope": "Stage", "subtaskOrder": 4, "responsible": "", "hours": "", "completionUploadRequired": true, "optional": false, "executionNote": "Consolidate drawings for final approval before site issue; record meeting minutes and plan engineer visits at key milestones."}];
 const DESIGN_WORKFLOW_PDF_TEMPLATE = [{"id": "PDF-01-01", "workflowVersion": "1", "milestone": "Onboarding", "tasks": "Onboarding / Receive Layout", "subtask": "Folder Setup", "triggerDrawingType": "MANUAL", "triggerTaskType": "Onboarding", "scope": "Project", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-01-02", "workflowVersion": "1", "milestone": "Onboarding", "tasks": "Onboarding / Receive Layout", "subtask": "Sheet Setup", "triggerDrawingType": "MANUAL", "triggerTaskType": "Onboarding", "scope": "Project", "responsible": "", "hours": "", "subtaskOrder": 2, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-01-03", "workflowVersion": "1", "milestone": "Onboarding", "tasks": "Onboarding / Receive Layout", "subtask": "Zoning & Keypad Location", "triggerDrawingType": "MANUAL", "triggerTaskType": "Onboarding", "scope": "Project", "responsible": "", "hours": "", "subtaskOrder": 3, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-01-04", "workflowVersion": "1", "milestone": "Onboarding", "tasks": "Onboarding / Receive Layout", "subtask": "Technical Table Setup", "triggerDrawingType": "MANUAL", "triggerTaskType": "Onboarding", "scope": "Project", "responsible": "", "hours": "", "subtaskOrder": 4, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-01-05", "workflowVersion": "1", "milestone": "Onboarding", "tasks": "Onboarding / Receive Layout", "subtask": "Zone Table with Area and Status", "triggerDrawingType": "MANUAL", "triggerTaskType": "Onboarding", "scope": "Project", "responsible": "", "hours": "", "subtaskOrder": 5, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-02-01", "workflowVersion": "1", "milestone": "Brief from Client & Architect", "tasks": "Brief from Client & Architect", "subtask": "Meeting", "triggerDrawingType": "MANUAL", "triggerTaskType": "Client / Architect Brief", "scope": "Project", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": false, "executionNote": "", "optional": false}, {"id": "PDF-03-01", "workflowVersion": "1", "milestone": "Concept", "tasks": "Concept / Freeze Products", "subtask": "Initial Concept", "triggerDrawingType": "LAYOUT", "triggerTaskType": "Concept | 2D", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-03-02", "workflowVersion": "1", "milestone": "Concept", "tasks": "Concept / Freeze Products", "subtask": "Meeting with CL / Architect to understand Theme", "triggerDrawingType": "LAYOUT", "triggerTaskType": "Concept | 2D", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 2, "completionUploadRequired": false, "executionNote": "", "optional": false}, {"id": "PDF-03-03", "workflowVersion": "1", "milestone": "Concept", "tasks": "Concept / Freeze Products", "subtask": "Present & Discuss with CL / Architect", "triggerDrawingType": "LAYOUT", "triggerTaskType": "Concept | 2D", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 3, "completionUploadRequired": false, "executionNote": "", "optional": false}, {"id": "PDF-04-01", "workflowVersion": "1", "milestone": "Concept", "tasks": "Preliminary Budgeting", "subtask": "Preliminary Budgeting", "triggerDrawingType": "LAYOUT", "triggerTaskType": "Preliminary Budgeting", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-05-01", "workflowVersion": "1", "milestone": "Control Finalisation", "tasks": "Control Finalisation", "subtask": "Showcase Wireless / Wired Options with budget", "triggerDrawingType": "LAYOUT", "triggerTaskType": "Control Finalisation", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": false, "executionNote": "Conduiting and box fixing at civil stage", "optional": false}, {"id": "PDF-05-02", "workflowVersion": "1", "milestone": "Control Finalisation", "tasks": "Control Finalisation", "subtask": "Showroom Visits [if required]", "triggerDrawingType": "LAYOUT", "triggerTaskType": "Control Finalisation", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 2, "completionUploadRequired": false, "executionNote": "Conduiting and box fixing at civil stage", "optional": true}, {"id": "PDF-05-03", "workflowVersion": "1", "milestone": "Control Finalisation", "tasks": "Control Finalisation", "subtask": "Discuss & Close", "triggerDrawingType": "LAYOUT", "triggerTaskType": "Control Finalisation", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 3, "completionUploadRequired": false, "executionNote": "Conduiting and box fixing at civil stage", "optional": false}, {"id": "PDF-06-01", "workflowVersion": "1", "milestone": "Wall Electrical | LUI", "tasks": "Keypad & Lamp Socket Locations", "subtask": "Meeting with Controls Vendor / CL / Architect [if required]", "triggerDrawingType": "WE", "triggerTaskType": "Wall Electrical Drawings", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": false, "executionNote": "", "optional": true}, {"id": "PDF-06-02", "workflowVersion": "1", "milestone": "Wall Electrical | LUI", "tasks": "Keypad & Lamp Socket Locations", "subtask": "Lighting User Interface / Draw", "triggerDrawingType": "WE", "triggerTaskType": "Wall Electrical Drawings", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 2, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-06-03", "workflowVersion": "1", "milestone": "Wall Electrical | LUI", "tasks": "Keypad & Lamp Socket Locations", "subtask": "Issue & Discuss / Revision / Approval Final", "triggerDrawingType": "WE", "triggerTaskType": "Wall Electrical Drawings", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 3, "completionUploadRequired": false, "executionNote": "", "optional": false}, {"id": "PDF-07-01", "workflowVersion": "1", "milestone": "False Ceiling Corrections", "tasks": "False Ceiling Corrections", "subtask": "Design Development / Freeze Product", "triggerDrawingType": "FC", "triggerTaskType": "False Ceiling Drawings", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": true, "executionNote": "Issue - brief & review", "optional": false}, {"id": "PDF-07-02", "workflowVersion": "1", "milestone": "False Ceiling Corrections", "tasks": "False Ceiling Corrections", "subtask": "Typical Section Detail / Draw", "triggerDrawingType": "FC", "triggerTaskType": "False Ceiling Drawings", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 2, "completionUploadRequired": true, "executionNote": "Issue - brief & review", "optional": false}, {"id": "PDF-07-03", "workflowVersion": "1", "milestone": "False Ceiling Corrections", "tasks": "False Ceiling Corrections", "subtask": "Issue & Discuss / Revision / Approval Final", "triggerDrawingType": "FC", "triggerTaskType": "False Ceiling Drawings", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 3, "completionUploadRequired": false, "executionNote": "Issue - brief & review", "optional": false}, {"id": "PDF-08-01", "workflowVersion": "1", "milestone": "Night Renders", "tasks": "Night Renders", "subtask": "3D Renders", "triggerDrawingType": "3D", "triggerTaskType": "3D Renders", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-08-02", "workflowVersion": "1", "milestone": "Night Renders", "tasks": "Night Renders", "subtask": "Product Assessment / Mockup / Freeze", "triggerDrawingType": "3D", "triggerTaskType": "3D Renders", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 2, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-09-01", "workflowVersion": "1", "milestone": "Wiring Drawings & Documentation", "tasks": "Lighting Layout / RCP / CIR", "subtask": "RCP / FLR / CIR / Draw", "triggerDrawingType": "FC WITH AC / FAN", "triggerTaskType": "Lighting Layout / Wiring", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-09-02", "workflowVersion": "1", "milestone": "Wiring Drawings & Documentation", "tasks": "Lighting Layout / RCP / CIR", "subtask": "Issue & Discuss / Revision / Approval Final", "triggerDrawingType": "FC WITH AC / FAN", "triggerTaskType": "Lighting Layout / Wiring", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 2, "completionUploadRequired": false, "executionNote": "", "optional": false}, {"id": "PDF-10-01", "workflowVersion": "1", "milestone": "Wiring Drawings & Documentation", "tasks": "Technical Table", "subtask": "Documentation / Tech Table", "triggerDrawingType": "FC WITH AC / FAN", "triggerTaskType": "Technical Table / Documentation", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-10-02", "workflowVersion": "1", "milestone": "Wiring Drawings & Documentation", "tasks": "Technical Table", "subtask": "Documentation / Luminaire Schedule", "triggerDrawingType": "FC WITH AC / FAN", "triggerTaskType": "Technical Table / Documentation", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 2, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-10-03", "workflowVersion": "1", "milestone": "Wiring Drawings & Documentation", "tasks": "Technical Table", "subtask": "Internal Review", "triggerDrawingType": "FC WITH AC / FAN", "triggerTaskType": "Technical Table / Documentation", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 3, "completionUploadRequired": false, "executionNote": "", "optional": false}, {"id": "PDF-10-04", "workflowVersion": "1", "milestone": "Wiring Drawings & Documentation", "tasks": "Technical Table", "subtask": "External Review", "triggerDrawingType": "FC WITH AC / FAN", "triggerTaskType": "Technical Table / Documentation", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 4, "completionUploadRequired": false, "executionNote": "", "optional": false}, {"id": "PDF-11-01", "workflowVersion": "1", "milestone": "Finalise Architectural Lighting", "tasks": "Finalise Architectural Lighting", "subtask": "External Review / Mockup / Discuss BOQ", "triggerDrawingType": "MANUAL", "triggerTaskType": "Finalise Architectural Lighting", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": false, "executionNote": "", "optional": false}, {"id": "PDF-11-02", "workflowVersion": "1", "milestone": "Finalise Architectural Lighting", "tasks": "Finalise Architectural Lighting", "subtask": "Arranging samples for CL Review", "triggerDrawingType": "MANUAL", "triggerTaskType": "Finalise Architectural Lighting", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 2, "completionUploadRequired": false, "executionNote": "", "optional": false}, {"id": "PDF-11-03", "workflowVersion": "1", "milestone": "Finalise Architectural Lighting", "tasks": "Finalise Architectural Lighting", "subtask": "Present final BOQ with colour test / Close", "triggerDrawingType": "MANUAL", "triggerTaskType": "Finalise Architectural Lighting", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 3, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-11-04", "workflowVersion": "1", "milestone": "Finalise Architectural Lighting", "tasks": "Finalise Architectural Lighting", "subtask": "Light Marking Sheet / Arrange All Samples", "triggerDrawingType": "MANUAL", "triggerTaskType": "Finalise Architectural Lighting", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 4, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-11-05", "workflowVersion": "1", "milestone": "Finalise Architectural Lighting", "tasks": "Finalise Architectural Lighting", "subtask": "Site Execution Sheet", "triggerDrawingType": "MANUAL", "triggerTaskType": "Finalise Architectural Lighting", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 5, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-12-01", "workflowVersion": "1", "milestone": "Bathroom Stone", "tasks": "Bathroom / Wall Elevation", "subtask": "3D Renders", "triggerDrawingType": "DETAIL", "triggerTaskType": "Bathroom Elevation", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-12-02", "workflowVersion": "1", "milestone": "Bathroom Stone", "tasks": "Bathroom / Wall Elevation", "subtask": "Design Development / Freeze Product", "triggerDrawingType": "DETAIL", "triggerTaskType": "Bathroom Elevation", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 2, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-12-03", "workflowVersion": "1", "milestone": "Bathroom Stone", "tasks": "Bathroom / Wall Elevation", "subtask": "Typical Section Detail / Draw", "triggerDrawingType": "DETAIL", "triggerTaskType": "Bathroom Elevation", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 3, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-12-04", "workflowVersion": "1", "milestone": "Bathroom Stone", "tasks": "Bathroom / Wall Elevation", "subtask": "CL Meeting / Revision / Approval Final", "triggerDrawingType": "DETAIL", "triggerTaskType": "Bathroom Elevation", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 4, "completionUploadRequired": false, "executionNote": "", "optional": false}, {"id": "PDF-13-01", "workflowVersion": "1", "milestone": "Facade", "tasks": "Facade / Wall Elevation", "subtask": "3D Renders", "triggerDrawingType": "FACADE", "triggerTaskType": "Facade Elevation Drawings", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-13-02", "workflowVersion": "1", "milestone": "Facade", "tasks": "Facade / Wall Elevation", "subtask": "Design Development / Freeze Product", "triggerDrawingType": "FACADE", "triggerTaskType": "Facade Elevation Drawings", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 2, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-13-03", "workflowVersion": "1", "milestone": "Facade", "tasks": "Facade / Wall Elevation", "subtask": "Typical Section Detail / Draw", "triggerDrawingType": "FACADE", "triggerTaskType": "Facade Elevation Drawings", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 3, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-13-04", "workflowVersion": "1", "milestone": "Facade", "tasks": "Facade / Wall Elevation", "subtask": "CL Meeting / Revision / Approval Final", "triggerDrawingType": "FACADE", "triggerTaskType": "Facade Elevation Drawings", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 4, "completionUploadRequired": false, "executionNote": "", "optional": false}, {"id": "PDF-14-01", "workflowVersion": "1", "milestone": "Furniture", "tasks": "Furniture / Wall Elevation", "subtask": "Design Development / Freeze Products", "triggerDrawingType": "FURNITURE", "triggerTaskType": "Furniture / Joinery", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-14-02", "workflowVersion": "1", "milestone": "Furniture", "tasks": "Furniture / Wall Elevation", "subtask": "Typical Section Detail / Draw", "triggerDrawingType": "FURNITURE", "triggerTaskType": "Furniture / Joinery", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 2, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-14-03", "workflowVersion": "1", "milestone": "Furniture", "tasks": "Furniture / Wall Elevation", "subtask": "Arranging samples for production", "triggerDrawingType": "FURNITURE", "triggerTaskType": "Furniture / Joinery", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 3, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-14-04", "workflowVersion": "1", "milestone": "Furniture", "tasks": "Furniture / Wall Elevation", "subtask": "Meeting with Furniture Vendor / Architect", "triggerDrawingType": "FURNITURE", "triggerTaskType": "Furniture / Joinery", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 4, "completionUploadRequired": false, "executionNote": "", "optional": false}, {"id": "PDF-14-05", "workflowVersion": "1", "milestone": "Furniture", "tasks": "Furniture / Wall Elevation", "subtask": "Freeze Documentation", "triggerDrawingType": "FURNITURE", "triggerTaskType": "Furniture / Joinery", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 5, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-15-01", "workflowVersion": "1", "milestone": "Decorative Lights / Art Curator", "tasks": "Concept & Decorative Selection", "subtask": "Initial Concept", "triggerDrawingType": "LAYOUT", "triggerTaskType": "Decorative Selection", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 1, "completionUploadRequired": true, "executionNote": "", "optional": false}, {"id": "PDF-15-02", "workflowVersion": "1", "milestone": "Decorative Lights / Art Curator", "tasks": "Concept & Decorative Selection", "subtask": "Meeting with CL / Architect to understand Theme", "triggerDrawingType": "LAYOUT", "triggerTaskType": "Decorative Selection", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 2, "completionUploadRequired": false, "executionNote": "", "optional": false}, {"id": "PDF-15-03", "workflowVersion": "1", "milestone": "Decorative Lights / Art Curator", "tasks": "Concept & Decorative Selection", "subtask": "Present & Discuss with CL / Architect", "triggerDrawingType": "LAYOUT", "triggerTaskType": "Decorative Selection", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 3, "completionUploadRequired": false, "executionNote": "", "optional": false}, {"id": "PDF-15-04", "workflowVersion": "1", "milestone": "Decorative Lights / Art Curator", "tasks": "Concept & Decorative Selection", "subtask": "Preliminary Budgeting", "triggerDrawingType": "LAYOUT", "triggerTaskType": "Decorative Selection", "scope": "Area", "responsible": "", "hours": "", "subtaskOrder": 4, "completionUploadRequired": true, "executionNote": "", "optional": false}];
 
 function workflowGroups(rows) {
@@ -5129,351 +3988,70 @@ function workflowGroups(rows) {
   });
   return [...groups.values()];
 }
-function workflowActivationStatus(instances,task,sub,area,activation){
-  const sameStage=t=>{
-    if(t.parentDesignTaskId||String(t.workflowVersion)!=='2')return false;
-    let snapshot=[];try{snapshot=JSON.parse(t.workflowTemplateSnapshot||'[]');}catch(_){}
-    return t.lineWorkId===task.lineWorkId||snapshot.some(r=>r.lineWorkId===task.lineWorkId)||(!snapshot.length&&t.taskType===task.triggerTaskType&&drawingTypeKey(t.dependencyDrawingType)===drawingTypeKey(task.triggerDrawingType));
-  };
-  const covers=t=>{if(!area)return true;try{return JSON.parse(t.workflowCoverage||'[]').some(x=>String(x.floor)===String(area.floor)&&String(x.area)===String(area.area));}catch(_){return false;}};
-  const stages=instances.filter(w=>sameStage(w.task||{})&&covers(w.task));
-  const matching=instances.filter(w=>{
-    const t=w.task||{};
-    if(String(t.workflowVersion)==='2'&&!t.parentDesignTaskId)return !sub&&stages.includes(w);
-    const sameTask=t.parentTask===task.tasks||t.taskType===task.triggerTaskType||t.parentTask===task.triggerTaskType;
-    const inArea=!area||(String(t.floor)===String(area.floor)&&String(t.area)===String(area.area))||(!t.floor&&stages.some(p=>p.designTaskId===t.parentDesignTaskId));
-    return sameTask&&inArea&&(!t.milestone||t.milestone===task.milestone)&&(!sub||t.lineWorkId===sub.lineWorkId||t.taskType===sub.subtask||t.subtask===sub.subtask);
-  });
-  if(!matching.length){
-    if(stages.length)return sub?'Activated · awaiting parent start':'Activated';
-    return activation?.status||'Not activated';
-  }
-  if(matching.every(w=>/completed|^done$/i.test(String(w.task?.actualStatus||w.actualStatus||w.status))))return 'Completed';
-  if(matching.some(w=>/review|approval/i.test(String(w.task?.actualStatus||w.actualStatus||w.status))))return 'Up for review';
-  if(matching.some(w=>/started|in.progress|paused|completed|^done$/i.test(String(w.task?.actualStatus||w.actualStatus||w.status))))return 'In progress';
-  if(matching.some(w=>w.status==='Ready'))return 'Ready';
-  if(!sub&&stages.length&&matching.every(w=>!w.task?.parentDesignTaskId))return 'Activated';
-  return matching[0].status||'Waiting';
-}
-function workflowPrerequisite(row,drawings,zones,area,instances){
-  const type=drawingTypeKey(row.triggerDrawingType||'MANUAL');
-  if(type==='MANUAL'){
-    const confirmed=instances.some(w=>{const t=w.task||{};return !t.parentDesignTaskId&&String(t.workflowVersion)==='2'&&((row.lineWorkId&&t.lineWorkId===row.lineWorkId)||(t.taskType===row.triggerTaskType&&drawingTypeKey(t.dependencyDrawingType)==='MANUAL'));});
-    return {text:confirmed?'Milestone confirmed':'Milestone not confirmed',title:row.startingMilestone||'Starting milestone / approvals',ready:confirmed};
-  }
-  if(drawings===null)return {text:'Checking drawings…',title:'Loading received drawing records'};
-  if(drawings===undefined)return {text:'Unable to check drawings',title:'Could not load received drawings. Reload Line of Work to retry.'};
-  const matching=drawings.filter(d=>drawingTypeKey(d.drawingType)===type);
-  const parse=value=>{if(Array.isArray(value))return value;try{const v=JSON.parse(value||'[]');return Array.isArray(v)?v:[];}catch{return [];}};
-  const covers=(d,z)=>{
-    const coverage=parse(d.coverage);if(coverage.length)return coverage.some(c=>String(c.floor).trim().toLowerCase()===String(z.floor).trim().toLowerCase()&&(!c.area||String(c.area).trim().toLowerCase()===String(z.area).trim().toLowerCase()));
-    const floors=parse(d.floors);if(!floors.length)floors.push(...String(d.floor||'').split(',').map(f=>f.trim()).filter(Boolean));
-    return floors.some(f=>String(f).trim().toLowerCase()===String(z.floor).trim().toLowerCase())&&(!d.area||String(d.area).trim().toLowerCase()===String(z.area).trim().toLowerCase());
-  };
-  const targets=area?[area]:zones.filter(z=>z.floor&&z.area);
-  const count=targets.filter(z=>matching.some(d=>covers(d,z))).length;
-  const received=targets.length?count>0:matching.length>0;
-  const partial=received&&targets.length>0&&count<targets.length;
-  return {text:partial?'Drawing partially received':received?'Drawing received':'Drawing not received',title:`${type}${targets.length?` · ${count} of ${targets.length} areas covered`:''} · Receipt does not confirm classification or milestone approval.`,ready:received&&!partial};
-}
-
-function workflowWorkStatus(value){
-  const s=String(value||'').trim().toLowerCase();
-  if(/completed|^done$/.test(s))return {label:'Completed',bg:'#E8F2E9',fg:'#245C2B'};
-  if(/review|approval/.test(s))return {label:'Approval required',bg:'#E6EEF4',fg:'#1D4E89'};
-  if(/in.progress|^started$|paused/.test(s))return {label:'In progress',bg:'#FFF4D6',fg:'#7A5A00'};
-  if(/^ready$|^aligned$|^assigned$|^open$/.test(s))return {label:'Aligned',bg:'#F3F1EA',fg:'#625B48'};
-  return {label:'Not started',bg:'#F4E5E0',fg:'#853D32'};
-}
-
-function workflowDotStatus(value,prerequisite){
-  const raw=String(value||'').trim().toLowerCase();
-  if(/completed|^done$/.test(raw))return {status:'Completed',label:'Completed'};
-  if(/review|approval/.test(raw))return {status:'Up for review',label:'Up for review'};
-  if(/in.progress|^started$|paused/.test(raw))return {status:'In-progress',label:'In progress'};
-  if(/^aligned$/.test(raw))return {status:'Aligned',label:'Aligned'};
-  if(/^ready$|^assigned$|^open$/.test(raw))return {status:'Open',label:'Ready to start'};
-  if(prerequisite?.text==='Drawing not received')return {status:'Pending',label:'Drawing pending · Not started'};
-  if(prerequisite?.text==='Drawing partially received')return {status:'Pending',label:'Drawing partially received · Not started'};
-  if(raw.includes('awaiting parent'))return {status:'Pending',label:'Not started · Waiting for parent task'};
-  return {status:'Pending',label:'Not started'};
-}
-function workflowStageDot(statuses){
-  if(statuses.length&&statuses.every(s=>s.status==='Completed'))return {status:'Completed',label:'Completed'};
-  for(const key of ['Up for review','In-progress','Completed','Open','Aligned'])if(statuses.some(s=>s.status===key))return key==='Completed'?{status:'In-progress',label:'In progress'}:statuses.find(s=>s.status===key);
-  return statuses.find(s=>s.label.startsWith('Drawing'))||statuses[0]||{status:'Pending',label:'Not started'};
-}
-function workflowSunsetColor(position){
-  const shades=['#E8C991','#FFCB84','#FFA46C','#F27C60','#D75059','#91445B','#21364E'];
-  const point=Math.max(0,Math.min(1,position))*(shades.length-1),index=Math.min(shades.length-2,Math.floor(point)),mix=point-index;
-  const rgb=hex=>[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)),a=rgb(shades[index]),b=rgb(shades[index+1]);
-  return '#'+a.map((v,i)=>Math.round(v+(b[i]-v)*mix).toString(16).padStart(2,'0')).join('');
-}
-function workflowSunsetSegment(index,count){
-  const start=index/Math.max(1,count),end=(index+1)/Math.max(1,count);
-  return `linear-gradient(180deg,${[0,.25,.5,.75,1].map(t=>`${workflowSunsetColor(start+(end-start)*t)} ${t*100}%`).join(',')})`;
-}
-function workflowDotColor(status){
-  return ({Pending:'#FF3B30',Open:'#34C759',Aligned:'#A79B85','In-progress':'#FFCC00','Up for review':'#3399FF',Completed:'#AF52DE'})[status]||'#A79B85';
-}
-function WorkflowStatusLegend(){
-  return <footer aria-label="Workflow status dot legend" style={{display:'flex',gap:16,flexWrap:'wrap',alignItems:'center',borderTop:`1px solid ${T.line}`,paddingTop:12,marginTop:18,fontFamily:FONT_BODY,fontSize:11,color:T.inkDim}}>{[['Pending','Pending / Not started'],['Open','Ready to start'],['Aligned','Aligned'],['In-progress','In progress'],['Up for review','Up for review'],['Completed','Completed']].map(([status,label])=><span key={status} style={{display:'inline-flex',gap:6,alignItems:'center'}}><WorkflowStatusDot status={status} label={label}/>{label}</span>)}</footer>;
-}
-function WorkflowStatusDot({status,label}){
-  return <span role="img" aria-label={label} title={label} data-workflow-status={status} style={{display:'inline-block',width:10,height:10,minWidth:10,borderRadius:'50%',background:workflowDotColor(status),verticalAlign:'middle',flexShrink:0}}/>;
-}
-
-function visitCoverageList(raw,fallback){let list=raw;if(typeof raw==='string'){try{list=JSON.parse(raw);}catch{list=null;}}if(!Array.isArray(list))list=String(fallback||'').split(/\s+\+\s+|,/);return [...new Set(list.map(String).map(v=>v.trim()).filter(Boolean))];}
-function visitWorkItems(row){return visitCoverageList(row.workItems,row.milestone);}
-function visitFloors(row){return visitCoverageList(row.floors,row.floor||'Project');}
-function activeVisits(rows){return (rows||[]).filter(r=>r.active!==false&&String(r.active).toLowerCase()!=='false');}
-
-function visitHistory(row){try{const list=JSON.parse(row.history||'[]');return Array.isArray(list)?list:[];}catch{return [];}}
-const visitFloorKey=value=>String(value||'').trim().toLowerCase().replace(/ground floor|ground|0f/g,'gf').replace(/first floor/g,'1f').replace(/stilt floor|^sf$/g,'stilt').replace(/^-1f$/g,'basement');
-function scopedVisitFloors(project){
- const defs={basement:'Basement',stilt_floor:'Stilt Floor',gf:'GF','1f':'1F','2f':'2F','3f':'3F','4f':'4F',terrace:'Terrace',facade:'Facade',landscape:'Landscape'};
- const scope=project?.scope||{};
- const explicit=Object.keys(defs).some(k=>Object.hasOwn(scope,k));
- return [...new Map((explicit?Object.keys(defs).filter(k=>sheetDashboardFlag(scope[k])||scope[k]===1||scope[k]==='1').map(k=>defs[k]):[...(project?.floorZones||[]),...Object.values(project?.zones||{})].map(z=>z.floor).filter(Boolean)).map(f=>[visitFloorKey(f),f])).values()];
-}
-function scopedVisitRows(project,rows){
- const allowed=new Map(scopedVisitFloors(project).map(f=>[visitFloorKey(f),f]));
- allowed.set('project','Project');
- return rows.flatMap(row=>{
-  const floors=[...new Set(visitFloors(row).map(f=>allowed.get(visitFloorKey(f))||(row.scheduledDate?f:null)).filter(Boolean))];
-  return floors.length?[{...row,floors,floor:floors.join(' + ')}]:[];
- });
-}
-function executionVisitDefaults(project){
-  const scoped=scopedVisitFloors(project),floors=scoped.filter(f=>!['facade','landscape'].includes(visitFloorKey(f)));
-  const rows=[];const add=(stage,milestone,floor,visitType,essential=false,weekly=false)=>rows.push({visitPlanId:`EV-${project.id}-${encodeURIComponent([stage,milestone,floor,rows.filter(r=>r.milestone===milestone&&r.floor===floor).length].join("|"))}`,projectId:project.id,seq:rows.length+1,stage,milestone,floor,visitType,essential,weekly,plannedVisits:1,closed:false,history:'[]'});
-  [['False Ceiling','False Ceiling',true],['Electrical','Wiring',true],['Bathroom Stone','Bathroom Stone',false],['Ceiling Pack','Ceiling Pack | Moulding Sampling & Review',true],['Furniture','Furniture',false]].forEach(([stage,milestone,essential])=>{floors.forEach((f,i)=>add(stage,milestone,f,stage==='Furniture'||i<(stage==='Ceiling Pack'?1:2)?'Briefing & Review':'Review',essential));if(stage==='Bathroom Stone'&&scoped.some(f=>visitFloorKey(f)==='facade'))add('Facade','Facade Elevation','Facade','Briefing & Review');});
-  for(let i=0;i<floors.length;i+=2)add('Transition to Execution','Finalise Architectural Lighting',floors.slice(i,i+2).join(' + '),'Visit',true);
-  ['Marking | Cutting','Light Installation','Snag List'].forEach(milestone=>floors.forEach(f=>add('Execution Phase',milestone,f,'Weekly visit',false,true)));
-  add('Staging','Staging and Scene Setting','Project','Visit');add('Staging','Staging and Scene Setting','Project','Visit');
-  return rows;
-}
-function visitRowsWithDefaults(project,saved){
- const rows=saved||[];
- const known=new Set(rows.map(row=>String(row.visitPlanId)));
- return [...activeVisits(rows),...executionVisitDefaults(project).filter(row=>!known.has(String(row.visitPlanId))).map(row=>({...row,_draft:true}))];
-}
-function orderWorkflowGroups(groups,mode,drawings,instances){
-  if(mode==='manual')return groups;
-  const receiptDate=g=>(drawings||[]).filter(d=>drawingTypeKey(d.drawingType)===drawingTypeKey(g.first.triggerDrawingType)).map(d=>String(d.receivedSentDate||d.createdAt||'')).filter(Boolean).sort()[0]||'';
-  const rank=g=>{const statuses=g.rows.map(r=>workflowWorkStatus(workflowActivationStatus(instances,g.first,r)).label);if(statuses.every(s=>s==='Completed'))return 0;if(statuses.some(s=>['In progress','Approval required'].includes(s)))return 1;return receiptDate(g)?2:3;};
-  return groups.map((g,i)=>({g,i})).sort((a,b)=>rank(a.g)-rank(b.g)||(receiptDate(a.g)&&receiptDate(b.g)?receiptDate(a.g).localeCompare(receiptDate(b.g)):0)||a.i-b.i).map(x=>x.g);
-}
-function workflowStageBand(g){const name=String(g.first.tasks||'');return /concept/i.test(name)?0:/control.*finali[sz]|finali[sz].*control/i.test(name)?1:/wall electrical|wall elec/i.test(name)?2:/documentation/i.test(name)?4:3;}
-function pinWorkflowGroups(groups,mode='drawing'){const band=g=>{const value=workflowStageBand(g);return mode==='manual'&&value!==0&&value!==4?3:value;};return groups.map((g,i)=>({g,i})).sort((a,b)=>band(a.g)-band(b.g)||a.i-b.i).map(x=>x.g);}
-function designMeetingVisitRows(project,groups,visits){const known=new Set(visits.map(v=>String(v.visitPlanId))),extra=[];for(const g of groups)for(const row of g.rows){if(row.taskCategory!=='Meeting')continue;const key=String(row.id||row.lineWorkId||[g.first.tasks,row.subtask].join('-')),id='DM-'+project.id+'-'+key;if(known.has(id))continue;extra.push({visitPlanId:id,projectId:project.id,seq:900+extra.length,stage:'Design meeting: '+g.first.tasks,milestone:g.first.tasks,workItems:[g.first.tasks],floor:'Project',floors:['Project'],title:row.subtask,visitType:'Design meeting',plannedVisits:1,weekly:false,essential:false,closed:false,history:'[]',_designMeeting:true});}return [...visits,...extra];}
-function meetingForDesignSubtask(project,group,sub,visits){const id='DM-'+project.id+'-'+String(sub.id||sub.lineWorkId||[group.first.tasks,sub.subtask].join('-'));return visits.find(v=>String(v.visitPlanId)===id)||visits.find(v=>v.stage==='Design meeting: '+group.first.tasks&&v.title===sub.subtask);}
-function alignWorkflowVisits(groups,visits){
-  const used=new Set(),lastDoc=groups.map((g,i)=>/documentation/i.test(g.first.tasks||'')?i:-1).filter(i=>i>=0).at(-1);
-  const pairs=groups.map((group,index)=>{const text=[group.first.tasks,group.first.triggerTaskType].join(' ').toLowerCase();
-    const match=row=>{const m=visitWorkItems(row).join(' / ').toLowerCase();
-      if(String(row.stage||'').startsWith('Design meeting: '))return row.stage==='Design meeting: '+group.first.tasks;
-      if(/false ceiling|fc corrections/.test(text))return /false ceiling|ceiling pack|moulding/.test(m);
-      if(/wiring|lighting layout/.test(text))return /\bwiring\b/.test(m);
-      if(/bathroom|bath elevation/.test(text))return /bathroom stone/.test(m);
-      if(/furniture|joinery/.test(text))return /\bfurniture\b/.test(m);
-      if(/facade/.test(text))return /facade/.test(m);
-      if(/finali[sz]e architectural/.test(text)||index===lastDoc)return /finali[sz]e architectural|marking.*cutting/.test(m);
-      return false;};
-    const matched=visits.filter(row=>!used.has(row.visitPlanId)&&match(row));matched.forEach(row=>used.add(row.visitPlanId));return {group,visits:matched};});
-  return {pairs,remaining:visits.filter(row=>!used.has(row.visitPlanId))};
-}
-function momActionLines(notes){let selected=[],all=[],inActions=false,hasSections=false,follow=false;String(notes||'').split(/\r?\n/).forEach(raw=>{let line=raw.trim().replace(/^#+\s*/, '').replace(/^[-*•]\s*|^\d+[.)]\s*/,'').replace(/\*\*/g,'');if(!line)return;const heading=/^(visit summary|discussion|decisions|action items?|next steps?|follow[ -]?ups?|to[ -]?do|open points)(?:\s*\([^)]*\))?\s*:?$/i.exec(line);if(heading){inActions=/action|next|follow|to[ -]?do/i.test(heading[1]);follow=/follow/i.test(heading[1]);hasSections=true;return;}if(/^(project|milestone|floor|date|visit date|visited by|attendees)\s*:/i.test(line))return;if(/^(none|not provided|no action items|n\/a)\.?$/i.test(line))return;if(/^(action|task|item)\s*\|\s*(owner|responsible)/i.test(line)||/^[|:\s-]+$/.test(line))return;if(inActions)selected.push(follow?'Follow-up: '+line:line);all.push(line);});return hasSections?selected:all;}
-function MomDraftAssistant({projectId,row,date,visitBy,onUse,onBusy,disabled}){
-  const [notes,setNotes]=useState(''),[draft,setDraft]=useState(''),[error,setError]=useState(''),[pending,setPending]=useState(''),[recording,setRecording]=useState(false),[seconds,setSeconds]=useState(0),[clip,setClip]=useState(null);
-  const capture=useRef(null),alive=useRef(true);
-  useEffect(()=>{alive.current=true;return()=>{alive.current=false;const c=capture.current;if(c){clearInterval(c.timer);try{if(c.recorder.state!=='inactive')c.recorder.stop();}catch{}c.stream.getTracks().forEach(t=>t.stop());}};},[]);
-  useEffect(()=>{onBusy?.(!!pending||recording);return()=>onBusy?.(false);},[pending,recording,onBusy]);
-  const toBase64=blob=>new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=()=>reject(Error('Could not read the audio clip.'));reader.readAsDataURL(blob);});
-  const transcribe=async blob=>{if(!blob?.size)return;if(blob.size>2*1024*1024){setError('Use an audio clip smaller than 2 MB. Record a shorter segment.');return;}setPending('Transcribing…');setError('');try{const result=await projectApi.transcribeVisitMom({projectId,visitPlanId:row.visitPlanId,mimeType:blob.type,audio:await toBase64(blob)});if(alive.current)setNotes(value=>[value,result.text].filter(Boolean).join('\n'));}catch(e){if(alive.current)setError(e.message);}finally{if(alive.current)setPending('');}};
-  const stop=()=>{const c=capture.current;if(c&&c.recorder.state!=='inactive')c.recorder.stop();};
-  const start=async()=>{
-    if(!navigator.mediaDevices?.getUserMedia||typeof MediaRecorder==='undefined'){setError('Microphone recording is unavailable here. Use your keyboard microphone, type notes, or upload a short audio clip.');return;}
-    setError('');setPending('Opening microphone…');let stream;
-    try{stream=await navigator.mediaDevices.getUserMedia({audio:true});if(!alive.current){stream.getTracks().forEach(t=>t.stop());return;}
-      const mime=['audio/webm;codecs=opus','audio/mp4','audio/webm'].find(type=>MediaRecorder.isTypeSupported(type));
-      if(!mime)throw Error('This browser cannot record a supported audio format. Upload MP3, M4A, MP4, WAV or WebM instead.');
-      const recorder=new MediaRecorder(stream,{mimeType:mime,audioBitsPerSecond:64000}),chunks=[];let size=0,elapsed=0;
-      const c={recorder,stream,timer:null};capture.current=c;
-      recorder.ondataavailable=e=>{if(e.data.size){chunks.push(e.data);size+=e.data.size;if(size>=1900000)stop();}};
-      recorder.onerror=()=>{if(alive.current)setError('The microphone stopped unexpectedly. You can retry or type your notes.');stop();};
-      recorder.onstop=()=>{clearInterval(c.timer);stream.getTracks().forEach(t=>t.stop());if(capture.current===c)capture.current=null;if(!alive.current)return;setRecording(false);const blob=new Blob(chunks,{type:mime});setClip(blob);transcribe(blob);};
-      recorder.start(1000);setSeconds(0);setRecording(true);setPending('');c.timer=setInterval(()=>{elapsed++;if(alive.current)setSeconds(elapsed);if(elapsed>=120)stop();},1000);
-    }catch(e){stream?.getTracks().forEach(t=>t.stop());if(alive.current){setPending('');setError(e.name==='NotAllowedError'?'Microphone permission was denied. Enable it or type/upload your notes.':e.message);}}
-  };
-  const generate=async()=>{setPending('Preparing MOM draft…');setError('');try{const result=await projectApi.draftVisitMom({projectId,visitPlanId:row.visitPlanId,notes,date,visitBy});if(alive.current)setDraft(result.text);}catch(e){if(alive.current)setError(e.message);}finally{if(alive.current)setPending('');}};
-  const working=disabled||!!pending||recording;
-  return <section aria-label="AI MOM assistant" style={{border:`1px solid ${T.line}`,padding:12,margin:'16px 0',background:'#F3F1EA',fontFamily:FONT_BODY}}><h4 style={{margin:'0 0 8px',fontFamily:FONT_DISPLAY}}>Dictate & Draft MOM</h4><p style={{fontSize:12,color:T.inkDim,lineHeight:1.5}}>Record short Hindi or English notes, or type them below. Audio/notes are sent to OpenAI for transcription and drafting. Review the result before using it.</p><div style={{display:'flex',gap:7,flexWrap:'wrap',alignItems:'center',marginBottom:10}}>{recording?<button type="button" style={{...smallBtn,color:T.redline}} onClick={stop}>Stop & transcribe ({seconds}s)</button>:<button type="button" style={smallBtn} disabled={working} onClick={start}>Record dictation</button>}<label style={{...smallBtn,opacity:working?0.5:1,cursor:working?'default':'pointer'}}>Upload audio<input aria-label="Upload MOM audio" type="file" accept="audio/*" disabled={working} style={{display:'none'}} onChange={e=>{const file=e.target.files?.[0];e.target.value='';if(file){setClip(file);transcribe(file);}}}/></label>{clip&&!recording&&<button type="button" disabled={working} style={smallBtn} onClick={()=>transcribe(clip)}>Retry transcription</button>}</div><textarea aria-label="Dictated visit notes" value={notes} maxLength={12000} disabled={working} onChange={e=>setNotes(e.target.value)} placeholder="Raw visit notes / dictation transcript" style={{...inputStyle,fontSize:13,minHeight:100,resize:'vertical'}}/><p style={{fontSize:11,color:T.inkDim}}>Up to 2 minutes per recording / 2 MB per clip. You can add more segments.</p><button type="button" disabled={working||!notes.trim()} style={smallBtn} onClick={generate}>Generate MOM draft</button>{pending&&<p role="status" style={{fontSize:12}}>{pending}</p>}{error&&<p role="alert" style={{fontSize:12,color:T.redline}}>{error}</p>}{draft&&<div style={{marginTop:14}}><label style={{fontSize:12,fontWeight:600}}>Review AI draft<textarea aria-label="AI MOM draft" value={draft} disabled={working} onChange={e=>setDraft(e.target.value)} style={{...inputStyle,fontSize:13,minHeight:180,marginTop:6,resize:'vertical'}}/></label><button type="button" disabled={working||!draft.trim()} style={{...smallBtn,marginTop:8}} onClick={()=>onUse(draft)}>Use this draft</button></div>}</section>;
-}
-
-function ExecutionVisitPlanner({project,rows,onChange,loadError,loading,children,state,persist,focusVisitId,initialMomEntry=null,modalOnly=false,onMomClose,onMomSaved}){
-  const [assisting,setAssisting]=useState(false),[pointBusy,setPointBusy]=useState(false);
-  const focusedVisitRef=useRef(null);useEffect(()=>{if(focusVisitId&&!loading)focusedVisitRef.current?.scrollIntoView({block:"center",behavior:"smooth"});},[focusVisitId,loading,rows]);
-  const [draft,setDraft]=useState(()=>initialMomEntry?{kind:'record',...initialMomEntry}:null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
-  const closeDraft=()=>{setDraft(null);if(modalOnly)onMomClose?.()};
-  const savePlan=async(list,initializeOnly=false)=>{const previous=rows,previousDraft=draft;list=list.map(r=>({...r,workItems:visitWorkItems(r),floors:visitFloors(r),milestone:visitWorkItems(r).join(' + '),floor:visitFloors(r).join(' + ')}));if(rows.some(r=>r._draft)){const all=new Map(rows.map(r=>[r.visitPlanId,r]));list.forEach(r=>all.set(r.visitPlanId,r));list=[...all.values()];}list=list.map(r=>({...r,workItems:visitWorkItems(r),floors:visitFloors(r),milestone:visitWorkItems(r).join(' + '),floor:visitFloors(r).join(' + ')}));setBusy(true);setError('');setNotice('Changes applied · Saving…');const merged=new Map(rows.map(r=>[r.visitPlanId,r]));list.forEach(r=>merged.set(r.visitPlanId,{...merged.get(r.visitPlanId),...r}));onChange([...merged.values()].sort((a,b)=>Number(a.seq)-Number(b.seq)));setDraft(null);try{onChange(activeVisits(await projectApi.saveExecutionVisits(project.id,list,initializeOnly)));setNotice('Saved to Google Sheets.');}catch(e){onChange(previous);setDraft(previousDraft);setNotice('');setError(`Could not save: ${e.message} Previous values restored. Retry your changes.`);}finally{setBusy(false);}};
-  const record=async()=>{
-    let entry={...draft,points:(draft.points||[]).map(p=>({...p,photos:[...(p.photos||[])]}))};
-    setBusy(true);setError('');setNotice('Saving visit and pictures…');
-    try{
-      const prepared=await prepareMomPoints(entry.points,async(point,photo)=>{
-        return apiRequest('uploadMomPointPhoto',{projectId:project.id,visitPlanId:entry.row.visitPlanId,visitId:entry.visitId,pointId:point.id,photoId:photo.uploadId,name:photo.name,caption:photo.caption||'',base64:photo.preview.split(',')[1],originalBase64:photo.strokes?.length?photo.original.split(',')[1]:'',marked:!!photo.strokes?.length},'POST',120000);
-      },points=>{entry={...entry,points};setDraft(d=>d?.visitId===entry.visitId?{...d,points}:d);});
-      entry={...entry,points:prepared};
-      const saved=await projectApi.recordExecutionVisit({projectId:project.id,visitPlanId:entry.row.visitPlanId,visitId:entry.visitId,date:entry.date,visitBy:entry.visitBy,notes:momPointNotes(prepared),points:prepared,scheduledFor:entry.row.scheduledDate||''});
-      onChange(activeVisits(saved));setDraft(null);
-      if(typeof CustomEvent!=='undefined')window.dispatchEvent?.(new CustomEvent('enlighten-mom-tasks-changed',{detail:{projectId:project.id}}));
-      setNotice('Visit points, circuits and pictures saved.');onMomSaved?.();
-    }catch(e){setDraft(entry);setNotice('');setError(`Visit could not be saved: ${e.message} Your draft is kept; retry to save it.`);}finally{setBusy(false);}
-  };
-
-  const editReview=row=>setDraft({kind:'plan',row:{...row,workItems:visitWorkItems(row),floors:visitFloors(row)}});
-  const newReview=work=>editReview({visitPlanId:uid(),seq:Math.max(0,...rows.map(r=>Number(r.seq)||0))+1,stage:'Site review',milestone:work||'False Ceiling',floor:(project.floorZones||[])[0]?.floor||'Project',title:'',visitType:'Review',plannedVisits:1,weekly:false,essential:false,closed:false});
-  const workOptions=[...new Set(['False Ceiling','Wiring','Bathroom Stone','Facade Elevation','Ceiling Pack | Moulding Sampling & Review','Furniture','Finalise Architectural Lighting','Marking | Cutting','Light Installation','Snag List','Staging and Scene Setting',...rows.flatMap(visitWorkItems),...(draft?.row?.workItems||[])])];
-  const floorOptions=[...scopedVisitFloors(project),'Project'];
-  const toggleCoverage=(field,value,checked)=>setDraft(d=>({...d,row:{...d.row,[field]:checked?[...new Set([...(d.row[field]||[]),value])]:(d.row[field]||[]).filter(v=>v!==value)}}));
-  const removeReview=async row=>{const previous=rows,entry=draft;setDraft(null);onChange(rows.filter(r=>r.visitPlanId!==row.visitPlanId));if(row._draft||!rows.some(r=>r.visitPlanId===row.visitPlanId)){setNotice('Review removed from draft.');return;}setBusy(true);setError('');setNotice('Removing review…');try{onChange(activeVisits(await projectApi.deleteExecutionVisit({projectId:project.id,visitPlanId:row.visitPlanId})));setNotice('Review removed.');}catch(e){onChange(previous);setDraft(entry);setNotice('');setError(e.message);}finally{setBusy(false);}};
-  const openVisitAction=async(row,kind)=>{if(busy)return;setError('');if(kind==='schedule'){setDraft({kind,row,date:row.scheduledDate||todayISO()});return;}if(row._designMeeting){setBusy(true);try{const saved=activeVisits(await projectApi.saveExecutionVisits(project.id,[row],true));onChange(saved);row=saved.find(v=>String(v.visitPlanId)===String(row.visitPlanId));if(!row)throw Error('Meeting could not be prepared.');}catch(e){setError(e.message);return;}finally{setBusy(false);}}setDraft(kind==='schedule'?{kind,row,date:row.scheduledDate||todayISO()}:{kind:'record',row,visitId:uid(),date:todayISO(),visitBy:'',notes:'',points:[newMomPoint()]});};
-  const [workflowThread,setWorkflowThread]=useState(null),[workflowText,setWorkflowText]=useState(''),[workflowError,setWorkflowError]=useState(''),[workflowBusy,setWorkflowBusy]=useState(false);
-  const openWorkflowThread=async(item,action='read')=>{
-   setWorkflowBusy(true);setWorkflowError('');
-   if(action==='read'){setWorkflowText('');setWorkflowThread({item});}
-   try{const data=await apiRequest('assignedWorkThread',{action:'workflow-'+action,projectId:item.projectId,threadKey:item.key,title:item.title,priority:item.priority,comment:action==='comment'?workflowText:''},'POST');setWorkflowThread({item,data});if(action==='comment')setWorkflowText('');}
-   catch(e){setWorkflowError(e.message);}finally{setWorkflowBusy(false);}
-  };
-  const workflowComment=(kind,id,title)=>id&&<button type="button" disabled={workflowBusy} aria-label={'Discuss '+title} title="Open discussion" style={{display:'inline-grid',placeItems:'center',verticalAlign:'middle',margin:'0 5px',padding:3,border:0,background:'transparent',color:T.blue,cursor:'pointer'}} onClick={()=>openWorkflowThread({projectId:project.id,key:kind+':'+id,title,projectName:project.name})}><WihComment size={15} aria-hidden="true"/></button>;
-  const meetingForVisit=row=>row.scheduledMeeting||(state?.meetings||[]).find(m=>String(m.projectId)===String(project.id)&&String(m.visitPlanId)===String(row.visitPlanId)&&!sheetDashboardFlag(m.happened)&&String(m.active).toLowerCase()!=='false');
-  const canEditVisit=row=>{
-    if(!state)return true;
-    const user=state.currentUser;
-    if(!user||String(user.appAccess).toLowerCase()==='viewer')return false;
-    if(String(user.appAccess).toLowerCase()==='admin'||projectRole(state,project.id)==='Admin')return true;
-    const meeting=meetingForVisit(row);
-    if(!meeting)return false;
-    if(meeting.scheduledByUserId)return String(meeting.scheduledByUserId)===String(user.userId);
-    const match=value=>String(value||'').trim().toLowerCase();
-    return !!meeting.createdBy&&[user.name,user.email].some(value=>match(value)===match(meeting.createdBy));
-  };
-  const visitSchedule=row=>{
-    const meeting=meetingForVisit(row),hours=[scheduledTime(meeting?.time),scheduledTime(meeting?.endTime)].filter(Boolean).join(' – ');
-    const label=[formatProjectDate(row.scheduledDate),hours].filter(Boolean).join(' · ');
-    const style={padding:'2px 5px',background:'#FFF4D6',color:'#7A5A00',fontWeight:600,marginBottom:4};
-    return canEditVisit(row)?<button type="button" disabled={busy} aria-label={'Edit visit date and time · '+label} onClick={()=>openVisitAction(row,'schedule')} style={{...style,border:0,cursor:'pointer',font:'inherit',fontWeight:600,textDecoration:'underline'}}>{label}</button>:<span style={style}>{label}</span>;
-  };
-  const renderDesignMeetingControls=(row,mode,disabled=false)=>row?<span ref={String(row.visitPlanId)===String(focusVisitId)?focusedVisitRef:undefined} data-diary-highlight={String(row.visitPlanId)===String(focusVisitId)||undefined} className="design-meeting-inline" aria-label={`Meeting actions for ${row.title||row.milestone}`} style={{display:'inline-flex',alignItems:'center',gap:6,flexWrap:'wrap',background:String(row.visitPlanId)===String(focusVisitId)?'#FFF0C2':'transparent',outline:String(row.visitPlanId)===String(focusVisitId)?'2px solid #DDAA55':undefined,padding:0,marginLeft:8,borderRadius:3,verticalAlign:'middle'}}><button type="button" disabled={busy||disabled||!canEditVisit(row)} onClick={()=>openVisitAction(row,'schedule')} style={{...smallBtn,padding:'3px 5px',fontSize:9}}>{row.scheduledDate?'Reschedule':visitHistory(row).length?'Schedule follow-up':'Schedule'}</button><button type="button" disabled={busy||disabled||row._draft} onClick={()=>openVisitAction(row,'record')} style={{...smallBtn,padding:'3px 5px',fontSize:9}}>Log MOM</button>{row.scheduledDate&&visitSchedule(row)}</span>:null;
-  const renderVisitTable=(list,compact=false)=>list.length?(<div style={{overflowX:'auto'}}><table aria-label="Execution visit plan" style={{width:'100%',minWidth:340,borderCollapse:'collapse',tableLayout:'fixed'}}><colgroup>{!compact&&<col style={{width:'45%'}}/>}<col style={{width:compact?'27.27%':'15%'}}/><col style={{width:compact?'72.73%':'40%'}}/></colgroup>{!compact&&<thead><tr>{['Meeting / Visit','Floors','Date / Actions'].map(h=><th key={h} style={{...thStyle,background:'#D2CDC1',color:T.ink,textAlign:h==='Meeting / Visit'?'left':'center',whiteSpace:'normal',fontSize:9}}>{h}</th>)}</tr></thead>}<tbody>{list.map(row=>{const history=visitHistory(row),logged=(state?.meetings||[]).filter(m=>String(m.projectId)===String(project.id)&&String(m.visitPlanId)===String(row.visitPlanId)&&sheetDashboardFlag(m.happened)&&m.active!==false),last=[...history,...logged].map(v=>v.date).filter(Boolean).sort().at(-1);if(row._blank)return <tr key={row.visitPlanId} data-design-alignment={row._alignmentKey} style={{height:44}}><td colSpan={3} style={{padding:0,border:0}}/></tr>;return <tr key={row.visitPlanId} ref={String(row.visitPlanId)===String(focusVisitId)?focusedVisitRef:undefined} data-diary-highlight={String(row.visitPlanId)===String(focusVisitId)||undefined} data-design-alignment={row._alignmentKey} style={{outline:String(row.visitPlanId)===String(focusVisitId)?'2px solid #DDAA55':undefined,height:row._designAction?44:undefined,background:row._designAction||compact?'#F3E6ED':undefined}}>{!compact&&<td style={{...tdStyle,padding:'4px 6px',lineHeight:1.25,textAlign:'left',fontSize:12,overflowWrap:'anywhere'}}>{!row._designAction&&<><button disabled={busy} aria-label={`Edit visit ${row.milestone} ${row.floor}`} title="Edit review and view visit history" onClick={()=>editReview(row)} style={{font:'inherit',fontWeight:600,border:0,background:'transparent',textAlign:'left',color:T.ink,cursor:'pointer',padding:0}}>{row.title||row.visitType||'Review'}</button>{workflowComment('meeting',row.visitPlanId,row.title||row.visitType||'Review')}{!compact&&<div style={{fontSize:10,color:T.inkDim,marginTop:2}}>{visitWorkItems(row).join(' + ')}</div>}</>}</td>}<td style={{...tdStyle,padding:'4px 6px',lineHeight:1.25,fontSize:11}}>{!row._designAction&&visitFloors(meetingForVisit(row)||row).map(f=><div key={f}>{f}</div>)}</td><td style={{...tdStyle,padding:'4px 6px',lineHeight:1.25,fontSize:11}}>{last&&<div title="Completed visit" style={{padding:'2px 5px',background:'#E8F2E9',color:'#245C2B',fontWeight:600,marginBottom:4}}>MOM logged · {formatProjectDate(last)}</div>}{row.scheduledDate&&<div>{visitSchedule(row)}</div>}<div style={{display:'flex',gap:5,justifyContent:'center',alignItems:'center',flexWrap:'wrap'}}><button type="button" disabled={busy||!canEditVisit(row)} aria-label={`Schedule ${row.milestone} ${row.floor}`} title={undefined} style={{...smallBtn,padding:'3px 5px',fontSize:9}} onClick={()=>openVisitAction(row,'schedule')}>{row.scheduledDate?'Reschedule':last?'Schedule follow-up':'Schedule'}</button><button disabled={busy||row._draft} title={row._draft?'Save the visit plan first':'Record visit minutes and completion date'} style={{...smallBtn,padding:'3px 5px',fontSize:9}} onClick={()=>openVisitAction(row,'record')}>{last&&!row.scheduledDate?'Log another visit':'Log MOM'}</button></div></td></tr>;})}</tbody></table></div>):null;
-  return <section id="execution-visit-plan" style={{marginTop:0,fontFamily:FONT_BODY}}>{!modalOnly&&<><div style={{display:'flex',gap:12,alignItems:'center',justifyContent:'space-between',flexWrap:'wrap'}}><h3 style={{fontFamily:FONT_DISPLAY}}>{children?'Visit plan':'Execution and Task'}</h3>{!loading&&!loadError&&<div style={{display:'flex',gap:8}}>{rows.some(r=>r._draft)&&<Btn disabled={busy} onClick={()=>savePlan(rows,true)}>Save visit plan</Btn>}<Btn disabled={busy} onClick={()=>newReview()}>+ Add visit / review</Btn></div>}</div>
-    {rows.some(r=>r._draft)&&<p style={{fontSize:12,color:T.inkDim}}>Default visit plan from your schedule. Review the floors and visit counts, then save once for this project to start logging visits.</p>}{notice&&<p role="status" style={{fontSize:12,color:T.inkDim}}>{notice}</p>}{loading&&<p role="status" style={{fontFamily:FONT_BODY,fontSize:12,fontWeight:400,lineHeight:1.5,color:T.inkDim,margin:'6px 0'}}>Updating visit plan…</p>}{(error||loadError)&&<p role="alert" style={{color:T.redline,fontSize:13}}>{error||loadError}</p>}
-    {!rows.length&&!loading&&!loadError&&<p style={{fontSize:13,color:T.inkDim}}>Add a visit or review and choose the work stages and floors it covers.</p>}
-    {workflowThread&&<DiscussionDialog task={workflowThread.item} data={workflowThread.data} error={workflowError} busy={workflowBusy} text={workflowText} setText={setWorkflowText} onPost={priority=>openWorkflowThread({...workflowThread.item,priority},'comment')} showPriority onClose={()=>setWorkflowThread(null)} buttonStyle={smallBtn}/>}
-    {children?children(renderVisitTable,renderDesignMeetingControls,workflowComment,(row,action)=>{if(row&&(action!=='schedule'||canEditVisit(row)))openVisitAction(row,action);}):renderVisitTable(rows)}
-
-    </>}
-    {draft?.kind==='schedule'&&state?<div role="dialog" aria-modal="true" aria-label="Fix execution meeting" style={{position:'fixed',inset:0,zIndex:15000,background:'rgba(8,25,45,.45)',display:'flex',alignItems:'stretch',justifyContent:'flex-end'}}><div style={{background:T.paper,padding:20,width:600,maxWidth:'100%',height:'100%',overflowY:'auto',fontFamily:FONT_BODY}}><button style={smallBtn} onClick={closeDraft}>Close</button><MeetingsView state={state} persist={persist} scheduleOnly initialProjectId={project.id} initialVisit={draft.row} onScheduled={async()=>{const rows=await projectApi.listExecutionVisits(project.id);onChange(visitRowsWithDefaults(project,rows));setDraft(null);}}/></div></div>:draft&&<div role="dialog" aria-modal="true" aria-label={draft.kind==='schedule'?'Schedule execution visit':draft.kind==='record'?'Log visit MOM':'Edit visit plan'} style={{position:'fixed',inset:0,zIndex:15000,background:'rgba(8,25,45,.45)',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}><div style={{background:T.paper,padding:22,width:draft.kind==='record'?800:500,maxWidth:'100%',maxHeight:'90vh',overflowY:'auto'}}><h3>{draft.kind==='schedule'?'Schedule visit':draft.kind==='record'?'Log visit MOM': 'Edit visit / review'}</h3>{error&&<p role="alert" style={{color:T.redline}}>{error}</p>}{draft.kind==='schedule'?<><p>{draft.row.milestone} · {draft.row.floor}</p><Field label="Scheduled date"><input aria-label="Scheduled date" disabled={busy} type="date" value={draft.date} onChange={e=>setDraft(d=>({...d,date:e.target.value}))} style={inputStyle}/></Field></>:draft.kind==='record'?<><p>{draft.row.milestone} · {draft.row.floor}</p><MomDraftAssistant key={draft.visitId} projectId={project.id} row={draft.row} date={draft.date} visitBy={draft.visitBy} disabled={busy} onBusy={setAssisting} onUse={notes=>setDraft(d=>({...d,notes,points:[...(d.points||[]).filter(p=>p.text.trim()||p.photos.length||p.circuit),...splitMomPoints(notes).map(newMomPoint)]}))}/>{[['Visit date','date','date'],['Visited by','visitBy','text']].map(([label,key,type])=><Field key={key} label={label}><input aria-label={label} disabled={busy} type={type} value={draft[key]} onChange={e=>setDraft(d=>({...d,[key]:e.target.value}))} style={inputStyle}/></Field>)}<MomPointsEditor points={draft.points||[]} onChange={points=>setDraft(d=>({...d,points}))} projectId={project.id} request={apiRequest} disabled={busy||assisting} onBusy={setPointBusy}/>
-</>:<><Field label="Visit title"><input aria-label="Visit title" disabled={busy} value={draft.row.title||''} placeholder="e.g. First Review, Second Review, Briefing" maxLength={160} onChange={e=>setDraft(d=>({...d,row:{...d.row,title:e.target.value}}))} style={inputStyle}/></Field><Field label="Review type"><input aria-label="Review type" disabled={busy} value={draft.row.visitType||''} placeholder="Briefing, Review, Briefing & Review…" onChange={e=>setDraft(d=>({...d,row:{...d.row,visitType:e.target.value}}))} style={inputStyle}/></Field><fieldset style={{border:`1px solid ${T.line}`,margin:'0 0 16px',padding:12}}><legend>Work covered</legend>{workOptions.map(work=><label key={work} style={{display:'flex',gap:7,alignItems:'center',fontSize:12,marginBottom:8}}><input type="checkbox" aria-label={`Visit work ${work}`} disabled={busy} checked={draft.row.workItems.includes(work)} onChange={e=>toggleCoverage('workItems',work,e.target.checked)}/>{work}</label>)}</fieldset><fieldset style={{border:`1px solid ${T.line}`,margin:'0 0 16px',padding:12}}><legend>Floors covered</legend><label style={{display:'block',fontSize:12,marginBottom:8}}><input type="checkbox" aria-label="Visit all floors" disabled={busy} checked={floorOptions.every(f=>draft.row.floors.includes(f))} onChange={e=>setDraft(d=>({...d,row:{...d.row,floors:e.target.checked?[...floorOptions]:[]}}))}/> Select all</label>{floorOptions.map(floor=><label key={floor} style={{display:'inline-flex',gap:6,margin:'0 14px 8px 0',fontSize:12}}><input type="checkbox" aria-label={`Visit floor ${floor}`} disabled={busy} checked={draft.row.floors.includes(floor)} onChange={e=>toggleCoverage('floors',floor,e.target.checked)}/>{floor}</label>)}</fieldset><Field label="Planned visits"><input aria-label="Planned visits" disabled={busy} type="number" min={1} max={100} value={draft.row.plannedVisits||1} onChange={e=>setDraft(d=>({...d,row:{...d.row,plannedVisits:e.target.value}}))} style={inputStyle}/></Field>{[['Weekly recurring visits','weekly'],['Essential','essential'],['Milestone closed','closed']].map(([label,key])=><label key={key} style={{display:'block',marginBottom:12}}><input disabled={busy} type="checkbox" checked={sheetDashboardFlag(draft.row[key])} onChange={e=>setDraft(d=>({...d,row:{...d.row,[key]:e.target.checked}}))}/> {label}</label>)}</>}
-      {draft.kind==='plan'&&visitHistory(draft.row).length>0&&<section aria-label="Completed visit history"><h4>Visit history</h4>{visitHistory(draft.row).map(v=><div key={v.visitId} style={{padding:'8px 0',borderTop:`1px solid ${T.line}`,fontSize:12}}><strong>{formatProjectDate(v.date)}</strong> · {v.visitBy}{v.coveredWork&&<div style={{color:T.inkDim,marginTop:4}}>{v.coveredWork.join(' + ')} · {(v.coveredFloors||[]).join(', ')}</div>}{v.notes&&<p style={{margin:'5px 0',whiteSpace:'pre-wrap'}}>{v.notes}</p>}{v.pointsVersion&&<SavedMomPoints projectId={project.id} visitId={v.visitId} request={apiRequest}/>} </div>)}</section>}
-      {draft.kind==='plan'&&<button type="button" disabled={busy} style={{...smallBtn,color:T.redline,marginTop:12}} onClick={()=>removeReview(draft.row)}>Delete review</button>}
-      <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:18}}><Btn variant="ghost" disabled={busy||pointBusy} onClick={closeDraft}>Cancel</Btn><Btn disabled={busy||assisting||pointBusy||(draft.kind==='schedule'?!draft.date:draft.kind==='record'?(!draft.date||!draft.visitBy.trim()||!(draft.points||[]).some(p=>p.text.trim())):(!draft.row.workItems?.length||!draft.row.floors?.length))} onClick={draft.kind==='record'?record:draft.kind==='schedule'?()=>savePlan([{...draft.row,scheduledDate:draft.date}]):()=>savePlan([draft.row])}>{busy?'Saving…':'Save'}</Btn></div></div></div>}
-  </section>;
-}
-
-const PROJECT_ONBOARDING_TASKS=[['folder','Folder Setup'],['sheet','Sheet Setup'],['zoning','Zoning & Keypad Location'],['technical','Technical Table Setup'],['zones','Zone Table with Area and Status']];
-function ProjectOnboardingChecklist({project,state}){
- const cached=cachedWorkflowWorkspace(project.id),fromRows=rows=>Object.fromEntries((rows||[]).map(r=>[r.taskKey,{completed:r.completed===true||String(r.completed).toLowerCase()==='true',responsibleId:String(r.responsibleId||''),responsibleName:r.responsibleName||''}]));
- const [checks,setChecks]=useState(()=>fromRows(cached?.onboarding)),[pending,setPending]=useState({}),[loading,setLoading]=useState(!cached),[error,setError]=useState('');const live=useRef(true);
- const canEdit=state.currentUser?.appAccess?.toLowerCase()==='admin'||state.currentUser?.appAccess?.toLowerCase()!=='viewer'&&projectRole(state,project.id)==='Admin';
- const people=(state.teamMaster||[]).filter(m=>m.active!==false&&String(m.active).toLowerCase()!=='false'&&m.userId);
- useEffect(()=>{live.current=true;loadWorkflowWorkspace(project.id).then(data=>{if(live.current)setChecks(fromRows(data.onboarding));}).catch(e=>{if(live.current)setError(e.message);}).finally(()=>{if(live.current)setLoading(false);});return()=>{live.current=false;};},[project.id]);
- const change=async(key,patch)=>{const before=checks[key]||{};setChecks(all=>({...all,[key]:{...before,...patch}}));setPending(all=>({...all,[key]:true}));setError('');try{const saved=await apiRequest('saveProjectOnboarding',{projectId:project.id,taskKey:key,...patch},'POST',90000);if(live.current)setChecks(all=>({...all,[key]:{completed:saved.completed===true||String(saved.completed).toLowerCase()==='true',responsibleId:String(saved.responsibleId||''),responsibleName:saved.responsibleName||''}}));}catch(e){if(live.current){setChecks(all=>({...all,[key]:before}));setError('Checklist could not be saved. '+e.message);}}finally{if(live.current)setPending(all=>({...all,[key]:false}));}};
- const done=PROJECT_ONBOARDING_TASKS.filter(([key])=>checks[key]?.completed).length;
- if(!loading&&done===PROJECT_ONBOARDING_TASKS.length)return null;
- return <section aria-label="Project onboarding checklist" style={{border:`1px solid ${T.line}`,marginBottom:12,background:'#fff',fontFamily:FONT_BODY}}><div style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',background:'#F3F1EA'}}><h3 style={{flex:1,margin:0,color:T.ink,fontFamily:FONT_DISPLAY,fontSize:14,fontWeight:700}}>Onboarding</h3><span style={{fontSize:11,color:T.inkDim}}>{done} / {PROJECT_ONBOARDING_TASKS.length} done</span></div><div style={{padding:'0 14px 12px',overflowX:'auto'}}><table style={{width:'100%',minWidth:450,borderCollapse:'collapse',fontSize:12}}><thead><tr><th style={{padding:'9px 6px',textAlign:'left',borderBottom:`1px solid ${T.line}`,fontFamily:FONT_MONO,fontSize:9,color:T.inkDim}}>Subtask</th><th style={{padding:'9px 6px',textAlign:'center',width:220,borderBottom:`1px solid ${T.line}`,fontFamily:FONT_MONO,fontSize:9,color:T.inkDim}}>Responsible person</th></tr></thead><tbody>{PROJECT_ONBOARDING_TASKS.filter(([key])=>!checks[key]?.completed).map(([key,label])=>{const item=checks[key]||{},disabled=loading||!canEdit||!!pending[key];return <tr key={key}><td style={{padding:'9px 6px',borderBottom:`1px solid ${T.line}`}}><label style={{display:'flex',alignItems:'center',gap:10}}><input type="checkbox" aria-label={label} checked={!!item.completed} disabled={disabled} onChange={e=>change(key,{completed:e.target.checked})} style={{width:17,height:17,accentColor:T.navy}}/><span style={{textDecoration:item.completed?'line-through':'none',color:item.completed?T.inkDim:T.ink}}>{label}</span></label></td><td style={{padding:'6px',textAlign:'center',borderBottom:`1px solid ${T.line}`}}><div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8}}><WorkflowStatusDot status={loading?'Loading':item.completed?'Completed':'Pending'} label={loading?'Loading onboarding status':item.completed?'Completed':'Pending / Not started'}/>{canEdit?<select aria-label={`Responsible for ${label}`} disabled={disabled} value={item.responsibleId||''} onChange={e=>change(key,{responsibleId:e.target.value})} style={{...inputStyle,fontFamily:FONT_BODY,fontSize:12,padding:'5px 9px',width:'100%'}}><option value="">Unassigned</option>{item.responsibleId&&!people.some(p=>String(p.userId)===item.responsibleId)&&<option value={item.responsibleId}>{item.responsibleName||'Previous assignee'}</option>}{people.map(p=><option key={p.userId} value={p.userId}>{p.name}</option>)}</select>:item.responsibleName||'Unassigned'}</div>{pending[key]&&<span style={{fontSize:10,color:T.inkDim}}>Saving…</span>}</td></tr>;})}</tbody></table></div>{loading&&<p role="status" style={{fontSize:11,padding:'0 14px'}}>Loading checklist…</p>}{error&&<AppErrorNotice message={error}/>}</section>;
-}
-
-function ProjectLineOfWorkView({state,persist,selectedId,showProjectPicker=true,focusVisitId}) {
-  const projects = orderedProjects(state.projects);
-  const [projectId,setProjectId] = useState(selectedId || projects.find(p=>!projectIsCompleted(p))?.id || projects[0]?.id || "");
+function ProjectLineOfWorkView({state,persist,selectedId}) {
+  const projects = (state.projects || []).filter(p => p.completed!==true && ![p.status,p.projectStatus,p.projectControl?.projectStatus].some(v=>String(v||"").toLowerCase()==="completed"));
+  const [projectId,setProjectId] = useState(selectedId || projects[0]?.id || "");
   const project = projects.find(p => String(p.id) === String(projectId)) || projects[0];
-  const [orderMode,setOrderMode]=useState('drawing');
-  const initialWorkspace=cachedWorkflowWorkspace(project?.id);
-  const [visits,setVisits]=useState(()=>visitRowsWithDefaults(project,initialWorkspace?.visits)),[visitsLoading,setVisitsLoading]=useState(!initialWorkspace),[visitsError,setVisitsError]=useState('');
-  const [rows,setRows] = useState(()=>applyWorkflowDelegation(initialWorkspace?.workflow?.length?initialWorkspace.workflow:DESIGN_TASK_FLOW_TEMPLATE.map(r=>({...r})),project?.id,initialWorkspace?.rules||[]));
+  const [rows,setRows] = useState([]);
   const [legacy,setLegacy] = useState([]);
   const [instances,setInstances] = useState([]);
-  const [lightingMilestone,setLightingMilestone]=useState(null);
-  const [historicalMeetings,setHistoricalMeetings]=useState([]),[meetingPrompt,setMeetingPrompt]=useState(null),[meetingError,setMeetingError]=useState('');
-  const [drawingReceipts,setDrawingReceipts]=useState(null);
-  const [activationStates,setActivationStates]=useState({});
   const [editing,setEditing] = useState(false);
   const [busy,setBusy] = useState(false);
   const [loading,setLoading] = useState(false);
   const [error,setError] = useState("");
+  const [tab,setTab] = useState("template");
   const [areaKey,setAreaKey] = useState("");
   const [message,setMessage] = useState("");
   const [savedRows,setSavedRows] = useState([]);
-  const [panel,setPanel]=useState(null);
   const revision = useRef(0);
-  const savePendingRef=useRef(false);
-  const workflowProjectRef=useRef(project?.id);workflowProjectRef.current=project?.id;
   const rowId = r => String(r.lineWorkId || r.id);
-  const setProjectRows = (all,delegationRules=[]) => {
-    const workflow = all.filter(r => ["1","2"].includes(String(r.workflowVersion))).map(r => ({...r,id:r.lineWorkId || r.id}));
-    const displayRows=workflow.length?[...workflow,...(workflow.some(row=>/^documentation$/i.test(row.tasks))?[]:DESIGN_TASK_FLOW_TEMPLATE.filter(row=>row.tasks==='Documentation'))]:DESIGN_TASK_FLOW_TEMPLATE;
-    const displayed=applyWorkflowDelegation(displayRows.map(row=>({...row})),project.id,delegationRules);
-    setRows(displayed); setSavedRows(displayed);setOrderMode(displayed[0]?.workflowOrderMode==='manual'?'manual':'drawing'); setLegacy(all.filter(r => !["1","2"].includes(String(r.workflowVersion))));
+  const setProjectRows = all => {
+    const workflow = all.filter(r => String(r.workflowVersion) === "1").map(r => ({...r,id:r.lineWorkId || r.id}));
+    setRows(workflow); setSavedRows(workflow); setLegacy(all.filter(r => String(r.workflowVersion) !== "1"));
   };
   useEffect(() => {
     let active = true; revision.current += 1;
-    setEditing(false);setPanel(null);setAreaKey("");setError("");setMessage("");setInstances([]);setLightingMilestone(null);setHistoricalMeetings([]);setMeetingPrompt(null);setMeetingError('');
+    setEditing(false);setAreaKey("");setError("");setMessage("");setInstances([]);
     if (!project) {setProjectRows([]);return;}
-    const cached=cachedWorkflowWorkspace(project.id);setProjectRows(cached?.workflow||project.lineOfWorkResidence||project.lineOfWork||[],cached?.rules||[]);
-    setLoading(!cached);
-    loadWorkflowWorkspace(project.id).then(delegation=>{if(active){setProjectRows(Array.isArray(delegation.workflow)?delegation.workflow:[],delegation.rules||[]);setHistoricalMeetings(delegation.historicalMeetings||[]);}}).catch(e=>{if(active)setError(`Could not update workflow: ${e.message||e}`);}).finally(()=>{if(active)setLoading(false);});
-    apiRequest("architecturalLightingMilestone",{projectId:project.id,action:"read"}).then(result=>{if(active)setLightingMilestone(result);}).catch(e=>{if(active)setError(e.message);});
-    projectApi.getWIH(true,project.id,true).then(wih=>{if(active)setInstances(Array.isArray(wih)?wih:[]);}).catch(e=>{if(active)setError(`Could not update work status: ${e.message||e}`);});
+    setProjectRows(project.lineOfWorkResidence || project.lineOfWork || []);
+    setLoading(true);
+    Promise.all([projectApi.listLineOfWork(project.id),projectApi.getWIH(true,project.id)]).then(([all,wih]) => {
+      if (!active) return;
+      setProjectRows(Array.isArray(all)?all:[]);setInstances(Array.isArray(wih)?wih:[]);
+    }).catch(e => {if(active)setError(`Could not load workflow: ${e.message || e}`);}).finally(()=>{if(active)setLoading(false);});
     return () => {active=false;};
   },[project?.id]);
-  useEffect(()=>{let active=true;setDrawingReceipts(null);if(!project)return;loadWorkflowWorkspace(project.id).then(data=>{if(active)setDrawingReceipts(Array.isArray(data?.drawings)?data.drawings:[]);}).catch(()=>{if(active)setDrawingReceipts(undefined);});return()=>{active=false;};},[project?.id]);
-  useEffect(()=>{let live=true;setVisitsError('');const cached=cachedWorkflowWorkspace(project?.id);setVisitsLoading(!cached);if(!project)return;loadWorkflowWorkspace(project.id).then(data=>{const rows=data.visits||[];if(live)setVisits(visitRowsWithDefaults(project,rows));}).catch(e=>{if(live)setVisitsError(e.message);}).finally(()=>{if(live)setVisitsLoading(false);});return()=>{live=false;};},[project?.id]);
+  const refresh = async () => {
+    const token=revision.current;setBusy(true);setError("");
+    try {const wih=await projectApi.getWIH(true,project.id);if(token===revision.current)setInstances(Array.isArray(wih)?wih:[]);}
+    catch(e){if(token===revision.current)setError(e.message || String(e));}
+    finally{setBusy(false);}
+  };
   if (!project) return <div style={{color:T.inkDim}}>No active project available.</div>;
   const members = (state.teamMaster || []).filter(m => m.active !== false && String(m.active)!=="false");
   const people = [...new Set([...members.map(m=>String(m.name||"")),...(state.people||[]).map(String),...rows.map(r=>String(r.responsible||""))].filter(Boolean))];
-  const groups = pinWorkflowGroups(orderWorkflowGroups(workflowGroups(rows),orderMode,drawingReceipts,instances),orderMode);
-  const aligned=alignWorkflowVisits(groups,scopedVisitRows(project,designMeetingVisitRows(project,groups,scopedVisitRows(project,visits)).filter(visit=>visit.stage!=='Execution Phase')));
-  aligned.remaining.push(...scopedVisitRows(project,visits).filter(visit=>visit.stage==='Execution Phase'));
+  const groups = workflowGroups(rows);
   const zones = project.floorZones || Object.entries(project.zones || {}).map(([zoneCode,z])=>({zoneCode,floor:z.floor,area:z.room}));
   const areas = [...new Map([...zones,...instances.filter(w=>w.task?.area).map(w=>({floor:w.task.floor,area:w.task.area}))].filter(a=>a.floor&&a.area).map(a=>[JSON.stringify([String(a.floor),String(a.area)]),a])).entries()];
   const selectedArea = areas.find(([key])=>key===areaKey)?.[1];
   const mutate = (ids,patch) => setRows(rs=>rs.map(r=>ids.includes(rowId(r))?{...r,...patch}:r));
-  const canMoveStage=(index,delta)=>{const target=groups[index+delta];if(!target)return false;const band=g=>{const value=workflowStageBand(g);return value===0||value===4?value:3;};return band(groups[index])===band(target);};
-  const moveStage=(key,delta)=>{if(savePendingRef.current||loading)return;const list=[...groups],index=list.findIndex(g=>g.key===key),target=index+delta;if(!canMoveStage(index,delta))return;[list[index],list[target]]=[list[target],list[index]];setOrderMode('manual');return save({rows:list.flatMap(g=>g.rows),orderMode:'manual'});};
-  const save = async options => {
-    const draftRows=Array.isArray(options?.rows)?options.rows:rows,nextOrderMode=options?.orderMode||orderMode;
-    if(savePendingRef.current)return;
-    if(draftRows.some(r=>!String(r.milestone||'').trim()||!String(r.tasks||'').trim()||!String(r.subtask||'').trim()||!String(r.triggerTaskType||'').trim()))return setError('Each workflow row needs a milestone, task, subtask, and trigger task.');
-    const token=revision.current,previousPanel=panel,previousSaved=savedRows;
-    const before=state.projects.find(p=>p.id===project.id);
-    const order={},clean=draftRows.map(r=>{const key=[r.milestone,r.tasks,r.triggerDrawingType,r.triggerTaskType,r.scope].join('|');order[key]=(order[key]||0)+1;return {...r,workflowOrderMode:nextOrderMode,workflowVersion:r.workflowVersion||'1',subtaskOrder:order[key],completionUploadRequired:r.completionUploadRequired!==false&&String(r.completionUploadRequired)!=='false',optional:r.optional===true||String(r.optional)==='true'};});
-    const optimistic=[...legacy,...clean];
-    savePendingRef.current=true;setBusy(true);setError('');setPanel(null);setEditing(false);setRows(clean);setMessage('Changes applied · Saving workflow in the background…');
-    try{
-      await persist(latest=>({...latest,projects:latest.projects.map(p=>p.id===project.id?{...p,lineOfWorkResidence:optimistic,lineOfWork:optimistic}:p)}));
-      const result=await projectApi.saveLineOfWork(project.id,optimistic);
-      if(!Array.isArray(result)||!result.some(r=>['1','2'].includes(String(r.workflowVersion))))throw new Error('Update and redeploy the included Apps Script backend; workflow saving could not be confirmed.');
-      await persist(latest=>({...latest,projects:latest.projects.map(p=>p.id===project.id?{...p,lineOfWorkResidence:result,lineOfWork:result}:p)}));
-      if(token===revision.current){setProjectRows(result);setMessage('Workflow saved to Google Sheets.');}
-    }catch(e){
-      await persist(latest=>({...latest,projects:latest.projects.map(p=>{
-        if(p.id!==project.id)return p;
-        return {...p,...(JSON.stringify(p.lineOfWorkResidence)===JSON.stringify(optimistic)?{lineOfWorkResidence:before?.lineOfWorkResidence}:{}),...(JSON.stringify(p.lineOfWork)===JSON.stringify(optimistic)?{lineOfWork:before?.lineOfWork}:{})};
-      })}));
-      if(token===revision.current){setRows(clean);setSavedRows(previousSaved);setEditing(true);setPanel(previousPanel);setMessage('');setError(`${e.message||e} Your edits are retained. Save Changes to retry.`);}
-    }finally{savePendingRef.current=false;setBusy(false);}
+  const loadPdf = () => {setRows(DESIGN_WORKFLOW_PDF_TEMPLATE.map(r=>({...r})));setEditing(true);setMessage("PDF template loaded. Review drawing triggers and assignments, then save to activate automation.");};
+  const save = async () => {
+    if (rows.some(r=>!String(r.milestone||"").trim()||!String(r.tasks||"").trim()||!String(r.subtask||"").trim()||!String(r.triggerTaskType||"").trim())) return setError("Each workflow row needs a milestone, task, subtask, and trigger task.");
+    const token=revision.current;setBusy(true);setError("");
+    try {
+      const order={};const clean=rows.map(r=>{const key=[r.milestone,r.tasks,r.triggerDrawingType,r.triggerTaskType,r.scope].join("|");order[key]=(order[key]||0)+1;return {...r,workflowVersion:"1",subtaskOrder:order[key],completionUploadRequired:r.completionUploadRequired!==false&&String(r.completionUploadRequired)!=="false",optional:r.optional===true||String(r.optional)==="true"};});
+      let capabilities;
+      try {capabilities=await projectApi.getWorkflowCapabilities();}
+      catch (_) {throw new Error("Install and redeploy the updated Apps Script backend before saving the workflow. No changes were saved.");}
+      if(Number(capabilities?.areaWorkflowVersion)!==1)throw new Error("The connected backend does not support area workflows. No changes were saved.");
+      const result=await projectApi.saveLineOfWork(project.id,[...legacy,...clean]);
+      if(!Array.isArray(result)||!result.some(r=>String(r.workflowVersion)==="1")) throw new Error("Deploy the updated Apps Script backend; it must save the workflow fields.");
+      const templates=await projectApi.listDrawingTaskMaster();
+      await persist({...state,templates:Array.isArray(templates)?templates:state.templates,projects:(state.projects||[]).map(p=>p.id===project.id?{...p,lineOfWorkResidence:result,lineOfWork:result}:p)});
+      if(token===revision.current){setProjectRows(result);setEditing(false);setMessage("Workflow saved. New classified drawings use these project assignments.");}
+    } catch(e) {if(token===revision.current)setError(e.message||String(e));}
+    finally{setBusy(false);}
   };
   const queue = async g => {
     const r=g.first;if(!r.lineWorkId)return setError("Save the workflow first.");
@@ -5483,130 +4061,57 @@ function ProjectLineOfWorkView({state,persist,selectedId,showProjectPicker=true,
     catch(e){setError(e.message||String(e));}finally{setBusy(false);}
   };
   const fieldStyle={...inputStyle,padding:"7px 8px",fontSize:12};
-  const activationKey=r=>JSON.stringify([project.id,r.lineWorkId]);
-  const checksFor=sub=>instances.filter(row=>row.task?.parentDesignTaskId&&String(row.task.lineWorkId)===rowId(sub));
-  const historicalFor=sub=>historicalMeetings.find(row=>String(row.projectId)===String(project.id)&&String(row.lineWorkId)===rowId(sub));
-  const meetingVisit=(group,sub)=>group&&meetingForDesignSubtask(project,group,sub,designMeetingVisitRows(project,[group],visits));
-  const canRecordHistory=String(state.currentUser?.appAccess).toLowerCase()==='admin'||String(state.currentUser?.appAccess).toLowerCase()!=='viewer'&&projectRole(state,project.id)==='Admin';
-  const saveHistoricalMeeting=async()=>{
-    const pid=project.id;
-    setBusy(true);setMeetingError('');
-    try{
-      const saved=await apiRequest('recordHistoricalWorkflowMeeting',{projectId:pid,lineWorkId:rowId(meetingPrompt.sub),date:meetingPrompt.date,notes:meetingPrompt.notes});
-      if(workflowProjectRef.current===pid){setHistoricalMeetings(rows=>[...rows.filter(r=>r.key!==saved.key),saved]);setMeetingPrompt(null);}
-    }catch(e){if(workflowProjectRef.current===pid)setMeetingError(e.message);}
-    finally{setBusy(false);}
-  };
-  const checked=sub=>!!historicalFor(sub)||(sub.taskCategory==='Meeting'&&(visitHistory(meetingVisit(groups.find(group=>group.rows.includes(sub)),sub)||{}).length>0))||checksFor(sub).length>0&&checksFor(sub).every(row=>/^completed$|^done$/i.test(row.status));
-  const canCheck=sub=>{
-    const open=checksFor(sub).filter(row=>!/^completed$|^done$/i.test(row.status));
-    return sub.taskCategory!=='Meeting'&&String(sub.completionUploadRequired).toLowerCase()==='false'&&open.length>0&&
-      open.every(row=>!/blocked|waiting/i.test(row.status)&&wihCanSeeTask(state.currentUser,row))&&String(state.currentUser?.appAccess).toLowerCase()!=='viewer';
-  };
-  const checkSubtask=async sub=>{
-    const pid=project.id;
-    setBusy(true);setError('');
-    try{
-      await apiRequest('completeWorkflowChecklist',{projectId:pid,taskIds:checksFor(sub).filter(row=>!/^completed$|^done$/i.test(row.status)).map(row=>row.designTaskId)});
-      const [work,milestone]=await Promise.all([projectApi.getWIH(true,pid,true),apiRequest('architecturalLightingMilestone',{projectId:pid,action:'read'})]);
-      if(workflowProjectRef.current===pid){setInstances(work);setLightingMilestone(milestone);}
-    }catch(e){if(workflowProjectRef.current===pid)setError(e.message);}
-    finally{setBusy(false);}
-  };
-  const signLighting=async()=>{
-    const pid=project.id;
-    setBusy(true);setError('');
-    try{const milestone=await apiRequest('architecturalLightingMilestone',{projectId:pid,signOff:true});if(workflowProjectRef.current===pid)setLightingMilestone(milestone);}
-    catch(e){if(workflowProjectRef.current===pid)setError(e.message);}
-    finally{setBusy(false);}
-  };
-  const workflowStatus=(task,sub)=>workflowActivationStatus(instances,task,sub,selectedArea,activationStates[activationKey(task)]);
-  const cancelEdit=()=>{setRows(savedRows);setOrderMode(savedRows[0]?.workflowOrderMode==='manual'?'manual':'drawing');setEditing(false);setPanel(null);setMessage('');setError('');};
-  const addSubtask=g=>{const id=uid(),last=g.rows[g.rows.length-1];setRows(rs=>{const index=rs.findIndex(x=>rowId(x)===rowId(last));return [...rs.slice(0,index+1),{...last,id,lineWorkId:'',subtask:'New subtask'},...rs.slice(index+1)];});setPanel({kind:'subtask',id});};
-  const panelGroup=panel?groups.find(g=>g.rows.some(r=>rowId(r)===panel.id)):null;
-  const panelRow=panel?.kind==='task'?panelGroup?.first:rows.find(r=>rowId(r)===panel?.id);
-  const panelField=(label,key,type='text')=>{
-    const value=panelRow?.[key]??'',ids=panel.kind==='task'?panelGroup.rows.map(rowId):[panel.id];
-    const change=value=>mutate(ids,{[key]:value,...(key==='scope'&&value==='Project'?{triggerDrawingType:'MANUAL'}:{}),...(key==='taskCategory'?{meetingMode:value==='Meeting'?'In person':'',completionUploadRequired:value!=='Meeting'}:{})});
-    const choices=type==='person'?['',...people]:type==='scope'?['Area','Project','Stage']:type==='type'?['Design','Meeting']:type==='meeting'?['In person','Phone / Zoom allowed']:type==='drawing'?[...new Set(['MANUAL','LAYOUT','WE','FC','DETAIL','3D',...(state.templates||[]).map(t=>drawingTypeKey(t.drawingType)),value].filter(Boolean))]:null;
-    return <label style={{display:'grid',gap:6,marginBottom:16,fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>{label}{!editing?<span style={{fontSize:13,color:T.ink,padding:'6px 0'}}>{type==='boolean'?(value!==false&&String(value)!=='false'&&key==='completionUploadRequired'||value===true||String(value)==='true'?'Yes':'No'):value!==''?value:(type==='person'?(panel.kind==='task'?'Unassigned':'Inherit task assignee / unassigned'):'—')}</span>:choices?<select aria-label={label} disabled={busy} style={fieldStyle} value={value} onChange={e=>change(e.target.value)}>{choices.map(v=><option key={v} value={v}>{v||(panel.kind==='task'?'Unassigned':'Inherit task assignee / unassigned')}</option>)}</select>:type==='boolean'?<input aria-label={label} disabled={busy} type="checkbox" checked={key==='completionUploadRequired'?value!==false&&String(value)!=='false':value===true||String(value)==='true'} onChange={e=>change(e.target.checked)}/>:<input aria-label={label} disabled={busy} style={fieldStyle} type={type==='hours'?'number':'text'} min={type==='hours'?0:undefined} step={type==='hours'?.25:undefined} value={value} onChange={e=>change(e.target.value)}/>}</label>;
-  };
+  const chosenInstances = instances.filter(w=>selectedArea?String(w.task?.floor)===String(selectedArea.floor)&&String(w.task?.area)===String(selectedArea.area):true);
   return <div>
-    {showProjectPicker&&<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap",marginBottom:16}}>
-      <div><h2 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:0}}>Design Line of Work</h2><div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,marginTop:5}}>Tasks and subtasks</div></div>
-      {showProjectPicker&&<ProjectStatusSelect projects={projects} aria-label="Workflow project" disabled={busy||editing} style={{...fieldStyle,minWidth:280}} value={project.id} onChange={e=>setProjectId(e.target.value)}>{projects.map(p=><option key={p.id} value={p.id}>{p.no||"—"} · {p.name}</option>)}</ProjectStatusSelect>}
-    </div>}
-    {loading&&<div style={{color:T.inkDim,fontFamily:FONT_BODY,fontSize:13,lineHeight:1.5,marginBottom:12}}>Loading project workflow…</div>}
-    {error&&<div role="alert" style={{padding:12,background:T.redlineBg,color:T.redline,marginBottom:12,fontFamily:FONT_BODY,fontSize:13,fontWeight:400,lineHeight:1.5}}>{error}</div>}
-    {message&&<div role="status" style={{padding:12,background:T.paperDim,fontFamily:FONT_BODY,fontSize:13,fontWeight:400,lineHeight:1.5,marginBottom:12}}>{message}</div>}
-    <>
-      <ExecutionVisitPlanner key={project.id} focusVisitId={focusVisitId} project={project} state={state} persist={persist} rows={scopedVisitRows(project,visits)} onChange={next=>{if(workflowProjectRef.current===project.id)setVisits(activeVisits(next));}} loading={visitsLoading} loadError={visitsError}>{(renderVisitTable,renderDesignMeetingControls,workflowComment,openMeetingAction)=><>
-      <div className="workflow-overview-layout"><aside aria-label="Project progress timeline" className="workflow-progress-rail">{(()=>{const stages=groups.map(g=>{const statuses=g.rows.map(r=>workflowWorkStatus(workflowStatus(g.first,r)).label);return {g,done:statuses.every(s=>s==='Completed'),active:statuses.some(s=>['In progress','Approval required'].includes(s))};});let current=stages.findIndex(s=>s.active);if(current<0)current=stages.findIndex(s=>!s.done);if(current<0)current=stages.length-1;return stages.map((stage,i)=><a key={stage.g.key} href={`#workflow-stage-${i}`} aria-label={`${stage.g.first.tasks}: ${stage.done?'completed':stage.active?'in progress':'not started'}`} aria-current={i===current?'step':undefined} title={stage.g.first.tasks} className="workflow-road-segment" style={{background:workflowSunsetSegment(i,stages.length)}}>{i===current&&<span aria-hidden="true" className="workflow-road-marker"/>}</a>);})()}</aside><div className="workflow-stage-comparison">
-      {aligned.pairs.map(({group:g,visits:stageVisits},index)=>{const r=g.first,key=rowId(r),concept=workflowStageBand(g)===0;return <React.Fragment key={g.key}>{index===0&&<div className="workflow-comparison-headings"><h3>Design work</h3><h3>Execution and Task</h3></div>}<div className={concept&&!stageVisits.some(visit=>!String(visit.stage||'').startsWith('Design meeting: '))?"workflow-aligned-stage workflow-concept-stage":"workflow-aligned-stage"}><section id={`workflow-stage-${index}`} key={key} style={{border:`1px solid ${T.line}`,marginBottom:12,background:'#fff'}}>
-        <div style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',background:'#F3F1EA'}}>
-          {<div style={{display:'flex',gap:4}}><button type="button" title="Move stage up" aria-label={`Move ${r.tasks} earlier`} disabled={busy||loading||!canMoveStage(index,-1)} style={smallBtn} onClick={()=>moveStage(g.key,-1)}>↑</button><button type="button" title="Move stage down" aria-label={`Move ${r.tasks} later`} disabled={busy||loading||!canMoveStage(index,1)} style={smallBtn} onClick={()=>moveStage(g.key,1)}>↓</button></div>}<h3 style={{flex:1,margin:0,color:T.ink,fontFamily:FONT_DISPLAY,fontSize:14,fontWeight:700,display:'flex',alignItems:'center',gap:8}}>{r.tasks} <small style={{fontWeight:400}}>{g.rows.filter(checked).length} of {g.rows.length} complete</small></h3>
-          <button type="button" disabled={busy||loading} aria-label={`Task details ${r.tasks}`} style={smallBtn} onClick={()=>setPanel({kind:'task',id:key})}>Task details</button>
-        </div>
-        {<div id={`workflow-subtasks-${key}`} style={{padding:'0 14px 12px'}}>
-          <div style={{overflowX:'auto'}}><table id={`workflow-design-table-${project.id}-${key}`} aria-label={`Subtasks for ${r.tasks}`} style={{width:'100%',minWidth:400,tableLayout:'fixed',borderCollapse:'collapse',fontFamily:FONT_BODY}}><colgroup><col style={{width:'76%'}}/><col style={{width:'24%'}}/></colgroup><thead><tr>{['Subtask','Responsible person'].map((h,i)=><th key={h} style={{...thStyle,background:'#fff',color:T.inkDim,textAlign:i===0?'left':'center',fontFamily:FONT_MONO,fontSize:9,borderBottom:`1px solid ${T.line}`}}>{h}</th>)}</tr></thead>
-            <tbody>{g.rows.map((sub,i)=><tr key={rowId(sub)} id={`workflow-design-row-${project.id}-${rowId(sub)}`} style={{height:44}}><td style={{...tdStyle,textAlign:'left',padding:'9px 6px'}}><input type="checkbox" aria-label={'Complete '+sub.subtask} title={checked(sub)?'Completed':canCheck(sub)?'Mark complete':'Completion follows the task workflow'} checked={checked(sub)} disabled={busy||checked(sub)||(!canRecordHistory&&!canCheck(sub))} onChange={()=>{
-              if(canCheck(sub)){checkSubtask(sub);return;}
-              const visit=sub.taskCategory==='Meeting'?meetingVisit(g,sub):null;
-              if(visit?.scheduledDate){openMeetingAction(visit,'record');return;}
-              setMeetingError('');setMeetingPrompt({sub,visit,date:'',notes:''});
-            }} style={{marginRight:8,verticalAlign:'middle'}}/><button type="button" disabled={busy} aria-label={`Details ${sub.subtask}`} title="Open subtask details" onClick={()=>setPanel({kind:'subtask',id:rowId(sub)})} style={{border:0,background:'transparent',padding:0,fontFamily:FONT_BODY,fontSize:12,color:T.ink,textAlign:'left',cursor:'pointer',lineHeight:1.5}}><span style={{color:T.inkDim,marginRight:8,fontSize:11}}>{i+1}.</span>{sub.subtask}</button>{historicalFor(sub)&&<small style={{marginLeft:8}}>{sub.taskCategory==='Meeting'?'Historical meeting':'Historical completion'}{historicalFor(sub).date?' · '+formatProjectDate(historicalFor(sub).date):''}</small>}{workflowComment('subtask',rowId(sub),sub.subtask)}{sub.taskCategory==='Meeting'&&renderDesignMeetingControls(meetingForDesignSubtask(project,g,sub,stageVisits),sub.meetingMode,loading)}</td><td style={{...tdStyle,textAlign:'center',verticalAlign:'middle',fontSize:12}}><span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8}}><WorkflowStatusDot {...workflowDotStatus(workflowStatus(r,sub),workflowPrerequisite(r,drawingReceipts,zones,selectedArea,instances))}/><span>{sub.responsible||r.responsible||'Unassigned'}</span></span></td></tr>)}</tbody>
-          </table></div>
-          {editing&&<button disabled={busy} style={{...smallBtn,marginTop:12}} onClick={()=>addSubtask(g)}>+ Add subtask</button>}
-        </div>}
-      </section><div className="workflow-execution-column" style={{minWidth:0}}>{renderVisitTable(stageVisits.filter(visit=>!String(visit.stage||'').startsWith('Design meeting: ')))}</div></div></React.Fragment>;})}
-      {groups.some(g=>workflowStageBand(g)===4)&&<section aria-label="Finalise Architectural Lighting milestone" style={{padding:16,border:`1px solid ${T.line}`,background:'#F3F1EA',margin:'12px 0'}}>
-        <h3 style={{margin:'0 0 8px'}}>Finalise Architectural Lighting</h3>
-        <p>{lightingMilestone?.signedAt?`Signed off by ${lightingMilestone.signedBy} · ${formatProjectDate(lightingMilestone.signedAt)}`:lightingMilestone?.ready?'Documentation complete. Ready for sign-off.':'Awaiting completion of Wiring Drawings and Documentation. Installation and execution visits open after sign-off.'}</p>
-        {lightingMilestone?.canSign&&!lightingMilestone.signedAt&&<button type="button" style={smallBtn} disabled={busy||!lightingMilestone.ready} onClick={signLighting}>Sign off milestone</button>}
-      </section>}
-      {!!aligned.remaining.length&&<section className="workflow-final-execution" aria-label="Further execution work" style={{minWidth:0,marginTop:8}}><h3 style={{fontFamily:FONT_DISPLAY,fontSize:17}}>Execution and Task</h3>{renderVisitTable(aligned.remaining.filter(row=>!/staging|scene setting/i.test(row.milestone)))}{aligned.remaining.some(row=>/staging|scene setting/i.test(row.milestone))&&<section aria-label="Final staging and scene setting" style={{marginTop:22,border:`2px solid ${T.blue}`,background:'#E8F1F8'}}><h3 style={{margin:0,padding:'12px 14px',background:T.navy,color:'#fff',fontFamily:FONT_DISPLAY,fontSize:16}}>Staging & Scene Setting <span style={{fontFamily:FONT_MONO,fontSize:10,color:T.cyan,marginLeft:12}}>FINAL MILESTONE</span></h3>{renderVisitTable(aligned.remaining.filter(row=>/staging|scene setting/i.test(row.milestone)))}</section>}</section>}
-      </div></div>
-      {meetingPrompt&&<div className="task-discussion-overlay"><section className="task-discussion-dialog" role="dialog" aria-modal="true" aria-labelledby="historical-completion-title">
-        <h2 id="historical-completion-title">{meetingPrompt.sub.taskCategory==='Meeting'?'Has this meeting already happened?':'Was this step already completed?'}</h2><p>{meetingPrompt.sub.subtask}</p>
-        <label>Actual date (optional)<input type="date" style={inputStyle} disabled={busy} value={meetingPrompt.date} onChange={e=>setMeetingPrompt({...meetingPrompt,date:e.target.value})}/></label>
-        <label>Notes (optional)<textarea maxLength={4000} disabled={busy} value={meetingPrompt.notes} onChange={e=>setMeetingPrompt({...meetingPrompt,notes:e.target.value})}/></label>
-        {meetingError&&<p role="alert">{meetingError}</p>}
-        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-          <button type="button" style={smallBtn} disabled={busy} onClick={saveHistoricalMeeting}>{busy?'Saving…':meetingPrompt.sub.taskCategory==='Meeting'?'Yes, record historical meeting':'Yes, record historical completion'}</button>
-          {meetingPrompt.visit&&<button type="button" style={smallBtn} disabled={busy} onClick={()=>{openMeetingAction(meetingPrompt.visit,'schedule');setMeetingPrompt(null);}}>No, schedule it</button>}
-          <button type="button" style={smallBtn} disabled={busy} onClick={()=>setMeetingPrompt(null)}>Cancel</button>
-        </div>
-      </section></div>}
-      </>}</ExecutionVisitPlanner>
-      <WorkflowStatusLegend/>
-      {!!legacy.length&&<div style={{fontSize:11,color:T.inkDim,marginTop:12}}>{legacy.length} previous Line of Work rows retained.</div>}
-    </>
-    {panel&&panelRow&&<div role="dialog" aria-modal="true" aria-labelledby="workflow-editor-title" onKeyDown={e=>{if(e.key==='Escape'&&!busy){if(editing)cancelEdit();else setPanel(null);};if(e.key==='Tab'){const list=[...e.currentTarget.querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled),summary')];const first=list[0],last=list[list.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}}} style={{position:'fixed',inset:0,zIndex:14500,background:'rgba(8,25,45,.4)',display:'flex',justifyContent:'flex-end'}}><div style={{width:520,maxWidth:'100%',height:'100%',background:T.paper,display:'flex',flexDirection:'column',boxShadow:'-8px 0 30px #08192d20',fontFamily:FONT_BODY}}>
-      <div style={{padding:'18px 20px',borderBottom:`1px solid ${T.line}`,display:'flex',justifyContent:'space-between',gap:12,alignItems:'center'}}><h3 id="workflow-editor-title" style={{fontFamily:FONT_DISPLAY,fontSize:18,margin:0}}>{panel.kind==='task'?'Task details':'Subtask details'}</h3><button type="button" autoFocus disabled={busy} aria-label="Close workflow details" style={smallBtn} onClick={editing?cancelEdit:()=>setPanel(null)}>Close</button></div>
-      <div style={{padding:20,overflowY:'auto',flex:1}}>
-        {error&&<p role="alert" style={{fontSize:13,color:T.redline}}>{error}</p>}
-        {panel.kind==='task'?<>
-          {panelField('Milestone','milestone')}{panelField('Task','tasks')}{panelField('Starting milestone','startingMilestone')}{panelField('Responsible','responsible','person')}<p style={{fontSize:12,color:T.inkDim}}>Status: {workflowStatus(panelRow)}</p>
-          {!editing&&<section aria-label="Task activation and floor zones" style={{marginTop:20}}><h4 style={{fontFamily:FONT_DISPLAY,margin:'0 0 12px'}}>Activation · Floors & Zones</h4>
-            {String(panelRow.workflowVersion)!=='2'&&panelRow.scope!=='Project'&&<label style={{display:'block',fontFamily:FONT_BODY,fontSize:12,marginBottom:12}}>Floor / Area<select aria-label="Workflow area" style={{...fieldStyle,marginTop:6}} value={areaKey} onChange={e=>setAreaKey(e.target.value)}><option value="">Choose a floor / area</option>{areas.map(([key,a])=><option key={key} value={key}>{a.floor} · {a.area}</option>)}</select></label>}
-            {!panelRow.lineWorkId?<Btn disabled={busy||loading} onClick={save}>Save task setup</Btn>:String(panelRow.workflowVersion)==='2'?<StageActivationPanel key={project.id+':'+rowId(panelRow)} state={state} project={project} row={panelRow} disabled={busy||loading} onActivationState={status=>setActivationStates(x=>({...x,[activationKey(panelRow)]:{status}}))} onActivated={async task=>{
-              if(workflowProjectRef.current!==project.id)return;
-              const token=revision.current;
-              if(task?.designTaskId)setInstances(list=>[...list.filter(w=>w.designTaskId!==task.designTaskId),{designTaskId:task.designTaskId,status:task.status,task}]);
-              try{const list=await projectApi.getWIH(true,project.id);if(token===revision.current)setInstances(list);}catch(e){throw Error('Activation saved, but status refresh failed. Refresh the workflow to check it.');}
-            }}/>:<Btn disabled={busy||loading} variant="ghost" onClick={()=>queue(panelGroup)}>{panelRow.scope==='Project'?'Queue project task':'Queue for selected area'}</Btn>}
-          </section>}
-
-          <details style={{marginTop:16,borderTop:`1px solid ${T.line}`,paddingTop:12}}><summary style={{cursor:'pointer',fontSize:13,fontWeight:600}}>More settings</summary><div style={{marginTop:16}}>{panelField('Scope','scope','scope')}{panelField('Required drawing','triggerDrawingType','drawing')}{panelField('Task started in WIH','triggerTaskType')}{panelRow.executionNote&&<p style={{fontSize:12,color:T.inkDim}}>Execution handoff: {panelRow.executionNote}</p>}</div></details>
-        </>:<>
-          {panelField('Subtask','subtask')}{panelField('Responsible','responsible','person')}
-          <div style={{fontSize:12,color:T.inkDim,marginBottom:16}}>Status: {workflowStatus(panelGroup?.first||panelRow,panelRow)}</div>
-          <details style={{borderTop:`1px solid ${T.line}`,paddingTop:12}}><summary style={{cursor:'pointer',fontSize:13,fontWeight:600}}>More settings</summary><div style={{marginTop:16}}>{panelField('Type','taskCategory','type')}{panelRow.taskCategory==='Meeting'&&panelField('Meeting mode','meetingMode','meeting')}{panelField('Estimated hours','hours','hours')}{panelField('Output required','completionUploadRequired','boolean')}{panelField('Optional','optional','boolean')}</div></details>
-          {editing&&<button type="button" disabled={busy} onClick={()=>{if(window.confirm(`Remove ${panelRow.subtask} from this workflow draft?`)){setRows(rs=>rs.filter(r=>rowId(r)!==panel.id));setPanel(null);}}} style={{...smallBtn,color:T.redline,marginTop:24}}>Remove subtask</button>}
-        </>}
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap",marginBottom:16}}>
+      <div><h2 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:0}}>Design Line of Work</h2><div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,marginTop:5}}>Milestone → Task → Subtask. Assign once per project; each received floor / area follows its own workflow.</div></div>
+      <select aria-label="Workflow project" disabled={busy||editing} style={{...fieldStyle,minWidth:280}} value={project.id} onChange={e=>setProjectId(e.target.value)}>{projects.map(p=><option key={p.id} value={p.id}>{p.no||"—"} · {p.name}</option>)}</select>
+    </div>
+    <div style={{display:"flex",gap:8,marginBottom:16,alignItems:"center",flexWrap:"wrap"}}>
+      <Btn variant={tab==="template"?"dark":"ghost"} onClick={()=>setTab("template")}>Workflow & Assignments</Btn><Btn variant={tab==="progress"?"dark":"ghost"} onClick={()=>{setTab("progress");refresh();}}>Area Progress</Btn>
+      <select aria-label="Workflow area" style={{...fieldStyle,minWidth:240,marginLeft:"auto"}} value={areaKey} onChange={e=>setAreaKey(e.target.value)}><option value="">All areas / select an area</option>{areas.map(([key,a])=><option key={key} value={key}>{a.floor} · {a.area}</option>)}</select>
+    </div>
+    {loading&&<div style={{color:T.inkDim,marginBottom:12}}>Loading project workflow…</div>}
+    {error&&<div role="alert" style={{padding:12,background:T.redlineBg,color:T.redline,marginBottom:12}}>{error}</div>}
+    {message&&<div role="status" style={{padding:12,background:T.paperDim,fontSize:12,marginBottom:12}}>{message}</div>}
+    {tab==="template"?<>
+      <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
+        {!rows.length&&!loading&&<Btn disabled={busy} onClick={loadPdf}>Load Design PDF Template</Btn>}
+        {!!rows.length&&!editing&&<Btn disabled={busy||loading} onClick={()=>setEditing(true)}>Edit workflow / assignments</Btn>}
+        {editing&&<><Btn disabled={busy} onClick={save}>{busy?"Saving…":"Save Project Workflow"}</Btn><Btn disabled={busy} variant="ghost" onClick={()=>{setRows(savedRows);setEditing(false);setMessage("");setError("");}}>Cancel</Btn><Btn disabled={busy} variant="ghost" onClick={()=>{const id=uid();setRows(rs=>[...rs,{id,workflowVersion:"1",milestone:"New milestone",tasks:"New task",subtask:"New subtask",triggerDrawingType:"LAYOUT",triggerTaskType:"New task",scope:"Area",completionUploadRequired:true}]);}}>+ Add task</Btn></>}
       </div>
-      <div style={{padding:'16px 20px',borderTop:`1px solid ${T.line}`,display:'flex',gap:8,justifyContent:'flex-end'}}><Btn variant="ghost" disabled={busy} onClick={editing?cancelEdit:()=>setPanel(null)}>{editing?'Cancel changes':'Back to overview'}</Btn>{editing?<Btn disabled={busy} onClick={save}>{busy?'Saving…':'Save Changes'}</Btn>:<Btn disabled={busy} onClick={()=>setEditing(true)}>Edit</Btn>}</div>
-    </div></div>}
+      {!rows.length&&<div style={{padding:18,border:`1px solid ${T.line}`,color:T.inkDim}}>Load the supplied design sequence, assign responsible people, and save. Existing Line of Work rows are retained.</div>}
+      {groups.map(g=>{const r=g.first,ids=g.rows.map(rowId);return <details key={rowId(r)} open style={{border:`1px solid ${T.line}`,marginBottom:12,background:T.paper}}>
+        <summary style={{padding:"12px 14px",background:T.paperDim,cursor:"pointer",fontFamily:FONT_DISPLAY,fontSize:14}}><strong>{r.milestone}</strong> · {r.tasks} <span style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim}}> · {g.rows.length} subtasks · {r.scope||"Area"}</span></summary>
+        <div style={{padding:14}}>
+          {editing?<div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(160px,1fr))",gap:10,marginBottom:12}}>
+            <Field label="Milestone"><input aria-label={`Milestone ${rowId(r)}`} disabled={busy} style={fieldStyle} value={r.milestone||""} onChange={e=>mutate(ids,{milestone:e.target.value})}/></Field>
+            <Field label="Task"><input disabled={busy} style={fieldStyle} value={r.tasks||""} onChange={e=>mutate(ids,{tasks:e.target.value})}/></Field>
+            <Field label="Scope"><select disabled={busy} style={fieldStyle} value={r.scope||"Area"} onChange={e=>mutate(ids,{scope:e.target.value,triggerDrawingType:e.target.value==="Project"?"MANUAL":r.triggerDrawingType})}><option>Area</option><option>Project</option></select></Field>
+            <Field label="Required drawing"><select disabled={busy} style={fieldStyle} value={r.triggerDrawingType||"LAYOUT"} onChange={e=>mutate(ids,{triggerDrawingType:e.target.value})}>{[...new Set(["MANUAL","LAYOUT","WE","FC","DETAIL","3D",...(state.templates||[]).map(t=>drawingTypeKey(t.drawingType)),r.triggerDrawingType].filter(Boolean))].map(d=><option key={d}>{d}</option>)}</select></Field>
+            <Field label="Task started in WIH"><input disabled={busy} style={fieldStyle} value={r.triggerTaskType||""} onChange={e=>mutate(ids,{triggerTaskType:e.target.value})}/></Field>
+            <Field label="Assign entire task"><select disabled={busy} style={fieldStyle} value={r.responsible||""} onChange={e=>mutate(ids,{responsible:e.target.value})}><option value="">Unassigned</option>{people.map(n=><option key={n}>{n}</option>)}</select></Field>
+          </div>:<div style={{display:"flex",gap:12,alignItems:"center",marginBottom:12,flexWrap:"wrap",fontSize:12,color:T.inkDim}}><span>{r.triggerDrawingType==="MANUAL"?"Manually queued":`Drawing: ${r.triggerDrawingType}`} · Start: {r.triggerTaskType}</span><span>Responsible: {r.responsible||"Unassigned"}</span><Btn disabled={busy||loading||!r.lineWorkId} variant="ghost" style={{padding:"6px 10px",marginLeft:"auto"}} onClick={()=>queue(g)}>{r.scope==="Project"?"Queue project task":"Queue for selected area"}</Btn></div>}
+          <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",minWidth:720}}><thead><tr>{["Step","Subtask","Responsible","Est. hours","Output required","Optional",...(editing?["Action"]:[])].map(h=><th key={h} style={{...thStyle,textAlign:"left",background:T.paperDim,color:T.ink}}>{h}</th>)}</tr></thead><tbody>{g.rows.map((sub,i)=><tr key={rowId(sub)}>
+            <td style={{...tdStyle,width:45}}>{i+1}</td><td style={{...tdStyle,textAlign:"left"}}>{editing?<input disabled={busy} style={fieldStyle} value={sub.subtask||""} onChange={e=>mutate([rowId(sub)],{subtask:e.target.value})}/>:sub.subtask}</td>
+            <td style={{...tdStyle,textAlign:"left"}}>{editing?<select aria-label={`Responsible ${rowId(sub)}`} disabled={busy} style={fieldStyle} value={sub.responsible||""} onChange={e=>mutate([rowId(sub)],{responsible:e.target.value})}><option value="">Inherit task owner / unassigned</option>{people.map(n=><option key={n}>{n}</option>)}</select>:sub.responsible||"Inherit task owner"}</td>
+            <td style={tdStyle}>{editing?<input disabled={busy} type="number" min="0" step="0.25" style={{...fieldStyle,width:85}} value={sub.hours??""} onChange={e=>mutate([rowId(sub)],{hours:e.target.value})}/>:sub.hours||"—"}</td>
+            <td style={tdStyle}>{editing?<input disabled={busy} aria-label={`Output required ${rowId(sub)}`} type="checkbox" checked={sub.completionUploadRequired!==false&&String(sub.completionUploadRequired)!=="false"} onChange={e=>mutate([rowId(sub)],{completionUploadRequired:e.target.checked})}/>:sub.completionUploadRequired!==false&&String(sub.completionUploadRequired)!=="false"?"Yes":"Optional"}</td>
+            <td style={tdStyle}>{editing?<input disabled={busy} aria-label={`Optional ${rowId(sub)}`} type="checkbox" checked={sub.optional===true||String(sub.optional)==="true"} onChange={e=>mutate([rowId(sub)],{optional:e.target.checked})}/>:sub.optional===true||String(sub.optional)==="true"?"Yes":"No"}</td>
+            {editing&&<td style={tdStyle}><button disabled={busy} style={smallBtn} onClick={()=>setRows(rs=>rs.filter(x=>rowId(x)!==rowId(sub)))}>Remove</button></td>}
+          </tr>)}</tbody></table></div>
+          {r.executionNote&&<div style={{fontSize:11,color:T.inkDim,marginTop:8}}>Execution handoff: {r.executionNote}</div>}
+          {editing&&<button disabled={busy} style={{...smallBtn,marginTop:10}} onClick={()=>setRows(rs=>{const next={...g.rows[g.rows.length-1],id:uid(),lineWorkId:"",subtask:"New subtask"};const index=rs.findIndex(x=>rowId(x)===rowId(g.rows[g.rows.length-1]));return [...rs.slice(0,index+1),next,...rs.slice(index+1)];})}>+ Add subtask</button>}
+        </div>
+      </details>;})}
+      {!!legacy.length&&<div style={{fontSize:11,color:T.inkDim,marginTop:12}}>{legacy.length} previous Line of Work rows retained. Workflow templates do not replace existing area task history.</div>}
+    </>:<>
+      <Btn disabled={busy} variant="ghost" onClick={refresh} style={{marginBottom:12}}>Refresh progress</Btn>
+      {!selectedArea&&<div style={{overflowX:"auto",marginBottom:16}}><table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr>{["Floor","Area","Workflow subtasks","Completed","Ready / in progress","Waiting","Action"].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{areas.map(([key,a])=>{const list=instances.filter(w=>w.task?.parentDesignTaskId&&String(w.task.floor)===String(a.floor)&&String(w.task.area)===String(a.area));const done=list.filter(w=>w.status==="Completed").length,blocked=list.filter(w=>w.status==="Blocked").length;return <tr key={key}><td style={tdStyle}>{a.floor}</td><td style={tdStyle}>{a.area}</td><td style={tdStyle}>{list.length||"Not activated"}</td><td style={tdStyle}>{done}</td><td style={tdStyle}>{list.length-done-blocked}</td><td style={tdStyle}>{blocked}</td><td style={tdStyle}><button style={smallBtn} onClick={()=>setAreaKey(key)}>View workflow</button></td></tr>;})}</tbody></table></div>}
+      <div style={{fontSize:12,color:T.inkDim,marginBottom:12}}>Progress is read from the same task records as Work in Hand. Start, pause and complete work in WIH.</div>
+      {!chosenInstances.length&&<div style={{padding:18,color:T.inkDim}}>No activated tasks yet. Classify drawings for the covered areas, then start the assigned parent task in WIH.</div>}
+      {chosenInstances.map(w=><div key={w.designTaskId} style={{padding:"12px 14px",border:`1px solid ${T.line}`,borderLeft:`3px solid ${w.task?.parentDesignTaskId?T.cyan:T.navy}`,marginBottom:8,marginLeft:w.task?.parentDesignTaskId?16:0,display:"flex",gap:12,justifyContent:"space-between",fontFamily:FONT_BODY,fontSize:12}}><div><strong>{w.task?.taskType||"Task"}</strong><div style={{color:T.inkDim,fontSize:11,marginTop:4}}>{(w.task?.drawingReviewRequired===true||String(w.task?.drawingReviewRequired)==="true")&&<span style={{color:T.orange}}>Drawing review required · </span>}{w.task?.milestone} {w.task?.parentTask?`→ ${w.task.parentTask}`:""} · {w.task?.floor||"Project"} · {w.task?.area||"Shared"}</div></div><div>{w.assigneeName||"Unassigned"} · <strong>{w.status}</strong></div></div>)}
+    </>}
   </div>;
 }
 
@@ -5615,9 +4120,9 @@ function ProjectSelector({ state, selectedId, setSelectedId }) {
   return <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:14,flexWrap:"wrap"}}>
     <div>
       <div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,letterSpacing:".1em",textTransform:"uppercase",marginBottom:5}}>Selected Project</div>
-      <ProjectStatusSelect projects={orderedProjects(state.projects)} value={project?.id || ""} onChange={e=>setSelectedId(e.target.value)} style={{...inputStyle,borderRadius:0,minWidth:320,fontFamily:FONT_DISPLAY,fontSize:16,fontWeight:700}}>
-        {orderedProjects(state.projects).map(p=><option key={p.id} value={p.id}>{p.no || "—"} · {p.name}</option>)}
-      </ProjectStatusSelect>
+      <select value={project?.id || ""} onChange={e=>setSelectedId(e.target.value)} style={{...inputStyle,borderRadius:0,minWidth:320,fontFamily:FONT_DISPLAY,fontSize:16,fontWeight:700}}>
+        {state.projects.map(p=><option key={p.id} value={p.id}>{p.no || "—"} · {p.name}</option>)}
+      </select>
     </div>
     {project && <div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim}}>Stage: {project.projectControl?.currentStage || project.stage || "Onboarding"} · Status: {project.projectControl?.projectStatus || project.status || "Ongoing"}</div>}
   </div>;
@@ -5767,8 +4272,9 @@ function designDashboardScopeFloors(project){
   const s=project?.scope||{};
   const defs=[
     ["basement","Basement"],["stilt_floor","Stilt Floor"],["gf","GF"],["1f","1F"],["2f","2F"],["3f","3F"],
-    ["terrace","Terrace"],["facade","Facade"],["landscape","Landscape"],
-    ["bath_elevation","Bath Elevation"],["wardrobe","Furniture"],["art_curation","Art Curation"]];
+    ["terrace","Terrace"],["facade","Facade"],["wall_elevation","Wall Elevation"],["landscape","Landscape"],
+    ["bath_elevation","Bath Elevation"],["wardrobe","Wardrobe"],["kitchen","Kitchen"]
+  ];
   return defs.filter(([key])=>Boolean(s[key])).map(([,label])=>label);
 }
 
@@ -5830,350 +4336,474 @@ function syncTaskRowsToDashboardZones(project,zones){
   return next;
 }
 
+function DrawingControlDashboard({state,persist,projectId}){
+  const activeProjects=(state.projects||[]).filter(p=>p.status!=="Completed"&&p.projectControl?.projectStatus!=="Completed");
+  const project=activeProjects.find(p=>String(p.id)===String(projectId))||activeProjects[0];
+  const [floor,setFloor]=useState("All");
+  const [expanded,setExpanded]=useState({});
+  const [areaEditor,setAreaEditor]=useState(null);
+  const [taskEditor,setTaskEditor]=useState(null);
+  const [wihWorkRows,setWihWorkRows]=useState([]);
+  const scopeFloors=project?designDashboardScopeFloors(project):[];
+  const initialZones=project?.drawingDashboardZones?.length?normaliseDrawingZones(project):[];
+  const floorZoneInitial=project?syncFloorZonesToDashboard(project,initialZones):[];
+  const initial=project?syncReceivedClassify(project,floorZoneInitial,state.intakes):{zones:[],intakes:state.intakes||[]};
+  const [zones,setZones]=useState(initial.zones);
+  // Project Work Log is calculated only from completed WIH tasks in Google Sheets.
+  // The hours entered by the doer at COMPLETE / UPLOAD become totalMinutes in WIH.
+  const logs=wihWorkRows.filter(r=>/completed|done/i.test(String(r.status||r.task?.status||""))).map(r=>({
+    date:String(r.updatedAt||r.stopAt||r.task?.completedAt||"").slice(0,10),
+    project:project?.name||"",
+    purpose:r.task?.taskType||"Design Task",
+    zone:[r.task?.floor,r.task?.area].filter(Boolean).join(" · "),
+    type:r.task?.dependencyDrawingType||r.task?.taskType||"",
+    duration:Number(r.totalMinutes||0)/60,
+    person:r.assigneeName||r.task?.assigneeName||"Unassigned",
+    remark:r.notes||r.task?.remarks||""
+  }));
 
-const SHEET_DASHBOARD_WORK = [
-  {label:'Finalise Controls',match:/control finalisation|finalise controls/i},
-  {label:'Wall Elec Drawings',match:/wall electrical|lighting user interface/i,legacy:'wallElectrical'},
-  {label:'Concept',match:/concept.*freeze|concept.*2d|initial concept/i,legacy:'concept'},
-  {label:'FC Drawings',match:/false ceiling|fc corrections/i,legacy:'falseCeiling'},
-  {label:'3D Renders',match:/night renders|^3d renders$/i,legacy:'renders3d'},
-  {label:'Wiring Drawings',match:/lighting layout|wiring drawings|rcp\/flr\/cir/i,legacy:'light'},
-  {label:'Documentation',match:/^documentation$|technical table \/ documentation|execution bundle.*gfc/i,legacy:'documentationBoq'},
-  {label:'Bathroom Stone Drawings',scopeKey:'bath_elevation',match:/bathroom|bath elevation/i,legacy:'bathroomElevation'},
-  {label:'Facade Elevation Drawings',match:/facade/i,legacy:'facadeElevation'},
-  {label:'Furniture Drawings',scopeKey:'wardrobe',match:/furniture|joinery/i,legacy:'furniture'},
-  {label:'Finalize Decorative Lighting',scopeKey:'art_curation',match:/decorative/i,legacy:'decorativeSelection'}
-];
-function hoursVisibility(user,projectId){
- if(String(user?.email||'').trim().toLowerCase()==='system.enlighten@gmail.com'&&String(user?.appAccess||'').toLowerCase()==='admin')return 'all';
- if(String(user?.appAccess||'').toLowerCase()!=='viewer'&&user?.projectRoles?.[String(projectId)]==='Admin')return 'project';
- return 'own';
-}
-function visiblePersonHoursRows(rows,user,projectId){
- const scope=hoursVisibility(user,projectId);
- return rows.filter(row=>String(row.projectId)===String(projectId)&&(scope!=='own'||!!user?.userId&&String(row.assigneeUserId)===String(user.userId)));
-}
-function sheetDashboardFlag(value){return value===true||String(value).toLowerCase()==='true'||value===1;}
-function sheetDashboardStatus(records){
-  if(!records.length)return '';
-  const statuses=records.map(r=>String(r.actualStatus||r.status||'').toLowerCase());
-  if(statuses.every(s=>/completed|^done$/.test(s)))return 'Completed';
-  if(statuses.some(s=>/review/.test(s)))return 'Up for review';
-  if(statuses.some(s=>/progress|^started$|paused|completed|^done$/.test(s)))return 'In-progress';
-  if(statuses.some(s=>/^aligned$/.test(s))||records.some(r=>r.plannedStartDate)&&statuses.some(s=>/ready|not started|assigned/.test(s)))return 'Aligned';
-  if(statuses.some(s=>/ready|assigned|^open$/.test(s)))return 'Open';
-  return 'Pending';
-}
-function sheetDashboardTone(status){
-  return ({Pending:{bg:'#F4E5E0',fg:'#853D32'},Open:{bg:'#E8F2E9',fg:'#245C2B'},Aligned:{bg:'#F3F1EA',fg:'#625B48'},'In-progress':{bg:'#FFF4D6',fg:'#7A5A00'},'Up for review':{bg:'#E6EEF4',fg:'#1D4E89'},Completed:{bg:'#E8E3EF',fg:'#58416E'}})[status]||{bg:'transparent',fg:T.ink};
-}
-function sheetDashboardCovers(record,zone,parents){
-  const eq=(a,b)=>String(a||'').trim().toLowerCase()===String(b||'').trim().toLowerCase();
-  if(record.floor||record.area)return eq(record.floor,zone.floor)&&eq(record.area,zone.area||zone.room);
-  const parent=record.parentDesignTaskId?parents.get(String(record.parentDesignTaskId)):record;
-  try{return JSON.parse(parent?.workflowCoverage||'[]').some(c=>eq(c.floor,zone.floor)&&eq(c.area,zone.area||zone.room));}catch(_){return false;}
-}
-const DESIGN_DASHBOARD_LOADS={active:0,waiting:[]};
-function queueDesignDashboardLoad(work){
-  return new Promise((resolve,reject)=>{
-    DESIGN_DASHBOARD_LOADS.waiting.push({work,resolve,reject});
-    const drain=()=>{
-      while(DESIGN_DASHBOARD_LOADS.active<2&&DESIGN_DASHBOARD_LOADS.waiting.length){
-        const job=DESIGN_DASHBOARD_LOADS.waiting.shift();DESIGN_DASHBOARD_LOADS.active++;
-        Promise.resolve().then(job.work).then(job.resolve,job.reject).finally(()=>{DESIGN_DASHBOARD_LOADS.active--;drain();});
-      }
-    };
-    drain();
-  });
-}
-function ProjectMomTasks({state,projectId,enabled=true,revision=0}){
-  const [rows,setRows]=useState([]),[tab,setTab]=useState('Open'),[loading,setLoading]=useState(false),[error,setError]=useState(''),[leaving,setLeaving]=useState(new Set()),[pending,setPending]=useState(new Set()),[importing,setImporting]=useState(false),[reload,setReload]=useState(0);
-  const [draft,setDraft]=useState(null),[circuit,setCircuit]=useState(null),[sending,setSending]=useState(false),[feedback,setFeedback]=useState('');
-  const sendLock=useRef(false);
-  const project=(state.projects||[]).find(p=>String(p.id)===String(projectId));
-  const projectName=project?.name||'Project';
-  const groupKey='enlighten-whatsapp:'+state.currentUser?.email+':'+projectId;
-  const [group,setGroup]=useState(()=>{try{return JSON.parse(localStorage.getItem(groupKey)||'{}');}catch{return {};}});
-  const contacts=[...new Map(Object.values(project?.contacts||{}).flat().filter(c=>c?.email).map(c=>[String(c.email).trim().toLowerCase(),c])).values()];
-  const addresses=value=>String(value||'').split(/[,;]+/).map(x=>x.trim()).filter(Boolean);
-  const assign=(field,email,checked)=>setDraft(current=>{const next={...current};for(const k of ['to','cc','bcc']){const values=addresses(current[k]).filter(x=>x.toLowerCase()!==email.toLowerCase());if(checked&&k===field)values.push(email);next[k]=values.join(', ');}return next;});
-  const groupValid=/^https:\/\/chat\.whatsapp\.com\/[A-Za-z0-9_-]+$/.test(group.url||'');
-
-  const taskText=tasks=>'Hello, could you please share an update on the following items for '+projectName+'?\n\n'+tasks.map(t=>'• '+t.title+[t.floor,t.circuitLabel].filter(Boolean).map(x=>' ('+x+')').join('')).join('\n')+'\n\nThank you.';
-  const openDraft=(channel,row)=>{setFeedback('');setDraft({channel,ids:[row.momTaskId],to:'',cc:'',bcc:'',subject:'MOM follow-up · '+projectName,body:taskText([row])});};
-  const sendDraft=async()=>{if(sendLock.current||!draft.ids.length)return;sendLock.current=true;setSending(true);setFeedback('');try{await apiRequest('sendMomFollowup',{projectId,momTaskId:draft.ids[0],to:draft.to,cc:draft.cc,bcc:draft.bcc,subject:draft.subject,body:draft.body},'POST');setDraft(null);setFeedback('Email sent.');}catch(e){setFeedback(e.message);}finally{setSending(false);sendLock.current=false;}};
-  const linkCircuit=async row=>{setCircuit({row,loading:true});try{const data=await apiRequest('getSiteExecution',{projectId},'POST',120000);setCircuit({row,items:data.items.filter(i=>i.editable),token:''});}catch(e){setCircuit({row,error:e.message});}};
-  const alive=useRef(true),timers=useRef(new Set()),pendingIds=useRef(new Set());
-  useEffect(()=>{alive.current=true;return()=>{alive.current=false;timers.current.forEach(clearTimeout);};},[]);
-  useEffect(()=>{let live=true;setError('');if(!enabled)return;setLoading(true);queueDesignDashboardLoad(()=>live?projectApi.listMomTasks(projectId):[]).then(list=>{if(live)setRows(current=>(Array.isArray(list)?list:[]).map(row=>pendingIds.current.has(row.momTaskId)?(current.find(r=>r.momTaskId===row.momTaskId)||row):row));}).catch(e=>{if(live)setError(e.message||'Could not load MOM tasks.');}).finally(()=>{if(live)setLoading(false);});return()=>{live=false;};},[projectId,enabled,revision,reload]);
-  useEffect(()=>{const changed=e=>{if(String(e.detail?.projectId)===String(projectId))setReload(n=>n+1);};window.addEventListener?.('enlighten-mom-tasks-changed',changed);return()=>window.removeEventListener?.('enlighten-mom-tasks-changed',changed);},[projectId]);
-  const viewer=state.currentUser?.appAccess?.toLowerCase()==='viewer',canWrite=!viewer&&!!projectRole(state,projectId),admin=!viewer&&projectRole(state,projectId)==='Admin';
-  const done=r=>sheetDashboardFlag(r.completed);
-  const update=async(row,patch)=>{
-    if(pendingIds.current.has(row.momTaskId))return;
-    pendingIds.current.add(row.momTaskId);setPending(new Set(pendingIds.current));setError('');
-    const optimistic={...row,...patch,...(patch.completed===true?{completedAt:new Date().toISOString(),completedBy:state.currentUser?.name||state.currentUser?.email||''}:{}),...(patch.completed===false?{completedAt:'',completedBy:''}:{})};
-    setRows(list=>list.map(r=>r.momTaskId===row.momTaskId?optimistic:r));
-    if(patch.completed===true){setLeaving(ids=>new Set([...ids,row.momTaskId]));const timer=setTimeout(()=>{timers.current.delete(timer);if(alive.current)setLeaving(ids=>{const next=new Set(ids);next.delete(row.momTaskId);return next;});},650);timers.current.add(timer);}
-    try{const saved=await projectApi.updateMomTask({projectId,momTaskId:row.momTaskId,...patch});if(alive.current)setRows(list=>list.map(r=>r.momTaskId===row.momTaskId?saved:r));window.dispatchEvent(new CustomEvent('enlighten-mom-tasks-changed',{detail:{projectId}}));}
-    catch(e){if(alive.current){setRows(list=>list.map(r=>r.momTaskId===row.momTaskId?row:r));setLeaving(ids=>{const next=new Set(ids);next.delete(row.momTaskId);return next;});setError(`Could not save task: ${e.message} Its previous state is restored.`);}}
-    finally{pendingIds.current.delete(row.momTaskId);if(alive.current)setPending(new Set(pendingIds.current));}
-  };
-  const importEarlier=async()=>{setImporting(true);setError('');try{const saved=await projectApi.importMomTasks(projectId);if(alive.current)setRows(saved);}catch(e){if(alive.current)setError(e.message);}finally{if(alive.current)setImporting(false);}};
-  const visible=rows.filter(r=>tab==='Completed'?done(r):(!done(r)||leaving.has(r.momTaskId))&&(tab==='Follow-up'?r.kind==='Follow-up':r.kind!=='Follow-up'));
-  const count=label=>rows.filter(r=>label==='Completed'?done(r):!done(r)&&(label==='Follow-up'?r.kind==='Follow-up':r.kind!=='Follow-up')).length;
-  return <section aria-label="Project MOM tasks" style={{marginTop:20,border:`1px solid ${T.line}`,background:'#fff',fontFamily:FONT_BODY}}><div style={{padding:'10px 12px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,flexWrap:'wrap',background:'#D2CDC1'}}><h3 style={{fontFamily:FONT_DISPLAY,fontSize:15,margin:0}}>MOM · Actions & Next Steps</h3><div style={{display:'flex',gap:7}}><button type="button" style={smallBtn} disabled={loading||!enabled||pending.size>0} onClick={()=>setReload(v=>v+1)}>Refresh tasks</button>{admin&&<button type="button" style={smallBtn} disabled={loading||importing||!enabled||pending.size>0} onClick={importEarlier}>{importing?'Importing…':'Import earlier MOM'}</button>}</div></div><div role="group" aria-label="MOM task views" style={{padding:10,display:'flex',gap:7,flexWrap:'wrap'}}>{['Open','Follow-up','Completed'].map(label=><button type="button" aria-pressed={tab===label} key={label} onClick={()=>setTab(label)} style={{...smallBtn,background:tab===label?T.navy:'#fff',color:tab===label?'#fff':T.blue}}>{label} ({count(label)})</button>)}</div>
-    {error&&<p role="alert" style={{padding:'0 12px',fontSize:12,color:T.redline}}>{error}</p>}{loading&&<p style={{padding:'0 12px',fontSize:12,color:T.inkDim}}>Loading MOM tasks…</p>}
-    {visible.map(row=><div key={row.momTaskId} style={{padding:'10px 12px',borderTop:`1px solid ${T.line}`,display:'flex',alignItems:'flex-start',gap:10,background:done(row)?'#F1F6F1':'#fff'}}><input type="checkbox" aria-label={`${done(row)?'Reopen':'Complete'} ${row.title}`} checked={done(row)} disabled={!canWrite||pending.has(row.momTaskId)} onChange={e=>update(row,{completed:e.target.checked})} style={{width:18,height:18,margin:'2px 0 0',flexShrink:0,accentColor:T.blue}}/><div style={{flex:1,minWidth:0}}><div style={{fontSize:13,lineHeight:1.5,textDecoration:done(row)?'line-through':'none',color:done(row)?T.inkDim:T.ink}}>{row.title}</div><MomTaskPictures row={row}/><div style={{fontSize:11,color:T.inkDim,lineHeight:1.5,marginTop:3}}>{[row.milestone,row.floor,row.visitDate?`MOM ${formatProjectDate(row.visitDate)}`:'',row.owner?`Owner: ${row.owner}`:'',row.dueDate?`Due: ${formatProjectDate(row.dueDate)}`:'',row.circuitLabel?`Circuit: ${row.circuitLabel}`:''].filter(Boolean).join(' · ')}</div>{done(row)&&<div style={{fontSize:11,color:T.green,marginTop:3}}>Completed {formatProjectDate(row.completedAt)}{row.completedBy?` · ${row.completedBy}`:''}</div>}</div><div style={{display:'flex',alignItems:'center',gap:7}}>{pending.has(row.momTaskId)&&<span role="status" style={{fontSize:11,color:T.inkDim}}>Saving…</span>}{canWrite&&!row.circuitKey&&!row.circuitLabel&&<button type="button" style={smallBtn} disabled={pending.has(row.momTaskId)} onClick={()=>linkCircuit(row)}>Link circuit</button>}</div></div>)}
-    {canWrite&&visible.some(r=>!done(r))&&<div style={{padding:12,display:'flex',gap:8}}>{[['email','Follow up via email'],['whatsapp','Follow up via WhatsApp']].map(([channel,label])=><button key={channel} type="button" style={smallBtn} onClick={()=>openDraft(channel,visible.find(r=>!done(r)))}>{label}</button>)}</div>}
-    {!draft&&feedback&&<p role="status" style={{padding:'0 12px'}}>{feedback}</p>}
-    {(draft||circuit)&&<div style={{position:'fixed',inset:0,zIndex:15000,background:'#08192d70',display:'grid',placeItems:'center',padding:16}}><section role="dialog" aria-modal="true" aria-label={draft?'Follow-up draft':'Link circuit'} style={{background:T.paper,padding:18,width:'min(620px,100%)',boxSizing:'border-box',maxHeight:'90vh',overflow:'auto'}}>
-    {draft?<><h3>{draft.channel==='email'?'Email follow-up':'WhatsApp follow-up'}</h3><fieldset disabled={sending} style={{maxHeight:160,overflow:'auto'}}><legend>Include tasks</legend>{rows.filter(r=>!done(r)).map(r=><label key={r.momTaskId} style={{display:'block'}}><input type="checkbox" checked={draft.ids.includes(r.momTaskId)} onChange={e=>{const ids=e.target.checked?[...draft.ids,r.momTaskId]:draft.ids.filter(id=>id!==r.momTaskId);setDraft({...draft,ids,body:taskText(rows.filter(t=>ids.includes(t.momTaskId)))});}}/> {r.title}</label>)}</fieldset>
-    {draft.channel==='email'&&<><fieldset disabled={sending} style={{maxHeight:210,overflow:'auto'}}><legend>Project participants</legend>{contacts.length?<table style={{width:'100%',textAlign:'left'}}><thead><tr><th>Participant</th><th>To</th><th>CC</th><th>BCC</th></tr></thead><tbody>{contacts.map(c=>{const email=String(c.email).trim();return <tr key={email}><td>{c.name||email}<small style={{display:'block',color:T.inkDim}}>{email}</small></td>{['to','cc','bcc'].map(field=><td key={field}><input type="checkbox" aria-label={field.toUpperCase()+' '+email} checked={addresses(draft[field]).some(x=>x.toLowerCase()===email.toLowerCase())} onChange={e=>assign(field,email,e.target.checked)}/></td>)}</tr>})}</tbody></table>:<p>No saved project contacts with email addresses.</p>}</fieldset>{['to','cc','bcc'].map(field=><Field key={field} label={field.toUpperCase()}><input style={inputStyle} disabled={sending} value={draft[field]} placeholder="Separate addresses with commas" onChange={e=>setDraft({...draft,[field]:e.target.value})}/></Field>)}<Field label="Subject"><input style={inputStyle} value={draft.subject} onChange={e=>setDraft({...draft,subject:e.target.value})}/></Field></>}
-    <Field label="Message"><textarea style={{...inputStyle,minHeight:130}} value={draft.body} onChange={e=>setDraft({...draft,body:e.target.value})}/></Field>
-    {feedback&&<p role="status">{feedback}</p>}
-    <button type="button" style={smallBtn} disabled={sending} onClick={()=>setDraft(null)}>Close</button>{' '}
-    {draft.channel==='email'?<button type="button" style={smallBtn} disabled={sending||!draft.ids.length||!draft.to.trim()||!draft.subject.trim()||!draft.body.trim()} onClick={sendDraft}>{sending?'Sending…':'Send email'}</button>:<><button type="button" style={smallBtn} disabled={!draft.ids.length} onClick={async()=>{try{await navigator.clipboard.writeText(draft.body);setFeedback('Draft copied. Paste it into your project group in WhatsApp.');}catch{setFeedback('Select and copy the message above.');}}}>Copy draft</button>{' '}<Field label="WhatsApp group name"><input style={inputStyle} value={group.name||''} onChange={e=>setGroup({...group,name:e.target.value})}/></Field><Field label="WhatsApp group invite link"><input style={inputStyle} value={group.url||''} onChange={e=>setGroup({...group,url:e.target.value.trim()})}/></Field><button type="button" style={smallBtn} disabled={!groupValid||!group.name?.trim()} onClick={()=>{try{localStorage.setItem(groupKey,JSON.stringify(group));setFeedback('Group saved in this browser.');}catch{setFeedback('Could not save the group in this browser.');}}}>Save group</button>{' '}{groupValid&&<a href={group.url} target="_blank" rel="noreferrer">Open {group.name||'project group'}</a>}</>}
-    </>:<><h3>Link circuit</h3>{circuit.loading&&<p>Loading project circuits…</p>}{circuit.error&&<p role="alert">{circuit.error}</p>}{circuit.items&&<><select aria-label="Circuit" style={inputStyle} value={circuit.token} onChange={e=>setCircuit({...circuit,token:e.target.value})}><option value="">Select a circuit</option>{circuit.items.map(i=><option key={i.itemKey} value={i.token}>{[i.floor,i.zone,i.cn].filter(Boolean).join(' · ')}</option>)}</select><button type="button" style={smallBtn} disabled={!circuit.token} onClick={()=>{update(circuit.row,{circuitToken:circuit.token});setCircuit(null);}}>Save circuit link</button>{circuit.row.circuitKey&&<button type="button" style={smallBtn} onClick={()=>{update(circuit.row,{circuitToken:''});setCircuit(null);}}>Remove link</button>}</>}<button type="button" style={smallBtn} onClick={()=>setCircuit(null)}>Close</button></>}
-    </section></div>}
-    {!visible.length&&!loading&&<p style={{fontSize:12,color:T.inkDim,padding:'0 12px 10px'}}>{enabled?(tab==='Completed'?'No completed MOM tasks yet.':tab==='Follow-up'?'No follow-ups pending.':'No open MOM tasks. Action items from saved visit MOMs appear here.'):'Tasks load when this project comes into view.'}</p>}
-  </section>;
-}
-
-function DrawingControlDashboard({state,persist,projectId,deferLoad=false,heading,onEdit,onOpenWorkflow}){
-  const project=(state.projects||[]).find(p=>String(p.id)===String(projectId));
-  const scope=JSON.stringify([AUTH_SESSION_GENERATION,project?.id]);
-  const [dashboardResult,setDashboardResult]=useState(null),[workResult,setWorkResult]=useState(null);
-  const [loading,setLoading]=useState(true),[error,setError]=useState(''),[revision,setRevision]=useState(0);
-  const payload=dashboardResult?.scope===scope?dashboardResult.data:peekPageRead('getDesignDashboard',{projectId:project?.id});
-  const work=workResult?.scope===scope?workResult.data:peekPageRead('getWIH',{includeCompleted:true,projectId:project?.id,fastRead:true});
-  const wih=Array.isArray(work)?work:[];
-  const sectionRef=useRef(null),[ready,setReady]=useState(!deferLoad),[showHours,setShowHours]=useState(false);
-  const [output,setOutput]=useState(null),[outputBusy,setOutputBusy]=useState(false),[outputError,setOutputError]=useState(''),[outputNotice,setOutputNotice]=useState('');
-  const outputJob=useRef({});
-  const receivedPicker=useRef(null),receivedTarget=useRef(null);
-  const [receivedFiles,setReceivedFiles]=useState([]);
-  const receivedPanelRef=useRef(null);
-  const [receivedSelection,setReceivedSelection]=useState([]),[receivedMode,setReceivedMode]=useState(false),[receivedBusy,setReceivedBusy]=useState(false),[receivedNotice,setReceivedNotice]=useState('');
-
-  const canReceive=state.currentUser?.appAccess?.toLowerCase()!=='viewer'&&!!projectRole(state,projectId)&&!projectIsCompleted(project);
-  useEffect(()=>setShowHours(false),[project?.id]);
-  const layoutRef=useRef(null),[fullTableWidth,setFullTableWidth]=useState(0);
-  useEffect(()=>{
-    const layout=layoutRef.current;if(!layout)return;
-    const measure=()=>{const width=layout.getBoundingClientRect?.().width||layout.clientWidth||0;if(width>0)setFullTableWidth(Math.max(0,Math.floor(width)-2));};
-    measure();
-    if(typeof ResizeObserver!=='undefined'){const observer=new ResizeObserver(measure);observer.observe(layout);return()=>observer.disconnect();}
-    window.addEventListener?.('resize',measure);return()=>window.removeEventListener?.('resize',measure);
-  },[project?.id]);
-  useEffect(()=>{
-    if(ready)return;
-    if(typeof IntersectionObserver==='undefined'){setReady(true);return;}
-    const observer=new IntersectionObserver(entries=>{if(entries.some(entry=>entry.isIntersecting)){setReady(true);observer.disconnect();}},{rootMargin:'500px 0px'});
-    if(sectionRef.current)observer.observe(sectionRef.current);
-    return()=>observer.disconnect();
-  },[ready]);
-  useEffect(()=>{let live=true;setLoading(true);setError('');
-    if(!project?.id){setLoading(false);return()=>{live=false;};}
-    if(!ready)return()=>{live=false;};
-    queueDesignDashboardLoad(()=>{if(!live)return; const dashboard=projectApi.getDesignDashboard(project.id).then(data=>{if(live)setDashboardResult({scope,data});});const work=projectApi.getWIH(true,project.id,true).then(data=>{if(live)setWorkResult({scope,data});});return Promise.allSettled([dashboard,work]).then(results=>{const failed=results.find(r=>r.status==='rejected');if(failed)throw failed.reason;});}).catch(e=>{if(live)setError(e.message||'Could not load dashboard data.');}).finally(()=>{if(live)setLoading(false);});
-    return()=>{live=false;};
-  },[project?.id,revision,ready,scope]);
-  if(!project)return <p>No active project available.</p>;
-  const eq=(a,b)=>String(a||'').trim().toLowerCase()===String(b||'').trim().toLowerCase();
-  const allZones=(Array.isArray(payload?.floorZones)?payload.floorZones:project.floorZones||Object.entries(project.zones||{}).map(([zoneCode,z])=>({zoneCode,floor:z.floor,area:z.room}))).filter(z=>z.floor&&(z.area||z.room));
-  const unique=[...new Map(allZones.map(z=>[JSON.stringify([z.floor,z.area||z.room]),z])).values()];
-  const zones=unique;
-  const tasksMap=new Map((payload?.tasks||[]).map(t=>[String(t.designTaskId),{...t}]));
-  wih.forEach(w=>{const id=String(w.designTaskId);tasksMap.set(id,{...(tasksMap.get(id)||{}),...(w.task||{}),actualStatus:w.status});});
-  const tasks=[...tasksMap.values()],parents=new Map(tasks.map(t=>[String(t.designTaskId),t]));
-  const hoursScope=hoursVisibility(state.currentUser,project.id);
-  const logs=visiblePersonHoursRows(wih,state.currentUser,project.id).filter(r=>/completed|done/i.test(String(r.status||r.task?.status||''))).map(r=>({person:r.assigneeName||r.task?.assigneeName||'Unassigned',duration:Number(r.totalMinutes||0)/60}));
-  const totalHours=logs.reduce((sum,r)=>sum+r.duration,0),personHours=Object.entries(logs.reduce((sum,r)=>{sum[r.person]=(sum[r.person]||0)+r.duration;return sum;},{})).sort((a,b)=>b[1]-a[1]);
-  const workColumns=SHEET_DASHBOARD_WORK.filter(def=>!def.scopeKey||sheetDashboardFlag(project.scope?.[def.scopeKey]));
-  const receivedCols=[['Layout','layoutReceived','Layout'],['FC','fcReceived','False Ceiling'],['Detail','detailReceived','Detail'],['3D','3dReceived','3D']];
-  const toggleReceived=(z,drawingType)=>{if(receivedBusy||receivedMode)return;receivedTarget.current={floor:z.floor,area:z.area||z.room,drawingType};receivedPicker.current?.click();};
-  const cell={padding:'2px 5px',border:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:10,verticalAlign:'middle',height:20,lineHeight:1.2,whiteSpace:'normal',overflowWrap:'anywhere'};
-  const headerDivider='2px solid #B8B5AC';
-  const head={...cell,background:'#D2CDC1',color:'#1C1C19',fontFamily:FONT_MONO,fontSize:9,borderBottom:`2px solid ${T.ink}`,fontWeight:700,textAlign:'center',whiteSpace:'normal',height:62,...(showHours?{overflowWrap:'normal',wordBreak:'normal',hyphens:'none'}:{})};
-  const displayStatus=(status,date,title,key)=>{const tone=sheetDashboardTone(status);return <td key={key} title={title||status||'No linked task'} style={{...cell,background:tone.bg,color:tone.fg,textAlign:'left',lineHeight:1.2}}>{status}{status==='Completed'&&date&&<div style={{fontSize:8}}>{String(date).slice(0,10)}</div>}</td>;};
-  const liveWork=(def,z,dbRow)=>{
-    let records=tasks.filter(t=>def.match.test(String(t.parentTask||t.taskType||''))&&sheetDashboardCovers(t,z,parents));
-    const children=records.filter(t=>t.parentDesignTaskId);if(children.length)records=children;
-    if(records.length)return {records,status:sheetDashboardStatus(records),date:records.map(t=>t.completedAt||'').filter(Boolean).sort().pop(),title:records.map(t=>[t.designNo,t.taskType,t.actualStatus||t.status].filter(Boolean).join(' · ')).join('\n')};
-    const key=def.legacy;
-    if(key&&(dbRow?.[key+'TaskId']||dbRow?.[key+'DesignNo']))return {status:sheetDashboardStatus([{status:dbRow[key+'Status']}]),date:'',title:dbRow[key+'DesignNo']||''};
-    return {status:'',date:'',title:''};
-  };
-  const outputCandidates=(def,z)=>{
-    const dbRow=(payload?.rows||[]).find(r=>eq(r.floor,z.floor)&&eq(r.area,z.area||z.room));
-    return (liveWork(def,z,dbRow).records||[]).filter(t=>t.taskCategory!=='Meeting'&&!/completed|^done$|blocked/i.test(t.actualStatus||t.status||'')&&wihCanSeeTask(state.currentUser,t));
-  };
-  const openOutput=(def,z)=>{
-    const areas=zones.flatMap((zone,index)=>{
-      const taskIds=[...new Set(outputCandidates(def,zone).map(task=>String(task.designTaskId)))];
-      return taskIds.length?[{id:index,floor:zone.floor,area:zone.area||zone.room,taskIds}]:[];
+  // Google Sheets is authoritative for received flags, permanent Design Nos. and task status.
+  // This prevents the dashboard from inventing a second local task/design number.
+  const applyBackendDashboard = (baseZones, payload) => {
+    const rows=Array.isArray(payload?.rows)?payload.rows:[];
+    if(!rows.length)return baseZones;
+    const taskDefs=[
+      {i:0,id:"conceptTaskId",no:"conceptDesignNo",st:"conceptStatus"},
+      {i:1,id:"renders3dTaskId",no:"renders3dDesignNo",st:"renders3dStatus"},
+      {i:2,id:"decorativeSelectionTaskId",no:"decorativeSelectionDesignNo",st:"decorativeSelectionStatus"},
+      {i:3,id:"wallElectricalTaskId",no:"wallElectricalDesignNo",st:"wallElectricalStatus"},
+      {i:4,id:"falseCeilingTaskId",no:"falseCeilingDesignNo",st:"falseCeilingStatus"},
+      {i:5,id:"lightTaskId",no:"lightDesignNo",st:"lightStatus"},
+      {i:6,id:"slabElectricalTaskId",no:"slabElectricalDesignNo",st:"slabElectricalStatus"},
+      {i:7,id:"facadeElevationTaskId",no:"facadeElevationDesignNo",st:"facadeElevationStatus"},
+      {i:8,id:"bathroomElevationTaskId",no:"bathroomElevationDesignNo",st:"bathroomElevationStatus"},
+      {i:9,id:"documentationBoqTaskId",no:"documentationBoqDesignNo",st:"documentationBoqStatus"},
+      {i:10,id:"furnitureTaskId",no:"furnitureDesignNo",st:"furnitureStatus"}
+    ];
+    return baseZones.map(z=>{
+      const r=rows.find(x=>String(x.floor||"").toLowerCase()===String(z.floor||"").toLowerCase()&&String(x.area||"").toLowerCase()===String(z.area||"").toLowerCase());
+      if(!r)return z;
+      const received=[Boolean(r.layoutReceived),Boolean(r.weReceived),Boolean(r.fcReceived),Boolean(r.detailReceived),Boolean(r["3dReceived"])];
+      const statuses=[...z.statuses],taskDesignNos=[...z.taskDesignNos];
+      taskDefs.forEach(d=>{
+        if(r[d.id]||r[d.no]){ taskDesignNos[d.i]=String(r[d.no]||""); statuses[d.i]=String(r[d.st]||"Not Started"); }
+      });
+      return {...z,received,statuses,taskDesignNos};
     });
-    setOutputError('');setOutputNotice('');outputJob.current={};
-    setOutput({label:def.label,areas,historical:false,ids:areas.filter(area=>eq(area.floor,z.floor)&&eq(area.area,z.area||z.room)).map(area=>area.id),file:null});
   };
-  const outputFloors=new Map();
-  for(const area of output?.areas||[]){
-    if(!outputFloors.has(area.floor))outputFloors.set(area.floor,[]);
-    outputFloors.get(area.floor).push(area);
-  }
-  const selectedAreas=output?.areas.filter(area=>output.ids.includes(area.id))||[];
-  const selectedTaskIds=[...new Set(selectedAreas.flatMap(area=>area.taskIds))];
-  const outputCheckbox=(areas,label)=>{
-    const ids=areas.map(area=>area.id);
-    const all=ids.every(id=>output.ids.includes(id));
-    const some=ids.some(id=>output.ids.includes(id));
-    return <input type="checkbox" aria-label={label} checked={all} ref={input=>{if(input)input.indeterminate=some&&!all;}}
-      onChange={event=>{
-        const checked=event.target.checked;
-        setOutput(current=>({...current,ids:checked?[...new Set([...current.ids,...ids])]:current.ids.filter(id=>!ids.includes(id))}));
-      }}/>;
+
+  useEffect(()=>{
+    let alive=true;
+    if(!project?.id){setWihWorkRows([]);return ()=>{alive=false;};}
+    projectApi.getWIH(true,project.id).then(rows=>{
+      if(!alive)return;
+      const all=Array.isArray(rows)?rows:[];
+      setWihWorkRows(all.filter(r=>String(r.projectId||r.task?.projectId||"")===String(project.id)));
+    }).catch(err=>{console.warn("Project Work Log WIH sync failed",err);if(alive)setWihWorkRows([]);});
+    return ()=>{alive=false;};
+  },[project?.id]);
+
+  useEffect(()=>{
+    if(project){
+      const selected=designDashboardScopeFloors(project);
+      const source=project?.drawingDashboardZones?.length?normaliseDrawingZones(project):[];
+      const withFloorZones=syncFloorZonesToDashboard(project,source);
+      const synced=syncReceivedClassify(project,withFloorZones,state.intakes);
+      setZones(synced.zones);
+      // Refresh authoritative IDs/statuses from Google Sheets whenever this project opens.
+      projectApi.getDesignDashboard(project.id).then(payload=>{
+        setZones(current=>applyBackendDashboard(current,payload));
+      }).catch(err=>console.warn("Design Dashboard backend sync failed",err));
+      setExpanded(x=>Object.fromEntries(selected.map(f=>[f,x[f]!==false])));
+      if(floor!=="All"&&!selected.includes(floor))setFloor("All");
+    }
+  },[project?.id,project?.floorZones,project?.zones,project?.drawingDashboardZones,state.intakes]);
+
+  if(!project)return <div style={{fontFamily:FONT_BODY,color:T.inkDim}}>No active project available. Completed projects are excluded from Design Dashboard.</div>;
+
+  const floors=["All",...scopeFloors];
+  const visibleFloors=scopeFloors.filter(f=>floor==="All"||floor===f);
+  const totalHours=logs.reduce((s,r)=>s+(Number(r.duration)||0),0);
+  const personHours=Object.entries(logs.reduce((a,r)=>{const p=r.person||"Unassigned";a[p]=(a[p]||0)+(Number(r.duration)||0);return a;},{})).sort((a,b)=>b[1]-a[1]);
+
+  const saveState=async(nextZones,nextIntakes)=>{
+    const projects=state.projects.map(p=>p.id===project.id?{...p,drawingDashboardZones:nextZones}:p);
+    await persist({...state,projects,intakes:nextIntakes??state.intakes});
   };
-  const saveOutput=async event=>{
-    event.preventDefault();
-    if(!output?.file||!selectedTaskIds.length||selectedTaskIds.length>50||outputBusy)return;
-    setOutputBusy(true);setOutputError('');
+
+  const nextCn=()=>{
+    const n=zones.length;
+    let x=n+1,s="";
+    while(x>0){x--;s=String.fromCharCode(65+(x%26))+s;x=Math.floor(x/26);}
+    return s;
+  };
+  const addArea=f=>setAreaEditor({mode:"add",index:-1,cn:nextCn(),floor:f,area:""});
+  const editArea=i=>setAreaEditor({mode:"edit",index:i,cn:zones[i].cn||"",floor:zones[i].floor||scopeFloors[0]||"",area:zones[i].area||""});
+  const saveArea=async()=>{
+    if(!areaEditor?.area?.trim())return alert("Please enter Area / Room name.");
+    if(!scopeFloors.includes(areaEditor.floor))return alert("Please select a floor from Project & Scope.");
+    let next;
+    if(areaEditor.mode==="edit") next=zones.map((z,i)=>i===areaEditor.index?{...z,cn:areaEditor.cn||z.cn,floor:areaEditor.floor,area:areaEditor.area.trim()}:z);
+    else next=[...zones,{cn:areaEditor.cn||nextCn(),floor:areaEditor.floor,area:areaEditor.area.trim(),received:Array(5).fill(false),statuses:Array(DASHBOARD_WORK_TYPES.length).fill("Not Started"),taskDesignNos:Array(DASHBOARD_WORK_TYPES.length).fill("")}];
+    setZones(next); setExpanded(x=>({...x,[areaEditor.floor]:true}));
+    await saveState(next); setAreaEditor(null);
+  };
+  const deleteArea=async()=>{
+    if(areaEditor?.mode!=="edit")return;
+    if(!window.confirm(`Remove ${areaEditor.area} from Design Dashboard?`))return;
+    const next=zones.filter((_,i)=>i!==areaEditor.index);
+    setZones(next); await saveState(next); setAreaEditor(null);
+  };
+
+
+  const openAddTask=f=>setTaskEditor({
+    mode:"add",id:"",floor:f||scopeFloors[0]||"",drawings:"",tasks:"",
+    responsible:"",status:"Not Started",plannedStart:"",plannedCompletion:"",hours:""
+  });
+  const openEditTask=r=>setTaskEditor({
+    mode:"edit",id:r.id||"",floor:r.floor||r.floorZone||r.zone||"",
+    drawings:taskAreaName(r),tasks:r.tasks||r.task||"",
+    responsible:r.responsible||r.responsiblePerson||r.assignee||"",
+    status:r.status||r.taskStatus||"Not Started",
+    plannedStart:r.plannedStart||r.plannedStartDate||"",
+    plannedCompletion:r.plannedCompletion||r.plannedCompletionDate||"",
+    hours:r.hours??r.plannedHours??""
+  });
+  const taskPeople=()=>{
+    const a=[];
+    Object.values(project?.contacts||{}).forEach(c=>{if(c?.name&&!a.includes(c.name))a.push(c.name);});
+    (state.team||[]).forEach(x=>{const n=x?.name||x;if(n&&!a.includes(n))a.push(n);});
+    return a;
+  };
+  const saveTaskEditor=async()=>{
+    if(!taskEditor?.floor||!taskEditor?.drawings?.trim())return alert("Please select Floor and enter Area / Room.");
+    const old=dashboardTaskRows(project);
+    let nextRows;
+    if(taskEditor.mode==="edit"){
+      nextRows=old.map(r=>String(r.id)===String(taskEditor.id)?{
+        ...r,floor:taskEditor.floor,drawings:taskEditor.drawings.trim(),tasks:taskEditor.tasks,
+        responsible:taskEditor.responsible,status:taskEditor.status,
+        plannedStart:taskEditor.plannedStart,plannedCompletion:taskEditor.plannedCompletion,hours:taskEditor.hours
+      }:r);
+    }else{
+      nextRows=[...old,{
+        id:uid(),projectId:project.id,sourceRow:old.length+1,milestone:"",
+        floor:taskEditor.floor,drawings:taskEditor.drawings.trim(),tasks:taskEditor.tasks,
+        responsible:taskEditor.responsible,status:taskEditor.status,
+        plannedStart:taskEditor.plannedStart,plannedCompletion:taskEditor.plannedCompletion,hours:taskEditor.hours
+      }];
+    }
     try{
-      const anchor=outputJob.current.saved?.linkedEntityId||selectedTaskIds[0];
-      const upload=await uploadProjectDrawingJob(output.file,project.id,'Output',outputJob.current,undefined,anchor);
-      const result=await apiRequest('completeDashboardWork',{projectId:project.id,taskIds:selectedTaskIds,coverage:selectedAreas.map(({floor,area})=>({floor,area})),historical:output.historical,completionFileId:upload.fileId},'POST');
-      setOutput(null);setOutputNotice(`Drawing uploaded.${result.completed?` ${result.completed} task(s) completed.`:''}${result.completed<selectedTaskIds.length?' Tasks with partial zone coverage remain open.':''}`);setRevision(r=>r+1);
-    }catch(e){
-      if(/expired|invalid.*session/i.test(e.message||''))outputJob.current.failedExpired=true;
-      setOutputError(/Start this task first to open its workflow subtasks/i.test(e.message)?'Start this parent task in Tasks to open its workflow subtasks, then complete them before submitting the parent drawing. For old work, select Historical drawing and retry.':e.message);
-    }finally{setOutputBusy(false);}
+      const saved=await projectApi.saveLineOfWork(project.id,nextRows);
+      const rows=Array.isArray(saved)&&saved.length?saved:nextRows;
+      const projectNext={...project,lineOfWorkResidence:rows,lineOfWork:rows};
+      const nextZones=syncTaskRowsToDashboardZones(projectNext,zones);
+      projectNext.drawingDashboardZones=nextZones;
+      setZones(nextZones);
+      await persist({...state,projects:(state.projects||[]).map(p=>p.id===project.id?projectNext:p)});
+      setTaskEditor(null);
+    }catch(err){alert(`Task save failed: ${err?.message||err}`);}
   };
-  return <div ref={sectionRef}>
-    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap',marginBottom:6}}><div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>{heading?<h2 className="studio-project-heading">{heading}</h2>:<span/>}{onOpenWorkflow&&<button type="button" aria-label={`Line of Work for ${project.name}`} style={smallBtn} onClick={()=>onOpenWorkflow(project.id)}>Line of Work</button>}</div><div style={{display:'flex',gap:8,alignItems:'center'}}><button type="button" disabled={loading} style={{...smallBtn,padding:'5px 8px',fontSize:10}} onClick={()=>{PAGE_READ_CACHE.clear();setRevision(x=>x+1);}}>Refresh Dashboard</button>{onEdit&&<button type="button" onClick={onEdit} style={{...smallBtn,background:'#fff',padding:'5px 8px',fontSize:10}}>EDIT PROJECT</button>}</div></div>
-    {outputNotice&&<p role="status">{outputNotice}</p>}
-    {output&&<div className="task-discussion-overlay"><section className="dashboard-output-dialog" role="dialog" aria-modal="true" aria-label={output.label+' drawing upload'} onKeyDown={e=>{if(e.key==='Escape'&&!outputBusy)setOutput(null);}}>
-      <header className="dashboard-output-header"><div><p>{project.name}</p><h2>Upload drawing · {output.label}</h2></div><button type="button" className="dashboard-output-close" aria-label="Close upload" disabled={outputBusy} onClick={()=>setOutput(null)}>×</button></header>
-      <form onSubmit={saveOutput}>
-        <fieldset disabled={outputBusy||!!outputJob.current.saved}>
-          <legend>Zones covered <span>{output.ids.length} selected</span></legend>
-          <label className="dashboard-output-select">{outputCheckbox(output.areas,'Select all zones')} Select all zones</label>
-          <div className="dashboard-output-list">
-            {[...outputFloors].map(([floor,areas])=><div key={floor}>
-              <label className="dashboard-output-select">{outputCheckbox(areas,'Select all zones on '+floor)} {floor}</label>
-              {areas.map(area=><label key={area.id} className="dashboard-output-row dashboard-output-zone">
-                {outputCheckbox([area],floor+' · '+area.area)}<strong>{area.area}</strong>
-              </label>)}
-            </div>)}
-          </div>
-        </fieldset>
-        <footer className="dashboard-output-footer">
-          <label style={{display:'flex',gap:8,alignItems:'center',marginBottom:10}}>
-            <input type="checkbox" checked={output.historical} disabled={outputBusy} onChange={event=>{const historical=event.target.checked;setOutput(current=>({...current,historical}));}}/>
-            Historical drawing — complete old work without starting a timer
-          </label>
-          <label>Drawing file<input autoFocus type="file" required disabled={outputBusy||!!outputJob.current.saved} onChange={e=>setOutput(x=>({...x,file:e.target.files?.[0]||null}))}/></label>
-          {outputError&&<p role="alert">{outputError}</p>}
-          {selectedTaskIds.length>50&&<p role="status">Select zones linked to up to 50 tasks per upload.</p>}
-          <div className="dashboard-output-actions"><button type="submit" disabled={outputBusy||!output.file||!selectedTaskIds.length||selectedTaskIds.length>50}>{outputBusy?'Saving…':'Upload drawing'}</button></div>
-        </footer>
-      </form>
-    </section></div>}
-    {error&&<p role="alert" style={{color:T.redline}}>{error}</p>}
-    {loading&&<p role="status" style={{fontFamily:FONT_BODY,fontSize:11,fontWeight:400,lineHeight:1.4,color:'#77776F',margin:'3px 0 8px'}}>{ready?'Loading project drawings and WIH status…':'Details load as this project comes into view…'}</p>}
-    <div ref={layoutRef} style={{display:'grid',gridTemplateColumns:showHours?'minmax(0,1fr) 330px':'minmax(0,1fr)',gap:showHours?16:0,alignItems:'start',width:'100%',minWidth:0}}>
-      <div style={{minWidth:0,background:'#fff'}}>
-        <table style={{width:'100%',borderCollapse:'collapse',marginBottom:8}}><tbody>{[[`Project ${project.no||project.projectNo||''}:`,project.name],['Start Date:',formatProjectDate(project.startDate)],['Time in hours:',loading&&!Array.isArray(work)?'Loading…':totalHours.toFixed(1)]].map(([label,value])=><tr key={label}><td style={{...cell,fontFamily:FONT_BODY,fontWeight:700,width:220}}>{label}</td><td style={{...cell,fontFamily:FONT_BODY}}>{label==='Time in hours:'?<div style={{display:'flex',gap:12,alignItems:'center',flexWrap:'wrap'}}><span>{value}</span><button type="button" aria-label={`Hours by person for ${project.name}`} aria-expanded={showHours} aria-controls={`project-hours-${project.id}`} style={{...smallBtn}} onClick={()=>setShowHours(open=>!open)}>{showHours?'Hide hours':hoursScope==='own'?'My hours':'Hours by person'}</button></div>:value}</td></tr>)}</tbody></table>
 
-        <input type="file" multiple hidden ref={receivedPicker} aria-label="Select received drawings" onChange={e=>{const files=Array.from(e.target.files||[]);e.target.value='';if(!files.length||!receivedTarget.current)return;setReceivedNotice('');setReceivedSelection([receivedTarget.current]);setReceivedFiles(files);setReceivedMode(true);}}/>
-        {receivedMode&&canReceive&&<div ref={receivedPanelRef} style={{scrollMarginTop:24}}><DashboardReceivedUpload projectId={project.id} selections={receivedSelection} files={receivedFiles} zones={zones} generation={AUTH_SESSION_GENERATION} getGeneration={()=>AUTH_SESSION_GENERATION} today={todayISO()} font={FONT_BODY} buttonStyle={smallBtn} inputStyle={inputStyle} onBusy={setReceivedBusy} onClear={()=>{setReceivedSelection([]);setReceivedFiles([]);setReceivedMode(false);}} services={{request:uploadApiRequest,transfer:transferDrawingToDrive,classify:projectApi.classifyDrawing,typeKey:drawingTypeKey}} onSaved={async()=>{setRevision(n=>n+1);setReceivedNotice('Drawing uploaded and entered in the register. Dashboard and linked work are refreshing.');if(persist)try{const workspace=await projectApi.getProjectWorkspace();await persist(latest=>({...latest,intakes:workspaceIntakes(workspace)}));}catch{setReceivedNotice('Drawing saved. Refresh Received / Sent or Classify to update the local list.');}}}/></div>}
-        {receivedNotice&&<p role="status" style={{fontFamily:FONT_BODY,fontSize:12,color:T.green}}>{receivedNotice}</p>}
-        <div role={showHours?'region':undefined} aria-label={showHours?`Scrollable design table for ${project.name}`:undefined} tabIndex={showHours?0:undefined} style={{width:'100%',minWidth:0,overflowX:'auto',border:`1px solid ${T.line}`,boxSizing:'border-box'}}>
-          <table className="studio-design-matrix" aria-label="Project design matrix" style={{borderCollapse:'collapse',tableLayout:'fixed',width:'100%',minWidth:Math.max(fullTableWidth,568+112*workColumns.length)}}>
-            <colgroup><col style={{width:showHours?56:'4%'}}/><col style={{width:showHours?48:'4%'}}/><col style={{width:showHours?240:'20%'}}/>{Array.from({length:4},(_,i)=><col key={'r'+i} style={{width:showHours?56:'4%'}}/>)}{workColumns.map(d=><col key={d.label} style={{width:d.label==='Documentation'?124:showHours?112:`${56/workColumns.length}%`}}/>)}</colgroup>
-            <thead><tr><th colSpan={3} style={{...cell,background:'#D2CDC1',color:'#1C1C19',fontFamily:FONT_MONO,fontWeight:700,borderBottom:'1px solid #B8B5AC'}}/><th colSpan={4} style={{...cell,background:'#D2CDC1',color:'#1C1C19',fontFamily:FONT_MONO,fontWeight:700,borderBottom:'1px solid #B8B5AC',borderLeft:headerDivider,borderRight:headerDivider,textAlign:'center'}}>Drawings Received</th><th colSpan={workColumns.length} style={{...cell,background:'#D2CDC1',color:'#1C1C19',fontFamily:FONT_MONO,fontWeight:700,borderBottom:'1px solid #B8B5AC',textAlign:'center'}}>Work Status</th></tr><tr>{['FLR','CN','AREA'].map(h=><th key={h} style={{...head,textAlign:'left'}}>{h}</th>)}{receivedCols.map(([label],index)=><th key={label} style={{...head,...(index===0?{borderLeft:headerDivider}:{}),...(index===receivedCols.length-1?{borderRight:headerDivider}:{})}}>{label}</th>)}{workColumns.map(d=><th key={d.label} style={d.label==='Documentation'?{...head,whiteSpace:'nowrap'}:head}>{d.label}</th>)}</tr></thead>
-            <tbody>{zones.map((z,i)=>{const area=z.area||z.room,cn=z.zoneCode||z.cn||'',dbRow=(payload?.rows||[]).find(r=>eq(r.floor,z.floor)&&eq(r.area,area));const bg=i%2?'#F3F1EA':'#fff';const boundary=i===0||zones[i-1].floor!==z.floor;const identity={...cell,background:bg,borderTop:boundary?`2px solid ${T.line}`:`1px solid ${T.line}`};
-              const room=project.designExecutionBoard?.rooms?.find(r=>eq(r.flr||r.floor,z.floor)&&eq(r.area,area));
-              return <tr key={JSON.stringify([z.floor,area])} style={{background:bg,borderTop:boundary?`2px solid ${T.line}`:undefined}}><td style={identity}>{z.floor}</td><td style={identity}>{cn}</td><td style={identity}>{area}</td>
-              {receivedCols.map(([label,key,drawingType])=>{const received=sheetDashboardFlag(dbRow?.[key]),selected=receivedSelection.some(v=>dashboardReceivedKey(v.floor,v.area,v.drawingType)===dashboardReceivedKey(z.floor,area,drawingType));return <td key={key} style={{...cell,textAlign:'center',background:receivedMode&&selected?'#E4EEF5':undefined}}>{payload?<label style={{display:'inline-flex',alignItems:'center',gap:3}}><input type="checkbox" aria-label={`${z.floor} ${area} ${label} ${receivedMode?'select for upload':'received — select to upload'}`} title={received?'Drawing already received; select to upload another revision':'Select this area/type for upload'} checked={receivedMode?selected:received} disabled={!canReceive||receivedBusy} onChange={()=>toggleReceived(z,drawingType)} style={{accentColor:T.blue,opacity:1,width:12,height:12,margin:0,maxWidth:'100%'}}/>{receivedMode&&received&&<span title="Previously received" aria-label="Previously received" style={{fontSize:9,color:T.green}}>●</span>}</label>:'—'}</td>;})}
-              {workColumns.map(def=>{const result=liveWork(def,z,dbRow);if(canReceive&&outputCandidates(def,z).length){const tone=sheetDashboardTone(result.status);return <td key={def.label} style={{...cell,background:tone.bg,color:tone.fg}}><button type="button" title="Upload drawing and complete work" aria-label={`Upload ${def.label} for ${z.floor} ${area}`} onClick={()=>openOutput(def,z)} style={{font:'inherit',color:'inherit',border:0,background:'transparent',padding:0,textAlign:'left',width:'100%',textDecoration:'underline',cursor:'pointer'}}>{result.status}</button></td>;}return displayStatus(result.status,result.date,result.title,def.label);})}
-</tr>;
-            })}{!zones.length&&!loading&&<tr><td colSpan={3+receivedCols.length+workColumns.length} style={{...cell,padding:18}}>No floor/area rows for this project. Add them in Floor & Zone.</td></tr>}</tbody>
-          </table>
+  // Manual checkbox remains useful for testing, but production source is Received & Classify.
+  const toggleReceived=async(zi,ri)=>{
+    const zone=zones[zi];
+    const nowReceived=!zone.received[ri];
+    let nextIntakes=[...(state.intakes||[])];
+    let statuses=[...zone.statuses];
+    let taskDesignNos=[...zone.taskDesignNos];
+
+    if(nowReceived){
+      const opened=openDependentTasks(project,{...zone,statuses,taskDesignNos},ri,nextIntakes);
+      statuses=opened.statuses;
+      taskDesignNos=opened.taskDesignNos;
+      nextIntakes=opened.nextIntakes;
+    }
+
+    const nextZones=zones.map((z,i)=>i===zi?{
+      ...z,
+      received:z.received.map((v,j)=>j===ri?nowReceived:v),
+      statuses,
+      taskDesignNos
+    }:z);
+    setZones(nextZones);
+    await saveState(nextZones,nextIntakes);
+  };
+
+  const cycleTask=async(zi,si)=>{
+    const z=zones[zi];
+    const cur=z.statuses[si]||"Locked";
+    if(cur==="Locked"||cur==="Waiting for Drawing")return;
+    // Dashboard mirrors WIH; this click is only a prototype/test helper.
+    const next=cur==="Not Started"?"In Progress":cur==="In Progress"?"Completed":"Not Started";
+    const nextZones=zones.map((row,i)=>i===zi?{...row,statuses:row.statuses.map((v,j)=>j===si?next:v)}:row);
+    setZones(nextZones);
+    await saveState(nextZones);
+  };
+
+  return <div>
+    <div style={{marginBottom:22}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+        <div>
+          <div style={{fontFamily:FONT_MONO,fontSize:10,fontWeight:700}}>FLOOR / AREA / TASK MASTER</div>
+          <div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim,marginTop:3}}>Add or edit here. The Design Dashboard below is generated from the same project task data.</div>
         </div>
-
-        <ProjectMomTasks key={project.id} state={state} projectId={project.id} enabled={ready} revision={revision}/>
+        <button type="button" disabled={!scopeFloors.length} onClick={()=>openAddTask(scopeFloors[0])} style={{...smallBtn,background:T.navy,color:"#fff",padding:"9px 14px"}}>+ ADD TASK</button>
       </div>
-      {showHours&&<aside id={`project-hours-${project.id}`} aria-label="Hours by Person" style={{border:`1px solid ${T.line}`,background:'#fff',position:'sticky',top:0,minWidth:0}}><div style={{padding:12,borderBottom:`1px solid ${T.line}`,background:'#FAF9F5'}}><div style={{fontFamily:FONT_MONO,fontSize:9,fontWeight:700,marginBottom:8,background:'#D2CDC1',color:'#1C1C19',padding:'9px 10px',borderBottom:`2px solid ${T.ink}`}}>{hoursScope==='own'?'MY HOURS':hoursScope==='project'?'PROJECT HOURS BY PERSON':'HOURS BY PERSON'}</div>{personHours.map(([person,hours])=><div key={person} style={{display:'flex',justifyContent:'space-between',gap:12,fontFamily:FONT_BODY,fontSize:11,padding:'4px 0'}}><span>{person}</span><strong>{hours.toFixed(1)} h</strong></div>)}{!personHours.length&&<div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim}}>{loading?'Loading hours…':'No completed WIH hours yet.'}</div>}</div></aside>}
-
+      {scopeFloors.map(f=>{
+        const taskRows=dashboardTaskRows(project).filter(r=>String(r.floor||r.floorZone||r.zone||"")===f);
+        return <div key={f} style={{border:`1px solid ${T.line}`,background:"#fff",marginBottom:10}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",background:T.paper2,borderBottom:`1px solid ${T.line}`}}>
+            <strong style={{fontFamily:FONT_DISPLAY}}>{f} · {taskRows.length} tasks</strong>
+            <button type="button" onClick={()=>openAddTask(f)} style={{...smallBtn,background:"#fff"}}>+ TASK</button>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1.4fr 2fr 1fr 120px 80px",fontFamily:FONT_BODY,fontSize:11,fontWeight:700,borderBottom:`1px solid ${T.line}`}}>
+            {["Area / Room","Task","Responsible","Status","Action"].map(h=><div key={h} style={{padding:8}}>{h}</div>)}
+          </div>
+          {taskRows.map((r,i)=><div key={r.id||i} style={{display:"grid",gridTemplateColumns:"1.4fr 2fr 1fr 120px 80px",fontFamily:FONT_BODY,fontSize:11,borderBottom:i<taskRows.length-1?`1px solid ${T.line}`:"none"}}>
+            <div style={{padding:8,fontWeight:600}}>{taskAreaName(r)||"—"}</div>
+            <div style={{padding:8}}>{r.tasks||r.task||"—"}</div>
+            <div style={{padding:8}}>{r.responsible||r.responsiblePerson||r.assignee||"—"}</div>
+            <div style={{padding:8}}>{r.status||r.taskStatus||"Not Started"}</div>
+            <div style={{padding:6}}><button type="button" onClick={()=>openEditTask(r)} style={{...smallBtn,background:"#fff"}}>EDIT</button></div>
+          </div>)}
+          {!taskRows.length&&<div style={{padding:10,fontFamily:FONT_BODY,fontSize:11,color:T.inkDim}}>No tasks added for {f}.</div>}
+        </div>;
+      })}
     </div>
+
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"end",gap:16,marginBottom:18}}>
+      <div>
+        <h2 style={{fontFamily:FONT_DISPLAY,fontSize:22,margin:0,color:T.ink}}>Design Dashboard</h2>
+        <div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim,marginTop:4}}>
+          {project.name} · received drawings are triggers; Design Nos. belong to dependent tasks and flow into WIH.
+        </div>
+      </div>
+      <div style={{display:"flex",gap:8,alignItems:"end"}}>
+        <Field label="Floor"><select value={floor} onChange={e=>setFloor(e.target.value)} style={{...inputStyle,borderRadius:0,minWidth:130}}>{floors.map(f=><option key={f}>{f}</option>)}</select></Field>
+      </div>
+    </div>
+
+    <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 330px",gap:16,alignItems:"start"}}>
+      <div style={{minWidth:0,border:`1px solid ${T.line}`,background:"#fff",overflow:"hidden"}}>
+        <div style={{overflowX:"auto"}}>
+          <div style={{minWidth:1650}}>
+            {/* Two-level header, matching the original dashboard logic */}
+            <div style={{display:"grid",gridTemplateColumns:"42px 52px 180px 470px 1fr",background:"#BDB8AC",color:"#1C1C19",borderBottom:`1px solid ${T.line}`,fontFamily:FONT_MONO,fontSize:9,fontWeight:700}}>
+              <div style={{padding:7,borderRight:`1px solid ${T.line}`}}>CN</div>
+              <div style={{padding:7,borderRight:`1px solid ${T.line}`}}>FLR</div>
+              <div style={{padding:7,borderRight:`1px solid ${T.line}`}}>AREA</div>
+              <div style={{padding:7,borderRight:`1px solid ${T.line}`,textAlign:"center"}}>DRAWINGS RECEIVED</div>
+              <div style={{padding:7,textAlign:"center"}}>DEPENDENT DESIGN TASKS · DESIGN NO. / STATUS</div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"42px 52px 180px repeat(5,94px) repeat(11,minmax(108px,1fr))",background:"#D2CDC1",color:"#1C1C19",borderBottom:`2px solid ${T.ink}`,fontFamily:FONT_MONO,fontSize:8,fontWeight:700}}>
+              {["","","",...DASHBOARD_DRAWING_TYPES,...DASHBOARD_WORK_TYPES].map((h,i)=><div key={i} style={{padding:"9px 4px",borderRight:`1px solid ${T.line}`,background:"#D2CDC1",color:"#1C1C19",display:"flex",alignItems:"center",justifyContent:i>2?"center":"flex-start",textAlign:"center"}}>{h}</div>)}
+            </div>
+
+            {visibleFloors.map(f=>{
+              const rows=zones.map((z,i)=>({...z,_i:i})).filter(z=>z.floor===f);
+              const open=expanded[f]!==false;
+              return <div key={f}>
+                <div style={{width:"100%",borderBottom:`1px solid ${T.line}`,background:"#F4F2EC",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                  <button onClick={()=>setExpanded(x=>({...x,[f]:!open}))} style={{flex:1,border:0,background:"transparent",padding:"9px 10px",display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontFamily:FONT_BODY,fontWeight:700,color:T.ink,textAlign:"left"}}>{open?<ChevronDown size={14}/>:<ChevronRight size={14}/>} {f} · {rows.length} areas</button>
+                </div>
+                {open&&rows.map(z=><div key={z._i} style={{display:"grid",gridTemplateColumns:"42px 52px 180px repeat(5,94px) repeat(11,minmax(108px,1fr))",borderBottom:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:9}}>
+                  <div style={{padding:7,borderRight:`1px solid ${T.line}`,fontFamily:FONT_MONO}}>{z.cn}</div>
+                  <div style={{padding:7,borderRight:`1px solid ${T.line}`,fontFamily:FONT_MONO}}>{z.floor}</div>
+                  <button type="button" onClick={()=>editArea(z._i)} title="Edit this area" style={{padding:7,border:0,borderRight:`1px solid ${T.line}`,background:"#fff",fontWeight:700,textAlign:"left",cursor:"pointer",textDecoration:"underline"}}>{z.area} <span style={{fontSize:8,color:T.inkDim}}>EDIT</span></button>
+
+                  {/* Receipt cells: checkbox ONLY. No Design No. here. */}
+                  {z.received.map((v,ri)=><button key={ri} onClick={()=>toggleReceived(z._i,ri)} title={v?"Drawing received":"Waiting for Received & Classify"} style={{border:0,borderRight:`1px solid ${T.line}`,background:v?"#E8F2E9":"#FAF9F5",color:v?"#245C2B":"#999",padding:"6px 3px",cursor:"pointer",minHeight:50}}>
+                    <div style={{fontSize:17,fontWeight:800}}>{v?"☑":"☐"}</div>
+                    <div style={{fontSize:7,marginTop:3}}>{v?"Received":"Waiting"}</div>
+                  </button>)}
+
+                  {/* Task cells: Design No. belongs HERE */}
+                  {z.statuses.map((s,si)=>{
+                    const tone=taskStatusTone(s);
+                    const dno=z.taskDesignNos?.[si]||"";
+                    const receivedOpened=!!dno && ["Not Started","Ready"].includes(String(s));
+                    const taskBg=receivedOpened?"#DCEBFA":tone.bg;
+                    const taskFg=receivedOpened?"#123F6D":tone.fg;
+                    return <button key={si} onClick={()=>cycleTask(z._i,si)} style={{border:0,borderRight:`1px solid ${T.line}`,background:taskBg,color:taskFg,padding:"6px 4px",fontSize:8,cursor:(s==="Locked"||s==="Waiting for Drawing")?"default":"pointer",textAlign:"center",minHeight:50}}>
+                      {!receivedOpened&&<div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:4,fontWeight:700}}>
+                        <span style={{width:6,height:6,borderRadius:"50%",background:tone.dot,flex:"0 0 auto"}}/>{s}
+                      </div>}
+                      {dno&&<div style={{fontFamily:FONT_MONO,fontSize:receivedOpened?11:9,fontWeight:800,marginTop:receivedOpened?0:4,lineHeight:1.25,letterSpacing:.2}}>{dno}</div>}
+                      {receivedOpened&&<div style={{fontFamily:FONT_BODY,fontSize:7,fontWeight:700,marginTop:3,textTransform:"uppercase",letterSpacing:.6}}>Drawing Received</div>}
+                    </button>;
+                  })}
+                </div>)}
+              </div>;
+            })}
+          </div>
+        </div>
+        <div style={{padding:"10px 12px",fontFamily:FONT_BODY,fontSize:10,color:T.inkDim,borderTop:`1px solid ${T.line}`,lineHeight:1.5}}>
+          Flow: Received & Classify upload → receipt checkbox updates → dependent task opens red as Not Started with its Design No. → WIH Start makes it In Progress → WIH Stop requires completed drawing upload → task becomes green Completed and hours are logged.
+        </div>
+      </div>
+
+      <aside style={{border:`1px solid ${T.line}`,background:"#fff",position:"sticky",top:0}}>
+        <div style={{padding:14,borderBottom:`2px solid ${T.ink}`}}>
+          <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.inkDim,letterSpacing:1}}>PROJECT WORK LOG · {project.no||project.projectNo||"—"}</div>
+          <div style={{fontFamily:FONT_DISPLAY,fontSize:22,marginTop:3}}>{totalHours.toFixed(1)} hrs</div>
+          <div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim}}>completed WIH hours logged on this project</div>
+        </div>
+        <div style={{padding:12,borderBottom:`1px solid ${T.line}`}}>
+          <div style={{fontFamily:FONT_MONO,fontSize:9,fontWeight:700,marginBottom:8}}>HOURS BY PERSON</div>
+          {personHours.slice(0,6).map(([p,h])=><div key={p} style={{display:"flex",justifyContent:"space-between",fontFamily:FONT_BODY,fontSize:11,padding:"4px 0"}}><span>{p}</span><strong>{h.toFixed(1)} h</strong></div>)}
+        </div>
+        <div style={{maxHeight:"55vh",overflowY:"auto"}}>
+          {logs.map((r,i)=><div key={i} style={{padding:"10px 12px",borderBottom:`1px solid ${T.line}`}}>
+            <div style={{display:"flex",justifyContent:"space-between",gap:8,fontFamily:FONT_BODY,fontSize:11}}><strong>{r.person||"—"}</strong><strong>{Number(r.duration||0).toFixed(1)} h</strong></div>
+            <div style={{fontFamily:FONT_BODY,fontSize:11,marginTop:3,color:T.ink}}>{r.purpose||"—"}</div>
+            <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.inkDim,marginTop:4}}>{[r.date,r.zone,r.type].filter(Boolean).join(" · ")}</div>
+          </div>)}
+        </div>
+      </aside>
+    </div>
+    {!scopeFloors.length&&<div style={{marginTop:12,padding:14,border:`1px solid ${T.line}`,background:"#FFF4D6",fontFamily:FONT_BODY,fontSize:12}}>No floor/zone is selected for this project. Go to <strong>Project → Projects & Scope</strong>, edit the project scope and select GF / 1F / 2F / Terrace / Facade etc. Those selections will automatically appear here.</div>}
+    {taskEditor&&<div style={{position:"fixed",inset:0,zIndex:12500,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{width:"min(820px,96vw)",background:T.paper,border:`1px solid ${T.line}`}}>
+        <div style={{background:T.navy,color:"#fff",padding:14,fontFamily:FONT_DISPLAY,fontSize:18}}>{taskEditor.mode==="edit"?"Edit":"Add"} Task · {project.no||project.projectNo}</div>
+        <div style={{padding:16,display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <Field label="Floor / Zone"><select value={taskEditor.floor} onChange={e=>setTaskEditor(x=>({...x,floor:e.target.value}))} style={inputStyle}>{scopeFloors.map(f=><option key={f}>{f}</option>)}</select></Field>
+          <Field label="Area / Room"><input value={taskEditor.drawings} onChange={e=>setTaskEditor(x=>({...x,drawings:e.target.value}))} style={inputStyle}/></Field>
+          <div style={{gridColumn:"1 / -1"}}><Field label="Task"><textarea value={taskEditor.tasks} onChange={e=>setTaskEditor(x=>({...x,tasks:e.target.value}))} style={{...inputStyle,minHeight:70}}/></Field></div>
+          <Field label="Responsible"><select value={taskEditor.responsible} onChange={e=>setTaskEditor(x=>({...x,responsible:e.target.value}))} style={inputStyle}><option value="">Select</option>{taskPeople().map(n=><option key={n}>{n}</option>)}</select></Field>
+          <Field label="Status"><select value={taskEditor.status} onChange={e=>setTaskEditor(x=>({...x,status:e.target.value}))} style={inputStyle}><option>Not Started</option><option>In Progress</option><option>Completed</option></select></Field>
+          <Field label="Planned Start"><input type="date" value={taskEditor.plannedStart} onChange={e=>setTaskEditor(x=>({...x,plannedStart:e.target.value}))} style={inputStyle}/></Field>
+          <Field label="Planned Completion"><input type="date" value={taskEditor.plannedCompletion} onChange={e=>setTaskEditor(x=>({...x,plannedCompletion:e.target.value}))} style={inputStyle}/></Field>
+        </div>
+        <div style={{padding:14,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}>
+          <button type="button" onClick={()=>setTaskEditor(null)} style={{...smallBtn,background:"#fff"}}>Cancel</button>
+          <button type="button" onClick={saveTaskEditor} style={{...smallBtn,background:T.navy,color:"#fff"}}>Save Task</button>
+        </div>
+      </div>
+    </div>}
+    {areaEditor&&<div style={{position:"fixed",inset:0,zIndex:12000,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{width:"min(620px,95vw)",background:T.paper,border:`1px solid ${T.line}`}}>
+        <div style={{background:T.navy,color:"#fff",padding:14,fontFamily:FONT_DISPLAY,fontSize:18}}>{areaEditor.mode==="edit"?"Edit":"Add"} Design Dashboard Area · {project.no||project.projectNo}</div>
+        <div style={{padding:16,display:"grid",gridTemplateColumns:"140px 1fr",gap:12}}>
+          <Field label="CN"><input value={areaEditor.cn||""} onChange={e=>setAreaEditor(a=>({...a,cn:e.target.value}))} style={inputStyle}/></Field>
+          <Field label="Floor / Zone from Project Scope"><select value={areaEditor.floor||""} onChange={e=>setAreaEditor(a=>({...a,floor:e.target.value}))} style={inputStyle}>{scopeFloors.map(f=><option key={f}>{f}</option>)}</select></Field>
+          <div style={{gridColumn:"1 / -1"}}><Field label="Area / Room / Task Zone"><input autoFocus value={areaEditor.area||""} onChange={e=>setAreaEditor(a=>({...a,area:e.target.value}))} placeholder="e.g. Lobby, Bedroom 01, Washroom" style={inputStyle}/></Field></div>
+        </div>
+        <div style={{padding:14,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}>
+          <div style={{display:"flex",gap:8}}><button type="button" onClick={()=>setAreaEditor(null)} style={{...smallBtn,background:"#fff"}}>Cancel</button><button type="button" onClick={saveArea} style={{...smallBtn,background:T.navy,color:"#fff"}}>Save Area</button></div>
+        </div>
+      </div>
+    </div>}
   </div>;
 }
 
-function ProjectCloseoutPanel({project,state,persist}){
- const initial=cachedWorkflowWorkspace(project.id)?.closeout,[data,setData]=useState(initial||{compiled:false,certificateSigned:false,responsibleId:'',responsibleName:'',files:[]}),[loading,setLoading]=useState(!initial),[busy,setBusy]=useState(false),[error,setError]=useState(''),[progress,setProgress]=useState(''),[retry,setRetry]=useState(null);const input=useRef(null),kind=useRef('AsBuilt'),jobs=useRef(new Map());
- const admin=state.currentUser?.appAccess?.toLowerCase()==='admin'||state.currentUser?.appAccess?.toLowerCase()!=='viewer'&&projectRole(state,project.id)==='Admin',canUpload=state.currentUser?.appAccess?.toLowerCase()!=='viewer',canCompleteTask=admin||!!state.currentUser?.userId&&String(state.currentUser.userId)===String(data.responsibleId),members=(state.teamMaster||[]).filter(m=>m.active!==false&&String(m.active).toLowerCase()!=='false'&&m.userId),flag=sheetDashboardFlag;
- useEffect(()=>{let live=true;loadWorkflowWorkspace(project.id).then(r=>{if(live&&r.closeout)setData(r.closeout);}).catch(e=>{if(live)setError(e.message);}).finally(()=>{if(live)setLoading(false);});return()=>{live=false;};},[project.id]);
- const save=async patch=>{const old=data;setData(d=>({...d,...patch}));setBusy(true);setError('');try{setData(await apiRequest('saveProjectCloseout',{projectId:project.id,...patch},'POST',90000));}catch(e){setData(old);setError(e.message);}finally{setBusy(false);}};
- const upload=async(kind,files)=>{if(!files.length||busy)return;setBusy(true);setError('');setRetry({kind,files});try{for(const file of files){if(!file.size||file.size>100*1024*1024)throw Error('Choose files up to 100 MB.');let entry=jobs.current.get(file);if(!entry||entry.kind!==kind){entry={kind,uploadId:'CLOSEOUT-'+uid()};jobs.current.set(file,entry);}setProgress(file.name+' · Preparing…');if(!entry.session)entry.session=await uploadApiRequest('beginCloseoutUpload',{projectId:project.id,uploadId:entry.uploadId,closeoutKind:kind,fileName:file.name,fileSize:file.size,mimeType:file.type||'application/octet-stream'},120000);if(!entry.session.file&&!entry.saved){const result=await transferDrawingToDrive(entry,file,p=>setProgress(file.name+' · '+p+'%'));entry.saved=await uploadApiRequest('finishCloseoutUpload',{completionTicket:result.completionTicket},120000);}}setData(await apiRequest('getProjectCloseout',{projectId:project.id},'GET',90000));setRetry(null);setProgress('');}catch(e){if(/expired|invalid.*session/i.test(e.message)){for(const entry of jobs.current.values()){entry.session=null;entry.completion=null;entry.directFailed=false;entry.transferStarted=false;}}setError(e.message);setProgress('');}finally{setBusy(false);}};
- const choose=value=>{kind.current=value;if(input.current){input.current.accept=value==='SitePictures'?'.jpg,.jpeg,.png,.webp,.heic,.heif':value==='Certificate'?'.pdf,.jpg,.jpeg,.png,.webp':'.pdf,.dwg,.dxf,.dwt,.dwf,.zip';input.current.multiple=value!=='Certificate';input.current.click();}};
- const files=value=>(data.files||[]).filter(f=>f.closeoutKind===value),ready=flag(data.compiled)&&flag(data.certificateSigned)&&['AsBuilt','Certificate','SitePictures'].every(value=>files(value).length>0);
- const complete=async()=>{setBusy(true);setError('');try{const row=await apiRequest('completeProjectCloseout',{projectId:project.id},'POST',120000);await persist(latest=>({...latest,projects:latest.projects.map(p=>p.id===project.id?backendProjectToFrontend(row,p):p)}));}catch(e){setError(e.message);}finally{setBusy(false);}};
- const links=value=><div style={{fontSize:11,marginTop:8}}>{files(value).map(f=><div key={f.fileId} style={{marginBottom:5}}><a href={f.driveUrl} target="_blank" rel="noopener noreferrer">{f.fileName}</a></div>)}</div>;
- return <section aria-label="Project Closeout" style={{marginTop:22,border:`1px solid ${T.line}`,background:'#fff',fontFamily:FONT_BODY}}><h3 style={{fontFamily:FONT_DISPLAY,fontSize:16,margin:0,padding:'12px 14px',background:T.navy,color:'#fff'}}>Project Closeout</h3><div style={{padding:14}}><table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}><thead><tr>{['Task','Responsible person','Files'].map(h=><th key={h} style={{padding:9,textAlign:'left',background:'#D2CDC1'}}>{h}</th>)}</tr></thead><tbody><tr><td style={{padding:9,borderBottom:`1px solid ${T.line}`}}><label style={{display:'flex',alignItems:'center',gap:9}}><input type="checkbox" aria-label="Compile As-Built Drawings complete" checked={flag(data.compiled)} disabled={loading||busy||!canCompleteTask} onChange={e=>save({compiled:e.target.checked})} style={{width:18,height:18,accentColor:T.navy}}/>Compile As-Built Drawings</label></td><td style={{padding:9,borderBottom:`1px solid ${T.line}`}}><div style={{display:'flex',alignItems:'center',gap:8}}><WorkflowStatusDot status={flag(data.compiled)?'Completed':'Pending'} label={flag(data.compiled)?'Completed':'Pending'}/>{admin?<select aria-label="Responsible for Compile As-Built Drawings" style={{...inputStyle,fontSize:12}} value={data.responsibleId||''} disabled={loading||busy} onChange={e=>save({responsibleId:e.target.value})}><option value="">Unassigned</option>{data.responsibleId&&!members.some(m=>String(m.userId)===String(data.responsibleId))&&<option value={data.responsibleId}>{data.responsibleName||'Previous assignee'}</option>}{members.map(m=><option key={m.userId} value={m.userId}>{m.name}</option>)}</select>:data.responsibleName||'Unassigned'}</div></td><td style={{padding:9,borderBottom:`1px solid ${T.line}`}}>{canUpload&&<button type="button" disabled={busy||loading} style={smallBtn} onClick={()=>choose('AsBuilt')}>Upload As-Built Drawings</button>}{links('AsBuilt')}</td></tr></tbody></table><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))',gap:16,marginTop:16}}><div><button type="button" style={smallBtn} disabled={busy||loading||!canUpload} onClick={()=>choose('Certificate')}>Completion Certificate</button><p style={{fontSize:11,color:T.inkDim}}>Upload the signed completion certificate.</p>{links('Certificate')}<label style={{fontSize:12,display:'flex',alignItems:'center',gap:8}}><input type="checkbox" aria-label="Completion certificate signed" checked={flag(data.certificateSigned)} disabled={busy||loading||!admin||!files('Certificate').length} onChange={e=>save({certificateSigned:e.target.checked})}/>Signed certificate confirmed</label></div><div><button type="button" style={smallBtn} disabled={busy||loading||!canUpload} onClick={()=>choose('SitePictures')}>Site Pictures</button><p style={{fontSize:11,color:T.inkDim}}>Add the finished-site photographs.</p>{links('SitePictures')}</div></div><input type="file" ref={input} style={{display:'none'}} onChange={e=>{const selected=[...e.target.files];e.target.value='';upload(kind.current,selected);}}/>{loading&&<p role="status">Updating closeout…</p>}{progress&&<p role="status">{progress}</p>}{error&&<AppErrorNotice message={error}/>} {retry&&!busy&&<button type="button" style={smallBtn} onClick={()=>upload(retry.kind,retry.files)}>Retry upload</button>}{admin&&!projectIsCompleted(project)&&<div style={{marginTop:18,paddingTop:14,borderTop:`1px solid ${T.line}`}}><button type="button" disabled={busy||loading||!ready} style={{...smallBtn,background:ready?T.navy:T.paperDim,color:ready?'#fff':T.inkDim}} onClick={complete}>Mark Project Completed</button>{!ready&&<p style={{fontSize:11,color:T.inkDim}}>Complete the as-built task, upload the drawings and site pictures, and confirm the signed certificate to finish closeout.</p>}</div>}</div></section>;
-}
-
-function DesignWorkflowAccess({state,persist,initialProjectId='',focusVisitId}){
- const [selected,setSelected]=useState(()=>state.projects?.find(p=>String(p.id)===String(initialProjectId))?.id||state.projects?.find(p=>!projectIsCompleted(p))?.id||state.projects?.[0]?.id||'');
- const project=state.projects.find(p=>String(p.id)===String(selected))||state.projects[0];
- if(!project)return <p>No assigned project available.</p>;
- const scoped={...state,projects:[project]},canEdit=state.currentUser?.appAccess?.toLowerCase()==='admin'||projectRole(state,project.id)==='Admin'&&state.currentUser?.appAccess?.toLowerCase()!=='viewer';
- const saveScoped=update=>persist(latest=>{const scope={...latest,projects:latest.projects.filter(p=>p.id===project.id)},next=typeof update==='function'?update(scope):update;return {...latest,projects:latest.projects.map(p=>p.id===project.id?(next.projects.find(n=>n.id===p.id)||p):p)};});
- return <div data-design-line-of-work="true"><div style={{display:'flex',alignItems:'center',gap:16,flexWrap:'wrap',marginBottom:16}}><div><h2 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:0}}>Design Line of Work</h2><p style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,margin:'5px 0 0'}}>Tasks and subtasks</p></div><ProjectStatusSelect projects={orderedProjects(state.projects)} aria-label="Line of Work assigned project" style={{...inputStyle,minWidth:280}} value={project.id} onChange={e=>setSelected(e.target.value)}>{orderedProjects(state.projects).map(p=><option key={p.id} value={p.id}>{p.no} · {p.name}</option>)}</ProjectStatusSelect></div><ProjectOnboardingChecklist key={'onboarding:'+project.id} project={project} state={state}/>{canEdit?<ProjectLineOfWorkView key={project.id} state={scoped} persist={saveScoped} selectedId={project.id} showProjectPicker={false} focusVisitId={String(project.id)===String(initialProjectId)?focusVisitId:undefined}/>:<ReadOnlyProjectWork key={project.id} state={scoped} project={project}/>}<ProjectCloseoutPanel key={'closeout:'+project.id} project={project} state={state} persist={persist}/></div>;
-}
-
-function DesignWorkspaceView({state,persist,workflowTarget}){
-  const [tab,setTab]=useState(workflowTarget?'line':'dashboard');
-  const [workflowProjectId,setWorkflowProjectId]=useState(workflowTarget?.projectId||'');const workspaceRef=useRef(null);
-  const openProjectWorkflow=id=>{if(!(state.projects||[]).some(p=>String(p.id)===String(id)))return;setWorkflowProjectId(String(id));setTab('line');workspaceRef.current?.scrollIntoView({block:'start',behavior:'smooth'});};
-  return <div ref={workspaceRef}><div role="tablist" aria-label="Dashboard sections" style={{display:'flex',borderBottom:`1px solid ${T.line}`,marginBottom:18,overflowX:'auto',background:'#fff'}}>{[['dashboard','Status'],['line','Line of Work'],['threads','Threads']].map(([id,label])=><button type="button" role="tab" key={id} id={`design-tab-${id}`} aria-selected={tab===id} aria-controls={`design-panel-${id}`} onClick={()=>setTab(id)} style={{padding:'11px 16px',border:0,borderBottom:`3px solid ${tab===id?T.cyan:'transparent'}`,background:tab===id?T.navy:'transparent',color:tab===id?'#fff':T.inkDim,cursor:'pointer',fontFamily:FONT_BODY,fontSize:12,fontWeight:tab===id?700:500,whiteSpace:'nowrap'}}>{label}</button>)}</div><div role="tabpanel" id={`design-panel-${tab}`} aria-labelledby={`design-tab-${tab}`}>{tab==='threads'?<StudioThreadsView state={state} persist={persist}/>:tab==='dashboard'?<DesignFlowView state={state} persist={persist} onOpenWorkflow={openProjectWorkflow}/>:<DesignWorkflowAccess key={workflowProjectId} state={state} persist={persist} initialProjectId={workflowProjectId} focusVisitId={workflowTarget?.projectId===workflowProjectId?workflowTarget?.visitPlanId:undefined}/>}</div></div>;
-}
-
-function DesignFlowView({state,persist,onOpenWorkflow}){
-  const [editId,setEditId]=useState(''),[projectDraft,setProjectDraft]=useState({}),[saving,setSaving]=useState(false),[error,setError]=useState('');
-  const [statusProject,setStatusProject]=useState('');
+function DesignFlowView({state,persist}){
+  const [openId,setOpenId]=useState("");
+  const [editId,setEditId]=useState("");
+  const [taskId,setTaskId]=useState("");
+  const [taskDraft,setTaskDraft]=useState({drawings:"",tasks:"",time:"",hours:"",plannedStart:"",plannedCompletion:"",responsible:"",status:"Not Started"});
+  const [projectDraft,setProjectDraft]=useState({});
   const seen=new Set();
-  const projects=orderedProjects(state.projects).filter(p=>{
-    if(p.completed||p.status==='Completed'||p.projectControl?.projectStatus==='Completed')return false;
-    const id=String(p.id||p.no||p.name||'').toLowerCase();if(!id||seen.has(id))return false;seen.add(id);return true;
+  const projects=(state.projects||[]).filter(p=>{
+    if(p.completed||p.status==="Completed"||p.projectControl?.projectStatus==="Completed")return false;
+    const k=String(p.id||p.no||p.name||"").toLowerCase();
+    if(!k||seen.has(k))return false; seen.add(k); return true;
   });
-  const canEditProject=id=>state.currentUser?.appAccess?.toLowerCase()!=='viewer'&&projectRole(state,id)==='Admin';
-  const editing=projects.find(p=>String(p.id)===editId);
-  const openEdit=p=>{setProjectDraft({no:p.no||p.projectNo||'',name:p.name||'',client:p.client||p.contacts?.Owner?.name||'',architect:p.architect||p.contacts?.Architect?.name||'',address:p.address||'',type:p.type||p.projectType||'Residence'});setEditId(String(p.id));setError('');};
-  const saveProject=async()=>{
-    if(!editing||saving)return;setSaving(true);setError('');
-    try{
-      const next={...editing,...projectDraft},saved=await projectApi.update(frontendProjectToBackend(next,true)),updated=backendProjectToFrontend(saved,next);
-      await persist(latest=>({...latest,projects:(latest.projects||[]).map(p=>p.id===editing.id?{...p,...updated}:p)}));setEditId('');
-    }catch(e){setError(e.message||'Could not save this project.');}finally{setSaving(false);}
-  };
-  return <div>
-    <header className="studio-dashboard-intro"><h1 className="studio-page-heading">System Design</h1><section aria-label="System Design values" style={{borderLeft:`3px solid ${T.blue}`,padding:'2px 0 2px 14px',maxWidth:1100}}><div style={{fontFamily:FONT_MONO,fontSize:10,fontWeight:700,letterSpacing:'.06em',color:T.blue,marginBottom:7}}>VALUES</div><p style={{fontFamily:FONT_BODY,fontSize:13,lineHeight:1.65,color:T.ink,margin:'0 0 12px',fontStyle:'italic'}}>Construction is not a one-day thing.<br/>It’s a process. It’s a year-long relationship. Sometimes even more.<br/>First of all, you should know what you’re doing; only then will you be able to drive on the right road.</p><p style={{fontFamily:FONT_BODY,fontSize:13,lineHeight:1.65,color:T.ink,margin:'0 0 6px',fontStyle:'italic'}}>Lighting is what is going to define the mood of the space.</p><div style={{fontFamily:FONT_BODY,fontSize:13,fontWeight:600,color:T.blue}}>Energetic&nbsp; | &nbsp;Relax&nbsp; | &nbsp;Focus</div></section></header>
+  const opened=projects.find(p=>String(p.id)===String(openId));
+  const editing=projects.find(p=>String(p.id)===String(editId));
+  const taskProject=projects.find(p=>String(p.id)===String(taskId));
 
-    <label style={{display:'flex',alignItems:'center',gap:10,margin:'0 0 12px',fontFamily:FONT_BODY,fontSize:13}}>Project <select value={projects.some(p=>String(p.id)===statusProject)?statusProject:''} onChange={e=>setStatusProject(e.target.value)} style={{...inputStyle,width:'min(420px,80%)'}}><option value="">All projects</option>{projects.map(p=><option key={p.id} value={p.id}>{p.name}{p.no?' · '+p.no:''}</option>)}</select></label>
-    {projects.filter(p=>!projects.some(v=>String(v.id)===statusProject)||String(p.id)===statusProject).map((p,index)=><section key={p.id} data-activity-project={p.id} aria-label={`Design dashboard ${p.name}`} className="studio-dashboard-project" style={{borderBottom:`2px solid ${T.line}`}}>
-      <DrawingControlDashboard state={state} persist={persist} projectId={p.id} deferLoad={index>0} heading={p.name} onOpenWorkflow={onOpenWorkflow} onEdit={canEditProject(p.id)?()=>openEdit(p):undefined}/>
-    </section>)}
-    {projects.length>0&&<footer aria-label="Design dashboard status legend">
-        <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:12,fontFamily:FONT_MONO,fontSize:10}}>{['Pending','Open','Aligned','In-progress','Up for review','Completed'].map(status=><span key={status} style={{padding:'5px 8px',background:sheetDashboardTone(status).bg,color:sheetDashboardTone(status).fg}}>{status}</span>)}</div>
-        <p style={{fontSize:11,color:T.inkDim}}>Receipt and sent checkboxes reflect saved drawing records. Update work through WIH and manage floors/areas in Floor & Zone.</p>
-    </footer>}
-    {!projects.length&&<p style={{fontFamily:FONT_BODY,color:T.inkDim}}>No ongoing projects available.</p>}
-    {editing&&<div style={{position:'fixed',inset:0,zIndex:10001,background:'rgba(8,25,45,.55)',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}><div role="dialog" aria-modal="true" aria-label={`Edit project ${editing.name}`} style={{width:'min(900px,96vw)',background:T.paper,border:`1px solid ${T.line}`}}>
-      <div style={{background:T.navy,color:'#fff',padding:14,fontFamily:FONT_DISPLAY,fontSize:18}}>Edit Project · {editing.no}</div>
-      <div style={{padding:16,display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>{[['Project No.','no'],['Project Name','name'],['Client','client'],['Architect','architect'],['Address','address']].map(([label,key])=><Field key={key} label={label}><input aria-label={label} disabled={saving} value={projectDraft[key]||''} onChange={e=>setProjectDraft(d=>({...d,[key]:e.target.value}))} style={inputStyle}/></Field>)}<Field label="Project Type"><select disabled={saving} value={projectDraft.type||'Residence'} onChange={e=>setProjectDraft(d=>({...d,type:e.target.value}))} style={inputStyle}>{['Residence','Commercial','Hospitality','Retail','Other'].map(type=><option key={type}>{type}</option>)}</select></Field></div>
-      {error&&<p role="alert" style={{color:T.redline,padding:'0 16px'}}>{error}</p>}
-      <div style={{padding:16,borderTop:`1px solid ${T.line}`,display:'flex',justifyContent:'flex-end',gap:8}}><button type="button" disabled={saving} style={{...smallBtn,background:'#fff'}} onClick={()=>setEditId('')}>Cancel</button><Btn disabled={saving} onClick={saveProject}>{saving?'Saving…':'Save Project'}</Btn></div>
-    </div></div>}
+  const designRows=p=>{
+    if(!p)return [];
+    const people=[];
+    Object.values(p.contacts||{}).forEach(c=>{if(c?.name)people.push(c.name);});
+    return splitDesignExecutionRows(p,people).design||[];
+  };
+  const counts=p=>{
+    const rows=designRows(p).filter(r=>String(r.tasks||r.task||r.drawings||r.title||"").trim());
+    const completed=rows.filter(r=>["completed","complete"].includes(String(r.status||r.taskStatus||"").toLowerCase())||r.completed===true).length;
+    return {open:Math.max(0,rows.length-completed),completed,total:rows.length};
+  };
+  const peopleFor=p=>{
+    const a=[]; Object.values(p?.contacts||{}).forEach(c=>{if(c?.name&&!a.includes(c.name))a.push(c.name);});
+    (state.team||[]).forEach(x=>{const n=x?.name||x;if(n&&!a.includes(n))a.push(n);}); return a;
+  };
+
+  const openProjectEdit=p=>{
+    setProjectDraft({no:p.no||p.projectNo||"",name:p.name||"",client:p.client||p.contacts?.Owner?.name||"",architect:p.architect||p.contacts?.Architect?.name||"",address:p.address||"",projectType:p.projectType||"Residence",status:p.status||"Ongoing"});
+    setEditId(String(p.id));
+  };
+  const saveProject=async()=>{
+    if(!editing)return;
+    const next={...editing,...projectDraft};
+    try{await projectApi.update(frontendProjectToBackend(next,true));}catch(e){console.warn("Project backend update failed",e);}
+    await persist({...state,projects:(state.projects||[]).map(p=>p.id===editing.id?next:p)});
+    setEditId("");
+  };
+
+  const saveTask=async()=>{
+    if(!taskProject)return;
+    const existing=taskProject.lineOfWorkResidence||taskProject.lineOfWork||[];
+    const row={id:uid(),projectId:taskProject.id,sourceRow:existing.length+1,...taskDraft,milestone:"",floor:"",visits:"",visitBy:""};
+    const merged=[...existing,row];
+    try{
+      const saved=await projectApi.saveLineOfWork(taskProject.id,merged);
+      const next={...taskProject,lineOfWorkResidence:saved||merged,lineOfWork:saved||merged};
+      await persist({...state,projects:(state.projects||[]).map(p=>p.id===taskProject.id?next:p)});
+      setTaskId(""); setTaskDraft({drawings:"",tasks:"",time:"",hours:"",plannedStart:"",plannedCompletion:"",responsible:"",status:"Not Started"});
+    }catch(err){alert(`Task save failed: ${err?.message||err}`);}
+  };
+
+  if(opened)return <div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+      <div><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.cyan}}>SELECTED PROJECT · {opened.no||opened.projectNo}</div><h2 style={{fontFamily:FONT_DISPLAY,margin:"3px 0"}}>{opened.name}</h2></div>
+      <div style={{display:"flex",gap:8}}>
+        <button type="button" onClick={()=>openProjectEdit(opened)} style={{...smallBtn,background:"#fff",cursor:"pointer",padding:"9px 14px"}}>EDIT PROJECT</button>
+        <button type="button" onClick={()=>setOpenId("")} style={{...smallBtn,background:"#fff",cursor:"pointer",padding:"9px 14px"}}>PROJECT LIST</button>
+      </div>
+    </div>
+    <div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,marginBottom:12}}>Design Dashboard floors/zones are linked directly to this project's selections in Projects & Scope. Add or edit areas inside each selected floor below.</div>
+    <DrawingControlDashboard state={state} persist={persist} projectId={opened.id}/>
+    {taskProject&&<div style={{position:"fixed",inset:0,zIndex:10000,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{width:"min(900px,96vw)",background:T.paper,border:`1px solid ${T.line}`}}>
+        <div style={{background:T.navy,color:"#fff",padding:14,fontFamily:FONT_DISPLAY,fontSize:18}}>Add Task · {taskProject.no} · {taskProject.name}</div>
+        <div style={{padding:16,display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <Field label="Line of Work / Drawing"><input value={taskDraft.drawings} onChange={e=>setTaskDraft(d=>({...d,drawings:e.target.value}))} style={inputStyle}/></Field>
+          <Field label="Responsible Person"><select value={taskDraft.responsible} onChange={e=>setTaskDraft(d=>({...d,responsible:e.target.value}))} style={inputStyle}><option value="">Select</option>{peopleFor(taskProject).map(n=><option key={n}>{n}</option>)}</select></Field>
+          <div style={{gridColumn:"1 / -1"}}><Field label="Task"><textarea value={taskDraft.tasks} onChange={e=>setTaskDraft(d=>({...d,tasks:e.target.value}))} style={{...inputStyle,minHeight:70}}/></Field></div>
+          <Field label="Planned Start"><input type="date" value={taskDraft.plannedStart} onChange={e=>setTaskDraft(d=>({...d,plannedStart:e.target.value}))} style={inputStyle}/></Field>
+          <Field label="Planned Completion"><input type="date" value={taskDraft.plannedCompletion} onChange={e=>setTaskDraft(d=>({...d,plannedCompletion:e.target.value}))} style={inputStyle}/></Field>
+          <Field label="Hours"><input type="number" value={taskDraft.hours} onChange={e=>setTaskDraft(d=>({...d,hours:e.target.value}))} style={inputStyle}/></Field>
+          <Field label="Status"><select value={taskDraft.status} onChange={e=>setTaskDraft(d=>({...d,status:e.target.value}))} style={inputStyle}><option>Not Started</option><option>In Progress</option><option>Completed</option></select></Field>
+        </div>
+        <div style={{padding:16,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}><button type="button" onClick={()=>setTaskId("")} style={{...smallBtn,background:"#fff"}}>Cancel</button><button type="button" onClick={saveTask} style={{...smallBtn,background:T.navy,color:"#fff"}}>Save Task</button></div>
+      </div>
+    </div>}
+    {editing&&<div style={{position:"fixed",inset:0,zIndex:10001,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{width:"min(900px,96vw)",background:T.paper,border:`1px solid ${T.line}`}}>
+        <div style={{background:T.navy,color:"#fff",padding:14,fontFamily:FONT_DISPLAY,fontSize:18}}>Edit Project · {editing.no}</div>
+        <div style={{padding:16,display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          {[["Project No.","no"],["Project Name","name"],["Client / Owner","client"],["Architect","architect"],["Address","address"]].map(([lab,key])=><Field key={key} label={lab}><input value={projectDraft[key]||""} onChange={e=>setProjectDraft(d=>({...d,[key]:e.target.value}))} style={inputStyle}/></Field>)}
+          <Field label="Project Type"><select value={projectDraft.projectType||"Residence"} onChange={e=>setProjectDraft(d=>({...d,projectType:e.target.value}))} style={inputStyle}><option>Residence</option><option>Commercial</option><option>Hospitality</option><option>Retail</option><option>Other</option></select></Field>
+        </div>
+        <div style={{padding:16,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}><button type="button" onClick={()=>setEditId("")} style={{...smallBtn,background:"#fff"}}>Cancel</button><button type="button" onClick={saveProject} style={{...smallBtn,background:T.navy,color:"#fff"}}>Save Project</button></div>
+      </div>
+    </div>}
+  </div>;
+
+  return <div>
+    <div style={{marginBottom:16}}><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.cyan}}>PROJECT-WISE · DESIGN CONTROL</div><h2 style={{fontFamily:FONT_DISPLAY,margin:"4px 0"}}>Design Dashboard</h2><div style={{fontSize:12,color:T.inkDim}}>Open one project to manage its tasks and drawing dashboard.</div></div>
+    <div style={{border:`1px solid ${T.line}`,background:"#fff",overflowX:"auto"}}>
+      <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+        <thead><tr style={{background:T.paper2}}>{["S. No","Project No.","Project","Client","Architect","Scope / Floors","Open Tasks","Completed Tasks","Action"].map(h=><th key={h} style={{padding:10,textAlign:"left",borderBottom:`1px solid ${T.line}`}}>{h}</th>)}</tr></thead>
+        <tbody>{projects.map((p,i)=>{const c=counts(p);return <tr key={p.id}>
+          <td style={{padding:10,borderBottom:`1px solid ${T.line}`}}>{i+1}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`,fontFamily:FONT_MONO}}>{p.no||p.projectNo||"—"}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`,fontWeight:700}}>{p.name}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`}}>{p.client||"—"}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`}}>{p.architect||"—"}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`,minWidth:190,maxWidth:520,whiteSpace:"normal",overflowWrap:"anywhere",lineHeight:1.45}}>{designDashboardScopeFloors(p).length?designDashboardScopeFloors(p).join(", "):"No scope selected"}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`,fontWeight:700}}>{c.open}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`,fontWeight:700}}>{c.completed}</td><td style={{padding:10,borderBottom:`1px solid ${T.line}`}}><div style={{display:"flex",gap:6}}><button type="button" onClick={()=>setOpenId(String(p.id))} style={{...smallBtn,background:T.navy,color:"#fff"}}>OPEN</button><button type="button" onClick={()=>openProjectEdit(p)} style={{...smallBtn,background:"#fff"}}>EDIT PROJECT</button></div></td>
+        </tr>})}</tbody>
+      </table>
+    </div>
+    {editing&&<div style={{position:"fixed",inset:0,zIndex:10001,background:"rgba(8,25,45,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{width:"min(900px,96vw)",background:T.paper,border:`1px solid ${T.line}`}}><div style={{background:T.navy,color:"#fff",padding:14,fontFamily:FONT_DISPLAY,fontSize:18}}>Edit Project · {editing.no}</div><div style={{padding:16,display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>{[["Project No.","no"],["Project Name","name"],["Client / Owner","client"],["Architect","architect"],["Address","address"]].map(([lab,key])=><Field key={key} label={lab}><input value={projectDraft[key]||""} onChange={e=>setProjectDraft(d=>({...d,[key]:e.target.value}))} style={inputStyle}/></Field>)}</div><div style={{padding:16,borderTop:`1px solid ${T.line}`,display:"flex",justifyContent:"flex-end",gap:8}}><button type="button" onClick={()=>setEditId("")} style={{...smallBtn,background:"#fff"}}>Cancel</button><button type="button" onClick={saveProject} style={{...smallBtn,background:T.navy,color:"#fff"}}>Save Project</button></div></div>
+    </div>}
   </div>;
 }
 function ProjectInfoScopeMerged({state,persist,project}){
@@ -6181,8 +4811,9 @@ function ProjectInfoScopeMerged({state,persist,project}){
   const scope=project.scope||{};
   const scopeFields=[
     ["Basement","basement"],["Stilt Floor","stiltFloor"],["GF","gf"],["1F","f1"],["2F","f2"],["3F","f3"],
-    ["Terrace","terrace"],["Facade","facade"],["Landscape","landscape"],
-    ["Bath Elevation","bathElevation"],["Furniture","wardrobe"],["Art Curation","art_curation"],["Onboarding","onboarding"]];
+    ["Terrace","terrace"],["Facade","facade"],["Wall Elevation","wallElevation"],["Landscape","landscape"],
+    ["Bath Elevation","bathElevation"],["Wardrobe","wardrobe"],["Kitchen","kitchen"],["Onboarding","onboarding"]
+  ];
   const updateProject=async patch=>{
     const projects=state.projects.map(p=>p.id===project.id?{...p,...patch}:p);
     await persist({...state,projects});
@@ -6199,7 +4830,7 @@ function ProjectInfoScopeMerged({state,persist,project}){
         ["Status",project.status||"Ongoing"],
         ["Client",project.client||"—"],
         ["Architect",project.architect||"—"],
-        ["Start Date",formatProjectDate(project.startDate)],
+        ["Start Date",project.startDate||"—"],
         ["Planned Completion",project.plannedCompletionDate||project.endDate||"—"]
       ].map(([k,v],i)=><div key={k} style={{padding:"11px 12px",borderRight:i%4===3?"none":`1px solid ${T.line}`,borderBottom:i<4?`1px solid ${T.line}`:"none"}}>
         <div style={{fontFamily:FONT_MONO,fontSize:8,color:T.inkDim,letterSpacing:.8,textTransform:"uppercase"}}>{k}</div>
@@ -6232,7 +4863,7 @@ function ProjectInfoScopeMerged({state,persist,project}){
 
 
 function InlineProjectScope({project,state,persist}){
-  const fields=[["Basement","basement"],["Stilt Floor","stiltFloor"],["GF","gf"],["1F","f1"],["2F","f2"],["3F","f3"],["Terrace","terrace"],["Facade","facade"],["Landscape","landscape"],["Bath Elev.","bathElevation"],["Furniture","wardrobe"],["Art Curation","art_curation"],["Onboarding","onboarding"]];
+  const fields=[["Basement","basement"],["Stilt Floor","stiltFloor"],["GF","gf"],["1F","f1"],["2F","f2"],["3F","f3"],["Terrace","terrace"],["Facade","facade"],["Wall Elev.","wallElevation"],["Landscape","landscape"],["Bath Elev.","bathElevation"],["Wardrobe","wardrobe"],["Kitchen","kitchen"],["Onboarding","onboarding"]];
   const toggle=async(key,e)=>{
     e&&e.stopPropagation();
     const projects=state.projects.map(p=>p.id===project.id?{...p,scope:{...(p.scope||{}),[key]:!Boolean(p.scope?.[key])}}:p);
@@ -6312,10 +4943,6 @@ function ExecutionMainView({state,persist}){
     await persist({...state,meetings:(state.meetings||[]).map(m=>m.id===id?{...m,...patch,updatedAt:new Date().toISOString()}:m)});
   };
 
-  const saveMeetingNotes=async meeting=>{
-    try{const saved=await projectApi.saveProjectMeeting(meeting);await persist(latest=>({...latest,meetings:(latest.meetings||[]).map(m=>m.id===saved.id?{...m,active:true,updatedAt:saved.updatedAt}:m)}));alert('Meeting notes saved to Google Sheets.');}catch(e){alert(`Meeting notes could not be saved: ${e.message}`);}
-  };
-
   return <div>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"end",gap:12,marginBottom:16,flexWrap:"wrap"}}>
       <div><h2 style={{fontFamily:FONT_DISPLAY,fontSize:22,margin:0,color:T.ink}}>Execution Dashboard</h2>
@@ -6326,7 +4953,7 @@ function ExecutionMainView({state,persist}){
     </div>
 
     <div style={{display:"grid",gridTemplateColumns:"1.2fr 1fr 1fr",gap:10,marginBottom:14}}>
-      <Field label="Project"><ProjectStatusSelect projects={activeProjects} value={project.id} onChange={e=>setSelectedId(e.target.value)} style={{...inputStyle,borderRadius:0}}>{activeProjects.map(p=><option key={p.id} value={p.id}>{p.no||"—"} · {p.name}</option>)}</ProjectStatusSelect></Field>
+      <Field label="Project"><select value={project.id} onChange={e=>setSelectedId(e.target.value)} style={{...inputStyle,borderRadius:0}}>{activeProjects.map(p=><option key={p.id} value={p.id}>{p.no||"—"} · {p.name}</option>)}</select></Field>
       <Field label="Updated by"><input value={updatedBy} onChange={e=>setUpdatedBy(e.target.value)} style={{...inputStyle,borderRadius:0}}/></Field>
       <Field label="Update role"><select value={updateRole} onChange={e=>setUpdateRole(e.target.value)} style={{...inputStyle,borderRadius:0}}><option>PMC / Site Supervisor</option><option>Architect Team</option><option>Our Team</option></select></Field>
     </div>
@@ -6359,32 +4986,18 @@ function ExecutionMainView({state,persist}){
     <div style={{display:"flex",flexDirection:"column",gap:10}}>
       {projectMeetings.map(m=><div key={m.id} style={{background:"#fff",border:`1px solid ${T.line}`,padding:13}}>
         <div style={{display:"grid",gridTemplateColumns:"1.5fr .8fr .8fr",gap:10,alignItems:"start"}}>
-          <div><div style={{fontFamily:FONT_DISPLAY,fontSize:14,fontWeight:700}}>{m.title}</div><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginTop:3}}>{m.date} {m.time}{m.endTime?' – '+m.endTime:''} · {m.location||"—"}</div></div>
-          <div style={{fontFamily:FONT_BODY,fontSize:11}}>{m.participants||'—'}{m.workItems&&<div>{visitCoverageList(m.workItems,'').join(' + ')} · {visitCoverageList(m.floors,'').join(', ')}</div>}</div>
+          <div><div style={{fontFamily:FONT_DISPLAY,fontSize:14,fontWeight:700}}>{m.title}</div><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginTop:3}}>{m.date} {m.time} · {m.location||"—"}</div></div>
+          <div style={{fontFamily:FONT_BODY,fontSize:11}}>{m.participants||"—"}</div>
           <div style={{fontFamily:FONT_MONO,fontSize:10,color:m.happened?T.green:T.amber}}>{m.happened?"Meeting happened":"Scheduled / pending"}</div>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginTop:10,paddingTop:10,borderTop:`1px solid ${T.line}`}}>
           <Field label="MOM"><textarea value={m.mom||""} onChange={e=>updateMeeting(m.id,{mom:e.target.value})} style={{...inputStyle,minHeight:78,borderRadius:0}} placeholder="Minutes / key decisions"/></Field>
-          <Field label="Action Items"><textarea value={m.actionItems||""} onChange={e=>updateMeeting(m.id,{actionItems:e.target.value})} style={{...inputStyle,minHeight:78,borderRadius:0}} placeholder="Action · responsible person · due date"/></Field><button type="button" style={smallBtn} onClick={()=>saveMeetingNotes(m)}>Save MOM</button>
+          <Field label="Action Items"><textarea value={m.actionItems||""} onChange={e=>updateMeeting(m.id,{actionItems:e.target.value})} style={{...inputStyle,minHeight:78,borderRadius:0}} placeholder="Action · responsible person · due date"/></Field>
         </div>
       </div>)}
-      {!projectMeetings.length&&<div style={{padding:18,border:`1px solid ${T.line}`,background:"#fff",fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>No meetings for this project yet. Schedule them from Design Dashboard → Line of Work → Execution.</div>}
+      {!projectMeetings.length&&<div style={{padding:18,border:`1px solid ${T.line}`,background:"#fff",fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>No meetings for this project yet. Schedule them from Fix Meeting.</div>}
     </div>
   </div>;
-}
-
-function workflowDelegationKey(task,subtask){return JSON.stringify([String(task||'').trim().toLowerCase(),String(subtask||'').trim().toLowerCase()]);}
-function applyWorkflowDelegation(rows,projectId,rules){return rows.map(row=>{if(row.delegationSource)return row;const key=workflowDelegationKey(row.tasks,row.subtask),project=rules.find(r=>String(r.projectId)===String(projectId)&&workflowDelegationKey(r.task,r.subtask)===key),base=rules.find(r=>r.projectId==='*'&&workflowDelegationKey(r.task,r.subtask)===key),raw=String(row.responsible||'').trim(),rule=project||(!raw?base:null);return {...row,responsible:rule?rule.responsibleName||'':raw,delegationSource:project?'project':raw?'project':base?'default':'none',delegationValue:rule?rule.responsibleName||'':raw,delegationRawResponsible:raw};});}
-function WorkflowDelegationView({state,initialProjectId=''}){
- const admin=state.currentUser?.appAccess?.toLowerCase()==='admin',canManage=id=>admin||id&&projectRole(state,id)==='Admin'&&state.currentUser?.appAccess?.toLowerCase()!=='viewer';
- const [mode,setMode]=useState(initialProjectId?'project':'default'),[projectId,setProjectId]=useState(initialProjectId),[data,setData]=useState({rules:[],workflow:[]}),[draft,setDraft]=useState({}),[allPerson,setAllPerson]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
- const scope=mode==='default'?'':projectId,people=(state.teamMaster||[]).filter(m=>m.active!==false&&String(m.active).toLowerCase()!=='false'&&m.userId),editable=canManage(scope);
- useEffect(()=>{let live=true;setData({rules:[],workflow:[]});setDraft({});setMessage('');setError('');if(mode==='project'&&!projectId)return;setBusy(true);apiRequest('getWorkflowDelegation',{projectId:scope},'GET',90000).then(r=>{if(live)setData(r);}).catch(e=>{if(live)setError(e.message);}).finally(()=>{if(live)setBusy(false);});return()=>{live=false;};},[mode,scope]);
- const onboarding=PROJECT_ONBOARDING_TASKS.map(([id,label])=>({id:'ON-'+id,tasks:'Onboarding',subtask:label})),source=data.workflow.some(r=>['1','2'].includes(String(r.workflowVersion)))?data.workflow.filter(r=>['1','2'].includes(String(r.workflowVersion))):DESIGN_TASK_FLOW_TEMPLATE;
- const seen=new Set(),rows=[...onboarding,...source,{id:'CLOSEOUT-ASBUILT',tasks:'Project Closeout',subtask:'Compile As-Built Drawings'}].filter(r=>{const key=workflowDelegationKey(r.tasks,r.subtask);if(!r.tasks||!r.subtask||seen.has(key))return false;seen.add(key);return true;});
- const entry=row=>{const key=workflowDelegationKey(row.tasks,row.subtask),own=data.rules.find(r=>String(r.projectId)===(scope||'*')&&workflowDelegationKey(r.task,r.subtask)===key),base=data.rules.find(r=>r.projectId==='*'&&workflowDelegationKey(r.task,r.subtask)===key);let value=own?.responsibleId??(mode==='default'?'':'__inherit__');if(!own&&mode==='project'&&row.delegationSource==='project'&&row.responsible)value=String(people.find(p=>p.name===row.responsible)?.userId||'');return {key,value:draft[key]??value,base:base?.responsibleName||'Unassigned'};};
- const save=async()=>{if(!editable||busy)return;const changed=rows.filter(r=>Object.prototype.hasOwnProperty.call(draft,workflowDelegationKey(r.tasks,r.subtask)));if(!changed.length)return;setBusy(true);setError('');setMessage('');try{await apiRequest('saveWorkflowDelegation',{projectId:scope,rows:changed.map(r=>{const value=draft[workflowDelegationKey(r.tasks,r.subtask)];return {task:r.tasks,subtask:r.subtask,inherit:value==='__inherit__',responsibleId:value==='__inherit__'?'':value};})},'POST',120000);setData(await apiRequest('getWorkflowDelegation',{projectId:scope},'GET',90000));setDraft({});setMessage('Delegation saved. Line of Work will use these assignments when opened.');}catch(e){setError(e.message);}finally{setBusy(false);}};
- return <section style={{fontFamily:FONT_BODY}}><h2 style={{fontFamily:FONT_DISPLAY,fontSize:20}}>Delegation</h2><div style={{display:'flex',gap:8,marginBottom:14}}>{[['default','Default workflow'],['project','Project-wise']].map(([id,label])=><button key={id} type="button" disabled={busy||Object.keys(draft).length>0} style={{...smallBtn,background:mode===id?T.navy:T.paper,color:mode===id?'#fff':T.ink}} onClick={()=>setMode(id)}>{label}</button>)}</div>{mode==='project'&&<ProjectStatusSelect projects={orderedProjects(state.projects)} disabled={busy||!!initialProjectId||Object.keys(draft).length>0} aria-label="Delegation project" style={inputStyle} value={projectId} onChange={e=>setProjectId(e.target.value)}><option value="">Select a project</option>{orderedProjects(state.projects).map(p=><option key={p.id} value={p.id}>{p.no} · {p.name}</option>)}</ProjectStatusSelect>}<p style={{fontSize:12,color:T.inkDim}}>{mode==='default'?'Default assignments apply across projects unless a project has its own assignee.':'Not assigned inherits the saved default. Select a person to assign them to this project. Line of Work edits also become project overrides.'}</p>{(mode==='default'||projectId)&&<>{editable&&<div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:14}}><select aria-label="Assign complete workflow" disabled={busy} value={allPerson} onChange={e=>setAllPerson(e.target.value)} style={{...inputStyle,width:250}}><option value="">Select person for complete workflow</option>{people.map(p=><option key={p.userId} value={p.userId}>{p.name}</option>)}</select><button type="button" disabled={busy||!allPerson} style={smallBtn} onClick={()=>setDraft(Object.fromEntries(rows.map(r=>[workflowDelegationKey(r.tasks,r.subtask),allPerson])))}>Assign complete workflow</button><button type="button" disabled={busy||!Object.keys(draft).length} style={{...smallBtn,background:T.navy,color:'#fff'}} onClick={save}>{busy?'Saving…':'Save Changes'}</button>{Object.keys(draft).length>0&&<button type="button" disabled={busy} style={smallBtn} onClick={()=>setDraft({})}>Discard changes</button>}</div>}{!editable&&<p style={{fontSize:12,color:T.inkDim}}>{mode==='default'?'Default delegation is managed by System Admin.':'Project Admin manages project delegation.'}</p>}{busy&&<p role="status" style={{fontSize:12}}>Loading / saving delegation…</p>}{error&&<AppErrorNotice message={error}/>}<div style={{overflowX:'auto'}}><table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}><thead><tr>{['Task','Subtask','Responsible person'].map(h=><th key={h} style={{padding:10,textAlign:'left',background:'#D2CDC1'}}>{h}</th>)}</tr></thead><tbody>{rows.map(row=>{const item=entry(row);return <tr key={item.key}><td style={{padding:9,borderBottom:`1px solid ${T.line}`}}>{row.tasks}</td><td style={{padding:9,borderBottom:`1px solid ${T.line}`}}>{row.subtask}</td><td style={{padding:7,borderBottom:`1px solid ${T.line}`,minWidth:230}}><select aria-label={`Delegate ${row.tasks}: ${row.subtask}`} disabled={busy||!editable} value={mode==='project'&&!item.value?'__inherit__':item.value} style={{...inputStyle,fontSize:12}} onChange={e=>setDraft(d=>({...d,[item.key]:e.target.value}))}><option value={mode==='project'?'__inherit__':''}>Not assigned</option>{item.value&&!['__inherit__'].includes(item.value)&&!people.some(p=>String(p.userId)===String(item.value))&&<option value={item.value}>Previous assignee</option>}{people.map(p=><option key={p.userId} value={p.userId}>{p.name}</option>)}</select></td></tr>;})}</tbody></table></div></>}{message&&<p role="status" style={{fontSize:12}}>{message}</p>}</section>;
 }
 
 function ProjectView({ state, persist }) {
@@ -6392,12 +5005,6 @@ function ProjectView({ state, persist }) {
   // changes into one Google Sheets request after a short idle period.
   const scopeSaveTimersRef = useRef({});
   const scopePendingRef = useRef({});
-  const scopeSaveRequestsRef = useRef({});
-  const completionPendingRef = useRef({});
-  const editorSavePendingRef = useRef({});
-  const [projectSaveMessage,setProjectSaveMessage] = useState("");
-  const latestProjectStateRef = useRef(state);
-  latestProjectStateRef.current = state;
   const [tab, setTab] = useState("list");
   const [selectedId, setSelectedId] = useState(state.projects[0]?.id || null);
   const [showNewProject, setShowNewProject] = useState(false);
@@ -6405,18 +5012,6 @@ function ProjectView({ state, persist }) {
   const [editProjectId, setEditProjectId] = useState(null);
   const [editDraft, setEditDraft] = useState(null);
   const [isProjectEditorOpen, setIsProjectEditorOpen] = useState(false);
-  const projectEditorRef=useRef(null);
-  const [editorReveal,setEditorReveal]=useState(0);
-  useEffect(()=>{
-    if(!editorReveal||!isProjectEditorOpen)return;
-    const panel=projectEditorRef.current;if(!panel)return;
-    const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    panel.scrollIntoView({behavior:reduced?'instant':'smooth',block:'start'});
-    panel.focus({preventScroll:true});
-    if(!reduced)panel.animate?.([{boxShadow:'0 0 0 0 rgba(72,159,197,0)',transform:'translateY(7px)'},{boxShadow:'0 0 0 5px rgba(72,159,197,.22)',transform:'translateY(0)'},{boxShadow:'0 0 0 0 rgba(72,159,197,0)',transform:'translateY(0)'}],{duration:750,easing:'ease-out'});
-  },[editorReveal,isProjectEditorOpen]);
-  const [showProjectTeam,setShowProjectTeam] = useState(false);
-  const [teamRatingBusy,setTeamRatingBusy] = useState(false);
   const project = state.projects.find(p => p.id === selectedId) || state.projects[0];
   const [board, setBoard] = useState(null);
 
@@ -6427,57 +5022,27 @@ function ProjectView({ state, persist }) {
 
   const scopeFields = [
     ["Basement","basement"],["Stilt Floor","stilt_floor"],["GF","gf"],["1F","1f"],["2F","2f"],["3F","3f"],
-    ["Terrace","terrace"],["Facade","facade"],["Landscape","landscape"],
-    ["Bath Elevation","bath_elevation"],["Furniture","wardrobe"],["Art Curation","art_curation"],["Onboarding","onboarding"]];
-
-  // Keep the scrollable table exactly as wide as its grid tracks, including Completed.
-  const ongoingGridColumns = `100px 300px 180px 180px repeat(${scopeFields.length},78px) 105px`;
-  const ongoingGridWidth = 100 + 300 + 180 + 180 + scopeFields.length * 78 + 105;
+    ["Terrace","terrace"],["Facade","facade"],["Wall Elevation","wall_elevation"],["Landscape","landscape"],
+    ["Bath Elevation","bath_elevation"],["Wardrobe","wardrobe"],["Kitchen","kitchen"],["Onboarding","onboarding"]
+  ];
 
   const isCompletedProject = p => (p.status==="Completed" || p.projectControl?.projectStatus==="Completed" || Boolean(p.completedAt));
-  const ongoingProjects = orderedProjects(state.projects).filter(p=>!isCompletedProject(p));
-  const completedProjects = orderedProjects(state.projects).filter(isCompletedProject);
-  const completeProject = async (p,e,outcome="survived") => {
+  const ongoingProjects = state.projects.filter(p=>!isCompletedProject(p));
+  const completedProjects = state.projects.filter(isCompletedProject);
+  const completeProject = async (p,e) => {
     if(e)e.stopPropagation();
-    if(completionPendingRef.current[p.id])return;
-    completionPendingRef.current[p.id]=true;
-    const previousSelection=selectedId;
+    let completedRow;
+    try { completedRow = await projectApi.complete(p.id); }
+    catch (err) { alert(`Google Sheets completion failed: ${err?.message || err}`); return; }
     const now=new Date().toISOString();
-    const before=latestProjectStateRef.current.projects.find(x=>x.id===p.id)||p;
-    const statusFields=x=>({status:x.status,projectStatus:x.projectStatus,completed:x.completed,completedAt:x.completedAt,completedDate:x.completedDate,completionOutcome:x.completionOutcome});
-    const applyStatus=async (fields,control)=>{
-      const latest=latestProjectStateRef.current;
-      const next={...latest,projects:latest.projects.map(x=>x.id===p.id?{...x,...fields,projectControl:{...x.projectControl,...control}}:x)};
-      latestProjectStateRef.current=next;
-      await persist(next);
-    };
-    // Update React state before waiting for Google Sheets.
-    const localSave=applyStatus({status:"Completed",projectStatus:"Completed",completed:true,completedAt:now,completedDate:now.slice(0,10),completionOutcome:outcome},{projectStatus:"Completed",completedAt:now});
+    const projects=state.projects.map(x=>x.id===p.id?backendProjectToFrontend(completedRow,{
+      ...x,status:"Completed",completedAt:now,completedDate:now.slice(0,10),
+      projectControl:{...(x.projectControl||{}),projectStatus:"Completed",completedAt:now}
+    }):x);
+    await persist({...state,projects});
     if(selectedId===p.id){
-      const next=latestProjectStateRef.current.projects.find(x=>!isCompletedProject(x));
-      setSelectedId(next?.id||null);
-    }
-    // Finish any older scope write before completion, so it cannot reopen the project.
-    clearTimeout(scopeSaveTimersRef.current[p.id]);
-    delete scopeSaveTimersRef.current[p.id];
-    const pendingScope=scopePendingRef.current[p.id];
-    delete scopePendingRef.current[p.id];
-    try {
-      await localSave;
-      await scopeSaveRequestsRef.current[p.id];
-      if(pendingScope)await projectApi.update(frontendProjectToBackend(pendingScope.project,true));
-      const completedRow=await projectApi.complete(p.id,outcome);
-      const current=latestProjectStateRef.current.projects.find(x=>x.id===p.id);
-      if(current){
-        const synced=backendProjectToFrontend(completedRow,current);
-        await applyStatus({...statusFields(synced),completionOutcome:outcome},{projectStatus:synced.projectControl?.projectStatus,completedAt:synced.projectControl?.completedAt});
-      }
-    } catch(err) {
-      await applyStatus(statusFields(before),{projectStatus:before.projectControl?.projectStatus,completedAt:before.projectControl?.completedAt});
-      if(previousSelection===p.id)setSelectedId(p.id);
-      alert(`Project completion could not be saved. The previous status has been restored. ${err?.message||err}`);
-    } finally {
-      delete completionPendingRef.current[p.id];
+      const next=projects.find(x=>!(x.status==="Completed"||x.projectControl?.projectStatus==="Completed"));
+      if(next)setSelectedId(next.id);
     }
   };
 
@@ -6515,14 +5080,39 @@ function ProjectView({ state, persist }) {
       client:p.client||"",
       architect:p.architect||"",
       basement:false,stilt_floor:false,gf:false,"1f":false,"2f":false,"3f":false,
-      terrace:false,facade:false,wall_elevation:false,art_curation:false,landscape:false,bath_elevation:false,
+      terrace:false,facade:false,wall_elevation:false,landscape:false,bath_elevation:false,
       wardrobe:false,kitchen:false,onboarding:false
     });
   };
 
   useEffect(() => {
-    if (editProjectId !== project?.id) setIsProjectEditorOpen(false);
-  }, [project?.id, editProjectId]);
+    if (!project) return;
+    const sc = scopeFor(project);
+    setEditProjectId(project.id);
+    setEditDraft({
+      no: project.no || "",
+      name: project.name || "",
+      client: project.client || sc.client || "",
+      architect: project.architect || sc.architect || "",
+      address: project.address || "",
+      type: project.type || "Residence",
+      startDate: project.startDate || "",
+      plannedCompletionDate: project.plannedCompletionDate || project.endDate || "",
+      projectStatus: project.projectStatus || project.status || "Ongoing",
+      contacts: {
+        ...(project.contacts || {}),
+        Owner: {
+          ...(project.contacts?.Owner || {}),
+          name: project.contacts?.Owner?.name || project.client || ""
+        },
+        Architect: {
+          ...(project.contacts?.Architect || {}),
+          name: project.contacts?.Architect?.name || project.architect || ""
+        }
+      }
+    });
+    setIsProjectEditorOpen(false);
+  }, [project?.id]);
 
   const toggleScope = (p,key,e) => {
     if (e) e.stopPropagation();
@@ -6560,9 +5150,7 @@ function ProjectView({ state, persist }) {
       const pending = scopePendingRef.current[p.id];
       if (!pending) return;
       try {
-        const request=projectApi.update(frontendProjectToBackend(pending.project, true));
-        scopeSaveRequestsRef.current[p.id]=request.catch(()=>{});
-        await request;
+        await projectApi.update(frontendProjectToBackend(pending.project, true));
         delete scopePendingRef.current[p.id];
       } catch (err) {
         console.error("Google Sheets scope background save failed:", err);
@@ -6584,9 +5172,7 @@ function ProjectView({ state, persist }) {
     await persist({...state,projects:state.projects.map(p=>p.id===project.id?syncedProject:p)});
   };
 
-  const openProjectEditor = (p,button) => {
-    if(!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)button?.animate?.([{transform:'scale(1)'},{transform:'scale(.92)',background:'#E6EEF4'},{transform:'scale(1)'}],{duration:220,easing:'ease-out'});
-    setEditorReveal(n=>n+1);
+  const openProjectEditor = (p) => {
     const sc = scopeFor(p);
     setSelectedId(p.id);
     setEditProjectId(p.id);
@@ -6597,7 +5183,6 @@ function ProjectView({ state, persist }) {
       client: p.client || sc.client || p.contacts?.Owner?.name || "",
       architect: p.architect || sc.architect || p.contacts?.Architect?.name || "",
       address: p.address || "",
-      city: p.city || "",
       type: p.type || "Residence",
       startDate: p.startDate || "",
       plannedCompletionDate: p.plannedCompletionDate || p.endDate || "",
@@ -6617,17 +5202,16 @@ function ProjectView({ state, persist }) {
   };
 
   const saveProjectEditor = async () => {
-    const current = latestProjectStateRef.current.projects.find(p => p.id === editProjectId);
-    if (!current || !editDraft || editorSavePendingRef.current[current.id]) return;
+    const current = state.projects.find(p => p.id === editProjectId);
+    if (!current || !editDraft) return;
     const currentScope = scopeFor(current);
     const cleanContacts = {};
     Object.entries(editDraft.contacts || {}).forEach(([role, c]) => {
-      if (c && (String(c.name || "").trim() || String(c.company || "").trim() || String(c.email || "").trim() || String(c.mobile || "").trim())) {
+      if (c && ((c.name || "").trim() || (c.email || "").trim() || (c.mobile || "").trim())) {
         cleanContacts[role] = {
-          name: String(c.name || "").trim(),
-          company: String(c.company || "").trim(),
-          email: String(c.email || "").trim(),
-          mobile: String(c.mobile || "").trim()
+          name: (c.name || "").trim(),
+          email: (c.email || "").trim(),
+          mobile: (c.mobile || "").trim()
         };
       }
     });
@@ -6648,65 +5232,60 @@ function ProjectView({ state, persist }) {
       architect: architectName,
       contacts: cleanContacts,
       address: editDraft.address,
-      city: (editDraft.city || "").trim(),
       type: editDraft.type,
       startDate: editDraft.startDate,
       plannedCompletionDate: editDraft.plannedCompletionDate,
       endDate: editDraft.plannedCompletionDate,
       projectStatus: editDraft.projectStatus,
       status: editDraft.projectStatus,
-      scope: nextScope,
-      projectControl:{...current.projectControl,projectStatus:editDraft.projectStatus},
-      ...(editDraft.projectStatus!=="Completed"?{completed:false,completedAt:"",completedDate:""}:{})
+      scope: nextScope
     };
-    const draftSnapshot=editDraft;
-    const oldName=String(current.name||"").trim().toLowerCase();
-    const latest=latestProjectStateRef.current;
-    const allRows=latest.scopeSheet||PROJECT_SCOPE_SHEET_ROWS;
-    const replaceScope=(rows,name,row)=>rows.some(r=>String(r.project||"").trim().toLowerCase()===name)
-      ? rows.map(r=>String(r.project||"").trim().toLowerCase()===name?row:r):[...rows,row];
-    const optimistic={...latest,projects:latest.projects.map(p=>p.id===current.id?nextProject:p),scopeSheet:replaceScope(allRows,oldName,nextScope)};
-    editorSavePendingRef.current[current.id]=true;
-    latestProjectStateRef.current=optimistic;
-    const localSave=persist(optimistic);
-    setIsProjectEditorOpen(false);
-    setProjectSaveMessage("Changes applied · Saving to Google Sheets…");
-    // Older scope writes must finish first; send one combined latest project snapshot.
-    clearTimeout(scopeSaveTimersRef.current[current.id]);
-    delete scopeSaveTimersRef.current[current.id];
-    delete scopePendingRef.current[current.id];
+    let updatedRow;
     try {
-      await localSave;
-      await scopeSaveRequestsRef.current[current.id];
-      await projectApi.update(frontendProjectToBackend(nextProject,true));
-    } catch(err) {
-      const latest=latestProjectStateRef.current;
-      // Restore only fields still equal to this save, retaining later independent edits.
-      const projects=latest.projects.map(p=>{
-        if(p.id!==current.id)return p;
-        const restored={...p};
-        for(const key of Object.keys(nextProject)){
-          if(JSON.stringify(p[key])===JSON.stringify(nextProject[key]))restored[key]=current[key];
-        }
-        return restored;
-      });
-      const scopeSheet=(latest.scopeSheet||[]).map(r=>JSON.stringify(r)===JSON.stringify(nextScope)?currentScope:r);
-      const restored={...latest,projects,scopeSheet};
-      latestProjectStateRef.current=restored;
-      await persist(restored);
-      setEditProjectId(current.id);setEditDraft(draftSnapshot);setIsProjectEditorOpen(true);
-      setProjectSaveMessage(`Save failed. Your draft is retained; please retry. ${err?.message||err}`);
-      delete editorSavePendingRef.current[current.id];
+      updatedRow = await projectApi.update(frontendProjectToBackend(nextProject, true));
+    } catch (err) {
+      alert(`Google Sheets project update failed: ${err?.message || err}`);
       return;
     }
-    try {
-      if(Object.keys(cleanContacts).length)await projectApi.saveContacts(current.id,contactsObjectToRows(nextProject,cleanContacts));
-      setProjectSaveMessage("Saved to Google Sheets.");
-    } catch(err) {
-      setProjectSaveMessage(`Project saved, but contacts could not sync. Reopen the project and save again. ${err?.message||err}`);
-    } finally {
-      delete editorSavePendingRef.current[current.id];
+    const syncedProject = backendProjectToFrontend(updatedRow, nextProject);
+    if (Object.keys(cleanContacts).length) {
+      try { await projectApi.saveContacts(current.id, contactsObjectToRows(syncedProject, cleanContacts)); }
+      catch (err) { alert(`Project saved, but Google Sheets contacts failed: ${err?.message || err}`); }
     }
+    const allRows = state.scopeSheet || PROJECT_SCOPE_SHEET_ROWS;
+    const oldName = String(current.name || "").trim().toLowerCase();
+    const scopeSheet = allRows.some(r => String(r.project || "").trim().toLowerCase() === oldName)
+      ? allRows.map(r => String(r.project || "").trim().toLowerCase() === oldName ? nextScope : r)
+      : [...allRows, nextScope];
+    await persist({
+      ...state,
+      projects: state.projects.map(p => p.id === current.id ? syncedProject : p),
+      scopeSheet
+    });
+    setEditProjectId(syncedProject.id);
+    setEditDraft({
+      no: syncedProject.no || "",
+      name: syncedProject.name || "",
+      client: syncedProject.client || nextScope.client || "",
+      architect: syncedProject.architect || nextScope.architect || "",
+      address: syncedProject.address || "",
+      type: syncedProject.type || "Residence",
+      startDate: syncedProject.startDate || "",
+      plannedCompletionDate: syncedProject.plannedCompletionDate || syncedProject.endDate || "",
+      projectStatus: syncedProject.projectStatus || syncedProject.status || "Ongoing",
+      contacts: {
+        ...(syncedProject.contacts || cleanContacts),
+        Owner: {
+          ...((syncedProject.contacts || cleanContacts)?.Owner || {}),
+          name: (syncedProject.contacts || cleanContacts)?.Owner?.name || syncedProject.client || ownerName || ""
+        },
+        Architect: {
+          ...((syncedProject.contacts || cleanContacts)?.Architect || {}),
+          name: (syncedProject.contacts || cleanContacts)?.Architect?.name || syncedProject.architect || architectName || ""
+        }
+      }
+    });
+    setIsProjectEditorOpen(false);
   };
 
   const executionFor=(room)=>{
@@ -6716,34 +5295,134 @@ function ProjectView({ state, persist }) {
   };
   const active=(board?.rooms||[]).flatMap(r=>executionFor(r).filter(x=>x.status==="Ready"||x.status==="In Progress"));
 
-  const projectEditor = project && project.id===editProjectId && editDraft && isProjectEditorOpen && <div ref={projectEditorRef} tabIndex={-1} role="region" aria-label="Edit selected project" style={{scrollMarginTop:24,outline:"none",marginTop:16,border:`2px solid ${T.navy}`,background:"#fff",padding:16}}>
+  return <div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:14,flexWrap:"wrap"}}>
+      <div>
+        <h2 style={{fontFamily:FONT_DISPLAY,fontSize:22,margin:0,color:T.ink}}>Projects & Scope of Work</h2>
+        <div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim,marginTop:4}}>
+          One master sheet: project information and project scope are edited together.
+        </div>
+      </div>
+      <div style={{display:"flex",gap:8}}><button onClick={()=>{setShowExistingProjects(true);setShowNewProject(false);}} style={smallBtn}>Existing Projects</button>
+      <button onClick={()=>{setShowNewProject(true);setShowExistingProjects(false);}} style={{...smallBtn,background:T.navy,color:"#fff",border:`1px solid ${T.navy}`,padding:"9px 13px",fontFamily:FONT_BODY,fontWeight:700,cursor:"pointer"}}>
+        + New Project
+      </button></div>
+    </div>
+
+    {(showNewProject || showExistingProjects) && <div style={{border:`1px solid ${T.line}`,background:"#fff",padding:16,marginBottom:16}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+        <div style={{fontFamily:FONT_DISPLAY,fontSize:16,fontWeight:700}}>{showNewProject ? "New Project" : "Existing Projects"}</div>
+        <button onClick={()=>{setShowNewProject(false);setShowExistingProjects(false);}} style={{...smallBtn}}>Close</button>
+      </div>
+      <ProjectOnboarding key={showNewProject ? "new" : "browse"} initialMode={showNewProject ? "new" : "browse"} state={state} persist={persist} selectedId={selectedId} setSelectedId={(id)=>{setSelectedId(id);setShowNewProject(false);setTab("list");}}/>
+    </div>}
+
+    <div style={{display:"flex",alignItems:"center",gap:0,borderBottom:`1px solid ${T.line}`,marginBottom:18,overflowX:"auto",background:"#fff"}}>
+      {[["list","Projects & Scope"],["team","Teams & Ratings"],["line","Line of Work"]].map(([id,label])=>
+        <button type="button" key={id} onClick={(e)=>{e.preventDefault();e.stopPropagation();setTab(id);}} style={{
+          padding:"11px 16px",border:"none",borderBottom:`3px solid ${tab===id?T.cyan:"transparent"}`,
+          background:tab===id?T.navy:"transparent",color:tab===id?"#fff":T.inkDim,cursor:"pointer",
+          fontFamily:FONT_BODY,fontSize:12,fontWeight:tab===id?700:500,whiteSpace:"nowrap"
+        }}>{label}</button>
+      )}
+    </div>
+
+    {tab==="list" && <div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,gap:10}}>
+        <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.inkDim}}>Project Master</div>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          {project && !isCompletedProject(project) && <button type="button" onClick={()=>openProjectEditor(project)} style={{...smallBtn,border:`1px solid ${T.blue}`,color:T.blue,background:"#fff"}}>Edit Selected Project</button>}
+          <div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim}}>{ongoingProjects.length} ongoing projects</div>
+        </div>
+      </div>
+
+      <div style={{overflowX:"auto",border:`1px solid ${T.line}`,background:"#fff"}}>
+        <div style={{minWidth:1750}}>
+          <div style={{
+            display:"grid",
+            gridTemplateColumns:"65px 300px 180px 180px repeat(14,78px) 105px",
+            background:"#D2CDC1",color:"#1C1C19",borderBottom:`2px solid ${T.ink}`,
+            fontFamily:FONT_MONO,fontSize:8,fontWeight:700
+          }}>
+            {["S. No","Current Project","Client","Architect",...scopeFields.map(([label])=>label),"Completed"].map((h,i)=>
+              <div key={i} style={{padding:"9px 6px",borderRight:`1px solid ${T.line}`,textAlign:i>=4?"center":"left",display:"flex",alignItems:"center",justifyContent:i>=4?"center":"flex-start"}}>
+                {h}
+              </div>
+            )}
+          </div>
+
+          {ongoingProjects.map((p,pi)=>{
+            const sc=scopeFor(p);
+            const selected=p.id===project?.id;
+            return <div key={p.id} onClick={()=>setSelectedId(p.id)} style={{
+              display:"grid",gridTemplateColumns:"65px 300px 180px 180px repeat(14,78px) 105px",
+              borderBottom:`1px solid ${T.line}`,background:selected?"#F3F1EA":"#fff",cursor:"pointer",
+              fontFamily:FONT_BODY,fontSize:10
+            }}>
+              <div style={{padding:8,borderRight:`1px solid ${T.line}`,fontFamily:FONT_MONO}}>{sc.serial||p.no||pi+1}</div>
+              <div style={{padding:8,borderRight:`1px solid ${T.line}`,fontWeight:700,display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}>
+                <span>{p.name||sc.project||"—"}</span>
+                <span style={{display:"flex",gap:5,flexShrink:0}}>
+                  <button
+                    type="button"
+                    onClick={(e)=>{e.stopPropagation();openProjectEditor(p);}}
+                    style={{border:`1px solid ${T.blue}`,background:"#fff",color:T.blue,padding:"4px 7px",fontFamily:FONT_MONO,fontSize:8,fontWeight:700,cursor:"pointer"}}
+                  >EDIT</button>
+                  <button
+                    type="button"
+                    onClick={(e)=>deleteProject(p,e)}
+                    title={`Delete ${p.name}`}
+                    style={{border:"1px solid #9B3B35",background:"#fff",color:"#9B3B35",padding:"4px 7px",fontFamily:FONT_MONO,fontSize:8,fontWeight:700,cursor:"pointer"}}
+                  >DELETE</button>
+                </span>
+              </div>
+              <div style={{padding:8,borderRight:`1px solid ${T.line}`}}>{p.client||sc.client||"—"}</div>
+              <div style={{padding:8,borderRight:`1px solid ${T.line}`}}>{p.architect||sc.architect||"—"}</div>
+              {scopeFields.map(([label,key])=>{
+                const on=Boolean(sc[key]);
+                return <button key={key} onClick={e=>toggleScope(p,key,e)} title={`${label}: ${on?"included":"not included"}`} style={{
+                  border:0,borderRight:`1px solid ${T.line}`,background:on?"#E8F2E9":"#FAF9F5",
+                  color:on?"#245C2B":"#999",cursor:"pointer",fontSize:16,fontWeight:800
+                }}>{on?"☑":"☐"}</button>;
+              })}
+              <button onClick={e=>completeProject(p,e)} title="Mark project completed" style={{border:0,background:"#FAF9F5",cursor:"pointer",fontFamily:FONT_BODY,fontSize:9,fontWeight:700,color:T.ink}}>
+                ☐ Complete
+              </button>
+            </div>;
+          })}
+        </div>
+      </div>
+
+      {project && editDraft && isProjectEditorOpen && <div style={{marginTop:16,border:`2px solid ${T.navy}`,background:"#fff",padding:16}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:14}}>
           <div>
-            <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.cyan}}>Project Details · Editable (Client & Architect read-only) / Contacts · Editable</div>
+            <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.cyan}}>Selected Project · Editable Information</div>
             <div style={{fontFamily:FONT_DISPLAY,fontSize:18,fontWeight:700,marginTop:3}}>{editDraft.name || "Selected Project"}</div>
           </div>
           <div style={{display:"flex",gap:8}}>
-            
+            <button onClick={()=>openProjectEditor(project)} style={{...smallBtn}}>Reset Form</button>
             <button onClick={()=>setIsProjectEditorOpen(false)} style={{...smallBtn}}>Collapse</button>
           </div>
         </div>
-        <section aria-label="Editable project details" style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:12}}>
-          {[
-            ["Project No.","no"],["Project Name","name"],["Client","client"],["Architect","architect"],
-            ["Address","address"],["City","city"],["Project Type","type"],["Start Date","startDate"],
-            ["Planned Completion","plannedCompletionDate"],["Project Status","projectStatus"]
-          ].map(([label,key])=>{
-            const locked=key==="client"||key==="architect";
-            const value=editDraft[key]||"";
-            return <div key={key}>
-              <label style={{display:"block",fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginBottom:5}}>{label}</label>
-              {locked ? <div style={{fontFamily:FONT_BODY,fontSize:13,overflowWrap:"anywhere",padding:"9px 0"}}>{value||"—"}</div>
-              : key==="type" ? <select aria-label={label} value={value} onChange={e=>setEditDraft(d=>({...d,[key]:e.target.value}))} style={{...inputStyle,width:"100%"}}>{["Residence","Commercial","Hospitality","Retail","Other"].map(v=><option key={v} value={v}>{v}</option>)}</select>
-              : key==="projectStatus" ? <select aria-label={label} value={value} onChange={e=>setEditDraft(d=>({...d,[key]:e.target.value}))} style={{...inputStyle,width:"100%"}}>{["Ongoing","On Hold","Completed","Cancelled"].concat(value&&! ["Ongoing","On Hold","Completed","Cancelled"].includes(value)?[value]:[]).map(v=><option key={v} value={v}>{v}</option>)}</select>
-              : <input aria-label={label} type={key==="startDate"||key==="plannedCompletionDate"?"date":"text"} value={value} onChange={e=>setEditDraft(d=>({...d,[key]:e.target.value}))} style={{...inputStyle,width:"100%",boxSizing:"border-box"}}/>}
-            </div>;
-          })}
-        </section>
+        <div style={{display:"grid",gridTemplateColumns:"140px 1.4fr 1fr 1fr",gap:12}}>
+          <Field label="Project No."><input style={{...inputStyle,borderRadius:0}} value={editDraft.no} onChange={e=>setEditDraft(d=>({...d,no:e.target.value}))}/></Field>
+          <Field label="Project Name"><input style={{...inputStyle,borderRadius:0}} value={editDraft.name} onChange={e=>setEditDraft(d=>({...d,name:e.target.value}))}/></Field>
+          <Field label="Client"><input style={{...inputStyle,borderRadius:0}} value={editDraft.client} onChange={e=>setEditDraft(d=>({...d,client:e.target.value}))}/></Field>
+          <Field label="Architect"><input style={{...inputStyle,borderRadius:0}} value={editDraft.architect} onChange={e=>setEditDraft(d=>({...d,architect:e.target.value}))}/></Field>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1.6fr 1fr 1fr 1fr",gap:12,marginTop:10}}>
+          <Field label="Address"><input style={{...inputStyle,borderRadius:0}} value={editDraft.address} onChange={e=>setEditDraft(d=>({...d,address:e.target.value}))}/></Field>
+          <Field label="Project Type"><select style={{...inputStyle,borderRadius:0}} value={editDraft.type} onChange={e=>setEditDraft(d=>({...d,type:e.target.value}))}><option>Residence</option><option>Commercial</option><option>Hospitality</option><option>Retail</option><option>Other</option></select></Field>
+          <Field label="Start Date"><input type="date" style={{...inputStyle,borderRadius:0}} value={editDraft.startDate} onChange={e=>setEditDraft(d=>({...d,startDate:e.target.value}))}/></Field>
+          <Field label="Planned Completion"><input type="date" style={{...inputStyle,borderRadius:0}} value={editDraft.plannedCompletionDate} onChange={e=>setEditDraft(d=>({...d,plannedCompletionDate:e.target.value}))}/></Field>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"220px 1fr",gap:12,alignItems:"end",marginTop:10}}>
+          <Field label="Project Status"><select style={{...inputStyle,borderRadius:0}} value={editDraft.projectStatus} onChange={e=>setEditDraft(d=>({...d,projectStatus:e.target.value}))}><option>Ongoing</option><option>On Hold</option><option>Completed</option><option>Cancelled</option></select></Field>
+          <div style={{display:"flex",gap:8,paddingBottom:1}}>
+            <Btn onClick={saveProjectEditor}><ClipboardCheck size={14}/> Save Project</Btn>
+            <Btn variant="ghost" onClick={()=>openProjectEditor(project)}>Reset</Btn>
+          </div>
+        </div>
         <div style={{marginTop:18,paddingTop:14,borderTop:`1px solid ${T.line}`}}>
           <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.cyan,marginBottom:10}}>Project Contacts · Editable</div>
           <ContactFields
@@ -6757,145 +5436,8 @@ function ProjectView({ state, persist }) {
             }))}
           />
         </div>
-        <div style={{display:"flex",gap:8,marginTop:16}}>
-          <Btn onClick={saveProjectEditor}><ClipboardCheck size={14}/> Save Project</Btn>
-          <button type="button" style={{...smallBtn,border:"1px solid #9B3B35",color:"#9B3B35",background:"#fff"}} onClick={()=>deleteProject(project)}>Delete Project</button>
-          
-        </div>
-        <div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim,marginTop:10}}>Edit Client and Architect in the contact list above. Save Project closes this editor and updates the summary immediately.</div>
-      </div>;
-
-  return <div>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:14,flexWrap:"wrap"}}>
-      <div>
-        <h1 className="studio-page-heading studio-scope-heading">Projects & Scope of Work</h1>
-        <div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim,marginTop:4}}>
-          One master sheet: project information and project scope are edited together.
-        </div>
-      </div>
-      <div style={{display:"flex",gap:8}}><button onClick={()=>{setShowExistingProjects(true);setShowNewProject(false);if(project)openProjectEditor(project);}} style={smallBtn}>Existing Projects</button>
-      <button onClick={()=>{setShowNewProject(true);setShowExistingProjects(false);}} style={{...smallBtn,background:T.navy,color:"#fff",border:`1px solid ${T.navy}`,padding:"9px 13px",fontFamily:FONT_BODY,fontWeight:700,cursor:"pointer"}}>
-        + New Project
-      </button></div>
-    </div>
-
-    <PendingProjectCreations state={state} persist={persist}/>
-
-    {(showNewProject || showExistingProjects) && <div style={{border:`1px solid ${T.line}`,background:"#fff",padding:16,marginBottom:16}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-        <div style={{fontFamily:FONT_DISPLAY,fontSize:16,fontWeight:700}}>{showNewProject ? "New Project" : "Existing Projects"}</div>
-        <button onClick={()=>{setShowNewProject(false);setShowExistingProjects(false);}} style={{...smallBtn}}>Close</button>
-      </div>
-      <ProjectOnboarding key={showNewProject ? "new" : "browse"} initialMode={showNewProject ? "new" : "browse"} state={state} persist={persist} selectedId={selectedId} projectEditor={showExistingProjects?(projectEditor||<p style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>Select a project to open its complete details.</p>):null} setSelectedId={(id)=>{setSelectedId(id);setShowNewProject(false);setTab("list");if(showExistingProjects){const chosen=state.projects.find(p=>p.id===id);if(chosen)openProjectEditor(chosen);}}}/>
-    </div>}
-
-    <div className="register-tabs" role="tablist" aria-label="Project sections" style={registerTabsStyle}>
-      {[["list","Project & Scope"],["floor","Floor / Zone"],["delegation","Delegation"],["team","Directory"]].map(([id,label])=>
-        <button type="button" role="tab" aria-selected={tab===id} key={id} onClick={(e)=>{e.preventDefault();e.stopPropagation();setTab(id);}} style={registerTabStyle(tab===id)}>{label}</button>
-      )}
-    </div>
-
-    {projectSaveMessage&&<p role="status" style={{fontFamily:FONT_BODY,fontSize:12}}>{projectSaveMessage}</p>}
-    {tab==="list" && <div>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,gap:10}}>
-        <div style={{fontFamily:FONT_MONO,fontSize:10,letterSpacing:".1em",textTransform:"uppercase",color:T.inkDim}}>Ongoing Projects</div>
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
-          {project && !isCompletedProject(project) && <button type="button" onClick={e=>openProjectEditor(project,e.currentTarget)} style={{...smallBtn,border:`1px solid ${T.blue}`,color:T.blue,background:"#fff"}}>Edit Selected Project</button>}
-          <div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim}}>{ongoingProjects.length} ongoing projects</div>
-        </div>
-      </div>
-
-      <div style={{overflowX:"auto",border:`1px solid ${T.line}`,background:"#fff"}}>
-        <div style={{width:ongoingGridWidth,minWidth:"100%"}}>
-          <div className="project-register-table-header" style={{
-            display:"grid",
-            gridTemplateColumns:ongoingGridColumns,
-            borderBottom:`2px solid ${T.ink}`
-          }}>
-            {["S. No","Current Project","Client","Architect",...scopeFields.map(([label])=>label),"Completed"].map((h,i)=>
-              <div key={i} style={{padding:"9px 6px",borderRight:`1px solid ${T.line}`,textAlign:i>=4?"center":"left",display:"flex",alignItems:"center",justifyContent:i>=4?"center":"flex-start",overflowWrap:"anywhere",boxSizing:"border-box"}}>
-                {h}
-              </div>
-            )}
-          </div>
-
-          {ongoingProjects.map((p,pi)=>{
-            const sc=scopeFor(p);
-            const selected=p.id===project?.id;
-            return <div key={p.id} onClick={()=>setSelectedId(p.id)} style={{
-              display:"grid",gridTemplateColumns:ongoingGridColumns,
-              borderBottom:`1px solid ${T.line}`,background:selected?"#F3F1EA":"#fff",cursor:"pointer",
-              fontFamily:FONT_BODY,fontSize:10
-            }}>
-              <div style={{padding:8,borderRight:`1px solid ${T.line}`,fontFamily:FONT_MONO,overflowWrap:"anywhere",minWidth:0}}>{sc.serial||p.no||pi+1}</div>
-              <div style={{padding:8,borderRight:`1px solid ${T.line}`,fontWeight:700,display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}>
-                <span>{p.name||sc.project||"—"}</span>
-                <span style={{display:"flex",gap:5,flexShrink:0}}>
-                  <button
-                    type="button"
-                    onClick={(e)=>{e.stopPropagation();openProjectEditor(p,e.currentTarget);}}
-                    style={{border:`1px solid ${T.blue}`,background:"#fff",color:T.blue,padding:"4px 7px",fontFamily:FONT_MONO,fontSize:8,fontWeight:700,cursor:"pointer"}}
-                  >EDIT</button>
-
-                </span>
-              </div>
-              <div style={{padding:8,borderRight:`1px solid ${T.line}`}}>{p.client||sc.client||"—"}</div>
-              <div style={{padding:8,borderRight:`1px solid ${T.line}`}}>{p.architect||sc.architect||"—"}</div>
-              {scopeFields.map(([label,key])=>{
-                const on=Boolean(sc[key]);
-                return <button key={key} onClick={e=>toggleScope(p,key,e)} title={`${label}: ${on?"included":"not included"}`} style={{
-                  border:0,borderRight:`1px solid ${T.line}`,background:on?"#E8F2E9":"#FAF9F5",
-                  color:on?"#245C2B":"#999",cursor:"pointer",fontSize:16,fontWeight:800
-                }}>{on?"☑":"☐"}</button>;
-              })}
-              <div style={{display:"flex",gap:5,alignItems:"center",justifyContent:"center",padding:5,background:"#fff",borderRight:`1px solid ${T.line}`,boxSizing:"border-box"}}>
-                <button type="button" onClick={e=>completeProject(p,e,"not_survived")} title="Completed — did not survive to the end" aria-label={`Mark ${p.name||"project"} completed, did not survive`} style={{...smallBtn,background:"#F5DEDC",color:"#963C37",border:"1px solid #C98D88",padding:"6px 9px",fontWeight:700}}>✕</button>
-                <button type="button" onClick={e=>completeProject(p,e,"survived")} title="Completed — survived to the end" aria-label={`Mark ${p.name||"project"} completed, survived`} style={{...smallBtn,background:"#DFEDE0",color:"#2F7042",border:"1px solid #91B69A",padding:"6px 9px",fontWeight:700}}>✓</button>
-              </div>
-            </div>;
-          })}
-        </div>
-      </div>
-
-      {project&&<section aria-label="Project summary" style={{marginTop:16,border:`1px solid ${T.line}`,background:T.paper2,padding:16}}>
-        <div style={{fontFamily:FONT_MONO,fontSize:10,color:T.cyan,marginBottom:12}}>PROJECT INFORMATION</div>
-        <div style={{display:"flex",alignItems:"center",gap:18,flexWrap:"wrap"}}>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(6,minmax(0,1fr))",gap:14,flex:"1 1 850px",minWidth:0}}>
-          {[["Project No.",project.no],["Project Name",project.name],["Client",project.client||project.contacts?.Owner?.name],["Architect",project.architect||project.contacts?.Architect?.name],["Address",project.address],["Project Type",project.type]].map(([label,value])=><div key={label}><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginBottom:5}}>{label}</div><div style={{fontFamily:FONT_BODY,fontSize:13,overflowWrap:"anywhere"}}>{value||"—"}</div></div>)}
-        </div>
-        <div style={{display:"flex",justifyContent:"center",alignItems:"center",flex:"0 0 90px"}}>
-          <button type="button" style={{...smallBtn,border:`1px solid ${T.blue}`,color:T.blue,background:"#fff"}} onClick={()=>setShowProjectTeam(v=>!v)}>{showProjectTeam?"Hide Team":"View Team"}</button>
-        </div>
-        </div>
-        {showProjectTeam&&<div style={{marginTop:14,borderTop:`1px solid ${T.line}`,paddingTop:14}}>
-          <div style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,marginBottom:10}}>PROJECT TEAM · {project.name}</div>
-          <div style={{overflowX:"auto"}}>
-          <div style={{display:"grid",gridTemplateColumns:"minmax(160px,1.3fr) minmax(120px,1fr) minmax(190px,1.4fr) minmax(145px,auto)",gap:12,minWidth:680,padding:"8px",background:T.paper2,borderBottom:`1px solid ${T.ink}`,fontFamily:FONT_MONO,fontSize:10,fontWeight:700}}><span>TEAM MEMBER</span><span>MOBILE NUMBER</span><span>EMAIL ID</span><span>RATING</span></div>
-          {Object.entries(project.contacts||{}).filter(([,c])=>c&&(String(c.name||"").trim()||String(c.company||"").trim())).map(([role,c])=>{
-            const key=contactKey(c.name||c.company,c.mobile);
-            const rating=Number(c.rating||state.ratings?.[key]?.rating||0);
-            return <div key={role} style={{display:"grid",gridTemplateColumns:"minmax(160px,1.3fr) minmax(120px,1fr) minmax(190px,1.4fr) minmax(145px,auto)",alignItems:"center",gap:12,padding:"9px 8px",borderBottom:`1px solid ${T.line}`,minWidth:680}}>
-              <div><strong style={{fontFamily:FONT_BODY,fontSize:13}}>{c.name||c.company}</strong><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim}}>{contactRoleLabel(role)}{c.company?` · ${c.company}`:""}</div></div>
-              <div style={{fontFamily:FONT_MONO,fontSize:12,overflowWrap:"anywhere"}}>{c.mobile||"—"}</div>
-              <div style={{fontFamily:FONT_BODY,fontSize:12,overflowWrap:"anywhere"}}>{c.email||"—"}</div>
-              <DirectoryStars name={c.name||c.company} value={rating} disabled={teamRatingBusy} onChange={async value=>{
-                const before=latestProjectStateRef.current;
-                const projects=directoryCorrections(before.projects,[key],{rating:value});
-                const changed=projects.filter((p,i)=>p!==before.projects[i]);
-                if(!changed.length)return;
-                const next={...before,projects};setTeamRatingBusy(true);
-                try{await persist(next);for(const p of changed)await projectApi.saveContacts(p.id,contactsObjectToRows(p,p.contacts));setProjectSaveMessage("Team rating saved to Google Sheets.");}
-                catch(err){await persist(before);setProjectSaveMessage(`Team rating save failed: ${err?.message||err}`);}
-                finally{setTeamRatingBusy(false);}
-              }}/>
-            </div>;
-          })}
-          {!Object.values(project.contacts||{}).some(c=>c&&(c.name||c.company))&&<div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim}}>No team contacts assigned to this project.</div>}
-          </div>
-        </div>}
-      </section>}
-
-      {!showExistingProjects && projectEditor}
+        <div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim,marginTop:10}}>Project information and contacts are editable here. Owner name maps to Client and Architect name maps to Architect. Click Save Project after editing. Scope checkboxes remain editable directly in the master row above.</div>
+      </div>}
 
       <div style={{marginTop:22}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
@@ -6907,12 +5449,12 @@ function ProjectView({ state, persist }) {
             <div style={{display:"grid",gridTemplateColumns:"70px 1.5fr 1fr 1fr 130px",background:"#D2CDC1",borderBottom:`2px solid ${T.ink}`,fontFamily:FONT_MONO,fontSize:9,fontWeight:700}}>
               {["S. No","Project","Client","Architect","Completed Date"].map(h=><div key={h} style={{padding:"9px 8px",borderRight:`1px solid ${T.line}`}}>{h}</div>)}
             </div>
-            {completedProjects.map((p,i)=><div key={p.id} style={{display:"grid",gridTemplateColumns:"70px 1.5fr 1fr 1fr 130px",borderBottom:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:10,background:p.completionOutcome==="not_survived"?"#F7E8E6":"#EAF3EA"}}>
+            {completedProjects.map((p,i)=><div key={p.id} style={{display:"grid",gridTemplateColumns:"70px 1.5fr 1fr 1fr 130px",borderBottom:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:10,background:"#F7F6F2"}}>
               <div style={{padding:8,borderRight:`1px solid ${T.line}`}}>{p.no||i+1}</div>
               <div style={{padding:8,borderRight:`1px solid ${T.line}`,fontWeight:700}}>{p.name}</div>
               <div style={{padding:8,borderRight:`1px solid ${T.line}`}}>{p.client||"—"}</div>
               <div style={{padding:8,borderRight:`1px solid ${T.line}`}}>{p.architect||"—"}</div>
-              <div style={{padding:8,fontFamily:FONT_MONO}}>{formatProjectDate(p.completedDate||p.completedAt)}</div>
+              <div style={{padding:8,fontFamily:FONT_MONO}}>{p.completedDate||(p.completedAt?String(p.completedAt).slice(0,10):"—")}</div>
             </div>)}
             {!completedProjects.length&&<div style={{padding:14,fontFamily:FONT_BODY,fontSize:11,color:T.inkDim}}>No completed projects yet.</div>}
           </div>
@@ -6943,7 +5485,7 @@ function ProjectView({ state, persist }) {
           </div>
           <div style={{background:"#fff",border:`1px solid ${T.line}`,padding:12}}>
             <div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim}}>START DATE</div>
-            <div style={{fontFamily:FONT_DISPLAY,fontSize:16,fontWeight:700,marginTop:5}}>{formatProjectDate(project.startDate||project.projectStartDate)}</div>
+            <div style={{fontFamily:FONT_DISPLAY,fontSize:16,fontWeight:700,marginTop:5}}>{project.startDate||project.projectStartDate||"—"}</div>
           </div>
         </div>
 
@@ -6960,8 +5502,8 @@ function ProjectView({ state, persist }) {
       </div>}
     </div>}
 
-    {tab==="floor"&&<DashboardView state={state} persist={persist}/>}
-    {tab==="team"&&<ProjectDirectory state={state} persist={persist}/>}{tab==="delegation"&&<WorkflowDelegationView state={state}/>}
+    {tab==="team"&&<ProjectTeamView state={state} persist={persist} selectedId={selectedId}/>}
+    {tab==="line"&&<ProjectLineOfWorkView state={state} persist={persist} selectedId={selectedId || null} />}
   </div>;
 }
 
@@ -7019,7 +5561,7 @@ function DirectoryView({ state, persist }) {
       <div style={{ fontFamily: FONT_BODY, fontSize: 13, color: T.inkDim, marginBottom: 16 }}>Auto-built from every project's contacts — every vendor, contractor, architect, and designer you've worked with, deduplicated, with what they've worked on. Rate and leave a testimonial once you've finished working with them.</div>
       <div style={{ marginBottom: 16 }}>
         <Chip active={roleFilter === "All"} onClick={() => setRoleFilter("All")}>All ({directory.length})</Chip>
-        {rolesPresent.map((r) => <Chip key={r} active={roleFilter === r} onClick={() => setRoleFilter(r)}>{contactRoleLabel(r)}</Chip>)}
+        {rolesPresent.map((r) => <Chip key={r} active={roleFilter === r} onClick={() => setRoleFilter(r)}>{r}</Chip>)}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {filtered.map((d) => (
@@ -7032,7 +5574,7 @@ function DirectoryView({ state, persist }) {
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                 {d.roles.map((r) => (
-                  <span key={r} style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.inkDim, background: T.paperDim, padding: "2px 7px", borderRadius: 10 }}>{contactRoleLabel(r)}</span>
+                  <span key={r} style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.inkDim, background: T.paperDim, padding: "2px 7px", borderRadius: 10 }}>{r}</span>
                 ))}
               </div>
               <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: T.inkDim }}>
@@ -7070,118 +5612,53 @@ function DirectoryView({ state, persist }) {
 /* ---------------------------------------------------------------
    VIEW: MEETINGS — schedule + happened status + MOM
 --------------------------------------------------------------- */
-function diaryScheduledRows(meetings,visits){
- const result=(meetings||[]).filter(m=>m.active!==false&&String(m.active).toLowerCase()!=='false'&&!sheetDashboardFlag(m.happened)).map(m=>({...m,source:'meeting'}));
- for(const v of visits||[])if(v.scheduledDate&&!result.some(m=>String(m.projectId)===String(v.projectId)&&String(m.visitPlanId)===String(v.visitPlanId)&&String(m.date).slice(0,10)===String(v.scheduledDate).slice(0,10)))result.push({id:'visit:'+v.visitPlanId,projectId:v.projectId,visitPlanId:v.visitPlanId,title:v.title||v.milestone,date:v.scheduledDate,time:'',source:'visit'});
- return result.sort((a,b)=>(String(a.date)+String(a.time||'')).localeCompare(String(b.date)+String(b.time||'')));
-}
-function diaryMinuteEntries(meetings,visits){
- const entries=(meetings||[]).filter(m=>m.mom||m.actionItems||m.nextDate).map(m=>({id:'meeting:'+m.id,title:m.title,date:m.date,notes:m.mom||'',actions:m.actionItems||'',nextDate:m.nextDate||'',visitPlanId:m.visitPlanId||''}));
- for(const v of visits||[])for(const h of visitHistory(v)){if(entries.some(e=>String(e.visitPlanId)===String(v.visitPlanId)&&e.date===h.date&&e.notes===h.notes))continue;entries.push({id:'visit:'+v.visitPlanId+':'+h.visitId,title:v.title||v.milestone,date:h.date,notes:h.notes||'',actions:'',nextDate:'',visitBy:h.visitBy||''});}
- return entries.sort((a,b)=>String(b.date).localeCompare(String(a.date)));
-}
-function ThreadProjectContext({state,persist,projectId}){
- const [view,setView]=useState('site');const project=(state.projects||[]).find(p=>String(p.id)===String(projectId));
- if(!project)return <p style={{fontSize:12,color:T.inkDim}}>Project documents are available only to assigned members. You can still follow this studio-wide thread.</p>;
- return <section style={{borderTop:`1px solid ${T.line}`,marginTop:24,paddingTop:18}}><h3 style={{fontFamily:FONT_DISPLAY}}>{project.no} · {project.name}</h3><div role="tablist" aria-label="Thread project views" style={{display:'flex',gap:8,marginBottom:16}}>{[['site','Site Execution Sheet'],['mom','MOM']].map(([id,label])=><button type="button" role="tab" key={id} aria-selected={view===id} style={{...smallBtn,background:view===id?T.navy:'#fff',color:view===id?'#fff':T.ink}} onClick={()=>setView(id)}>{label}</button>)}</div>{view==='site'?<><SiteExecutionView key={projectId} projectId={projectId} request={apiRequest}/></>:<><p style={{fontSize:12,color:T.inkDim}}>Recorded project minutes and actions. Link an action to a circuit from the Status dashboard.</p><DiaryView key={projectId} state={state} persist={persist} initialTab="minutes" initialProjectId={projectId} embedded/></>}</section>;
-}
-function StudioThreadsView({state,persist}){
- const [data,setData]=useState({threads:[],comments:[],projects:[]}),[selected,setSelected]=useState(''),[status,setStatus]=useState('Open'),[projectId,setProjectId]=useState(''),[urgency,setUrgency]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[editor,setEditor]=useState(null),[comment,setComment]=useState(''),[refresh,setRefresh]=useState(0),[flaggedOnly,setFlaggedOnly]=useState(false);
- const request=useRef(0),commentTicket=useRef(null),viewer=state.currentUser?.appAccess?.toLowerCase()==='viewer';
- const filters={projectId,urgency,status};
- useEffect(()=>{const n=++request.current;setBusy(true);setError('');apiRequest('listStudioThreads',{projectId,urgency,status,...(selected?{threadId:selected}:{})},'POST',90000).then(r=>{if(request.current===n)setData(r)}).catch(e=>{if(request.current===n)setError(e.message)}).finally(()=>{if(request.current===n)setBusy(false)});return()=>{request.current++}},[selected,refresh,projectId,urgency,status]);
- useEffect(()=>{const timer=setInterval(()=>{if(!document.hidden&&!editor&&!comment.trim())setRefresh(x=>x+1)},30000);return()=>clearInterval(timer)},[editor,comment]);
- const projects=[...new Map([...(data.projects||[]).map(p=>[String(p.id),p.label]),...(state.projects||[]).map(p=>[String(p.id),[p.no,p.name].filter(Boolean).join(' · ')])].map(([id,label])=>[id,{id,label}])).values()];
- const rank={'Very very urgent':0,'Very urgent':1,'Urgent':2};const tone=value=>({'Very very urgent':'#A94646','Very urgent':'#B96E47','Urgent':'#AA8B43'})[value]||'#AA8B43';
- const rows=(data.threads||[]).filter(t=>(!projectId||String(t.projectId)===String(projectId))&&(!urgency||(t.urgency||'Urgent')===urgency)&&(status==='All'||(status==='Resolved'?t.status==='Resolved':t.status!=='Resolved'))).sort((a,b)=>(rank[a.urgency||'Urgent']??2)-(rank[b.urgency||'Urgent']??2)||String(b.updatedAt).localeCompare(String(a.updatedAt)));
- const thread=data.threads.find(t=>String(t.threadId)===String(selected));const change=fn=>{fn();setSelected('');setComment('');setEditor(null)};
- const save=async()=>{setBusy(true);setError('');try{const t=await apiRequest('saveStudioThread',{...editor,expectedVersion:editor.version||''},'POST',90000);setSelected(t.threadId);setEditor(null);setRefresh(x=>x+1)}catch(e){setError(e.message)}finally{setBusy(false)}};
- const post=async()=>{if(!comment.trim()||!selected)return;setBusy(true);setError('');if(!commentTicket.current||commentTicket.current.text!==comment||commentTicket.current.threadId!==selected)commentTicket.current={id:uid(),text:comment,threadId:selected};try{await apiRequest('addStudioThreadComment',{threadId:selected,commentId:commentTicket.current.id,text:comment},'POST',90000);setComment('');commentTicket.current=null;setRefresh(x=>x+1)}catch(e){setError(e.message)}finally{setBusy(false)}};
- const more=async()=>{const n=request.current;setBusy(true);try{const r=await apiRequest('listStudioThreads',{...filters,offset:data.nextOffset},'POST',90000);if(request.current===n)setData(d=>({...r,comments:d.comments,threads:[...new Map([...d.threads,...r.threads].map(t=>[t.threadId,t])).values()]}))}catch(e){if(request.current===n)setError(e.message)}finally{if(request.current===n)setBusy(false)}};
- const field={...inputStyle,width:'100%',marginTop:5};
- return <section className="studio-threads"><header><h2>Threads</h2></header><div className="studio-thread-filters"><button type="button" aria-pressed={flaggedOnly} style={smallBtn} onClick={()=>setFlaggedOnly(v=>!v)}>⚑ Flagged only</button><select aria-label="Thread project filter" value={projectId} onChange={e=>change(()=>setProjectId(e.target.value))} style={{...inputStyle,minWidth:240}}><option value="">All projects</option>{projects.map(p=><option key={p.id} value={p.id}>{p.label}</option>)}</select><select aria-label="Thread urgency filter" value={urgency} onChange={e=>change(()=>setUrgency(e.target.value))} style={inputStyle}><option value="">All urgency levels</option>{Object.keys(rank).map(v=><option key={v}>{v}</option>)}</select><select aria-label="Thread status filter" value={status} onChange={e=>change(()=>setStatus(e.target.value))} style={inputStyle}><option value="Open">Unresolved issues</option><option value="Resolved">Resolved</option><option value="All">All threads</option></select><button type="button" disabled={busy} style={smallBtn} onClick={()=>setRefresh(x=>x+1)}>Refresh</button>{!viewer&&<button type="button" style={smallBtn} disabled={busy} onClick={()=>setEditor({threadId:uid(),title:'',description:'',projectId:(state.projects||[]).some(p=>String(p.id)===projectId)?projectId:'',nextStep:'',status:'Open',urgency:'Urgent'})}>New thread</button>}</div>{busy&&<p role="status">Updating threads…</p>}{error&&<AppErrorNotice message={error}/>} {editor&&<fieldset disabled={busy} style={{border:`1px solid ${T.line}`,padding:16,marginBottom:20,display:'grid',gap:12}}><legend>{editor.version?'Update issue':'New studio-wide issue'}</legend><label>Title<input maxLength={200} style={field} value={editor.title} onChange={e=>setEditor({...editor,title:e.target.value})}/></label><label>Project<select style={field} disabled={!!editor.version} value={editor.projectId||''} onChange={e=>setEditor({...editor,projectId:e.target.value})}><option value="">General studio issue</option>{(state.projects||[]).map(p=><option key={p.id} value={p.id}>{p.no} · {p.name}</option>)}</select></label><label>Urgency<select style={field} value={editor.urgency||'Urgent'} onChange={e=>setEditor({...editor,urgency:e.target.value})}>{['Urgent','Very urgent','Very very urgent'].map(v=><option key={v}>{v}</option>)}</select></label><label>Issue / Discussion<textarea maxLength={10000} style={{...field,minHeight:100}} value={editor.description} onChange={e=>setEditor({...editor,description:e.target.value})}/></label><label>Status<select style={field} value={editor.status} onChange={e=>setEditor({...editor,status:e.target.value})}>{['Open','In progress','Waiting','Resolved'].map(v=><option key={v}>{v}</option>)}</select></label><label>Agreed next step<textarea maxLength={3000} style={{...field,minHeight:70}} value={editor.nextStep} onChange={e=>setEditor({...editor,nextStep:e.target.value})}/></label><p style={{fontSize:12}}>Saving shares this text and the project name with the whole studio.</p><div style={{display:'flex',gap:10}}><button type="button" disabled={!editor.title.trim()} style={smallBtn} onClick={save}>Save thread</button><button type="button" style={smallBtn} onClick={()=>setEditor(null)}>Cancel</button></div></fieldset>}<div className="studio-threads-columns"><div><TaskDiscussion request={apiRequest} buttonStyle={smallBtn} projectId={projectId} refresh={refresh} includeTasks={status!=='Resolved'&&!urgency} flaggedOnly={flaggedOnly} studioPosts={rows.map(t=>({id:t.threadId,studio:true,title:t.title,projectName:t.projectLabel,author:t.authorName,at:t.updatedAt,text:t.description,priority:t.urgency!=='Urgent'&&t.status!=='Resolved',priorityLabel:t.urgency}))} openStudio={id=>{setSelected(id);setComment('');setEditor(null);}}/>{data.hasMore&&<button type="button" disabled={busy} style={smallBtn} onClick={more}>Load more threads</button>}</div>{thread&&<article style={{border:`1px solid ${T.line}`,background:'#fff',padding:18}}><div style={{display:'flex',justifyContent:'space-between',gap:12}}><h3 style={{fontFamily:FONT_DISPLAY,marginTop:0}}>{thread.title}</h3>{thread.canManage&&!viewer&&<button type="button" style={smallBtn} disabled={busy} onClick={()=>setEditor({...thread})}>Update issue</button>}</div><p style={{fontSize:12,color:tone(thread.urgency)}}>{thread.urgency||'Urgent'} · {thread.projectLabel||'General studio'} · {thread.status}</p><p style={{whiteSpace:'pre-wrap',fontSize:13,lineHeight:1.6}}>{thread.description}</p><div style={{padding:12,background:T.paper,borderLeft:`3px solid ${T.blue}`}}><strong style={{fontSize:12}}>Next step</strong><p style={{whiteSpace:'pre-wrap',fontSize:12}}>{thread.nextStep||'Not recorded yet.'}</p></div><h4>Discussion</h4>{data.comments.filter(c=>String(c.threadId)===String(selected)).map(c=><div key={c.commentId} style={{borderTop:`1px solid ${T.line}`,padding:'12px 0'}}><div style={{fontSize:11,color:T.inkDim}}>{c.authorName} · {formatProjectDate(c.createdAt)}</div><p style={{whiteSpace:'pre-wrap',fontSize:12,lineHeight:1.6}}>{c.text}</p></div>)}{!viewer&&<><textarea aria-label="Thread comment" placeholder="Ask a question, share an update or suggest a next step…" maxLength={5000} value={comment} disabled={busy} onChange={e=>setComment(e.target.value)} style={{...field,minHeight:90}}/><button type="button" disabled={busy||!comment.trim()} style={{...smallBtn,marginTop:10}} onClick={post}>Post comment</button></>}</article>}</div>{projectId&&<ThreadProjectContext key={projectId} state={state} persist={persist} projectId={projectId}/>}</section>;
-}
-
-function DiaryView({state,persist,onOpenWorkflow,initialTab='meetings',initialProjectId='',embedded=false}){
- const [tab,setTab]=useState(initialTab),[projectId,setProjectId]=useState(initialProjectId),[data,setData]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[revision,setRevision]=useState(0),[schedule,setSchedule]=useState(false),[workspace,setWorkspace]=useState(null),[visitId,setVisitId]=useState(''),[momEntry,setMomEntry]=useState(null),[momLoading,setMomLoading]=useState(false);
- const openDiaryMom=async event=>{setMomLoading(true);setError('');try{const context=await apiRequest('prepareDiaryMom',{projectId:event.projectId,entryId:event.id},'POST',90000);const project=state.projects.find(p=>String(p.id)===String(event.projectId))||{id:event.projectId,name:(data?.projects||[]).find(p=>String(p.id)===String(event.projectId))?.name||'',floorZones:[]};setMomEntry({project,token:uid(),row:context.row,visitId:uid(),date:event.date||todayISO(),visitBy:state.currentUser?.name||'',notes:'',points:[newMomPoint()]})}catch(e){setError(e.message)}finally{setMomLoading(false)}};
- const viewer=state.currentUser?.appAccess?.toLowerCase()==='viewer';
- useEffect(()=>{if(tab==='records'||tab==='calendar')return;let live=true;setData(old=>old?._project===projectId?old:null);setError('');setBusy(true);apiRequest('getProjectDiary',projectId?{projectId}:{},'POST',90000).then(r=>{if(live)setData({...r,_project:projectId})}).catch(e=>{if(live)setError(e.message)}).finally(()=>{if(live)setBusy(false)});return()=>{live=false}},[projectId,revision,tab]);
- useEffect(()=>{let live=true;setWorkspace(null);setVisitId('');if(!schedule||!projectId)return;loadWorkflowWorkspace(projectId).then(w=>{if(live)setWorkspace(w)}).catch(e=>{if(live)setError(e.message)});return()=>{live=false}},[schedule,projectId]);
- const projects=data?.projects||state.projects||[],project=state.projects.find(p=>String(p.id)===String(projectId));
- const choices=project&&workspace?designMeetingVisitRows(project,workflowGroups(workspace.workflow?.length?workspace.workflow:DESIGN_TASK_FLOW_TEMPLATE),workspace.visits?.length?activeVisits(workspace.visits):executionVisitDefaults(project)):[];
- return <section style={{fontFamily:FONT_BODY}}>{momLoading&&<p role="status">Opening MOM…</p>}{momEntry&&<ExecutionVisitPlanner key={momEntry.token} project={momEntry.project} rows={[momEntry.row]} onChange={()=>{}} state={state} persist={persist} modalOnly initialMomEntry={momEntry} onMomClose={()=>setMomEntry(null)} onMomSaved={()=>{setMomEntry(null);clearWorkflowWorkspaceCache();setRevision(v=>v+1)}}/>}{!embedded&&<><div role="tablist" aria-label="Diary sections" style={{display:'flex',borderBottom:`1px solid ${T.line}`,marginBottom:18,background:'#fff'}}>{[['meetings','Meetings'],['minutes','Minutes'],['records','Records']].map(([id,label])=><button type="button" role="tab" aria-selected={tab===id} key={id} onClick={()=>setTab(id)} style={{padding:'11px 16px',border:0,borderBottom:`3px solid ${tab===id?T.cyan:'transparent'}`,background:tab===id?T.navy:'transparent',color:tab===id?'#fff':T.inkDim,fontFamily:FONT_BODY,fontSize:12,cursor:'pointer'}}>{label}</button>)}</div><header className="studio-technical-heading"><h1 className="studio-page-heading">Diary</h1><p style={{fontSize:12,color:T.inkDim}}>The project story, meeting by meeting — photographs, minutes, decisions and work done.</p></header></>}{tab==='records'?<ProjectRecords request={apiRequest} projects={state.projects||[]} projectId={projectId} onProjectChange={setProjectId}/>:<><div style={{display:'flex',gap:10,flexWrap:'wrap',marginBottom:14}}>{!embedded&&<select aria-label="Diary project" style={{...inputStyle,flex:'1 1 300px'}} value={projectId} onChange={e=>setProjectId(e.target.value)}><option value="">All assigned projects</option>{projects.map(p=><option key={p.id} value={p.id}>{p.no} · {p.name}</option>)}</select>}<button type="button" disabled={busy} style={smallBtn} onClick={()=>setRevision(x=>x+1)}>Refresh diary</button>{tab==='meetings'&&!viewer&&onOpenWorkflow&&<button type="button" style={smallBtn} onClick={()=>setSchedule(x=>!x)}>Schedule a meeting</button>}</div>{error&&<AppErrorNotice message={error}/>} {schedule&&tab==='meetings'&&<section style={{padding:14,border:`1px solid ${T.line}`,marginBottom:16,background:T.paper}}><h3 style={{fontFamily:FONT_DISPLAY}}>Choose a meeting / visit</h3><p style={{fontSize:12}}>Select a project and meeting. Its Schedule controls will open in Line of Work.</p>{projectId&&!workspace&&<p role="status">Loading project meetings…</p>}<select aria-label="Diary meeting or visit" disabled={!workspace} value={visitId} onChange={e=>setVisitId(e.target.value)} style={{...inputStyle,width:'100%'}}><option value="">Select meeting / visit</option>{choices.map(v=><option key={v.visitPlanId} value={v.visitPlanId}>{v.milestone} · {v.title||v.visitType} · {v.floor}</option>)}</select><button type="button" style={{...smallBtn,marginTop:12}} disabled={!projectId||!visitId} onClick={()=>onOpenWorkflow(projectId,visitId)}>Open selected meeting in Line of Work</button></section>}{data&&data.timeline===undefined&&<AppErrorNotice message="Update Code.gs and add DiaryTimeline.gs in Apps Script, then redeploy to load the project timeline."/>}<ProjectDiaryTimeline key={projectId+':'+tab} projects={projects} events={data?.timeline||[]} loading={busy} request={apiRequest} minutesOnly={tab==='minutes'} onSaved={()=>setRevision(v=>v+1)} onOpenMom={openDiaryMom} onOpenWorkflow={onOpenWorkflow}/></>}</section>;
-}
-
-function MeetingsView({ state, persist, scheduleOnly=false, initialProjectId, initialVisit, onScheduled }) {
+function MeetingsView({ state, persist }) {
   const activeProjects=(state.projects||[]).filter(p=>p.status!=="Completed"&&p.projectControl?.projectStatus!=="Completed");
-  const existingMeeting=initialVisit?(initialVisit.scheduledMeeting||(state.meetings||[]).find(m=>m.projectId===initialProjectId&&m.visitPlanId===initialVisit.visitPlanId&&!sheetDashboardFlag(m.happened)&&m.active!==false)):null;
-  const [form,setForm]=useState({id:existingMeeting?.id||uid(),projectId:initialProjectId||activeProjects[0]?.id||"",visitPlanId:initialVisit?.visitPlanId||"",date:initialVisit?.scheduledDate||todayISO(),time:"10:00",endTime:"",title:initialVisit?.title||initialVisit?.visitType||"",participants:"",meetingMode:"Physical on-site meeting",location:"",agenda:"",happened:false,mom:"",actionItems:"",nextDate:"",...(existingMeeting?{...existingMeeting,date:String(existingMeeting.date||'').slice(0,10),time:editableTime(existingMeeting.time),endTime:editableTime(existingMeeting.endTime)}:{}),workItems:initialVisit?visitWorkItems(existingMeeting||initialVisit):[],floors:initialVisit?visitFloors(existingMeeting||initialVisit):[]});
+  const [form,setForm]=useState({projectId:activeProjects[0]?.id||"",date:todayISO(),time:"10:00",title:"",participants:"",location:"",agenda:"",happened:false,mom:"",actionItems:"",nextDate:""});
   const [openMomId,setOpenMomId]=useState(null);
-  const [meetingBusy,setMeetingBusy]=useState(false),[meetingError,setMeetingError]=useState('');
-  const [coverageWorkspace,setCoverageWorkspace]=useState(()=>cachedWorkflowWorkspace(initialProjectId));
-  const workChoices=[...new Set(['False Ceiling','Wiring','Bathroom Stone','Furniture','Facade','Finalise Architectural Lighting','Wall Electrical','Control Finalisation','Ceiling Pack | Moulding Sampling & Review','Marking | Cutting','Light Installation','Snag List','Staging and Scene Setting',...(coverageWorkspace?.visits||[]).flatMap(visitWorkItems),...(coverageWorkspace?.workflow||[]).map(r=>r.tasks),...(initialVisit?visitWorkItems(initialVisit):[]),...form.workItems].filter(Boolean))];
-  const floorChoices=[...scopedVisitFloors(state.projects.find(p=>String(p.id)===String(form.projectId))),...(initialVisit&&visitFloors(initialVisit).some(f=>visitFloorKey(f)==='project')?['Project']:[])];
-  const selectedProject=activeProjects.find(p=>String(p.id)===String(form.projectId));
-  const teamNames=[...new Set(Object.values(selectedProject?.contacts||{}).flat().map(c=>c?.name).filter(Boolean))];
-  const selectedNames=String(form.participants||'').split(/[,;]\s*/).map(v=>v.trim()).filter(Boolean);
-  const minutes=t=>{const [h,m]=String(t||'').split(':').map(Number);return h*60+m;};
-  const duration=minutes(form.endTime)-minutes(form.time);
   const projectName=id=>state.projects.find(p=>p.id===id)?.name||"—";
 
-  const saveMeeting=async meeting=>{
-    if(meetingBusy)return false;setMeetingBusy(true);setMeetingError('');
-    try{const saved=await projectApi.saveProjectMeeting({...meeting,...((initialVisit?._designMeeting||initialVisit?._draft)?{visitSeed:initialVisit}:{})});await persist(latest=>({...latest,meetings:[saved,...(latest.meetings||[]).filter(m=>m.id!==saved.id)]}));return true;}
-    catch(e){setMeetingError(e.message);return false;}finally{setMeetingBusy(false);}
-  };
   const addMeeting=async()=>{
-    if(!form.title.trim()||!form.projectId)return;
-    if(!Number.isFinite(duration)||duration<=0){setMeetingError('Choose an end time after the start time.');return;}
-    const saved=await saveMeeting({...form,title:form.title.trim()});
-    if(saved&&onScheduled){try{await onScheduled();}catch(e){setMeetingError('Meeting saved. Refresh Line of Work to see the updated schedule.');}return;}
-    if(saved)setForm(current=>({...current,id:uid(),title:'',agenda:'',participants:'',visitLeadId:'',location:'',happened:false,nextDate:''}));
+    if(!form.title.trim())return;
+    const meeting={id:uid(),...form,title:form.title.trim(),createdAt:new Date().toISOString()};
+    await persist({...state,meetings:[meeting,...(state.meetings||[])]});
+    setForm({...form,title:"",agenda:"",participants:"",location:"",happened:false,nextDate:""});
   };
-  const updateMeeting=async(id,patch)=>{const meeting=(state.meetings||[]).find(m=>m.id===id);if(meeting)await saveMeeting({...meeting,...patch});};
-  const removeMeeting=async id=>{
-    const meeting=(state.meetings||[]).find(m=>m.id===id);if(!meeting||meetingBusy)return;
-    setMeetingBusy(true);setMeetingError('');
-    try{if(meeting.active===undefined)await projectApi.saveProjectMeeting(meeting);await projectApi.deleteProjectMeeting({id,projectId:meeting.projectId});await persist(latest=>({...latest,meetings:(latest.meetings||[]).filter(m=>m.id!==id)}));}catch(e){setMeetingError(e.message);}finally{setMeetingBusy(false);}
-  };
+  const updateMeeting=async(id,patch)=>await persist({...state,meetings:(state.meetings||[]).map(m=>m.id===id?{...m,...patch,updatedAt:new Date().toISOString()}:m)});
+  const removeMeeting=async id=>await persist({...state,meetings:(state.meetings||[]).filter(m=>m.id!==id)});
 
-  const refreshMeetings=async()=>{
-    if(meetingBusy)return;setMeetingBusy(true);setMeetingError('');
-    try{const workspace=await projectApi.getProjectWorkspace();const known=new Set(workspace.meetingIds||[]);await persist(latest=>({...latest,meetings:[...(workspace.meetings||[]),...(latest.meetings||[]).filter(m=>!known.has(m.id))]}));}catch(e){setMeetingError(e.message);}finally{setMeetingBusy(false);}
-  };
-  const nowKey=todayISO();
+  const nowKey=new Date().toISOString().slice(0,10);
   const meetings=[...(state.meetings||[])].sort((a,b)=>`${b.date||""} ${b.time||""}`.localeCompare(`${a.date||""} ${a.time||""}`));
-  const upcoming=meetings.filter(m=>!sheetDashboardFlag(m.happened)&&(m.date||"")>=nowKey);
-  const past=meetings.filter(m=>sheetDashboardFlag(m.happened)||(m.date||"")<nowKey);
+  const upcoming=meetings.filter(m=>!m.happened&&(m.date||"")>=nowKey);
+  const past=meetings.filter(m=>m.happened||(m.date||"")<nowKey);
 
   return <div>
-    <div style={{marginBottom:16}}>{!scheduleOnly&&<button type="button" disabled={meetingBusy} onClick={refreshMeetings} style={{...smallBtn,float:'right'}}>Refresh meetings</button>}<h2 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:'0 0 5px',color:T.ink}}>{scheduleOnly?'Schedule meeting':'Meetings'}</h2>{scheduleOnly?<p style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,margin:0}}>{projectName(form.projectId)}</p>:<p style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,margin:0}}>Upcoming and past meetings.</p>}</div>
-    {scheduleOnly&&<div style={{fontFamily:FONT_BODY}}>
-      {!initialProjectId&&<Field label="Project"><ProjectStatusSelect projects={activeProjects} style={inputStyle} value={form.projectId} onChange={e=>setForm({...form,projectId:e.target.value})}>{activeProjects.map(p=><option key={p.id} value={p.id}>{p.no} — {p.name}</option>)}</ProjectStatusSelect></Field>}
-      <Field label="Subject"><input aria-label="Meeting subject" style={inputStyle} value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/></Field>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:10}}><Field label="Date"><input aria-label="Meeting date" type="date" style={inputStyle} value={form.date} onChange={e=>setForm({...form,date:e.target.value})}/></Field><Field label="Start time"><input aria-label="Meeting start time" type="time" style={inputStyle} value={form.time} onChange={e=>setForm({...form,time:e.target.value})}/></Field><Field label="End time"><input aria-label="Meeting end time" type="time" style={inputStyle} value={form.endTime||''} onChange={e=>setForm({...form,endTime:e.target.value})}/></Field></div>
-      <Field label="Meeting format"><select aria-label="Meeting format" disabled={meetingBusy} style={inputStyle} value={form.meetingMode||'Physical on-site meeting'} onChange={e=>setForm(f=>({...f,meetingMode:e.target.value,location:''}))}><option value="Physical on-site meeting">Physical on-site meeting</option><option value="Zoom call">Zoom call</option></select></Field>
-      {form.meetingMode==='Physical on-site meeting'&&<Field label="Site visit lead"><input aria-label="Site visit lead" style={inputStyle} placeholder="Team member’s full name" value={form.visitLeadId||''} onChange={e=>setForm({...form,visitLeadId:e.target.value})}/></Field>}
-      <Field label={form.meetingMode==='Zoom call'?'Zoom meeting link':'On-site location'}><input aria-label={form.meetingMode==='Zoom call'?'Zoom meeting link':'On-site location'} placeholder={form.meetingMode==='Zoom call'?'Paste Zoom link (optional)':'Site address / meeting point (optional)'} style={inputStyle} value={form.location} onChange={e=>setForm({...form,location:e.target.value})}/></Field>
-      {initialVisit&&<details aria-label="Combined meeting coverage" style={{border:`1px solid ${T.line}`,padding:12,marginBottom:14}}><summary style={{cursor:'pointer',fontFamily:FONT_BODY,fontSize:12,fontWeight:600}}>Work & floors · {form.workItems.join(' + ')||'Choose work'} · {form.floors.join(', ')||'Choose floors'}</summary><p style={{fontSize:12,color:T.inkDim,margin:'9px 0'}}>Select multiple work stages and floors for one visit.</p><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:10}}>{[['Work stages','workItems',workChoices],['Floors','floors',floorChoices]].map(([label,key,options])=><fieldset key={key} style={{border:`1px solid ${T.line}`,padding:10,maxHeight:190,overflowY:'auto'}}><legend style={{fontFamily:FONT_BODY,fontSize:12}}>{label}</legend>{options.map(value=><label key={value} style={{display:'flex',alignItems:'center',gap:8,fontFamily:FONT_BODY,fontSize:12,marginBottom:7}}><input type="checkbox" aria-label={`Meeting ${key} ${value}`} checked={form[key].includes(value)} onChange={e=>setForm(f=>({...f,[key]:e.target.checked?[...new Set([...f[key],value])]:f[key].filter(v=>v!==value)}))}/>{value}</label>)}</fieldset>)}</div></details>}
-      {duration>0&&<p>Duration: {Math.floor(duration/60)} h {duration%60} min</p>}
-      <details style={{border:`1px solid ${T.line}`,padding:12,marginBottom:16}}><summary style={{cursor:'pointer',fontFamily:FONT_BODY,fontSize:12,fontWeight:600}}>Participants & agenda (optional)</summary><div style={{marginTop:12}}>{!!teamNames.length&&<fieldset><legend>Project team</legend>{teamNames.map(name=><label key={name} style={{display:'block'}}><input type="checkbox" checked={selectedNames.includes(name)} onChange={e=>setForm({...form,participants:(e.target.checked?[...selectedNames,name]:selectedNames.filter(n=>n!==name)).join(', ')})}/> {name}</label>)}</fieldset>}<Field label="Participants"><input aria-label="Meeting participants" style={inputStyle} value={form.participants} onChange={e=>setForm({...form,participants:e.target.value})}/></Field><Field label="Agenda"><textarea aria-label="Meeting agenda" style={{...inputStyle,minHeight:75}} value={form.agenda} onChange={e=>setForm({...form,agenda:e.target.value})}/></Field></div></details>
-      {meetingError&&<AppErrorNotice message={meetingError}/>}<Btn onClick={addMeeting} disabled={meetingBusy||!form.projectId||!form.title.trim()||!!initialVisit&&(!form.workItems.length||!form.floors.length)}><CalendarDays size={14}/>{meetingBusy?'Saving…':'Save meeting'}</Btn>
-    </div>}
+    <div style={{marginBottom:18}}><h2 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:0,color:T.ink}}>Fix Meeting</h2><div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim,marginTop:4}}>Schedule meetings here. MOM is maintained in Execution Dashboard, but past MOM can be opened from this history.</div></div>
 
-    {!scheduleOnly&&<>
-    {meetingError&&<p role="alert" style={{color:T.redline,fontFamily:FONT_BODY,fontSize:13}}>{meetingError}</p>}
+    <div style={{background:"#fff",border:`1px solid ${T.line}`,padding:16,marginBottom:22}}>
+      <div style={{fontFamily:FONT_MONO,fontSize:11,letterSpacing:".08em",textTransform:"uppercase",color:T.inkDim,marginBottom:12}}>Fix a Meeting</div>
+      <div style={{display:"grid",gridTemplateColumns:"1.2fr .8fr .7fr",gap:12}}>
+        <Field label="Project"><select style={{...inputStyle,borderRadius:0}} value={form.projectId} onChange={e=>setForm({...form,projectId:e.target.value})}>{activeProjects.map(p=><option key={p.id} value={p.id}>{p.no} — {p.name}</option>)}</select></Field>
+        <Field label="Date"><input type="date" style={{...inputStyle,borderRadius:0}} value={form.date} onChange={e=>setForm({...form,date:e.target.value})}/></Field>
+        <Field label="Time"><input type="time" style={{...inputStyle,borderRadius:0}} value={form.time} onChange={e=>setForm({...form,time:e.target.value})}/></Field>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1.2fr 1fr 1fr",gap:12}}>
+        <Field label="Meeting / Subject"><input style={{...inputStyle,borderRadius:0}} value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/></Field>
+        <Field label="Participants"><input style={{...inputStyle,borderRadius:0}} value={form.participants} onChange={e=>setForm({...form,participants:e.target.value})}/></Field>
+        <Field label="Location / Link"><input style={{...inputStyle,borderRadius:0}} value={form.location} onChange={e=>setForm({...form,location:e.target.value})}/></Field>
+      </div>
+      <Field label="Agenda"><textarea style={{...inputStyle,minHeight:60,borderRadius:0}} value={form.agenda} onChange={e=>setForm({...form,agenda:e.target.value})}/></Field>
+      <Btn onClick={addMeeting} disabled={!form.title.trim()}><CalendarDays size={14}/> Fix Meeting</Btn>
+    </div>
+
     <div style={{fontFamily:FONT_MONO,fontSize:10,fontWeight:700,letterSpacing:".08em",marginBottom:8}}>UPCOMING / SCHEDULED</div>
     <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:24}}>
       {upcoming.map(m=><div key={m.id} style={{background:"#fff",border:`1px solid ${T.line}`,padding:12}}>
         <div style={{display:"grid",gridTemplateColumns:"1.5fr 1fr auto auto",gap:10,alignItems:"center"}}>
-          <div><strong style={{fontFamily:FONT_DISPLAY,fontSize:14}}>{m.title}</strong><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginTop:3}}>{projectName(m.projectId)} · {m.date} {m.time}{m.endTime?' – '+m.endTime:''} · {m.location||"—"}</div></div>
-          <div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim}}>{m.participants||'—'}{m.meetingMode&&<div>{m.meetingMode}{m.location?' · '+m.location:''}</div>}{m.workItems&&<div>{visitCoverageList(m.workItems,'').join(' + ')} · {visitCoverageList(m.floors,'').join(', ')}</div>}</div>
-          <button disabled={meetingBusy||!!m.visitPlanId&&projectRole(state,m.projectId)!=="Admin"} onClick={()=>updateMeeting(m.id,{happened:true})} style={{...smallBtn}}>Mark Happened</button>
-          <button disabled={meetingBusy} aria-label={`Cancel meeting ${m.title}`} onClick={()=>removeMeeting(m.id)} style={{border:"none",background:"transparent",cursor:"pointer"}}><X size={14} color={T.inkDim}/></button>
+          <div><strong style={{fontFamily:FONT_DISPLAY,fontSize:14}}>{m.title}</strong><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginTop:3}}>{projectName(m.projectId)} · {m.date} {m.time} · {m.location||"—"}</div></div>
+          <div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim}}>{m.participants||"—"}</div>
+          <button onClick={()=>updateMeeting(m.id,{happened:true})} style={{...smallBtn}}>Mark Happened</button>
+          <button onClick={()=>removeMeeting(m.id)} style={{border:"none",background:"transparent",cursor:"pointer"}}><X size={14} color={T.inkDim}/></button>
         </div>
       </div>)}
       {!upcoming.length&&<div style={{padding:14,border:`1px solid ${T.line}`,background:"#fff",fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>No upcoming meetings.</div>}
@@ -7191,18 +5668,17 @@ function MeetingsView({ state, persist, scheduleOnly=false, initialProjectId, in
     <div style={{display:"flex",flexDirection:"column",gap:8}}>
       {past.map(m=><div key={m.id} style={{background:"#fff",border:`1px solid ${T.line}`,padding:12}}>
         <div style={{display:"grid",gridTemplateColumns:"1.5fr 1fr auto",gap:10,alignItems:"center"}}>
-          <div><strong style={{fontFamily:FONT_DISPLAY,fontSize:14}}>{m.title}</strong><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginTop:3}}>{projectName(m.projectId)} · {m.date} {m.time}{m.endTime?' – '+m.endTime:''}</div></div>
-          <div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim}}>{m.participants||'—'}{m.meetingMode&&<div>{m.meetingMode}{m.location?' · '+m.location:''}</div>}{m.workItems&&<div>{visitCoverageList(m.workItems,'').join(' + ')} · {visitCoverageList(m.floors,'').join(', ')}</div>}</div>
+          <div><strong style={{fontFamily:FONT_DISPLAY,fontSize:14}}>{m.title}</strong><div style={{fontFamily:FONT_MONO,fontSize:10,color:T.inkDim,marginTop:3}}>{projectName(m.projectId)} · {m.date} {m.time}</div></div>
+          <div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim}}>{m.participants||"—"}</div>
           <button onClick={()=>setOpenMomId(openMomId===m.id?null:m.id)} style={{...smallBtn}}>{openMomId===m.id?"Hide MOM":"View MOM"}</button>
         </div>
         {openMomId===m.id&&<div style={{marginTop:10,paddingTop:10,borderTop:`1px solid ${T.line}`,display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-          <div><div style={{fontFamily:FONT_MONO,fontSize:9,fontWeight:700,marginBottom:5}}>MOM</div><div style={{fontFamily:FONT_BODY,fontSize:11,lineHeight:1.5,whiteSpace:"pre-wrap"}}>{m.mom||"No MOM entered yet. Log MOM from Design Dashboard → Line of Work → Execution."}</div>{m.mom&&m.visitPlanId&&<SavedMomPoints projectId={m.projectId} visitPlanId={m.visitPlanId} date={m.date} request={apiRequest}/>}</div>
+          <div><div style={{fontFamily:FONT_MONO,fontSize:9,fontWeight:700,marginBottom:5}}>MOM</div><div style={{fontFamily:FONT_BODY,fontSize:11,lineHeight:1.5,whiteSpace:"pre-wrap"}}>{m.mom||"No MOM entered yet. Open Execution Dashboard to add it."}</div></div>
           <div><div style={{fontFamily:FONT_MONO,fontSize:9,fontWeight:700,marginBottom:5}}>ACTION ITEMS</div><div style={{fontFamily:FONT_BODY,fontSize:11,lineHeight:1.5,whiteSpace:"pre-wrap"}}>{m.actionItems||"—"}</div></div>
         </div>}
       </div>)}
       {!past.length&&<div style={{padding:14,border:`1px solid ${T.line}`,background:"#fff",fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>No past meetings yet.</div>}
     </div>
-    </>}
   </div>;
 }
 
@@ -7241,7 +5717,7 @@ function SitePunchInView({ state, persist }) {
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:18,alignItems:"start"}}>
       <div style={{background:"#fff",border:`1px solid ${T.line}`,borderRadius:8,padding:18}}>
         <div style={{fontFamily:FONT_MONO,fontSize:11,letterSpacing:".08em",textTransform:"uppercase",color:T.inkDim,marginBottom:12}}>Current Site Visit</div>
-        {!active ? <><Field label="Project"><ProjectStatusSelect projects={orderedProjects(state.projects)} style={inputStyle} value={projectId} onChange={e=>setProjectId(e.target.value)}>{orderedProjects(state.projects).map(p=><option key={p.id} value={p.id}>{p.no} — {p.name}</option>)}</ProjectStatusSelect></Field>
+        {!active ? <><Field label="Project"><select style={inputStyle} value={projectId} onChange={e=>setProjectId(e.target.value)}>{state.projects.map(p=><option key={p.id} value={p.id}>{p.no} — {p.name}</option>)}</select></Field>
           <Field label="Visit purpose"><input style={inputStyle} value={purpose} onChange={e=>setPurpose(e.target.value)} placeholder="e.g. Site coordination / inspection"/></Field>
           <div style={{background:T.paperDim,border:`1px solid ${T.line}`,borderRadius:6,padding:11,marginBottom:14,fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}><MapPin size={14} style={{verticalAlign:"middle",marginRight:6}}/>Location permission is required. Latitude, longitude and accuracy are captured only when you press Check In.</div>
           <Btn onClick={checkIn} disabled={locationBusy}><LogIn size={14}/>{locationBusy?"Capturing location…":"Check In & Punch Entry"}</Btn></>
@@ -7263,13 +5739,6 @@ function SitePunchInView({ state, persist }) {
   </div>;
 }
 
-function ProjectTeamsTasksView(){
- const [data,setData]=useState(null),[error,setError]=useState(''),[projectId,setProjectId]=useState(''),[refresh,setRefresh]=useState(0);
- useEffect(()=>{let live=true;setError('');setData(null);apiRequest('getTeamsTasksScope',{},'POST',90000).then(r=>{if(live)setData(r);}).catch(e=>{if(live)setError(e.message);});return()=>{live=false;};},[refresh]);
- const cell={padding:10,border:`1px solid ${T.line}`,fontFamily:FONT_BODY,fontSize:12,textAlign:'left'};
- return <section style={{fontFamily:FONT_BODY}}><h2 style={{fontFamily:FONT_DISPLAY}}>Team & Tasks</h2><p style={{fontSize:12,color:T.inkDim}}>Projects you administer and their assigned people. Global membership and login permissions are managed by the system administrator.</p><button type="button" style={smallBtn} onClick={()=>setRefresh(x=>x+1)}>Refresh</button>{error&&<AppErrorNotice message={error}/>} {!data&&!error&&<p role="status">Loading project teams…</p>}{data&&<><select aria-label="Administered project" style={{...inputStyle,width:'100%',margin:'12px 0'}} value={projectId} onChange={e=>setProjectId(e.target.value)}><option value="">All my administered projects</option>{data.projects.map(p=><option key={p.projectId} value={p.projectId}>{p.projectNo} · {p.projectName}</option>)}</select>{data.projects.filter(p=>!projectId||p.projectId===projectId).map(p=><div key={p.projectId} style={{margin:'18px 0'}}><h3 style={{fontFamily:FONT_DISPLAY}}>{p.projectNo} · {p.projectName}</h3><table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Person','Designation','Department','Project role'].map(h=><th key={h} style={{...cell,background:'#D2CDC1'}}>{h}</th>)}</tr></thead><tbody>{data.roles.filter(r=>r.projectId===p.projectId).map(r=>{const person=data.people.find(m=>m.userId===r.userId);return person?<tr key={r.userId}>{[person.name,person.role,person.department,r.projectRole].map((v,i)=><td key={i} style={cell}>{v||'—'}</td>)}</tr>:null;})}</tbody></table><table style={{width:'100%',borderCollapse:'collapse',marginTop:12}}><thead><tr>{['Task','Subtask','Responsible person'].map(h=><th key={h} style={{...cell,background:'#D2CDC1'}}>{h}</th>)}</tr></thead><tbody>{data.tasks.filter(t=>t.projectId===p.projectId).map((t,i)=><tr key={i}>{[t.tasks,t.subtask,t.responsible||'Not assigned'].map((v,j)=><td key={j} style={cell}>{v||'—'}</td>)}</tr>)}</tbody></table></div>)}</>}</section>;
-}
-
 function SettingsView({ state, persist }) {
   const blankMember = { userId:"", name:"", email:"", mobile:"", role:"", department:"", active:true, appAccess:"User", driveEmail:"" };
   const [members, setMembers] = useState(state.teamMaster || []);
@@ -7281,22 +5750,15 @@ function SettingsView({ state, persist }) {
   const [designations, setDesignations] = useState(state.designationMaster || TEAM_DESIGNATIONS.map((name,i)=>({masterId:`ROL-${String(i+1).padStart(3,"0")}`,name,active:true})));
   const [newDepartment, setNewDepartment] = useState("");
   const [newDesignation, setNewDesignation] = useState("");
-
+  const [drawingTemplates, setDrawingTemplates] = useState((state.templates || DEFAULT_TEMPLATES).map((t,i)=>({...t,sequence:t.sequence||i+1,active:t.active!==false,tasks:(t.tasks||[]).map((x,j)=>({...x,sequence:x.sequence||j+1}))})));
+  const [masterBusy, setMasterBusy] = useState(false);
 
   useEffect(()=>{ setMembers(state.teamMaster || []); },[state.teamMaster]);
   useEffect(()=>{ setDepartments(state.departmentMaster || []); },[state.departmentMaster]);
   useEffect(()=>{ setDesignations(state.designationMaster || []); },[state.designationMaster]);
+  useEffect(()=>{ setDrawingTemplates((state.templates||DEFAULT_TEMPLATES).map((t,i)=>({...t,sequence:t.sequence||i+1,active:t.active!==false,tasks:(t.tasks||[]).map((x,j)=>({...x,sequence:x.sequence||j+1}))}))); },[state.templates]);
 
-
-  const workspaceOptions=departments.filter(d=>d.active!==false&&String(d.active).toLowerCase()!=="false").map(d=>d.name);
-  const [deletingDepartment,setDeletingDepartment]=useState('');
-  const deleteDepartment=async item=>{
-   if(deletingDepartment||!window.confirm('Delete “'+item.name+'” from Department Master?'))return;
-   setDeletingDepartment(item.masterId);
-   try{const result=await apiRequest('deleteDepartment',{masterId:item.masterId},'POST');setDepartments(result.departments);await persist({...state,departmentMaster:result.departments});setMessage('Department deleted.');}
-   catch(e){setMessage(e.message||'Could not delete department.');}
-   finally{setDeletingDepartment('');}
-  };
+  const activeDepartments = departments.filter(x=>x.active!==false && String(x.active).toLowerCase()!=="false");
   const activeDesignations = designations.filter(x=>x.active!==false && String(x.active).toLowerCase()!=="false");
 
   const saveMaster = async (kind, item) => {
@@ -7343,22 +5805,34 @@ function SettingsView({ state, persist }) {
     if(!window.confirm(`Delete ${m.name} from Team Master?`)) return;
     setBusy(true); try { await projectApi.deleteTeamMember(m.userId); const next=members.filter(x=>x.userId!==m.userId); setMembers(next); await syncState(next); setMessage("Team member deleted from Google Sheet."); } catch(e){setMessage(e.message||"Delete failed.");} finally{setBusy(false);}
   };
+  const saveDrawingMaster = async (next=drawingTemplates) => {
+    const clean=next.map((t,i)=>({...t,drawingType:String(t.drawingType||"").trim(),sequence:i+1,active:t.active!==false,tasks:(t.tasks||[]).filter(x=>String(x.title||"").trim()).map((x,j)=>({...x,title:String(x.title||"").trim(),sequence:j+1}))})).filter(t=>t.drawingType);
+    setMasterBusy(true); setMessage("");
+    try { const saved=await projectApi.saveDrawingTaskMaster(clean); const finalRows=Array.isArray(saved?.templates)?saved.templates:clean; setDrawingTemplates(finalRows); await persist({...state,templates:finalRows}); setMessage("Drawing type & task sequence saved. Received Upload, Classify, task creation, WIH and assignment now use this master."); }
+    catch(e){ setMessage(e.message||"Drawing master save failed."); } finally { setMasterBusy(false); }
+  };
+  const addDrawingType=()=>setDrawingTemplates(x=>[...x,{drawingType:"New Drawing Type",active:true,sequence:x.length+1,tasks:[]}]);
+  const deleteDrawingType=i=>{ if(window.confirm("Delete this drawing type from new workflow selections? Existing history will remain unchanged.")) setDrawingTemplates(x=>x.filter((_,j)=>j!==i)); };
+  const moveDrawingType=(i,d)=>setDrawingTemplates(x=>{const n=[...x],j=i+d;if(j<0||j>=n.length)return n;[n[i],n[j]]=[n[j],n[i]];return n;});
+  const patchDrawingType=(i,patch)=>setDrawingTemplates(x=>x.map((t,j)=>j===i?{...t,...patch}:t));
+  const addDrawingTask=i=>setDrawingTemplates(x=>x.map((t,j)=>j===i?{...t,tasks:[...(t.tasks||[]),{title:"New Task",assignee:"",sequence:(t.tasks||[]).length+1}]}:t));
+  const patchDrawingTask=(i,k,patch)=>setDrawingTemplates(x=>x.map((t,j)=>j===i?{...t,tasks:(t.tasks||[]).map((a,b)=>b===k?{...a,...patch}:a)}:t));
+  const deleteDrawingTask=(i,k)=>setDrawingTemplates(x=>x.map((t,j)=>j===i?{...t,tasks:(t.tasks||[]).filter((_,b)=>b!==k)}:t));
+  const moveDrawingTask=(i,k,d)=>setDrawingTemplates(x=>x.map((t,j)=>{if(j!==i)return t;const a=[...(t.tasks||[])],z=k+d;if(z<0||z>=a.length)return t;[a[k],a[z]]=[a[z],a[k]];return {...t,tasks:a};}));
   const set = (k,v)=>setForm(f=>({...f,[k]:v}));
   return <div>
-    <ProjectRoleManager state={state}/>
-    <div style={{marginBottom:20}}><h2 style={{fontFamily:FONT_DISPLAY,fontSize:24,margin:"0 0 5px"}}>Team Master</h2><div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim}}>Enter each employee once. The Gmail ID is the login identity. Set <b>App Access = Admin</b> for administrators; User = project-wise Admin/User permissions assigned above + own WIH editing; Viewer = assigned projects and own WIH view only. App Access Admin is the system administrator; Project Admin is assigned separately for each project. Active team members automatically become selectable in Responsible Person / Assignee dropdowns.</div></div>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,300px),1fr))",gap:16,marginBottom:20}}>
+    <div style={{marginBottom:20}}><h2 style={{fontFamily:FONT_DISPLAY,fontSize:24,margin:"0 0 5px"}}>Team Master</h2><div style={{fontFamily:FONT_BODY,fontSize:13,color:T.inkDim}}>Enter each employee once. The Gmail ID is the login identity. Set <b>App Access = Admin</b> for administrators; User = Projects view only + own WIH editing; Viewer = Projects + own WIH view only. Active team members automatically become selectable in Responsible Person / Assignee dropdowns.</div></div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:20}}>
       {[["Department Master",departments,newDepartment,setNewDepartment,"department"],["Designation / Role Master",designations,newDesignation,setNewDesignation,"designation"]].map(([title,items,newValue,setNewValue,kind])=>
-        <div className="studio-sheet-panel" key={kind} style={{background:T.surface,border:`1px solid ${T.line}`,padding:14}}>
-          <h3 style={{margin:"0 0 4px"}}>{title}</h3>
+        <div key={kind} style={{background:"#fff",border:`1px solid ${T.line}`,padding:14}}>
+          <div style={{fontFamily:FONT_DISPLAY,fontSize:17,marginBottom:4}}>{title}</div>
           <div style={{fontFamily:FONT_BODY,fontSize:11.5,color:T.inkDim,marginBottom:10}}>Add once. EDIT renames it everywhere in Team Master. INACTIVE keeps old history but removes it from new selections.</div>
           <div style={{display:"flex",gap:7,marginBottom:10}}><input style={inputStyle} value={newValue} onChange={e=>setNewValue(e.target.value)} placeholder={`Add ${kind==="department"?"department":"designation / role"}`}/><button style={smallBtn} onClick={()=>addMaster(kind)}>+ ADD</button></div>
           <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:230,overflowY:"auto"}}>
-            {items.map(item=>{const active=item.active!==false&&String(item.active).toLowerCase()!=="false";return <div key={item.masterId||item.name} style={{display:"grid",gridTemplateColumns:kind==="department"?"minmax(0,1fr) auto auto auto":"minmax(0,1fr) auto auto",gap:6,alignItems:"center",border:`1px solid ${T.line}`,padding:"7px 8px"}}>
+            {items.map(item=>{const active=item.active!==false&&String(item.active).toLowerCase()!=="false";return <div key={item.masterId||item.name} style={{display:"grid",gridTemplateColumns:"1fr auto auto",gap:6,alignItems:"center",border:`1px solid ${T.line}`,padding:"7px 8px"}}>
               <span style={{fontFamily:FONT_BODY,fontSize:12,fontWeight:600}}>{item.name}</span>
               <button style={smallBtn} onClick={()=>renameMaster(kind,item)}>EDIT</button>
-              <button style={{...smallBtn,color:active?T.redline:T.green}} onClick={()=>toggleMaster(kind,item)}>{active?"INACTIVATE":"ACTIVATE"}</button> 
-              {kind==="department"&&(String(item.masterId).startsWith('WS-')?<small title="Built-in department">Default</small>:<button type="button" style={{...smallBtn,color:T.redline}} disabled={!!deletingDepartment} onClick={()=>deleteDepartment(item)}>{deletingDepartment===item.masterId?'Deleting…':'Delete'}</button>)}
+              <button style={{...smallBtn,color:active?T.redline:T.green}} onClick={()=>toggleMaster(kind,item)}>{active?"INACTIVATE":"ACTIVATE"}</button>
             </div>})}
           </div>
         </div>)}
@@ -7369,11 +5843,10 @@ function SettingsView({ state, persist }) {
         <Field label="Employee ID"><input style={inputStyle} value={form.userId||""} disabled={!!editingId} onChange={e=>set("userId",e.target.value)} placeholder="Auto if blank"/></Field>
         <Field label="Name *"><input style={inputStyle} value={form.name||""} onChange={e=>set("name",e.target.value)} placeholder="Team member name"/></Field>
         <Field label="Designation / Role"><select style={inputStyle} value={form.role||""} onChange={e=>set("role",e.target.value)}><option value="">Select designation / role</option>{activeDesignations.map(r=><option key={r.masterId||r.name} value={r.name}>{r.name}</option>)}</select></Field>
-        <Field label="Department"><select style={inputStyle} value={form.department||""} onChange={e=>set("department",e.target.value)}><option value="">Select department</option>{workspaceOptions.map(name=><option key={name} value={name}>{name}</option>)}{form.department&&!workspaceOptions.includes(form.department)&&<option value={form.department}>{form.department} (existing assignment)</option>}</select></Field>
+        <Field label="Department"><select style={inputStyle} value={form.department||""} onChange={e=>set("department",e.target.value)}><option value="">Select department</option>{activeDepartments.map(d=><option key={d.masterId||d.name} value={d.name}>{d.name}</option>)}</select></Field>
         <Field label="Mobile"><input style={inputStyle} value={form.mobile||""} onChange={e=>set("mobile",e.target.value)} placeholder="Mobile number"/></Field>
         <Field label="Gmail ID (Login Email)"><input type="email" style={inputStyle} value={form.email||""} onChange={e=>set("email",e.target.value)} placeholder="name@gmail.com"/></Field>
         <Field label="Google Drive Email"><input style={inputStyle} value={form.driveEmail||""} onChange={e=>set("driveEmail",e.target.value)} placeholder="Drive sharing email"/></Field>
-        <Field label="Reporting person"><select style={inputStyle} value={form.reportingUserId||''} onChange={e=>set('reportingUserId',e.target.value)}><option value="">Not assigned</option>{members.filter(m=>m.userId!==form.userId&&m.active!==false&&String(m.active).toLowerCase()!=='false').map(m=><option key={m.userId} value={m.userId}>{m.name}</option>)}</select></Field>
         <Field label="App Access"><select style={inputStyle} value={form.appAccess||"User"} onChange={e=>set("appAccess",e.target.value)}><option>User</option><option>Admin</option><option>Viewer</option><option>No Access</option></select></Field>
         <Field label="Status"><select style={inputStyle} value={form.active?"Active":"Inactive"} onChange={e=>set("active",e.target.value==="Active")}><option>Active</option><option>Inactive</option></select></Field>
       </div>
@@ -7381,6 +5854,15 @@ function SettingsView({ state, persist }) {
       {message&&<div style={{fontFamily:FONT_MONO,fontSize:10.5,marginTop:10,color:T.inkDim}}>{message}</div>}
     </div>
     <div style={{overflowX:"auto",background:"#fff",border:`1px solid ${T.line}`,marginBottom:28}}><table style={{width:"100%",borderCollapse:"collapse",fontFamily:FONT_BODY,fontSize:12}}><thead><tr>{["Employee ID","Name","Role","Department","Mobile","Email","Access","Status","Action"].map(h=><th key={h} style={{textAlign:"left",padding:9,borderBottom:`1px solid ${T.ink}`,background:T.paperDim}}>{h}</th>)}</tr></thead><tbody>{members.map(m=><tr key={m.userId}><td style={{padding:9,borderBottom:`1px solid ${T.line}`}}>{m.userId}</td><td style={{padding:9,borderBottom:`1px solid ${T.line}`,fontWeight:700}}>{m.name}</td><td style={{padding:9,borderBottom:`1px solid ${T.line}`}}>{m.role||"—"}</td><td style={{padding:9,borderBottom:`1px solid ${T.line}`}}>{m.department||"—"}</td><td style={{padding:9,borderBottom:`1px solid ${T.line}`}}>{m.mobile||"—"}</td><td style={{padding:9,borderBottom:`1px solid ${T.line}`}}>{m.email||"—"}</td><td style={{padding:9,borderBottom:`1px solid ${T.line}`}}>{m.appAccess||"User"}</td><td style={{padding:9,borderBottom:`1px solid ${T.line}`}}>{m.active!==false&&String(m.active).toLowerCase()!=="false"?"Active":"Inactive"}</td><td style={{padding:9,borderBottom:`1px solid ${T.line}`,whiteSpace:"nowrap"}}><button style={smallBtn} onClick={()=>editMember(m)}>EDIT</button> <button style={{...smallBtn,color:T.redline}} onClick={()=>removeMember(m)}>DELETE</button></td></tr>)}{!members.length&&<tr><td colSpan="9" style={{padding:16,color:T.inkDim}}>No team members yet. Add the first member above.</td></tr>}</tbody></table></div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",margin:"4px 0 12px"}}>
+      <div><h2 style={{fontFamily:FONT_DISPLAY,fontSize:20,margin:0,color:T.ink}}>Drawing Type & Task Sequence Master <span style={{fontFamily:FONT_MONO,fontSize:11,color:T.green}}>· EDITABLE</span></h2><div style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim,marginTop:4}}>Type directly into the Drawing Type and Task boxes below. Use + ADD DRAWING TYPE / + ADD TASK, arrows to reorder, DELETE to remove, then press SAVE MASTER. Edit once here. New Received Uploads, Classify, task creation, WIH and project-wise assignment use the same master automatically. Existing completed history is not rewritten.</div></div>
+      <div style={{display:"flex",gap:8}}><button style={smallBtn} onClick={addDrawingType}>+ ADD DRAWING TYPE</button><button disabled={masterBusy} style={{...smallBtn,background:T.navy,color:"#fff"}} onClick={()=>saveDrawingMaster()}>{masterBusy?"SAVING…":"SAVE MASTER"}</button></div>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>{drawingTemplates.map((t,i)=><div key={`${t.drawingType}-${i}`} style={{background:"#fff",border:`1px solid ${T.line}`,padding:14}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr auto auto auto",gap:6,alignItems:"center",marginBottom:10}}><input style={{...inputStyle,fontWeight:700}} value={t.drawingType} onChange={e=>patchDrawingType(i,{drawingType:e.target.value})}/><button style={smallBtn} onClick={()=>moveDrawingType(i,-1)}>↑</button><button style={smallBtn} onClick={()=>moveDrawingType(i,1)}>↓</button><button style={{...smallBtn,color:T.redline}} onClick={()=>deleteDrawingType(i)}>DELETE</button></div>
+      {(t.tasks||[]).map((task,k)=><div key={k} style={{display:"grid",gridTemplateColumns:"1fr 180px auto auto auto",gap:6,alignItems:"center",marginBottom:7}}><input style={inputStyle} value={task.title||""} onChange={e=>patchDrawingTask(i,k,{title:e.target.value})}/><select style={inputStyle} value={task.assignee||""} onChange={e=>patchDrawingTask(i,k,{assignee:e.target.value})}><option value="">Select member</option>{members.filter(m=>m.active!==false&&String(m.active).toLowerCase()!=="false").map(m=><option key={m.userId||m.name} value={m.name}>{m.name}</option>)}</select><button style={smallBtn} onClick={()=>moveDrawingTask(i,k,-1)}>↑</button><button style={smallBtn} onClick={()=>moveDrawingTask(i,k,1)}>↓</button><button style={{...smallBtn,color:T.redline}} onClick={()=>deleteDrawingTask(i,k)}>×</button></div>)}
+      <button style={smallBtn} onClick={()=>addDrawingTask(i)}>+ ADD TASK</button>
+    </div>)}</div>
   </div>;
 }
 
@@ -7389,116 +5871,25 @@ function SettingsView({ state, persist }) {
 --------------------------------------------------------------- */
 const NAV = [
   { id: "project", label: "Project", icon: Building2, group: "PROJECT" },
-  { id: "design", label: "Dashboard", icon: FileText, group: "PROJECT" },
-  { id: "drawingRegister", label: "Received / Sent", icon: FileText, group: "RECEIVED / SENT" },
-  { id: "drive", label: "Drive", icon: FolderOpen, group: "RECEIVED / SENT" },
-  { id: "timesheet", label: "Tasks", icon: Clock, group: "WORK IN HAND" },
-  { id: "diary", label: "Diary", icon: FileText, group: "WORK IN HAND" },
-  { id: "technicalTable", label: "Technical Table", icon: FileText, group: "DOCUMENTATION" },
-  { id: "scheduleSpec", label: "Schedule / Spec Sheet", icon: FileText, group: "DOCUMENTATION" },
-  { id: "site", label: "Timeline", icon: Clock, group: "TIMELINE" },
-  { id: "journal", label: "Journal", icon: FileText, group: "TIMELINE" },
+  { id: "design", label: "Design Dashboard", icon: FileText, group: "PROJECT" },
+  { id: "dashboard", label: "Floor / Zone", icon: LayoutGrid, group: "RECEIVED / SENT" },
+  { id: "upload", label: "Received · Upload", icon: Upload, group: "RECEIVED / SENT" },
+  { id: "classify", label: "Classify", icon: ClipboardCheck, group: "RECEIVED / SENT" },
+  { id: "timesheet", label: "WIH Sheet", icon: Clock, group: "WIH SHEET" },
+  { id: "meetings", label: "Fix Meeting", icon: CalendarDays, group: "WIH SHEET" },
+  { id: "executionMain", label: "Execution Dashboard", icon: HardHat, group: "WIH SHEET" },
+  { id: "site", label: "Site Punch-in", icon: MapPin, group: "SITE PUNCH-IN" },
   { id: "settings", label: "Team & Tasks", icon: Settings2, group: "ADMIN" },
-  { id: "performance", label: "Performance", icon: Clock, group: "ADMIN" },
-  { id: "feedback", label: "Feedback", icon: FileText, group: "ADMIN" },
 ];
 
-function SidebarNavigation({items,view,onChange,pendingCount}){
-  const groups=[...new Set(items.map(n=>n.group))];
-  return <nav aria-label="Main navigation">{groups.map(group=>{
-    const id='nav-'+group.replace(/[^a-z0-9]/gi,'-');
-    return <section key={group}><div style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 20px 8px',fontFamily:FONT_MONO,fontSize:9,letterSpacing:'.1em',color:T.cyan,background:'transparent',border:0,textAlign:'left'}}><span>{group}{group==='RECEIVED / SENT'&&pendingCount>0?` (${pendingCount})`:''}</span></div><div id={id}>{items.filter(n=>n.group===group).map(n=>{const Icon=n.icon,active=view===n.id;return <button key={n.id} type="button" aria-current={active?'page':undefined} onClick={()=>onChange(n.id)} style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'11px 20px',background:active?T.navy2:'transparent',border:0,borderLeft:`3px solid ${active?T.cyan:'transparent'}`,color:active?'#fff':'#B7C4D6',cursor:'pointer',fontFamily:FONT_BODY,fontSize:13,textAlign:'left'}}><Icon size={15}/><span style={{flex:1}}>{n.label}</span>{n.id==='classify'&&pendingCount>0&&<span style={{background:T.amber,color:'#fff',fontSize:10,padding:'1px 6px',borderRadius:10}}>{pendingCount}</span>}{active&&<ChevronRight size={13}/>}</button>;})}</div></section>;
-  })}</nav>;
-}
-
-function projectNavigationItems(user){
-  if(wihSystemAccount(user)&&user?.appAccess?.toLowerCase()==='admin')return NAV;
-  const ids=user?.appAccess?.toLowerCase()==='viewer'?['project','design','drawingRegister','drive','journal','timesheet','technicalTable','scheduleSpec','site','diary','performance','feedback']:['project','design','drawingRegister','drive','journal','timesheet','technicalTable','scheduleSpec','site','diary','performance','feedback'];
-  const projectAdmin=user?.appAccess?.toLowerCase()!=='viewer'&&Object.values(user?.projectRoles||{}).includes('Admin');
-  if(projectAdmin)ids.push('settings');
-  if(user?.appAccess?.toLowerCase()==='admin')return NAV.filter(n=>n.id!=='settings'||projectAdmin);
-  return NAV.filter(n=>ids.includes(n.id));
-}
-
-function WorkspaceShell({name, switchDepartment, currentUser, view, viewLabel, activityPage=view, items, pendingCount=0, onChange, notices, children, isAccounts=false}) {
-  const [mobileNavOpen,setMobileNavOpen]=useState(false);
-  useEffect(()=>setMobileNavOpen(false),[view]);
-  const changeView=next=>{setMobileNavOpen(false);onChange(next);};
-  const contentRef=useRef(null);
-  const Content = isAccounts ? "main" : "div";
-  const [sheetDetail,setSheetDetail]=useState(null);
-  useEffect(()=>{
-    const content=contentRef.current;
-    if(!content)return;
-    const updateDetail=()=>{
-      const tabs=content.querySelector('[role="tablist"], [data-sheet-tabs]');
-      const selected=tabs?.querySelector('[role="tab"][aria-selected="true"], button[aria-pressed="true"]');
-      const label=selected?.textContent.trim()||'';
-      setSheetDetail(previous=>previous?.view===view&&previous.label===label?previous:{view,label});
-    };
-    const observer=new MutationObserver(updateDetail);
-    observer.observe(content,{subtree:true,childList:true,attributes:true,attributeFilter:['aria-selected','aria-pressed']});
-    updateDetail();
-    return ()=>observer.disconnect();
-  },[view]);
-
-  return (
-    <div className={isAccounts?"studio-app-shell accounts-workspace":"studio-app-shell"} style={{ fontFamily: FONT_BODY, background: T.paper, minHeight: 560, display: "flex", borderRadius: 10, overflow: "hidden", border: `1px solid ${T.line}` }}>
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" />
-
-      {/* Sidebar — drawing-set index */}
-      <button type="button" className="studio-mobile-menu" aria-expanded={mobileNavOpen} aria-controls="workspace-sidebar" onClick={()=>setMobileNavOpen(open=>!open)}>{mobileNavOpen?'Close menu':'Menu'} · {viewLabel}</button>
-      <div id="workspace-sidebar" className={mobileNavOpen?'studio-app-sidebar is-open':'studio-app-sidebar'} style={{ width: 210, background: T.navy, color: "#fff", padding: "20px 0", flexShrink: 0 }}>
-        <div style={{ padding: "0 20px 20px", borderBottom: `1px solid ${T.cyan}22`, marginBottom: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Building2 size={18} color={T.cyan} />
-            <DepartmentHeading name={name} onChoose={switchDepartment}/>
-          </div>
-          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 14, color: "#fff", marginTop: 4 }}>Enlighten Design Co.</div>
-        </div>
-        <div style={{padding:"0 20px 12px"}}><button type="button" className="studio-home-shortcut" style={isAccounts?{...smallBtn,display:'flex',alignItems:'center',gap:8}:smallBtn} aria-current={view==='home'?'page':undefined} onClick={()=>changeView('home')}>{isAccounts&&<AccountsHomeIcon size={15}/>}Home</button></div>
-        <SidebarNavigation items={items} view={view} onChange={changeView} pendingCount={pendingCount}/>
-        <div style={{ padding: "20px", marginTop: 20, fontFamily: FONT_MONO, fontSize: 10, color: T.cyan, opacity: 0.7 }}>
-          <div style={{ marginBottom: 6 }}>{currentUser?.appAccess} · {currentUser?.name || ""}</div>
-          <div style={{ opacity: 0.7, wordBreak: "break-all" }}>{currentUser?.email || ""}</div>
-          {!isAccounts && <div style={{ marginTop: 10, opacity: 0.6 }}>enLIGHTen OS · project → scope → team → line of work → WIH</div>}
-        </div>
-      </div>
-
-      {/* Main canvas */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <TitleBlock page={activityPage} view={viewLabel} sub={sheetDetail?.view===view ? sheetDetail.label : undefined} />
-        {notices}
-        <Content ref={contentRef} className="studio-app-content" style={{ padding: "28px 32px", overflowY: "auto", flex: isAccounts ? 1 : undefined }}>
-          {children}
-        </Content>
-      </div>
-    </div>
-  );
-}
-
-const loadStudioHomeWork=()=>apiRequest('getWIH',{includeCompleted:true,fastRead:true,homeDeadlines:true},'GET');
 function StudioApp() {
-  const [department,setDepartment]=useState('');
   const { state, loading, saveErr, backendErr, currentUser, persist } = useStudioState();
-  const [view, setView] = useState(window.location.hash==="#email-intake" ? "drawingRegister" : "home");
-  useLayoutEffect(() => {
-    setActivityPage(loading || !state ? undefined : view);
-    return () => setActivityPage(undefined);
-  }, [loading, Boolean(state), view]);
-  const [attendanceDay,setAttendanceDay]=useState('');
-  const [showWihMeetings,setShowWihMeetings]=useState(false);
-  const [feedbackContext,setFeedbackContext]=useState("General");
-  const [diaryWorkflowTarget,setDiaryWorkflowTarget]=useState(null);
+  const [view, setView] = useState("project");
 
-  useActiveTime(!loading&&!state?.accessDenied&&currentUser?.appAccess!=='Contractor'?currentUser?.userId:null,view,apiRequest);
   if (loading || !state) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 400, fontFamily: FONT_BODY, color: T.inkDim, gap: 8, flexDirection: "column", paddingInline: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Loader2 size={16} className="spin" aria-hidden="true" /> Loading studio data…
-        </div>
-        <StudioLoadingDetail />
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 400, fontFamily: FONT_BODY, color: T.inkDim, gap: 8 }}>
+        <Loader2 size={16} className="spin" /> Loading studio data…
         <style>{`.spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     );
@@ -7518,27 +5909,58 @@ function StudioApp() {
     );
   }
 
-  if(currentUser?.appAccess==='Contractor')return <ContractorDrawingPortal user={currentUser}/>;
   const isAdmin=currentUser?.appAccess?.toLowerCase()==="admin";
-  const superAdmin=isAdmin&&currentUser?.canChooseDepartment===true;
-  const savedDepartments=state.departmentMaster||[];
-  const directory=Object.fromEntries(Object.entries(workspaceDepartments).map(([id,[name,items]])=>[id,[savedDepartments.find(d=>d.masterId==='WS-'+id)?.name||name,items]]));
-  const activeDirectory=Object.fromEntries(Object.entries(directory).filter(([id])=>{const a=savedDepartments.find(d=>d.masterId==='WS-'+id)?.active;return a!==false&&String(a).toLowerCase()!=='false';}));
-  const assignedDepartment=savedDepartments.find(d=>d.name===currentUser?.department&&String(d.masterId).startsWith('WS-'));
-  const personalWorkspace=currentUser?.departmentKey|| (assignedDepartment?assignedDepartment.masterId.slice(3):departmentFor(currentUser?.department));
-  const workspace=superAdmin?department:(Object.hasOwn(directory,personalWorkspace)?personalWorkspace:'studio');
-  if(superAdmin&&!workspace)return <DepartmentPicker directory={activeDirectory} choose={id=>{setView('home');setDepartment(id);}}/>;
-  if(workspace!=='studio')return <DepartmentWorkspace theme={T} inputStyle={inputStyle} WorkspaceShell={WorkspaceShell} PerformanceView={PerformanceView} performanceState={state} key={workspace} id={workspace} name={directory[workspace][0]} user={currentUser} request={apiRequest} buttonStyle={smallBtn} switchDepartment={superAdmin?()=>setDepartment(''):null}/>;
-  const allowedNav=projectNavigationItems(currentUser);
+  const allowedNav=isAdmin?NAV:NAV.filter(n=>["project","timesheet"].includes(n.id));
   const pendingCount = state.intakes.filter((i) => !i.classified).length;
-  const viewLabel = view==='home'?'Home':NAV.find((n) => n.id === view)?.label;
+  const viewLabel = NAV.find((n) => n.id === view)?.label;
 
   return (
-    <WorkspaceShell name={directory[workspace][0]} switchDepartment={superAdmin?()=>setDepartment(''):null}
-      currentUser={currentUser} view={view} viewLabel={viewLabel} items={allowedNav} pendingCount={pendingCount}
-      onChange={next=>{if(next==='feedback')setFeedbackContext(viewLabel);if(next==='site')setAttendanceDay('');setView(next);}}
-      notices={<>
-        {view!=='upload'&&(state.pendingReceivedUploads||[]).length>0&&<div role="status" style={{padding:'8px 24px',fontFamily:FONT_BODY,fontSize:12,background:T.amberBg,color:T.ink}}>{state.pendingReceivedUploads.length} drawing upload(s) pending. <button type="button" style={smallBtn} onClick={()=>setView('drawingRegister')}>View uploads</button></div>}
+    <div style={{ fontFamily: FONT_BODY, background: T.paper, minHeight: 560, display: "flex", borderRadius: 10, overflow: "hidden", border: `1px solid ${T.line}` }}>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" />
+
+      {/* Sidebar — drawing-set index */}
+      <div style={{ width: 210, background: T.navy, color: "#fff", padding: "20px 0", flexShrink: 0 }}>
+        <div style={{ padding: "0 20px 20px", borderBottom: `1px solid ${T.cyan}22`, marginBottom: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Building2 size={18} color={T.cyan} />
+            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 14, letterSpacing: "0.02em" }}>Studio Tracker</div>
+          </div>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.cyan, opacity: 0.7, marginTop: 4 }}>lighting design · intake → task → timesheet</div>
+        </div>
+        {allowedNav.map((n, idx) => {
+          const Icon = n.icon;
+          const active = view === n.id;
+          const showGroup = idx === 0 || allowedNav[idx - 1].group !== n.group;
+          return (
+            <React.Fragment key={n.id}>
+              {showGroup && <div style={{ padding: "10px 20px 5px", fontFamily: FONT_MONO, fontSize: 9, letterSpacing: "0.12em", color: T.cyan, opacity: 0.6 }}>{n.group}</div>}
+            <button key={n.id} onClick={() => setView(n.id)} style={{
+              width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "11px 20px",
+              background: active ? T.navy2 : "transparent", border: "none",
+              borderLeft: `3px solid ${active ? T.cyan : "transparent"}`,
+              color: active ? "#fff" : "#B7C4D6", cursor: "pointer", fontFamily: FONT_BODY, fontSize: 13,
+              textAlign: "left",
+            }}>
+              <Icon size={15} />
+              <span style={{ flex: 1 }}>{n.label}</span>
+              {n.id === "classify" && pendingCount > 0 && (
+                <span style={{ background: T.amber, color: "#fff", fontSize: 10, fontFamily: FONT_MONO, borderRadius: 10, padding: "1px 6px" }}>{pendingCount}</span>
+              )}
+              {active && <ChevronRight size={13} />}
+            </button>
+            </React.Fragment>
+          );
+        })}
+        <div style={{ padding: "20px", marginTop: 20, fontFamily: FONT_MONO, fontSize: 10, color: T.cyan, opacity: 0.7 }}>
+          <div style={{ marginBottom: 6 }}>{currentUser?.appAccess} · {currentUser?.name || ""}</div>
+          <div style={{ opacity: 0.7, wordBreak: "break-all" }}>{currentUser?.email || ""}</div>
+          <div style={{ marginTop: 10, opacity: 0.6 }}>enLIGHTen OS · project → scope → team → line of work → WIH</div>
+        </div>
+      </div>
+
+      {/* Main canvas */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+        <TitleBlock view={viewLabel} sub={view === "timesheet" ? `${state.tasks.length} tasks` : view === "classify" ? `${pendingCount} pending` : view === "project" ? "Onboarding · Scope · Team · Line of Work" : view === "meetings" ? `${(state.meetings || []).length} meetings` : view === "executionMain" ? "Milestones · MOM" : view === "site" ? `${(state.siteVisits || []).length} site visits` : undefined} />
         {saveErr && (
           <div style={{ background: T.redlineBg, color: T.redline, fontFamily: FONT_MONO, fontSize: 12, padding: "8px 24px", display: "flex", alignItems: "center", gap: 6 }}>
             <AlertTriangle size={13} /> Couldn't save — changes may not persist.
@@ -7549,25 +5971,22 @@ function StudioApp() {
             <AlertTriangle size={13} /> Google Sheets backend unavailable — Projects are showing the last local data.
           </div>
         )}
-      </>}>
-          
-          {view==='home'&&<StudioHome assistant={<ExecutiveAssistant profileApi={apiRequest} workUser={currentUser} workProjects={state.projects||[]} workRequest={apiRequest} userId={currentUser?.userId} sections={allowedNav} onNavigate={setView} theme={T} buttonStyle={smallBtn} inputStyle={inputStyle}/>} state={state} user={currentUser} request={apiRequest} loadWork={loadStudioHomeWork} navigate={setView} onMissedCheckout={day=>{setAttendanceDay(day);setView('site');}} theme={T} buttonStyle={smallBtn}/>}
-          {view === "project" && (isAdmin?<ProjectView state={state} persist={persist} />:<ProjectPermissionsView state={state} persist={persist}/>)}
+        <div style={{ padding: "28px 32px", overflowY: "auto" }}>
+          {view === "project" && (isAdmin?<ProjectView state={state} persist={persist} />:<MemberProjectsView state={state}/>)}
           {isAdmin && view === "designLineOfWork" && <DesignLineOfWorkView state={state} persist={persist} />}
-          {allowedNav.some(n=>n.id==="design") && view === "design" && <DesignWorkspaceView key={diaryWorkflowTarget?.token||'dashboard'} state={state} persist={persist} workflowTarget={diaryWorkflowTarget}/>}
+          {isAdmin && view === "design" && <DesignFlowView state={state} persist={persist} />}
           
-          {allowedNav.some(n=>n.id==="drawingRegister") && view === "drawingRegister" && <ReceivedWorkspaceView state={state} persist={persist}/>}
-          {allowedNav.some(n=>n.id==="drive") && view === "drive" && <ProjectDriveView state={state} persist={persist}/>}
-          {allowedNav.some(n=>n.id==="journal") && view === "journal" && <ProjectBooksView state={state}/>}
-          {view === "technicalTable" && <TechnicalTableView state={state}/> }
-          {allowedNav.some(n=>n.id==="scheduleSpec") && view === "scheduleSpec" && <ScheduleSpecSheetView state={state}/>}
-          {view === "performance" && <PerformanceView state={state}/>}
-          {view === "feedback" && <FeedbackView state={state} request={apiRequest} initialSection={feedbackContext}/>}
-          {view === "timesheet" && <><TimesheetView state={state} persist={persist} /><section className="wih-meetings-footer" style={{marginTop:20}}><button style={smallBtn} onClick={()=>setShowWihMeetings(v=>!v)}>{showWihMeetings?"Hide meetings":"Upcoming & past meetings"}</button>{showWihMeetings&&<MeetingsView state={state} persist={persist}/>}</section></>}
-          {allowedNav.some(n=>n.id==="site") && view === "site" && <PerformanceAttendance key={attendanceDay} initialDay={attendanceDay} request={apiRequest} user={currentUser} calendarView={<TimesheetView state={state} persist={persist} calendarOnly/>}/>}
-          {allowedNav.some(n=>n.id==="diary") && view === "diary" && <DiaryView state={state} persist={persist} onOpenWorkflow={(projectId,visitPlanId)=>{setDiaryWorkflowTarget({projectId,visitPlanId,token:Date.now()});setView("design");}}/>}
-          {allowedNav.some(n=>n.id==="settings") && view === "settings" && <><StudioHeading title="Teams &amp; Tasks"/>{isAdmin&&<InternalAreas manage request={apiRequest} buttonStyle={smallBtn} inputStyle={inputStyle}/>} {wihSystemAccount(currentUser)&&isAdmin?<SettingsView state={state} persist={persist}/>:<ProjectTeamsTasksView/>}</>}
-    </WorkspaceShell>
+          {isAdmin && view === "dashboard" && <DashboardView state={state} persist={persist} />}
+          {isAdmin && view === "upload" && <UploadView state={state} persist={persist} />}
+          {isAdmin && view === "classify" && <ClassifyView state={state} persist={persist} />}
+          {view === "timesheet" && <TimesheetView state={state} persist={persist} />}
+          {isAdmin && view === "meetings" && <MeetingsView state={state} persist={persist} />}
+          {isAdmin && view === "executionMain" && <ExecutionMainView state={state} persist={persist} />}
+          {isAdmin && view === "site" && <SitePunchInView state={state} persist={persist} />}
+          {isAdmin && view === "settings" && <SettingsView state={state} persist={persist} />}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -7579,252 +5998,31 @@ function MemberProjectsView({state}) {
   if(!p)return <div>No projects available.</div>;
   const workflow=p.lineOfWorkResidence||p.lineOfWork||[];
   return <div>
-    <div style={{display:'flex',justifyContent:'space-between',gap:12,flexWrap:'wrap',marginBottom:18}}><div><h2 style={{fontFamily:FONT_DISPLAY,margin:0}}>Projects</h2><div style={{fontSize:12,color:T.inkDim,marginTop:6}}>View only · Project information, contacts and planned work</div></div><ProjectStatusSelect projects={projects} aria-label="View project" style={{...inputStyle,minWidth:260}} value={p.id} onChange={e=>setSelected(e.target.value)}>{projects.map(x=><option key={x.id} value={x.id}>{x.no} · {x.name}</option>)}</ProjectStatusSelect></div>
-    <div style={{display:'flex',gap:8,marginBottom:16}}>{[['scope','Projects & Scope'],['team','Teams & Ratings']].map(([id,label])=><Btn key={id} variant={tab===id?'dark':'ghost'} onClick={()=>setTab(id)}>{label}</Btn>)}</div>
-    {tab==='scope'&&<><table style={{borderCollapse:'collapse',width:'100%'}}><tbody>{[['Project',p.name],['Number',p.no],['Client',p.client||p.contacts?.Owner?.name],['Architect',p.architect||p.contacts?.Architect?.name],['Address',p.address],['Type',p.type],['Status',p.status],['Start',formatProjectDate(p.startDate)],['End',p.endDate]].map(([label,value])=><tr key={label}><td style={{...tdStyle,textAlign:'left',width:170,color:T.inkDim}}>{label}</td><td style={{...tdStyle,textAlign:'left'}}>{String(value??'—')}</td></tr>)}</tbody></table><div style={{marginTop:18,fontFamily:FONT_BODY,fontSize:13}}><strong>Project scope</strong><div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:10}}>{Object.entries(p.scope||{}).filter(([,v])=>v===true).map(([k])=><span key={k} style={{background:T.paperDim,padding:'7px 10px'}}>{k.replace(/_/g,' ')}</span>)}</div></div></>}
-    {tab==='team'&&<>{ROLE_CATEGORIES.map(({category,roles})=>{const entries=roles.filter(r=>p.contacts?.[r]);return entries.length?<div key={category} style={{marginBottom:20}}><div style={{fontFamily:FONT_MONO,color:categoryColor(category),marginBottom:8}}>{contactRoleLabel(category)}</div><table style={{width:'100%',borderCollapse:'collapse'}}><tbody>{entries.map(r=><tr key={r}>{[contactRoleLabel(r),p.contacts[r].name,p.contacts[r].company,p.contacts[r].email,p.contacts[r].mobile].map((v,i)=><td key={i} style={{...tdStyle,textAlign:'left'}}>{String(v??'—')||'—'}</td>)}</tr>)}</tbody></table></div>:null;})}</>}
+    <div style={{display:'flex',justifyContent:'space-between',gap:12,flexWrap:'wrap',marginBottom:18}}><div><h2 style={{fontFamily:FONT_DISPLAY,margin:0}}>Projects</h2><div style={{fontSize:12,color:T.inkDim,marginTop:6}}>View only · Project information, contacts and planned work</div></div><select aria-label="View project" style={{...inputStyle,minWidth:260}} value={p.id} onChange={e=>setSelected(e.target.value)}>{projects.map(x=><option key={x.id} value={x.id}>{x.no} · {x.name}</option>)}</select></div>
+    <div style={{display:'flex',gap:8,marginBottom:16}}>{[['scope','Projects & Scope'],['team','Teams & Ratings'],['line','Line of Work']].map(([id,label])=><Btn key={id} variant={tab===id?'dark':'ghost'} onClick={()=>setTab(id)}>{label}</Btn>)}</div>
+    {tab==='scope'&&<><table style={{borderCollapse:'collapse',width:'100%'}}><tbody>{[['Project',p.name],['Number',p.no],['Client',p.client||p.contacts?.Owner?.name],['Architect',p.architect||p.contacts?.Architect?.name],['Address',p.address],['Type',p.type],['Status',p.status],['Start',p.startDate],['End',p.endDate]].map(([label,value])=><tr key={label}><td style={{...tdStyle,textAlign:'left',width:170,color:T.inkDim}}>{label}</td><td style={{...tdStyle,textAlign:'left'}}>{String(value??'—')}</td></tr>)}</tbody></table><div style={{marginTop:18,fontFamily:FONT_BODY,fontSize:13}}><strong>Project scope</strong><div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:10}}>{Object.entries(p.scope||{}).filter(([,v])=>v===true).map(([k])=><span key={k} style={{background:T.paperDim,padding:'7px 10px'}}>{k.replace(/_/g,' ')}</span>)}</div></div></>}
+    {tab==='team'&&<>{ROLE_CATEGORIES.map(({category,roles})=>{const entries=roles.filter(r=>p.contacts?.[r]);return entries.length?<div key={category} style={{marginBottom:20}}><div style={{fontFamily:FONT_MONO,color:categoryColor(category),marginBottom:8}}>{category}</div><table style={{width:'100%',borderCollapse:'collapse'}}><tbody>{entries.map(r=><tr key={r}>{[r,p.contacts[r].name,p.contacts[r].email,p.contacts[r].mobile].map((v,i)=><td key={i} style={{...tdStyle,textAlign:'left'}}>{String(v??'—')||'—'}</td>)}</tr>)}</tbody></table></div>:null;})}</>}
+    {tab==='line'&&<>{workflowGroups(workflow.filter(r=>String(r.workflowVersion)==='1')).map(g=><details key={g.first.lineWorkId||g.first.id} open style={{border:`1px solid ${T.line}`,marginBottom:12}}><summary style={{padding:12,background:T.paperDim}}><strong>{g.first.milestone}</strong> · {g.first.tasks}</summary><table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Step','Subtask','Responsible','Estimated hours'].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{g.rows.map((r,i)=><tr key={r.lineWorkId||r.id}><td style={tdStyle}>{i+1}</td><td style={tdStyle}>{r.subtask}</td><td style={tdStyle}>{r.responsible||'Unassigned'}</td><td style={tdStyle}>{r.hours||'—'}</td></tr>)}</tbody></table></details>)}{!workflow.some(r=>String(r.workflowVersion)==='1')&&<div style={{color:T.inkDim}}>The admin has not saved the detailed workflow for this project.</div>}</>}
   </div>;
 }
-
-function projectRole(state,id){
-  const u=state.currentUser;
-  if(u?.appAccess?.toLowerCase()==='admin')return 'Admin';
-  if(u?.appAccess?.toLowerCase()==='viewer')return u.projectRoles?.[id]?'User':'';
-  return u?.projectRoles?.[id]||'';
-}
-function memberProjectRoleMap(rows,userId){
-  const roles={};
-  rows.filter(r=>String(r.userId)===String(userId)&&(r.active===true||String(r.active).toLowerCase()==='true')&&['Admin','User'].includes(r.projectRole)).forEach(r=>{const id=String(r.projectId);roles[id]=roles[id]&&roles[id]!==r.projectRole?'User':roles[id]||r.projectRole;});
-  return roles;
-}
-function ProjectRoleManager({state}){
-  const [rows,setRows]=useState([]),[userId,setUserId]=useState(''),[drafts,setDrafts]=useState({}),[search,setSearch]=useState('');
-  const [loading,setLoading]=useState(true),[loadError,setLoadError]=useState(''),[busy,setBusy]=useState(false),[feedback,setFeedback]=useState({});
-  const pendingRef=useRef(false);
-  const reload=async()=>{setLoading(true);setLoadError('');try{setRows(await projectApi.listProjectRoles());}catch(e){setLoadError(e.message||'Could not load project access.');}finally{setLoading(false);}};
-  useEffect(()=>{let live=true;projectApi.listProjectRoles().then(list=>{if(live)setRows(list);}).catch(e=>{if(live)setLoadError(e.message||'Could not load project access.');}).finally(()=>{if(live)setLoading(false);});return()=>{live=false;};},[]);
-  const members=state.teamMaster||[],member=members.find(m=>String(m.userId)===userId);
-  const active=member&&member.active!==false&&String(member.active).toLowerCase()!=='false';
-  const saved=memberProjectRoleMap(rows,userId),draft=drafts[userId]||saved;
-  const projects=[...(state.projects||[])];
-  Object.keys(saved).filter(id=>!projects.some(p=>String(p.id)===id)).forEach(id=>projects.push({id,name:'Saved project '+id,status:'Archived / unavailable'}));
-  const changes=[...new Set([...Object.keys(saved),...Object.keys(draft)])].filter(id=>(saved[id]||'')!==(draft[id]||'')).map(projectId=>({projectId,projectRole:draft[projectId]||''}));
-  const setRole=(projectId,role)=>{setDrafts(all=>({...all,[userId]:{...(all[userId]||memberProjectRoleMap(rows,userId)),[projectId]:role}}));setFeedback({});};
-  const save=async()=>{
-    if(!userId||!changes.length||pendingRef.current)return;pendingRef.current=true;setBusy(true);setFeedback({});
-    const personId=userId;
-    try{const result=await projectApi.saveMemberProjectRoles({userId:personId,changes});setRows(previous=>[...previous.filter(r=>String(r.userId)!==personId),...result.roles]);setDrafts(all=>{const next={...all};delete next[personId];return next;});setFeedback({userId:personId,text:'Project access saved. This person should reload the app to see changes.'});}
-    catch(e){setFeedback({userId:personId,error:true,text:e.message||'Could not save project access. Your selections are retained.'});}
-    finally{pendingRef.current=false;setBusy(false);}
-  };
-  const filtered=projects.filter(p=>`${p.no||''} ${p.name||''}`.toLowerCase().includes(search.toLowerCase()));
-  const assigned=Object.values(draft).filter(Boolean),adminCount=assigned.filter(r=>r==='Admin').length;
-  return <section className="studio-sheet-panel" style={{border:`1px solid ${T.line}`,background:T.surface,padding:18,marginBottom:24,fontFamily:FONT_BODY,fontSize:13}}>
-    <h2 style={{fontFamily:FONT_DISPLAY,marginTop:0}}>People & Project Access</h2>
-    <p style={{color:T.inkDim,lineHeight:1.5}}>Open a person’s record, then assign their projects and choose Admin or User for each one.</p>
-    <Field label="Person"><select aria-label="Access person" disabled={busy} value={userId} onChange={e=>{setUserId(e.target.value);setSearch('');setFeedback({});}} style={inputStyle}><option value="">Select a person…</option>{members.map(m=><option key={m.userId} value={m.userId}>{m.name} · {m.userId}{m.active===false||String(m.active).toLowerCase()==='false'?' · Inactive':''}</option>)}</select></Field>
-    {loading&&<p role="status" style={{color:T.inkDim}}>Loading project access…</p>}
-    {feedback.text&&(!feedback.userId||feedback.userId===userId)&&<p role={feedback.error?'alert':'status'} style={{color:feedback.error?T.redline:T.green,lineHeight:1.5}}>{feedback.text}</p>}
-    {loadError&&<div role="alert" style={{color:T.redline,marginBottom:14}}>{loadError} <button type="button" style={smallBtn} onClick={reload}>Retry loading access</button></div>}
-    {member&&!loading&&!loadError&&<>
-      <div style={{padding:14,background:T.paperDim,marginBottom:16,border:`1px solid ${T.line}`}}><strong style={{fontFamily:FONT_DISPLAY,fontSize:17}}>{member.name}</strong><div style={{color:T.inkDim,marginTop:5}}>{[member.email,member.role,member.department].filter(Boolean).join(' · ')}</div><div style={{marginTop:8}}>{assigned.length} projects assigned · {adminCount} Admin · {assigned.length-adminCount} User</div>
-        {String(member.appAccess).toLowerCase()==='admin'&&<p style={{margin:'10px 0 0',color:T.inkDim}}>This person is a System Admin and already has access to every project. Set App Access to User in Team Master to apply project-specific limits.</p>}
-        {!active&&<p style={{margin:'10px 0 0',color:T.redline}}>This account is inactive. You can remove assignments; activate the person before granting new access.</p>}
-        {String(member.appAccess).toLowerCase()==='viewer'&&<p style={{margin:'10px 0 0',color:T.inkDim}}>This account is a Viewer. Project assignments remain view only until App Access is changed to User.</p>}
-        {String(member.appAccess).toLowerCase()==='no access'&&<p style={{margin:'10px 0 0',color:T.inkDim}}>This account has No Access. Set App Access to User in Team Master so they can sign in to assigned projects.</p>}
-      </div>
-      <input aria-label="Search access projects" placeholder="Find a project…" value={search} onChange={e=>setSearch(e.target.value)} style={{...inputStyle,marginBottom:12}}/>
-      <div style={{overflowX:'auto',maxHeight:470,overflowY:'auto',border:`1px solid ${T.line}`}}><table style={{width:'100%',borderCollapse:'collapse',minWidth:510}}><thead><tr>{['Assign','Project','Project role'].map(h=><th key={h} style={{...thStyle,background:T.paperDim,color:T.ink,textAlign:'left',position:'sticky',top:0,zIndex:1}}>{h}</th>)}</tr></thead><tbody>{filtered.map(p=>{const id=String(p.id),role=draft[id]||'';return <tr key={id}><td style={{...tdStyle,textAlign:'left',width:70}}><input type="checkbox" aria-label={`Assign ${p.name}`} checked={!!role} disabled={busy||(!active&&!saved[id])} onChange={e=>setRole(id,e.target.checked?(saved[id]||'User'):'')}/></td><td style={{...tdStyle,textAlign:'left'}}><strong>{p.no?`${p.no} · `:''}{p.name}</strong><div style={{fontSize:11,color:T.inkDim,marginTop:3}}>{p.completed||p.status==='Completed'?'Completed':p.status||'Ongoing'}</div></td><td style={{...tdStyle,textAlign:'left',width:180}}><select aria-label={`Role for ${p.name}`} disabled={busy||!role||!active} value={role||'User'} onChange={e=>setRole(id,e.target.value)} style={{...inputStyle,fontSize:12,padding:'8px 10px'}}><option value="User">User</option><option value="Admin">Admin</option></select>{!role&&<span style={{display:'block',fontSize:11,color:T.inkDim,marginTop:4}}>Not assigned</span>}</td></tr>;})}</tbody></table>{!filtered.length&&<p style={{padding:14,color:T.inkDim}}>No matching projects.</p>}</div>
-      <div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap',marginTop:16}}><Btn disabled={busy||!changes.length} onClick={save}>{busy?'Saving project access…':'Save project access'}</Btn><button type="button" disabled={busy||!changes.length} style={smallBtn} onClick={()=>{setDrafts(all=>{const next={...all};delete next[userId];return next;});setFeedback({});}}>Discard changes</button><span style={{color:T.inkDim,fontSize:12}}>{changes.length?`${changes.length} project changes pending`:'All changes saved'}</span></div>
-    </>}
-  </section>;
-}
-function ProjectPermissionsView({state,persist}){
-  const [selected,setSelected]=useState(state.projects[0]?.id||''),[tab,setTab]=useState('scope');
-  const p=state.projects.find(x=>String(x.id)===String(selected))||state.projects[0];
-  if(!p)return <p>No assigned projects. Ask your system Admin to assign a project role in Team & Tasks.</p>;
-  const role=projectRole(state,p.id),admin=role==='Admin';
-  const scoped={...state,projects:[p]};
-  const saveScoped=async update=>persist(latest=>{
-    const scope={...latest,projects:latest.projects.filter(x=>x.id===p.id)};
-    const next=typeof update==='function'?update(scope):update;
-    return {...latest,projects:latest.projects.map(x=>x.id===p.id?(next.projects.find(n=>n.id===p.id)||x):x)};
-  });
-  return <div><h2>Projects</h2><ProjectStatusSelect projects={state.projects} aria-label="Assigned project" style={inputStyle} value={p.id} onChange={e=>{setSelected(e.target.value);setTab('scope');}}>{state.projects.map(x=><option key={x.id} value={x.id}>{x.no} · {x.name}</option>)}</ProjectStatusSelect><p>Project role: <b>{contactRoleLabel(role)}</b> · {admin?'Manage this project':'View only'}</p><div style={{display:'flex',gap:0,marginBottom:18,borderBottom:`1px solid ${T.line}`,overflowX:'auto',background:'#fff'}}>{[['scope','Project & Scope'],['floor','Floor / Zone'],['delegation','Delegation'],['site','Site Punch-in']].map(([id,label])=><button type="button" key={id} onClick={()=>setTab(id)} style={{padding:'11px 16px',border:'none',borderBottom:`3px solid ${tab===id?T.cyan:'transparent'}`,background:tab===id?T.navy:'transparent',color:tab===id?'#fff':T.inkDim,fontFamily:FONT_BODY,fontSize:12,fontWeight:tab===id?700:500,whiteSpace:'nowrap',cursor:'pointer'}}>{label}</button>)}</div>
-  {tab==='delegation'&&<WorkflowDelegationView key={p.id} state={state} initialProjectId={p.id}/>}{tab==='scope'&&(admin?<ProjectScopeAdmin key={p.id} project={p} onSaved={async row=>saveScoped({...scoped,projects:[backendProjectToFrontend(row,p)]})}/>:<MemberProjectsView key={p.id} state={scoped}/>)}
-  {tab==='floor'&&((state.currentUser.appAccess.toLowerCase()!=='viewer')?<DashboardView key={p.id} state={scoped} persist={saveScoped}/>:<table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Zone','Floor','Area'].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{(p.floorZones||[]).map((r,i)=><tr key={r.floorZoneId||i}>{[r.zoneCode,r.floor,r.area].map((v,j)=><td key={j} style={tdStyle}>{v}</td>)}</tr>)}</tbody></table>)}
-  {tab==='site'&&<ProjectPunchInsView key={p.id} state={scoped}/>}
-  </div>;
-}
-function ReadOnlyProjectWork({project,state}){
-  const [work,setWork]=useState([]),[drawings,setDrawings]=useState(null);
-  useEffect(()=>{let live=true;setWork([]);setDrawings(null);projectApi.getWIH(true,project.id).then(rows=>{if(live)setWork(rows||[]);}).catch(()=>{});projectApi.listDrawingRegister(project.id).then(data=>{if(live)setDrawings((data?.drawings||[]).filter(d=>String(d.projectId)===String(project.id)));}).catch(()=>{if(live)setDrawings(undefined);});return()=>{live=false;};},[project.id]);
-  const saved=project.lineOfWorkResidence||project.lineOfWork||[];
-  const rows=saved.some(r=>['1','2'].includes(String(r.workflowVersion)))?saved:DESIGN_TASK_FLOW_TEMPLATE;
-  return <><table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Task','Starting Milestone','Subtask','Responsible','Hours'].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={r.lineWorkId||r.id||i}>{[r.tasks||r.title,r.startingMilestone||r.milestone,r.subtask,r.responsible||r.assignee,r.hours].map((v,j)=><td key={j} style={tdStyle}>{j===0?<span style={{display:'inline-flex',alignItems:'center',gap:8}}>{v||'—'}</span>:j===3?<span style={{display:'inline-flex',alignItems:'center',gap:8}}><WorkflowStatusDot {...workflowDotStatus(workflowActivationStatus(work,r,r),workflowPrerequisite(r,drawings,project.floorZones||[],null,work))}/>{v||'Unassigned'}</span>:v||'—'}</td>)}</tr>)}</tbody></table><ProjectGantt state={state} projectId={project.id}/><WorkflowStatusLegend/></>;
-}
-function ProjectScopeAdmin({project,onSaved}){
-  const [draft,setDraft]=useState(project),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
-  const save=async()=>{setBusy(true);try{const row=await projectApi.update(frontendProjectToBackend(draft,true));await onSaved(row);setMessage('Saved to Google Sheets.');}catch(e){setMessage(e.message);}finally{setBusy(false);}};
-  const fields=[['Basement','basement'],['Stilt Floor','stilt_floor'],['GF','gf'],['1F','1f'],['2F','2f'],['3F','3f'],['Terrace','terrace'],['Facade','facade'],['Landscape','landscape'],['Bath Elevation','bath_elevation'],['Furniture','wardrobe'],['Art Curation','art_curation'],['Onboarding','onboarding']];
-  return <section><h3>{project.name} · Scope & Status</h3><Field label="Project status"><select style={inputStyle} value={draft.status} onChange={e=>setDraft(d=>({...d,status:e.target.value,projectStatus:e.target.value,projectControl:{...d.projectControl,projectStatus:e.target.value}}))}><option>Ongoing</option><option>On Hold</option><option>Completed</option></select></Field><div style={{display:'flex',gap:16,flexWrap:'wrap',marginBottom:16}}>{fields.map(([label,k])=><label key={k}><input type="checkbox" checked={!!draft.scope?.[k]} onChange={e=>setDraft(d=>({...d,scope:{...d.scope,[k]:e.target.checked}}))}/> {label}</label>)}</div><Btn disabled={busy} onClick={save}>{busy?'Saving…':'Save Scope & Status'}</Btn><p role="status">{message}</p></section>;
-}
-function ProjectPunchInsView({state,heading="Site Punch-in Records"}){
-  const [projectId,setProjectId]=useState(state.projects[0]?.id||''),[rows,setRows]=useState([]),[draft,setDraft]=useState(null),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);
-  const admin=projectRole(state,projectId)==='Admin'&&state.currentUser?.appAccess?.toLowerCase()!=='viewer';
-  const canPunch=!!projectRole(state,projectId)&&state.currentUser?.appAccess?.toLowerCase()!=='viewer';
-  useEffect(()=>{let active=true;setRows([]);setDraft(null);setMessage('');if(projectId)projectApi.listSitePunchIns(projectId).then(r=>{if(active)setRows(r);}).catch(e=>{if(active)setMessage(e.message);});return()=>{active=false;};},[projectId]);
-  const save=async()=>{setBusy(true);try{const payload={...draft,projectId,checkInAt:draft.checkInAt?new Date(draft.checkInAt).toISOString():'',checkOutAt:draft.checkOutAt?new Date(draft.checkOutAt).toISOString():''};await projectApi.saveSitePunchIn(payload);setRows(await projectApi.listSitePunchIns(projectId));setDraft(null);setMessage('Punch-in saved to Google Sheets.');}catch(e){setMessage(e.message);}finally{setBusy(false);}};
-  const edit=r=>{const localDate=iso=>{if(!iso)return '';const d=new Date(iso);if(isNaN(d))return '';return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);};setDraft({punchId:r.punchId,userId:r.userId,purpose:r.purpose||'',checkInAt:localDate(r.checkInAt),checkOutAt:localDate(r.checkOutAt)});};
-  const remove=async r=>{if(!window.confirm('Delete this punch-in record?'))return;setBusy(true);try{await projectApi.deleteSitePunchIn({projectId,punchId:r.punchId});setRows(await projectApi.listSitePunchIns(projectId));}catch(e){setMessage(e.message);}finally{setBusy(false);}};
-  return <section><h2>{heading}</h2><ProjectStatusSelect projects={orderedProjects(state.projects)} aria-label="Punch-in project" value={projectId} style={inputStyle} onChange={e=>setProjectId(e.target.value)}>{orderedProjects(state.projects).map(p=><option key={p.id} value={p.id}>{p.no} · {p.name}</option>)}</ProjectStatusSelect><p>{admin?'Project Admin · manage records and dates':canPunch?'Add or update your own records · only Admin can delete':'View only'}</p>{canPunch&&<Btn disabled={!projectId||busy} onClick={()=>setDraft({userId:state.currentUser.userId,purpose:'',checkInAt:'',checkOutAt:''})}>Add Punch-in Record</Btn>}
-  {canPunch&&draft&&<div style={{border:`1px solid ${T.line}`,padding:16,marginTop:14}}><Field label="Team member"><select style={inputStyle} value={draft.userId} onChange={e=>setDraft(d=>({...d,userId:e.target.value}))}>{(state.teamMaster||[]).filter(m=>admin||m.userId===state.currentUser.userId).map(m=><option key={m.userId} value={m.userId}>{m.name}</option>)}</select></Field>{[['checkInAt','Entry date & time'],['checkOutAt','Exit date & time (optional)']].map(([k,label])=><Field key={k} label={label}><input type="datetime-local" style={inputStyle} value={draft[k]} onChange={e=>setDraft(d=>({...d,[k]:e.target.value}))}/></Field>)}<Field label="Purpose"><input style={inputStyle} value={draft.purpose} onChange={e=>setDraft(d=>({...d,purpose:e.target.value}))}/></Field><Btn disabled={busy||!draft.checkInAt||!draft.userId} onClick={save}>Save Punch-in</Btn><button style={smallBtn} onClick={()=>setDraft(null)}>Cancel</button></div>}
-  <p role="status">{message}</p><table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr>{['Member','Entry','Exit','Purpose',...(canPunch?['Actions']:[])].map(h=><th key={h} style={thStyle}>{h}</th>)}</tr></thead><tbody>{rows.map(r=><tr key={r.punchId}><td style={tdStyle}>{r.person}</td><td style={tdStyle}>{r.checkInAt?new Date(r.checkInAt).toLocaleString('en-IN'):'—'}</td><td style={tdStyle}>{r.checkOutAt?new Date(r.checkOutAt).toLocaleString('en-IN'):'—'}</td><td style={tdStyle}>{r.purpose}</td>{canPunch&&<td style={tdStyle}>{(admin||r.userId===state.currentUser.userId)&&<button disabled={busy} style={smallBtn} onClick={()=>edit(r)}>Edit Dates</button>}{admin&&<button disabled={busy} style={smallBtn} onClick={()=>remove(r)}>Delete</button>}</td>}</tr>)}</tbody></table>{!rows.length&&<p>No punch-in records.</p>}</section>;
-}
-
-
-function StageActivationPanel({state,project,row,disabled,onActivated,onActivationState}){
-  const [reference,setReference]=useState('');
-  const [selection,setSelection]=useState({scope:'',excluded:[]});
-  const [confirmed,setConfirmed]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
-  const zones=project.floorZones||[];
-  const key=z=>JSON.stringify([z.floor,z.area]);
-  const scope=JSON.stringify([project.id,row.lineWorkId]);
-  const excluded=selection.scope===scope?selection.excluded:[];
-  const chosen=zones.filter(z=>!excluded.includes(key(z)));
-  const toggleAreas=(areas,checked)=>setSelection(current=>{
-    const previous=current.scope===scope?current.excluded:[],targets=new Set(areas.map(key));
-    return {scope,excluded:checked?previous.filter(k=>!targets.has(k)):[...new Set([...previous,...targets])]};
-  });
-  const floorGroups=[...zones.reduce((groups,z)=>{const floor=String(z.floor||'Unspecified floor');if(!groups.has(floor))groups.set(floor,[]);groups.get(floor).push(z);return groups;},new Map())];
-  const floorRank=f=>{const value=f.trim().toLowerCase();if(['basement','b1'].includes(value))return -1;if(['stilt','stilt floor','sf'].includes(value))return -.5;if(['gf','ground floor','ground'].includes(value))return 0;const numeric=/^(-?\d+)\s*f$/.exec(value);if(numeric)return Number(numeric[1]);return value==='terrace'?1000:2000;};
-  floorGroups.sort((a,b)=>floorRank(a[0])-floorRank(b[0]));
-  const [activationError,setActivationError]=useState(false);
-  const activate=async()=>{
-    setBusy(true);setMessage('');setActivationError(false);onActivationState?.('Activating…');
-    let task;
-    try{task=await projectApi.queueWorkflowTask({projectId:project.id,lineWorkId:row.lineWorkId,coverage:chosen.map(z=>({floor:z.floor,area:z.area})),milestoneConfirmed:confirmed,activationReference:reference});}
-    catch(e){
-      const drawingsMissing=/classify|required drawing/i.test(e.message);
-      setActivationError(true);setMessage(`Activation was not saved. ${e.message}`);
-      onActivationState?.(drawingsMissing?'Blocked · drawings required':'Activation failed');setBusy(false);
-      if(drawingsMissing)alert('Please upload and classify the drawing for the selected areas before activating.');
-      return;
-    }
-    onActivationState?.('Activated · awaiting parent start');
-    setMessage('Stage activated. Start its parent task in WIH to open the ordered subtasks.');
-    try{await onActivated(task);}catch(e){setMessage(e.message||'Activation saved. Refresh to see the latest status.');}finally{setBusy(false);}
-  };
-  const guidance={fontFamily:FONT_BODY,fontSize:13,fontWeight:400,lineHeight:1.5,color:T.inkDim,margin:'10px 0'};
-  return <div style={{padding:12,border:`1px solid ${T.line}`,marginBottom:12,fontFamily:FONT_BODY,fontSize:13,fontWeight:400,lineHeight:1.5,color:T.ink}}>
-    <Field label="Drawing package / revision reference (optional)"><input disabled={disabled||busy} style={inputStyle} value={reference} onChange={e=>setReference(e.target.value)}/></Field>
-    <p style={guidance}><strong style={{fontWeight:600,color:T.ink}}>Starting milestone:</strong> {row.startingMilestone||'Confirm prerequisite'}</p>
-    <p style={guidance}>All areas are selected by default and grouped by floor. Use “Select entire floor” to include or exclude a complete floor, or choose individual areas. Meetings are shared within this activation; design steps repeat for each selected floor / area.</p>
-    <div style={{display:'grid',gap:12,margin:'12px 0'}}>{floorGroups.map(([floor,areas])=>{
-      const selected=areas.filter(z=>!excluded.includes(key(z))).length,all=selected===areas.length,mixed=selected>0&&!all;
-      return <fieldset key={floor} style={{margin:0,padding:'12px 14px',border:`1px solid ${T.line}`,minWidth:0}}>
-        <legend style={{fontFamily:FONT_BODY,fontSize:13,fontWeight:600,color:T.ink,padding:'0 6px'}}>{floor}</legend>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap',paddingBottom:10,marginBottom:10,borderBottom:`1px solid ${T.line}`}}>
-          <label style={{display:'inline-flex',alignItems:'center',gap:7,fontFamily:FONT_BODY,fontSize:13,fontWeight:500,color:T.ink}}><input type="checkbox" aria-label={`Select entire ${floor} floor`} aria-checked={mixed?'mixed':all} ref={node=>{if(node)node.indeterminate=mixed;}} disabled={disabled||busy} checked={all} onChange={e=>toggleAreas(areas,e.target.checked)}/> Select entire floor</label>
-          <span style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>{selected} of {areas.length} areas selected</span>
-        </div>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(min(100%,220px),1fr))',gap:'10px 16px'}}>{areas.map((z,i)=><label key={z.floorZoneId||i} style={{...guidance,display:'flex',gap:7,alignItems:'flex-start',margin:0}}><input type="checkbox" aria-label={`${floor} · ${z.area}${z.zoneCode?' · '+z.zoneCode:''}`} disabled={disabled||busy} checked={!excluded.includes(key(z))} onChange={e=>toggleAreas([z],e.target.checked)} style={{marginTop:3,flexShrink:0}}/><span>{z.area}{z.zoneCode&&<span style={{color:T.inkDim,fontSize:11,marginLeft:6}}>({z.zoneCode})</span>}</span></label>)}</div>
-      </fieldset>;
-    })}</div>
-    {!zones.length&&<p style={guidance}>Add floors and zones before activating a stage.</p>}
-    <label style={{...guidance,display:'flex',alignItems:'center',gap:6,margin:'12px 0'}}><input type="checkbox" disabled={disabled||busy} checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/> Starting milestone and required approvals are satisfied</label>
-    <Btn disabled={disabled||busy||!confirmed||!chosen.length} onClick={activate}>{busy?'Activating…':'Activate selected floors / areas'}</Btn>
-    {message&&<p role={activationError?"alert":"status"} style={{...guidance,color:activationError?T.red:T.inkDim,fontWeight:activationError?500:400}}>{message}</p>}
-  </div>;
-}
-function ProjectGantt({state,projectId}){
-  const [rows,setRows]=useState([]),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[editor,setEditor]=useState(null),[rangeStart,setRangeStart]=useState(new Date().toISOString().slice(0,10)),[days,setDays]=useState(90);
-  const admin=projectRole(state,projectId)==='Admin';
-  useEffect(()=>{let active=true;setRows([]);setEditor(null);setMessage('');projectApi.getProjectWorkflowTasks(projectId).then(r=>{if(active){setRows(r);const starts=r.map(t=>t.plannedStartDate).filter(Boolean).sort();if(starts.length)setRangeStart(starts[0]);}}).catch(e=>{if(active)setMessage(e.message);});return()=>{active=false;};},[projectId]);
-  const refresh=async()=>{setBusy(true);try{setRows(await projectApi.getProjectWorkflowTasks(projectId));}catch(e){setMessage(e.message);}finally{setBusy(false);}};
-  const save=async()=>{setBusy(true);try{await projectApi.updateWorkflowSchedule({projectId,designTaskId:editor.designTaskId,plannedStartDate:editor.plannedStartDate||'',plannedCompletionDate:editor.plannedCompletionDate||'',meetingChannel:editor.meetingChannel||'In person',meetingLink:editor.meetingLink||''});setRows(await projectApi.getProjectWorkflowTasks(projectId));setEditor(null);setMessage('Schedule saved. WIH completion updates actual progress.');}catch(e){setMessage(e.message);}finally{setBusy(false);}};
-  const day=24*60*60*1000,start=new Date(rangeStart+'T00:00:00Z').getTime(),width=days*22;
-  const list=rows.filter(r=>floor==='All'||!r.floor||r.floor===floor).sort((a,b)=>String(a.parentTask||a.milestone).localeCompare(String(b.parentTask||b.milestone))||Number(a.subtaskOrder)-Number(b.subtaskOrder)||String(a.floor).localeCompare(String(b.floor))||String(a.area).localeCompare(String(b.area)));
-  const offset=d=>Math.floor((new Date(String(d).slice(0,10)+'T00:00:00Z').getTime()-start)/day);
-  const bar=(from,to,color,top)=>{if(!from)return null;const x=offset(from),end=offset(to||from);if(!Number.isFinite(x)||end<0||x>=days)return null;const left=Math.max(0,x),right=Math.min(days,end+1);return <div title={`${from} → ${to||from}`} style={{position:'absolute',left:left*22,width:Math.max(4,(right-left)*22),top,height:9,background:color,border:'1px solid #26374a'}}/>;};
-  return <section style={{marginTop:20}}><h3>Floor-wise Gantt</h3><p>Pink: in-person meeting · Purple: phone/Zoom permitted · White: floor-wise design task. Bars: planned dates; lower green/navy bar: actual work. Unscheduled tasks have no invented dates.</p><div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap',marginBottom:12}}><label>From <input aria-label="Gantt start" type="date" value={rangeStart} onChange={e=>setRangeStart(e.target.value||new Date().toISOString().slice(0,10))}/></label><select aria-label="Gantt horizon" value={days} onChange={e=>setDays(Number(e.target.value))}>{[30,90,180,365].map(n=><option key={n} value={n}>{n} days</option>)}</select><select aria-label="Gantt floor" value={floor} onChange={e=>setFloor(e.target.value)}><option>All</option>{[...new Set(rows.map(r=>r.floor).filter(Boolean))].map(f=><option key={f}>{f}</option>)}</select><Btn disabled={busy} variant="ghost" onClick={refresh}>Refresh Gantt</Btn></div><p role="status">{message}</p>
-  {admin&&editor&&<div style={{padding:16,border:`1px solid ${T.line}`,marginBottom:14}}><h4>{editor.taskType} · {editor.floor||'Shared meeting'} {editor.area}</h4>{[['plannedStartDate','Planned start'],['plannedCompletionDate','Planned finish']].map(([k,label])=><Field key={k} label={label}><input type="date" style={inputStyle} value={editor[k]||''} onChange={e=>setEditor(x=>({...x,[k]:e.target.value}))}/></Field>)}{editor.taskCategory==='Meeting'&&<><Field label="Meeting channel"><select style={inputStyle} value={editor.meetingChannel||'In person'} onChange={e=>setEditor(x=>({...x,meetingChannel:e.target.value}))}><option>In person</option>{editor.meetingMode==='Phone / Zoom allowed'&&<><option>Phone</option><option>Zoom</option></>}</select></Field><Field label="Meeting link (optional)"><input style={inputStyle} value={editor.meetingLink||''} onChange={e=>setEditor(x=>({...x,meetingLink:e.target.value}))}/></Field></>}<Btn disabled={busy} onClick={save}>Save Schedule</Btn><button style={smallBtn} onClick={()=>setEditor(null)}>Cancel</button></div>}
-  <div style={{overflowX:'auto',border:`1px solid ${T.line}`}}><div style={{minWidth:width+440}}><div style={{display:'flex',background:T.paperDim,height:32}}><div style={{width:440,flexShrink:0,padding:7}}>Task · Floor / Area · Status</div><div style={{position:'relative',width}}>{Array.from({length:Math.ceil(days/7)},(_,i)=><span key={i} style={{position:'absolute',left:i*154,fontSize:10}}>{new Date(start+i*7*day).toISOString().slice(5,10)}</span>)}</div></div>{list.map(r=>{const meeting=r.taskCategory==='Meeting',color=meeting?(r.meetingMode==='Phone / Zoom allowed'?'#B4A5D7':'#D7A5BF'):'#fff';return <div key={r.designTaskId} style={{display:'flex',borderTop:`1px solid ${T.line}`,minHeight:64}}><div style={{width:440,flexShrink:0,padding:7,background:color,fontSize:11}}><b>{r.taskType}</b><div>{r.parentTask||r.milestone} · {r.floor||'Project meeting'} {r.area} · {r.actualStatus||r.status}</div><div>{r.assigneeName||'Unassigned'}{!r.plannedStartDate&&' · Unscheduled'} {meeting&&(r.meetingChannel||r.meetingMode)} {r.meetingLink&&<a href={r.meetingLink} target="_blank" rel="noreferrer">Meeting link</a>} {admin&&<button style={smallBtn} onClick={()=>setEditor({...r})}>Schedule</button>}</div></div><div style={{position:'relative',width,background:'repeating-linear-gradient(to right,#fff 0px,#fff 21px,#e8e8e8 21px,#e8e8e8 22px)'}}>{bar(r.plannedStartDate,r.plannedCompletionDate,color,12)}{bar(r.startedAt,r.completedAt||new Date().toISOString(),r.status==='Completed'?T.green:T.navy,32)}</div></div>;})}{!rows.length&&<p style={{padding:16}}>No activated subtasks yet. Save the PDF flow, activate a stage, then start its parent task in WIH.</p>}</div></div></section>;
-}
-
 let AUTH_ID_TOKEN='';
-let AUTH_SESSION_GENERATION=0;
-function clearStudioCaches(){resetWorkspaceActivity();PAGE_READ_CACHE.clear();clearWorkflowWorkspaceCache();try{for(let i=localStorage.length-1;i>=0;i--){const k=localStorage.key(i);if(k&&/enlighten/i.test(k))localStorage.removeItem(k);}}catch(_){}}
+function clearStudioCaches(){try{for(let i=localStorage.length-1;i>=0;i--){const k=localStorage.key(i);if(k&&/enlighten/i.test(k))localStorage.removeItem(k);}}catch(_){}}
 export default function App(){
-  const [signedIn,setSignedIn]=useState(false);
+  const [token,setToken]=useState('');
   const [config,setConfig]=useState(null);
   const [error,setError]=useState('');
-  const [checking,setChecking]=useState(true);
-  const [signingIn,setSigningIn]=useState(false);
-  const buttonRef=useRef(null),attemptRef=useRef(0),signingInRef=useRef(false);
-  const enter=()=>{AUTH_ID_TOKEN='';AUTH_SESSION_GENERATION++;clearStudioCaches();setError('');setSignedIn(true);};
-  const signOut=async()=>{
-    if(signingInRef.current)return;
-    setChecking(true);setError('');attemptRef.current++;
-    try{
-      const response=await fetch('/api',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'authSignOut'})});
-      const result=await response.json();if(!response.ok||!result.ok)throw Error(result.error?.message||'Could not sign out. Please retry.');
-      AUTH_ID_TOKEN='';AUTH_SESSION_GENERATION++;clearStudioCaches();setSignedIn(false);window.google?.accounts?.id?.disableAutoSelect();
-    }catch(e){setError(e.message||'Could not sign out. Check your connection and retry.');}
-    finally{setChecking(false);}
-  };
+  const buttonRef=useRef(null);
+  const signOut=()=>{fetch('/api',{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'authSignOut',payload:{}})}).catch(()=>{});AUTH_ID_TOKEN='';clearStudioCaches();setToken('');window.google?.accounts?.id?.disableAutoSelect();};
+  useEffect(()=>{const expired=()=>{signOut();setError('Your sign-in expired. Sign in again.');};window.addEventListener('enlighten-auth-expired',expired);fetch('/api?action=authConfig').then(r=>r.json()).then(r=>{if(!r.data?.clientId)throw Error('Admin setup required: configure GOOGLE_CLIENT_ID in Vercel.');setConfig(r.data);}).catch(e=>setError(e.message));return()=>window.removeEventListener('enlighten-auth-expired',expired);},[]);
   useEffect(()=>{
+    if(!config||token)return;
     let active=true;
-    const expired=()=>{attemptRef.current++;AUTH_ID_TOKEN='';AUTH_SESSION_GENERATION++;clearStudioCaches();setSignedIn(false);setChecking(false);setError('Your session has ended. Sign in again to continue.');};
-    window.addEventListener('enlighten-auth-expired',expired);
-    Promise.all([fetch('/api?action=authConfig',{credentials:'same-origin'}).then(r=>r.json()),fetch('/api?action=authSession',{credentials:'same-origin'}).then(r=>r.json())]).then(([configuration,session])=>{
-      if(!active)return;
-      if(!configuration.data?.clientId)throw Error('Admin setup required: configure GOOGLE_CLIENT_ID in Vercel.');
-      setConfig(configuration.data);
-      if(!session.ok)throw Error(session.error?.message||'Could not check sign-in. Refresh to retry.');
-      if(session.data?.signedIn)enter();
-    }).catch(e=>{if(active)setError(e.message);}).finally(()=>{if(active)setChecking(false);});
-    return()=>{active=false;window.removeEventListener('enlighten-auth-expired',expired);};
-  },[]);
-  useEffect(()=>{
-    if(!config||signedIn||checking)return;
-    let active=true;
-    const renderButton=()=>{
-      if(!active||!buttonRef.current)return;
-      window.google.accounts.id.initialize({client_id:config.clientId,auto_select:false,callback:async response=>{
-        if(!active||!response.credential||signingInRef.current)return;
-        const attempt=++attemptRef.current;signingInRef.current=true;setSigningIn(true);setError('');
-        try{
-          const reply=await fetch('/api',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'text/plain;charset=utf-8',Authorization:`Bearer ${response.credential}`},body:JSON.stringify({action:'authSession'})});
-          const result=await reply.json();if(!reply.ok||!result.ok||!result.data?.signedIn)throw Error(result.error?.message||'Could not complete sign-in. Please retry.');
-          if(active&&attempt===attemptRef.current)enter();
-        }catch(e){if(active&&attempt===attemptRef.current)setError(e.message||'Could not complete sign-in. Please retry.');}
-        finally{signingInRef.current=false;if(active)setSigningIn(false);}
-      }});
-      window.google.accounts.id.renderButton(buttonRef.current,{type:'standard',theme:'outline',size:'medium',shape:'pill',text:'signin_with',logo_alignment:'left'});
-    };
+    const renderButton=()=>{if(!active||!buttonRef.current)return;window.google.accounts.id.initialize({client_id:config.clientId,auto_select:false,callback:async response=>{if(!active||!response.credential)return;try{const login=await fetch('/api',{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8',Authorization:`Bearer ${response.credential}`},body:JSON.stringify({action:'authSession',payload:{}})});const result=await login.json();if(!login.ok||!result?.ok||!result?.data?.signedIn)throw Error(result?.error?.message||'Could not establish a secure Preview session.');if(!active)return;AUTH_ID_TOKEN=response.credential;clearStudioCaches();setError('');setToken(response.credential);}catch(err){if(active)setError(err?.message||'Sign-in session failed.');}}});window.google.accounts.id.renderButton(buttonRef.current,{theme:'outline',size:'large',width:280,text:'signin_with'});};
     if(window.google?.accounts?.id){renderButton();return()=>{active=false;};}
     let script=document.getElementById('enlighten-google-login');if(!script){script=document.createElement('script');script.id='enlighten-google-login';script.src='https://accounts.google.com/gsi/client';script.async=true;document.head.appendChild(script);}
-    script.addEventListener('load',renderButton);const failed=()=>{if(active)setError('Google sign-in could not load. Check your connection.');};script.addEventListener('error',failed);
+    script.addEventListener('load',renderButton);const failed=()=>setError('Google sign-in could not load. Check your connection.');script.addEventListener('error',failed);
     return()=>{active=false;script.removeEventListener('load',renderButton);script.removeEventListener('error',failed);};
-  },[config,signedIn,checking]);
-  if(signedIn)return <div className="signed-in-workspace"><div className="workspace-topbar" style={{background:T.navy,color:'#fff',padding:'8px 18px',display:'flex',justifyContent:'flex-end',alignItems:'center',gap:12,fontFamily:FONT_BODY,fontSize:12}}>{error&&<span role="alert">{error}</span>}<button disabled={checking} onClick={signOut} style={{...smallBtn,background:'#fff'}}>{checking?'Signing out…':'Sign out / switch account'}</button></div><StudioApp/><DashboardUploadProgress generation={AUTH_SESSION_GENERATION} theme={T} font={FONT_BODY} mono={FONT_MONO} buttonStyle={smallBtn}/></div>;
-  return <main className="enlighten-landing" aria-label="enLIGHTen sign in">
-    <section className="enlighten-landing__center" aria-label="Welcome to enLIGHTen">
-      <img className="enlighten-landing__logo" src="/enlighten-wordmark.svg" alt="enLIGHTen" width="710" height="140" />
-      <div className="enlighten-landing__signin">
-        <div className="enlighten-landing__google" ref={buttonRef}/>
-        {(checking||signingIn||(!config&&!error))&&<p className="enlighten-landing__hint" role="status">{signingIn?'Signing in…':checking?'Checking sign-in…':'Loading sign-in…'}</p>}
-        {error&&<p className="enlighten-landing__error" role="alert">{error}</p>}
-      </div>
-    </section>
-    <p className="enlighten-landing__footer"><span>SENSING SPACES - EVOKING EMOTIONS</span><span>ARCHITECTURE, REIMAGINED</span></p>
-  </main>;
+  },[config,token]);
+  if(token)return <><div style={{background:T.navy,color:'#fff',padding:'8px 18px',display:'flex',justifyContent:'space-between',fontFamily:FONT_BODY,fontSize:12}}><span>Signed in with Google</span><button onClick={signOut} style={{...smallBtn,background:'#fff'}}>Sign out / switch account</button></div><StudioApp/></>;
+  return <div style={{minHeight:'90vh',background:T.paper,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:FONT_BODY,padding:24}}><div style={{background:'#fff',border:`1px solid ${T.line}`,padding:32,width:360,maxWidth:'100%'}}><h1 style={{fontFamily:FONT_DISPLAY,color:T.navy,fontSize:24}}>enLIGHTen OS</h1><p style={{fontSize:13,color:T.inkDim,lineHeight:1.6}}>Sign in with the Google account registered in Team Master.</p><div ref={buttonRef}/>{!config&&!error&&<p>Loading sign-in…</p>}{error&&<p role="alert" style={{fontSize:12,color:T.redline}}>{error}</p>}</div></div>;
 }
-
-
-
-function MomTaskPictures({row}){let photos=[];try{photos=JSON.parse(row.photosJson||'[]');}catch{}return Array.isArray(photos)&&photos.length?<MomPhotoLinks photos={photos}/>:null;}
-
-// Shared by the Diary entry point and the Line of Work planner.
-export {ExecutionVisitPlanner};
