@@ -19,7 +19,7 @@ export function buildColumnTable(data,zones=[],products=[]){
  const headers=data.headers||[],warnings=[],groups=new Map();
  const read=(row,names)=>{for(const n of names){for(let i=0;i<headers.length;i++)if(key(headers[i])===key(n)&&clean(row[i])&&!/^<>$/.test(clean(row[i])))return clean(row[i])}return ''};
  const field=(row,i)=>read(row,aliases[i]);
- for(const row of data.rows||[]){const cn=key(field(row,1));if(!cn){warnings.push('An Output row has no circuit number and was skipped.');continue}const prefix=cn.match(/^[A-Z]+/)?.[0]||'',floor=read(row,['FLOOR','FLOORNAME']);const matches=zones.filter(z=>!['false','0'].includes(String(z.active).toLowerCase())&&key(z.zoneCode)===prefix&&(!floor||key(z.floor)===key(floor)));const zone=matches.length===1?matches[0]:null;if(!zone)warnings.push(`${cn}: ${matches.length>1?'zone exists on multiple floors; add FLOOR to Output':'no matching active Floor Zone'}.`);const id=`${floor||zone?.floor||''}|${cn}`;if(!groups.has(id))groups.set(id,{id,cn,zone,zoneCode:prefix,floor:floor||zone?.floor||'',rows:[]});groups.get(id).rows.push(row)}
+ for(const [sourceIndex,row] of (data.rows||[]).entries()){const cn=key(field(row,1));if(!cn){warnings.push('An Output row has no circuit number and was skipped.');continue}const prefix=cn.match(/^[A-Z]+/)?.[0]||'',floor=read(row,['FLOOR','FLOORNAME']);const matches=zones.filter(z=>!['false','0'].includes(String(z.active).toLowerCase())&&key(z.zoneCode)===prefix&&(!floor||key(z.floor)===key(floor)));const zone=matches.length===1?matches[0]:null;if(!zone)warnings.push(`${cn}: ${matches.length>1?'zone exists on multiple floors; add FLOOR to Output':'no matching active Floor Zone'}.`);const id=`${floor||zone?.floor||''}|${cn}`;if(!groups.has(id))groups.set(id,{id,cn,zone,zoneCode:prefix,floor:floor||zone?.floor||'',rows:[],sourceIndices:[]});groups.get(id).rows.push(row);groups.get(id).sourceIndices.push(sourceIndex)}
  const result=[...groups.values()].map(g=>{
  const unique=fn=>[...new Set(g.rows.map(fn).filter(Boolean))];
  const value=(i)=>{const values=unique(r=>field(r,i));if(values.length>1)warnings.push(`${g.cn}: conflicting ${['Zone','CN','fixture','type','application','3D','reference','object size','CMF','height','illuminance'][i]} values.`);return values.join(' / ')};
@@ -29,7 +29,7 @@ export function buildColumnTable(data,zones=[],products=[]){
  if(linear&&lengths.some(x=>x===null))warnings.push(`${g.cn}: missing or invalid linear length; quantity needs review.`);
  const heights=unique(r=>{const h=field(r,9)||read(r,['CLEARHEIGHT','CLEAR HEIGHT']),d=read(r,['DISTANCE']);const mount=[read(r,['SURFACE']),read(r,['MOUNT'])].filter(Boolean).join(' ');return [h,d&&d!==h?d:'',mount?`(${mount})`:''].filter(Boolean).join('\n')});
  const lighting=lightingClass({explicit:unique(r=>read(r,['LIGHTINGLAYER','LIGHTINGCATEGORY','LIGHTINGCLASS'])).join(' '),category:found.length===1?found[0].category:'',type:value(3),application:value(4)});
- const override=data.overrides?.[g.id]||{};return {...g,lighting:['Fill','Focused','Decorative','Unclassified'].includes(override.lighting)?override.lighting:lighting,code:codes.join(' / '),icon:found.length===1?found[0].iconUrl:'',type:value(3),application:value(4),object:value(7)||unique(r=>/^\d+(?:\.\d+)?\s*[x×]\s*\d+/i.test(read(r,['LENGTH']))?read(r,['LENGTH']):'').join(' / '),cmf:Object.hasOwn(override,'cmf')?override.cmf:value(8),height:heights.join('\n/\n'),illuminance:value(10),quantity:linear?lengths.map(n=>n===null?'[length missing]':`${Number(n.toFixed(4))} m`).join(' + '):`${g.rows.length} ${g.rows.length===1?'Pc':'Pcs'}`,override};
+ const override=data.overrides?.[g.id]||{};return {...g,lighting:['Fill','Focused','Decorative','Unclassified'].includes(override.lighting)?override.lighting:lighting,code:codes.join(' / '),icon:found.length===1?found[0].iconUrl:'',type:value(3),application:value(4),object:value(7)||unique(r=>/^\d+(?:\.\d+)?\s*[x×]\s*\d+/i.test(read(r,['LENGTH']))?read(r,['LENGTH']):'').join(' / '),cmf:Object.hasOwn(override,'cmf')?override.cmf:value(8),height:heights.join('\n/\n'),illuminance:value(10),linear,quantity:linear?lengths.map(n=>n===null?'[length missing]':`${Number(n.toFixed(4))} m`).join(' + '):`${g.rows.length} ${g.rows.length===1?'Pc':'Pcs'}`,override};
  }).sort((a,b)=>{const zoneOrder=cn=>(cn.match(/^[A-Z]+/)?.[0]||'').split('').reduce((n,c)=>n*26+c.charCodeAt(0)-64,0);return zoneOrder(a.cn)-zoneOrder(b.cn)||String(a.floor||'').localeCompare(String(b.floor||''),undefined,{numeric:true})||a.cn.localeCompare(b.cn,undefined,{numeric:true})});return {rows:result,warnings:[...new Set(warnings)]};
 }
 
@@ -37,7 +37,7 @@ export function parseTechnicalExport(text){
  const data=parseOutputText(text,true),names=data.headers.map(key);
  if(!names.includes('CN')||!names.includes('HOUSINGNUMBER'))throw Error('The first row must contain the CN and HOUSINGNUMBER headers from your text export.');
  if(!data.rows.length)throw Error('The export contains no lighting rows.');
- return data;
+ return {...data,sourceText:String(text)};
 }
 export function shortTechnicalFloor(floor){
  const value=clean(floor);if(/^(?:ground(?: floor)?|gf)$/i.test(value))return 'GF';
