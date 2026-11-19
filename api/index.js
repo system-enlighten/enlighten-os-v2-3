@@ -68,9 +68,13 @@ export async function transferUploadChunk(ticket,payload,secret){
 }
 export const SESSION_SECONDS=12*60*60;
 const SESSION_COOKIE='enlighten_session';
-function requestHost(req){return String(req.headers?.host||'').toLowerCase();}
+export function requestHost(req){return String(req.headers?.host||'').toLowerCase();}
 function localHost(host){return /^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host);}
-function cookieValue(req){return String(req.headers?.cookie||'').split(';').map(v=>v.trim()).find(v=>v.startsWith(SESSION_COOKIE+'='))?.slice(SESSION_COOKIE.length+1)||'';}
+export function cookieValue(req){return String(req.headers?.cookie||'').split(';').map(v=>v.trim()).find(v=>v.startsWith(SESSION_COOKIE+'='))?.slice(SESSION_COOKIE.length+1)||'';}
+export function readAppSession(req, secret=process.env.ENLIGHTEN_PROXY_SECRET, audience=process.env.GOOGLE_CLIENT_ID) {
+  if (!secret || !audience) return null;
+  return verifyAppSession(cookieValue(req), secret, audience, requestHost(req));
+}
 export function createAppSession(identity,secret,audience,host,now=Date.now()){
   const iat=Math.floor(now/1000),payload=Buffer.from(JSON.stringify({v:1,identity,audience,host,iat,exp:iat+SESSION_SECONDS})).toString('base64url');
   const signature=createHmac('sha256',secret).update('enlighten-session-v1:'+payload).digest('base64url');
@@ -111,7 +115,7 @@ export default async function handler(req,res) {
     if(!secret||secret.length<32||!audience||!url)return send(503,{ok:false,error:{message:'Login configuration is incomplete. Configure the Vercel environment variables.'}});
     if(method==='GET'&&!READ_ACTIONS.has(action))return send(405,{ok:false,error:{message:'This action requires POST'}});
     if(method==='POST'&&!sameOrigin(req))return send(403,{ok:false,error:{message:'Request origin is not allowed.'}});
-    const session=verifyAppSession(cookieValue(req),secret,audience,requestHost(req));
+    const session=readAppSession(req,secret,audience);
     const bearer=/^Bearer ([^\s]+)$/.exec(String(req.headers?.authorization||''));
     if(action==='authSignOut'){
       if(method!=='POST')return send(405,{ok:false,error:{message:'Sign out requires POST.'}});

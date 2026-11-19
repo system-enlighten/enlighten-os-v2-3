@@ -3,7 +3,7 @@
 // Requires the existing Enlighten session or a Google ID token and
 // independently authorizes the requested project via Apps Script.
 import { Pool } from 'pg';
-import { verifyAppSession, verifyGoogleIdentity, signRequest, fetchAppsScript } from './index.js';
+import { readAppSession, cookieValue, verifyGoogleIdentity, signRequest, fetchAppsScript } from './index.js';
 
 // Trust the Supabase database CA supplied only to the Vercel server runtime.
 // Do not disable TLS verification or expose this certificate via VITE_ variables.
@@ -21,11 +21,6 @@ function databaseConnection(url) {
   return { connectionString: parsed.toString(), ssl: { ca, rejectUnauthorized: true } };
 }
 
-const cookieName = 'enlighten_session';
-function sessionCookie(req) {
-  return String(req.headers.cookie || '').split(';').map(x => x.trim())
-    .find(x => x.startsWith(cookieName + '='))?.slice(cookieName.length + 1) || '';
-}
 function respond(res, status, message) {
   return res.status(status).json({ ok: false, error: { message } });
 }
@@ -65,8 +60,16 @@ export default async function handler(req, res) {
   const dbUrl = process.env.SUPABASE_DATABASE_URL;
   if (!secret || secret.length < 32 || !audience || !appsScriptUrl || !dbUrl)
     return respond(res, 503, 'Preview server configuration is incomplete');
-  const host = String(req.headers.host || '').toLowerCase();
-  let identity = verifyAppSession(sessionCookie(req), secret, audience, host);
+  // Both API routes now use the exact same session reader and verifier.
+  let identity = readAppSession(req, secret, audience);
+  // Safe diagnostic: no tokens, emails, cookie values, or secrets returned.
+  // Compare this with /api?action=authSession on the SAME hostname.
+  if (req.query?.check === 'session') {
+    return res.status(200).json({ ok: true, data: {
+      cookiePresent: Boolean(cookieValue(req)), signedIn: Boolean(identity),
+      preview: process.env.VERCEL_ENV === 'preview'
+    }});
+  }
   const bearer = /^Bearer ([^\s]+)$/.exec(String(req.headers.authorization || ''));
   if (bearer) {
     try { identity = await verifyGoogleIdentity(bearer[1], audience); }
