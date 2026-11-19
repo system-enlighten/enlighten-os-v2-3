@@ -507,6 +507,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
     </form>;
 
   return <section className="accounts">
+    {data.warnings?.length>0&&<div role="alert" className="accounts-error">{data.warnings.map((warning,i)=><p key={i}>{warning}</p>)}</div>}
     {error&&<p role="alert" className="accounts-error">{error}</p>}{notice&&<p role="status" style={{background:'#e8f5e9',padding:8,borderRadius:3,color:'#1b5e20'}}>{notice}</p>}
     
     {page==='Home'&&<AccountsDashboard data={data} today={today()} onNavigate={onNavigate}/>}

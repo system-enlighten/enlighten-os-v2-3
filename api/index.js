@@ -111,15 +111,6 @@ export default async function handler(req,res) {
     const query=req.query||{};const action=method==='GET'?query.action:body.action;
     if(typeof action!=='string'||!action)return send(400,{ok:false,error:{message:'Choose one action'}});
     if(action==='authConfig'&&method==='GET'){res.setHeader('Cache-Control','public, max-age=3600, stale-while-revalidate=86400');return send(200,{ok:true,data:{clientId:process.env.GOOGLE_CLIENT_ID||''}});}
-    if(method==='GET'&&CACHEABLE_SERVER_READS.has(action)){
-      const cacheKey=action+':'+JSON.stringify(query);
-      const hit=SERVER_CACHE.get(cacheKey);
-      if(hit&&Date.now()-hit.time<SERVER_CACHE_TTL_MS){
-        res.setHeader('Cache-Control','public, max-age=30, stale-while-revalidate=60');
-        return send(200,hit.result);
-      }
-    }
-    if(method==='POST'&&CACHE_CLEARING_MUTATIONS.has(action)){SERVER_CACHE.clear();}
     const secret=process.env.ENLIGHTEN_PROXY_SECRET, audience=process.env.GOOGLE_CLIENT_ID,url=process.env.APPS_SCRIPT_URL;
     if(!secret||secret.length<32||!audience||!url)return send(503,{ok:false,error:{message:'Login configuration is incomplete. Configure the Vercel environment variables.'}});
     if(method==='GET'&&!READ_ACTIONS.has(action))return send(405,{ok:false,error:{message:'This action requires POST'}});
@@ -145,6 +136,12 @@ export default async function handler(req,res) {
       return send(200,{ok:true,data:{signedIn:true}});
     }
     if(!identity)return send(401,{ok:false,error:{message:'Your session has ended. Sign in again.'}});
+    const serverCacheKey=JSON.stringify([identity.sub,identity.email,action,query]);
+    if(method==='GET'&&CACHEABLE_SERVER_READS.has(action)){
+      const hit=SERVER_CACHE.get(serverCacheKey);
+      if(hit&&Date.now()-hit.time<SERVER_CACHE_TTL_MS)return send(200,hit.result);
+    }
+    if(method==='POST'&&CACHE_CLEARING_MUTATIONS.has(action))SERVER_CACHE.clear();
     const payload=method==='GET'?Object.fromEntries(Object.entries(query).filter(([k])=>k!=='action')):body.payload||{};
     if(!payload||Array.isArray(payload)||typeof payload!=='object')return send(400,{ok:false,error:{message:'Invalid payload'}});
     if(action==='getCadSourceTransfer')return send(403,{ok:false,error:{message:'Internal CAD transfer action is unavailable to browser callers.'}});
@@ -266,8 +263,8 @@ export default async function handler(req,res) {
       result.data={uploadTicket:ticket,sessionUrl:result.data.sessionUrl,chunkBytes:UPLOAD_CHUNK_BYTES};
     }
     if(response.ok&&result.ok&&method==='GET'&&CACHEABLE_SERVER_READS.has(action)){
-      SERVER_CACHE.set(action+':'+JSON.stringify(query),{time:Date.now(),result});
-      res.setHeader('Cache-Control','public, max-age=30, stale-while-revalidate=60');
+      if(SERVER_CACHE.size>=100)SERVER_CACHE.delete(SERVER_CACHE.keys().next().value);
+      SERVER_CACHE.set(serverCacheKey,{time:Date.now(),result});
     }
     return send(response.ok?200:502,result);
   }catch(_){return send(502,{ok:false,error:{message:'The backend request failed. Check the deployment configuration.'}});}
