@@ -1,3 +1,4 @@
+import {canSeeWork} from './work-visibility.mjs';
 import {StudioHeadingText} from './StudioHeading.jsx';
 import BriefingTimer from './BriefingTimer.jsx';
 import TaskDiscussion from './TaskDiscussion.jsx';
@@ -61,7 +62,7 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  const createTask=async e=>{
   e.preventDefault();if(creating||!newTask?.projectId||!newTask.title.trim())return;
   setCreating(true);setCreateNote('');
-  try{await request('assistantWork',{command:'create',title:newTask.title,projectId:newTask.projectId,narration:newTask.narration,activity:newTask.activity,requestId:newTask.id},'POST');setNewTask(null);setCreateNote('Task created.');}
+  try{const result=await request('assistantWork',{command:'create',title:newTask.title,projectId:newTask.projectId,narration:newTask.narration,activity:newTask.activity,requestId:newTask.id},'POST',150000);if(result.row)setRows(list=>[result.row,...list.filter(r=>r.designTaskId!==result.id)]);window.dispatchEvent(new Event('enlighten-assistant-work'));setNewTask(null);setCreateNote('Task created.');}
   catch(e){setCreateNote(e.message);return;}
   finally{setCreating(false);}
   try{setRows(await loadWork());}catch{setCreateNote('Task saved. Reload Home to see it.');}
@@ -76,7 +77,7 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
   try{const updated=await loadWork();if(Array.isArray(updated))setRows(updated);}catch{setTimerError('Timer updated. Refresh Home to check the latest saved totals.');}finally{setTimerBusy('');}
  };
  const own=r=>!!user?.userId&&String(r.assigneeUserId||'')===String(user?.userId);
- const work=admin?rows:rows.filter(own);
+ const work=rows.filter(r=>canSeeWork(user,r));
  const chooseAssignee=async row=>{setAssignment({row,people:[],id:''});setAssignmentBusy(true);setError('');try{const people=await request('reportingAssignment',{designTaskId:row.designTaskId,action:'options'},'POST');setAssignment({row,people,id:''});}catch(e){setError(e.message);}finally{setAssignmentBusy(false);}};
  useEffect(()=>{let active=true;const update=()=>loadWork().then(r=>{if(active&&Array.isArray(r))setRows(r);}).catch(e=>{if(active)setError(e.message);});window.addEventListener("enlighten-assistant-work",update);return()=>{active=false;window.removeEventListener("enlighten-assistant-work",update);};},[loadWork]);
  const assign=async()=>{setAssignmentBusy(true);setError('');try{await request('reportingAssignment',{designTaskId:assignment.row.designTaskId,action:'assign',assigneeUserId:assignment.id},'POST');setAssignment(null);setRows(await loadWork());}catch(e){setError(e.message);}finally{setAssignmentBusy(false);}};
@@ -114,7 +115,7 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  const tomorrowDeadlines=activeDay===today?deadlinesByDay.get(shiftDay(today,1))||[]:[];
  const isInternal=r=>{
   const id=taskProjectId(r);
-  return id==='__admin_work__'||String(id).startsWith('__internal_')||Object.hasOwn(areaNames,id)||r.task?.taskCategory==='Admin / Owner';
+  return id==='__admin_work__'||String(id).startsWith('__internal_')||Object.hasOwn(areaNames,id)||r.task?.taskCategory==='Admin / Owner'&&!String(r.task?.workflowActivationKey||'').startsWith('assistant:');
  };
  const isDiscussionArea=name=>String(name||'').trim().toLowerCase()==='discussion';
  const adminWork=work.filter(r=>!done(r)&&isInternal(r)&&!isDiscussionArea(projectName(r)))
@@ -163,7 +164,7 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  {newTask.type==='internal'&&areaError&&<p role="alert">{areaError}</p>}<label>Activity<select value={newTask.activity} onChange={e=>setNewTask({...newTask,activity:e.target.value})}><option>Work</option><option>Meeting / Discussion</option></select></label>
  <label>Task name<input required maxLength={120} value={newTask.title} onChange={e=>setNewTask({...newTask,title:e.target.value})}/></label>
  <label>Narration <small>(optional)</small><textarea maxLength={2000} value={newTask.narration} onChange={e=>setNewTask({...newTask,narration:e.target.value})}/></label>
- {createNote&&<p role="alert">{createNote}</p>}<footer><button type="button" style={buttonStyle} disabled={creating} onClick={()=>setNewTask(null)}>Cancel</button><button style={buttonStyle} disabled={creating||!newTask.projectId||!newTask.title.trim()}>{creating?'Saving…':'Create task'}</button></footer>
+ {createNote&&<p role="alert">{createNote}</p>}<footer><button type="button" style={buttonStyle} disabled={creating} onClick={()=>setNewTask(null)}>Cancel</button><button type="submit" style={buttonStyle} disabled={creating||!newTask.projectId||!newTask.title.trim()}>{creating?'Saving…':'Create task'}</button></footer>
  </form><section aria-label="Recent tasks"><h3>Recent tasks</h3>{!recent.length&&<p>No recent tasks yet.</p>}{recent.filter(r=>!newTask.projectId||String(r.projectId)===newTask.projectId).slice(0,8).map(r=><div className="studio-home-task-row" key={r.designTaskId}><div><strong>{title(r)}</strong><p>{projectName(r)}</p></div><button type="button" style={buttonStyle} disabled={creating||!!timerBusy} onClick={()=>{if(done(r)){setNewTask({...newTask,title:title(r),projectId:r.projectId,type:areaNames[r.projectId]?'internal':'client',activity:r.task?.taskCategory==='Meeting / Discussion'?'Meeting / Discussion':'Work'});}else{setNewTask(null);timerAction(r);}}}>{done(r)?'Use as template':'Start again'}</button></div>)}</section></section></div>}
  {!newTask&&createNote&&<p role="status">{createNote}</p>}
  {timerError&&<p role="alert" style={{color:T.redline}}>{timerError}</p>}
@@ -189,6 +190,7 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
    <p>{[item.site?'Site visit':'Meeting',[scheduledTime(item.time),scheduledTime(item.endTime)].filter(Boolean).join(' – '),item.projectName!==item.title&&item.title&&item.projectName].filter(Boolean).join(' · ')}</p></div>
   </div>)}
  </section>}
+ {activeDay===today&&openMine.some(r=>!deadlineDate(r)&&!isInternal(r))&&<section aria-label="Tasks without a due date"><h3>Open tasks · No due date</h3>{openMine.filter(r=>!deadlineDate(r)&&!isInternal(r)).map(taskRow)}</section>}
  {overdueDeadlines.length>0&&<section className="studio-home-deadline-group" aria-label="Overdue tasks"><h3>Overdue · {overdueDeadlines.length}</h3>
   {overdueDeadlines.map(taskRow)}
  </section>}

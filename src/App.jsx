@@ -1,3 +1,4 @@
+import {workProjectRole,canSeeWork} from './work-visibility.mjs';
 import ProductAssessment from './ProductAssessment.jsx';
 import ProductTechnicalTable from './ProductTechnicalTable.jsx';
 import TechnicalZoneSummary from './TechnicalZoneSummary.jsx';
@@ -4181,9 +4182,9 @@ function TechnicalTableView({state}){
 }
 
 function wihSystemAccount(user){return String(user?.email||'').trim().toLowerCase()==='system.enlighten@gmail.com';}
-function wihProjectRole(user,id){if(wihSystemAccount(user)&&String(user?.appAccess).toLowerCase()==='admin')return 'Admin';const role=user?.projectRoles?.[String(id)]||'';return String(user?.appAccess).toLowerCase()==='viewer'?(role?'User':''):role;}
-function wihCanSeeTask(user,row){const role=wihProjectRole(user,row.projectId||row.task?.projectId);return !!role&&(role==='Admin'||!!user?.userId&&String(row.assigneeUserId)===String(user.userId));}
-const registerTabsStyle={display:'flex',alignItems:'center',borderBottom:`1px solid ${T.line}`,marginBottom:18,overflowX:'auto',background:'#fff'};
+function wihProjectRole(user,id){return workProjectRole(user,id)}
+function wihCanSeeTask(user,row){return canSeeWork(user,row)}
+
 const registerTabStyle=active=>({padding:'11px 16px',border:0,borderBottom:`3px solid ${active?T.cyan:'transparent'}`,background:active?T.navy:'transparent',color:active?'#fff':T.inkDim,cursor:'pointer',fontFamily:FONT_BODY,fontSize:12,fontWeight:active?700:500,whiteSpace:'nowrap'});
 
 function projectCardTaskGroups(tasks, splitAcrossFloors=true){
@@ -4222,7 +4223,7 @@ function TimesheetView({ state, persist, calendarOnly=false }) {
   const canWork=canAssign||state.currentUser?.permissions?.wih==="own-edit";
   const [person, setPerson] = useState("All");
   const [taskSection, setTaskSection] = useState("Pending");
-  const WIH_CACHE_KEY = "enlighten_wih_art_scope_v1:"+String(state.currentUser?.userId||state.currentUser?.googleSubject||"anonymous");
+  const WIH_CACHE_KEY = "enlighten_wih_project_visibility_v2:"+String(state.currentUser?.userId||state.currentUser?.googleSubject||"anonymous");
   const WIH_CACHE_MS = 30000;
   const readWihCache = () => {
     try {
@@ -4264,7 +4265,7 @@ function TimesheetView({ state, persist, calendarOnly=false }) {
       if(!Array.isArray(wihRows)&&!Array.isArray(wihRows?.rows))throw Error('The backend returned an unexpected work list. Redeploy the included Code.gs and refresh.');
       const base=Array.isArray(wihRows)?wihRows:wihRows.rows;const diagnostics=wihRows?.diagnostics||null;setWihDiagnostics(diagnostics);
       if(base.some(r=>!Object.prototype.hasOwnProperty.call(r,"receipt")))throw Error("Update and redeploy the included Apps Script backend, then refresh WIH. The running backend is missing received-drawing links.");
-      const byId=new Map(base.filter(r=>r?.designTaskId&&(r.receipt?.drawingId||String(r.task?.workflowActivationKey||'').startsWith('assistant:'))).map(r=>[String(r.designTaskId),r]));
+      const byId=new Map(base.filter(r=>r?.designTaskId).map(r=>[String(r.designTaskId),r]));
       const nextRows=[...byId.values()];
       setRemoteTasks(nextRows);
       try { localStorage.setItem(WIH_CACHE_KEY, JSON.stringify({savedAt:Date.now(), rows:nextRows,diagnostics})); } catch (_) {}
@@ -4294,7 +4295,7 @@ function TimesheetView({ state, persist, calendarOnly=false }) {
   useEffect(()=>{wihMounted.current=true;refreshAndRecover(false);return()=>{wihMounted.current=false;wihRequestSeq.current++;};},[]);
 
   const currentProjectIds=new Set((state.projects||[]).map(p=>String(p.id)));
-  const visibleRemoteTasks=remoteTasks.filter(r=>(r.receipt?.drawingId||String(r.task?.workflowActivationKey||'').startsWith('assistant:'))&&currentProjectIds.has(String(r.projectId||r.task?.projectId))&&wihCanSeeTask(state.currentUser,r));
+  const visibleRemoteTasks=remoteTasks.filter(r=>currentProjectIds.has(String(r.projectId||r.task?.projectId))&&wihCanSeeTask(state.currentUser,r));
   const displayTasks=visibleRemoteTasks.length?visibleRemoteTasks.map(r=>({
     ...r,
     id:r.designTaskId,
