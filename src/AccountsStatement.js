@@ -20,22 +20,33 @@ export function parseStatement(text){
   finish();
   if(!rows.length)throw Error('Uploaded CSV file is empty.');
 
-  const headers=rows.shift()?.map(s=>s.toLowerCase().trim())||[];
+  return parseStatementRows(rows);
+}
+export const statementCsvTemplate='Transaction Date,Value Date,Particulars,Cheque No.,Debit,Credit,Balance\n';
+export function parseStatementRows(input){
+ const normalize=v=>String(v??'').replace(/\s+/g,' ').trim();
+ const rows=input.map(row=>row.map(normalize));
+ const headerIndex=rows.findIndex(row=>row.some(v=>/date/i.test(v))&&row.some(v=>/^(debit|dr|withdrawal|outflow)(\b|_)/i.test(v))&&row.some(v=>/^(credit|cr|deposit|inflow)(\b|_)/i.test(v)));
+ if(headerIndex<0)throw Error('Statement must contain Date, Debit, and Credit columns.');
+ const headers=rows[headerIndex].map(s=>s.toLowerCase().trim());
+ const body=rows.slice(headerIndex+1);
+
   const findIdx=patterns=>{
     for(const p of patterns){
-      const idx=headers.findIndex(h=>p.test(h));
+      const idx=headers.findIndex(h=>p.test(h.replace(/\.$/,'')));
       if(idx!==-1)return idx;
     }
     return -1;
   };
 
-  const dateIdx=findIdx([/^(txn|trans|transaction|value)?[\s_-]*date$/i, /date$/i, /date/i]);
+  const dateIdx=findIdx([/^transaction[ _-]*date$/i,/^date$/i,/^(txn|trans|transaction|value)?[\s_-]*date$/i, /date$/i, /date/i]);
   const bankIdx=findIdx([/^(source account|account|bank)$/i]);
   const headIdx=findIdx([/^(ledger head|chart of accounts|head)$/i]);
   const projectIdx=findIdx([/^project[ _-]?id$/i]);
   const beneficiaryIdx=findIdx([/^beneficiary$/i]);
   const classificationIdx=findIdx([/^classification$/i]);
   const valueIdx=findIdx([/^value[ _-]?date$/i]);
+  const balanceIdx=findIdx([/^(closing[ _-]*)?balance(?:[ _-]*amount)?$/i]);
   const refIdx=findIdx([/^(ref|reference|utr|chq|cheque|txn[\s_-]*id|transaction[\s_-]*id|doc[\s_-]*no)[\s_-]*(no|number)?$/i, /ref/i, /utr/i, /chq/i]);
   const descIdx=findIdx([/^(desc|description|particulars|narration|remarks|details)/i, /particular/i, /narration/i, /desc/i, /detail/i]);
   const debitIdx=findIdx([/^(debit|dr|withdrawal|outflow)[\s_-]*(amount)?$/i, /^debit$/i, /^dr$/i, /debit/i]);
@@ -67,7 +78,7 @@ export function parseStatement(text){
 
   const sanitizeNum=s=>String(s||'').replace(/[₹$,\s]/g,'').trim();
 
-  return rows.filter(r=>r.some(Boolean)).map((values,index)=>{
+  return body.filter(r=>r.some(Boolean)).filter(r=>!r[dateIdx]&&r.some(v=>/^total(?:\s|$)/i.test(v))?false:!r[dateIdx]&&!r[debitIdx]&&!r[creditIdx]?false:true).filter(r=>!r.every((v,i)=>!v||v.toLowerCase()===headers[i])).map((values,index)=>{
     const rawDate=values[dateIdx]||'';
     const date=parseDateStr(rawDate);
     const reference=refIdx!==-1?(values[refIdx]||'').trim():'REF-'+(index+1);
@@ -102,6 +113,7 @@ export function parseStatement(text){
     return {
       ...(bank?{bank}:{}),head:headIdx<0?'':values[headIdx]||'',projectId:projectIdx<0?'':values[projectIdx]||'',beneficiary:beneficiaryIdx<0?'':values[beneficiaryIdx]||'',classification:classificationIdx<0?'':values[classificationIdx]||'',valueDate,
       date,
+      ...(balanceIdx>=0&&values[balanceIdx]?{statementBalance:sanitizeNum(values[balanceIdx])}:{}),
       reference:reference||('TXN-'+(index+1)),
       description,
       amount:hasDr?dr:cr,
