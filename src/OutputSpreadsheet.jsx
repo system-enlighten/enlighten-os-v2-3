@@ -1,4 +1,4 @@
-import React,{useEffect,useRef,useState} from 'react';
+import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {insertOutputRow,deleteOutputRow} from './output-row-editing.mjs';
 import {bounds,columnName,writable,rangeText,pasteCells,clearCells,fillDown} from './output-spreadsheet.mjs';
 import {outputCellChanges} from './technical-editing.mjs';
@@ -6,7 +6,7 @@ import './OutputSpreadsheet.css';
 export default function OutputSpreadsheet({data,onChange,editable,onError}){
  const [anchor,setAnchor]=useState({r:0,c:0}),[end,setEnd]=useState({r:0,c:0}),[draft,setDraft]=useState(null),[past,setPast]=useState([]),[future,setFuture]=useState([]),[query,setQuery]=useState(''),[pasteOpen,setPasteOpen]=useState(false),[pasteText,setPasteText]=useState('');
  const valueInput=useRef(null);const editing=draft!==null;useEffect(()=>{if(editing)valueInput.current?.focus()},[editing]);
- const grid=useRef(null),range=bounds(anchor,end),hasRows=data.rows.length>0,changes=outputCellChanges(data);
+ const grid=useRef(null),range=bounds(anchor,end),hasRows=data.rows.length>0,changes=useMemo(()=>outputCellChanges(data),[data]);
  const allowed=editable&&hasRows;
  function commit(next){setPast(p=>[...p.slice(-29),data]);setFuture([]);onChange(next);setDraft(null)}
  function run(fn){try{commit(fn())}catch(e){onError(e.message)}}
