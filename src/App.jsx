@@ -6391,6 +6391,8 @@ function WorkflowDelegationView({state,initialProjectId=''}){
 // Does not change application state or write to either database.
 function SupabaseProjectComparison({ sheetProjects }) {
   const [result, setResult] = useState(null);
+  const [supabaseRows, setSupabaseRows] = useState([]);
+  const [showSupabaseRows, setShowSupabaseRows] = useState(false);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const controllerRef = useRef(null);
@@ -6402,7 +6404,7 @@ function SupabaseProjectComparison({ sheetProjects }) {
     controllerRef.current?.abort();
     const controller = new AbortController();
     controllerRef.current = controller;
-    setBusy(true); setResult(null); setProgress(0);
+    setBusy(true); setResult(null); setProgress(0); setSupabaseRows([]); setShowSupabaseRows(false);
     try {
       const imported = [];
       let page = 1;
@@ -6438,8 +6440,9 @@ function SupabaseProjectComparison({ sheetProjects }) {
           ["architect", s.architect], ["projectStatus", s.projectStatus || s.status],
         ];
         const mismatches = fields.filter(([key, val]) => String(p[key] ?? "").trim() !== String(val ?? "").trim()).map(([key]) => key);
-        if (mismatches.length) different.push({ id, fields: mismatches });
+        if (mismatches.length) different.push({ id, fields: mismatches, values: mismatches.map(key => ({ field: key, sheets: String(fields.find(f => f[0] === key)?.[1] ?? ""), supabase: String(p[key] ?? "") })) });
       }
+      setSupabaseRows(imported);
       setResult({ imported: imported.length, sheetCount: sheetMap.size, matched: [...supaMap.keys()].filter(id => sheetMap.has(id)).length, onlyInSheets, onlyInSupabase, different });
     } catch (error) {
       if (error.name !== "AbortError") setResult({ error: error.message || "Comparison failed" });
@@ -6460,6 +6463,9 @@ function SupabaseProjectComparison({ sheetProjects }) {
       {result.onlyInSheets.length > 0 && <div>Sheets-only IDs: {result.onlyInSheets.slice(0,15).join(", ")}{result.onlyInSheets.length>15?" …":""}</div>}
       {result.onlyInSupabase.length > 0 && <div>Supabase-only IDs: {result.onlyInSupabase.slice(0,15).join(", ")}{result.onlyInSupabase.length>15?" …":""}</div>}
       {result.different.length > 0 && <div>First differences: {result.different.slice(0,10).map(x=>`${x.id} (${x.fields.join(", ")})`).join("; ")}</div>}
+      {result.different.length > 0 && <details style={{marginTop:8}}><summary style={{cursor:"pointer"}}>Inspect differing field values</summary>{result.different.slice(0,20).map(d=><div key={d.id} style={{padding:8,borderBottom:`1px solid ${T.line}`}}><b>{d.id}</b>{d.values.map(v=><div key={v.field}><b>{v.field}</b> · Sheets: {v.sheets || "(blank)"} · Supabase: {v.supabase || "(blank)"}</div>)}</div>)}</details>}
+      <div style={{marginTop:10}}><button type="button" style={{...smallBtn,padding:"8px 12px"}} onClick={()=>setShowSupabaseRows(v=>!v)}>{showSupabaseRows ? "Hide Supabase projects" : `View ${supabaseRows.length} Supabase projects (read-only)`}</button></div>
+      {showSupabaseRows && <div style={{marginTop:10,maxHeight:440,overflow:"auto",border:`1px solid ${T.line}`}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}><thead><tr>{["Project no.","Project name","Client","Architect","Status"].map(h=><th key={h} style={{position:"sticky",top:0,background:"#D2CDC1",padding:9,textAlign:"left"}}>{h}</th>)}</tr></thead><tbody>{supabaseRows.map(p=><tr key={p.projectId}><td style={{padding:8,borderBottom:`1px solid ${T.line}`}}>{p.projectNo}</td><td style={{padding:8,borderBottom:`1px solid ${T.line}`}}>{p.projectName}</td><td style={{padding:8,borderBottom:`1px solid ${T.line}`}}>{p.client}</td><td style={{padding:8,borderBottom:`1px solid ${T.line}`}}>{p.architect}</td><td style={{padding:8,borderBottom:`1px solid ${T.line}`}}>{p.projectStatus}</td></tr>)}</tbody></table></div>}
       <div style={{color:T.inkDim,marginTop:5}}>Counts reflect projects authorized by the Preview API, not necessarily all 73 imported rows. No source was overwritten.</div>
     </div>}
   </section>;
