@@ -1,0 +1,8 @@
+import {editOutputCell} from './output-row-editing.mjs';
+export function bounds(a,b=a){return {top:Math.min(a.r,b.r),bottom:Math.max(a.r,b.r),left:Math.min(a.c,b.c),right:Math.max(a.c,b.c)}}
+export function columnName(i){let s='';for(i++;i;i=Math.floor((i-1)/26))s=String.fromCharCode(65+(i-1)%26)+s;return s}
+export function writable(data,r,c){return String(data.headers[c]).trim().toUpperCase()!=='HANDLE'||(data.manualRows||[]).some(m=>m.rowIndex===r)}
+export function rangeText(data,range){return data.rows.slice(range.top,range.bottom+1).map(row=>row.slice(range.left,range.right+1).join('\t')).join('\n')}
+export function pasteCells(data,start,text){const lines=String(text).replace(/\r\n?/g,'\n').replace(/\n$/,'').split('\n').map(s=>s.split('\t'));if(start.r+lines.length>data.rows.length||lines.some(row=>start.c+row.length>data.headers.length))throw Error('Paste exceeds the table. Insert rows first or select a different starting cell.');let next=data;for(let r=0;r<lines.length;r++)for(let c=0;c<lines[r].length;c++){if(!writable(data,start.r+r,start.c+c))throw Error('Existing drawing HANDLE cells are protected.');next=editOutputCell(next,start.r+r,start.c+c,lines[r][c]);}return next}
+export function clearCells(data,range){let next=data;for(let r=range.top;r<=range.bottom;r++)for(let c=range.left;c<=range.right;c++)if(writable(data,r,c))next=editOutputCell(next,r,c,'');return next}
+export function fillDown(data,range){let next=data;for(let r=range.top+1;r<=range.bottom;r++)for(let c=range.left;c<=range.right;c++){if(!writable(data,r,c))throw Error('Existing drawing HANDLE cells are protected.');next=editOutputCell(next,r,c,data.rows[range.top][c]);}return next}
