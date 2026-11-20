@@ -6408,7 +6408,6 @@ function SupabaseProjectComparison({ sheetProjects }) {
       let page = 1;
       while (page <= 100) {
         const response = await fetch(`/api/supabase-projects?list=projects&page=${page}&limit=10`, {
-          headers: { Authorization: `Bearer ${AUTH_ID_TOKEN}` },
           credentials: "same-origin",
           signal: controller.signal,
           cache: "no-store",
