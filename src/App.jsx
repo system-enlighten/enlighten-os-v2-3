@@ -6387,6 +6387,85 @@ function WorkflowDelegationView({state,initialProjectId=''}){
  return <section style={{fontFamily:FONT_BODY}}><h2 style={{fontFamily:FONT_DISPLAY,fontSize:20}}>Delegation</h2><div style={{display:'flex',gap:8,marginBottom:14}}>{[['default','Default workflow'],['project','Project-wise']].map(([id,label])=><button key={id} type="button" disabled={busy||Object.keys(draft).length>0} style={{...smallBtn,background:mode===id?T.navy:T.paper,color:mode===id?'#fff':T.ink}} onClick={()=>setMode(id)}>{label}</button>)}</div>{mode==='project'&&<ProjectStatusSelect projects={orderedProjects(state.projects)} disabled={busy||!!initialProjectId||Object.keys(draft).length>0} aria-label="Delegation project" style={inputStyle} value={projectId} onChange={e=>setProjectId(e.target.value)}><option value="">Select a project</option>{orderedProjects(state.projects).map(p=><option key={p.id} value={p.id}>{p.no} · {p.name}</option>)}</ProjectStatusSelect>}<p style={{fontSize:12,color:T.inkDim}}>{mode==='default'?'Default assignments apply across projects unless a project has its own assignee.':'Not assigned inherits the saved default. Select a person to assign them to this project. Line of Work edits also become project overrides.'}</p>{(mode==='default'||projectId)&&<>{editable&&<div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:14}}><select aria-label="Assign complete workflow" disabled={busy} value={allPerson} onChange={e=>setAllPerson(e.target.value)} style={{...inputStyle,width:250}}><option value="">Select person for complete workflow</option>{people.map(p=><option key={p.userId} value={p.userId}>{p.name}</option>)}</select><button type="button" disabled={busy||!allPerson} style={smallBtn} onClick={()=>setDraft(Object.fromEntries(rows.map(r=>[workflowDelegationKey(r.tasks,r.subtask),allPerson])))}>Assign complete workflow</button><button type="button" disabled={busy||!Object.keys(draft).length} style={{...smallBtn,background:T.navy,color:'#fff'}} onClick={save}>{busy?'Saving…':'Save Changes'}</button>{Object.keys(draft).length>0&&<button type="button" disabled={busy} style={smallBtn} onClick={()=>setDraft({})}>Discard changes</button>}</div>}{!editable&&<p style={{fontSize:12,color:T.inkDim}}>{mode==='default'?'Default delegation is managed by System Admin.':'Project Admin manages project delegation.'}</p>}{busy&&<p role="status" style={{fontSize:12}}>Loading / saving delegation…</p>}{error&&<AppErrorNotice message={error}/>}<div style={{overflowX:'auto'}}><table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}><thead><tr>{['Task','Subtask','Responsible person'].map(h=><th key={h} style={{padding:10,textAlign:'left',background:'#D2CDC1'}}>{h}</th>)}</tr></thead><tbody>{rows.map(row=>{const item=entry(row);return <tr key={item.key}><td style={{padding:9,borderBottom:`1px solid ${T.line}`}}>{row.tasks}</td><td style={{padding:9,borderBottom:`1px solid ${T.line}`}}>{row.subtask}</td><td style={{padding:7,borderBottom:`1px solid ${T.line}`,minWidth:230}}><select aria-label={`Delegate ${row.tasks}: ${row.subtask}`} disabled={busy||!editable} value={mode==='project'&&!item.value?'__inherit__':item.value} style={{...inputStyle,fontSize:12}} onChange={e=>setDraft(d=>({...d,[item.key]:e.target.value}))}><option value={mode==='project'?'__inherit__':''}>Not assigned</option>{item.value&&!['__inherit__'].includes(item.value)&&!people.some(p=>String(p.userId)===String(item.value))&&<option value={item.value}>Previous assignee</option>}{people.map(p=><option key={p.userId} value={p.userId}>{p.name}</option>)}</select></td></tr>;})}</tbody></table></div></>}{message&&<p role="status" style={{fontSize:12}}>{message}</p>}</section>;
 }
 
+// Preview-only, explicitly initiated Supabase read comparison.
+// Does not change application state or write to either database.
+function SupabaseProjectComparison({ sheetProjects }) {
+  const [result, setResult] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const controllerRef = useRef(null);
+  useEffect(() => () => controllerRef.current?.abort(), []);
+  const isPreview = typeof window !== "undefined" && /\.vercel\.app$/i.test(window.location.hostname);
+
+  async function compare() {
+    if (busy || !isPreview) return;
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    setBusy(true); setResult(null); setProgress(0);
+    try {
+      const imported = [];
+      let page = 1;
+      while (page <= 100) {
+        const response = await fetch(`/api/supabase-projects?list=projects&page=${page}&limit=10`, {
+          headers: { Authorization: `Bearer ${AUTH_ID_TOKEN}` },
+          credentials: "same-origin",
+          signal: controller.signal,
+          cache: "no-store",
+        });
+        const json = await response.json();
+        if (!response.ok || !json?.ok || !Array.isArray(json.data)) {
+          throw new Error(json?.error?.message || `Supabase page ${page} failed (${response.status})`);
+        }
+        imported.push(...json.data);
+        setProgress(imported.length);
+        if (!json.pagination?.hasMore) break;
+        if (!Number.isInteger(json.pagination.nextPage) || json.pagination.nextPage <= page) {
+          throw new Error("Invalid pagination response");
+        }
+        page = json.pagination.nextPage;
+      }
+      if (page > 100) throw new Error("Pagination safety limit reached");
+      const sheetMap = new Map((sheetProjects || []).filter(p => p?.id).map(p => [String(p.id), p]));
+      const supaMap = new Map(imported.filter(p => p?.projectId).map(p => [String(p.projectId), p]));
+      const onlyInSheets = [...sheetMap.keys()].filter(id => !supaMap.has(id));
+      const onlyInSupabase = [...supaMap.keys()].filter(id => !sheetMap.has(id));
+      const different = [];
+      for (const [id, p] of supaMap) {
+        const s = sheetMap.get(id);
+        if (!s) continue;
+        const fields = [
+          ["projectNo", s.no], ["projectName", s.name], ["client", s.client],
+          ["architect", s.architect], ["projectStatus", s.projectStatus || s.status],
+        ];
+        const mismatches = fields.filter(([key, val]) => String(p[key] ?? "").trim() !== String(val ?? "").trim()).map(([key]) => key);
+        if (mismatches.length) different.push({ id, fields: mismatches });
+      }
+      setResult({ imported: imported.length, sheetCount: sheetMap.size, matched: [...supaMap.keys()].filter(id => sheetMap.has(id)).length, onlyInSheets, onlyInSupabase, different });
+    } catch (error) {
+      if (error.name !== "AbortError") setResult({ error: error.message || "Comparison failed" });
+    } finally { setBusy(false); }
+  }
+  if (!isPreview) return null;
+  return <section style={{border:`1px solid ${T.line}`,padding:14,marginBottom:16,background:"#fff",fontFamily:FONT_BODY}}>
+    <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",flexWrap:"wrap"}}>
+      <div><strong style={{fontSize:13}}>Supabase migration · read-only comparison</strong>
+        <div style={{fontSize:12,color:T.inkDim,marginTop:4}}>Compare imported projects with the current Google Sheets view. No data is changed.</div>
+      </div>
+      <button type="button" style={{...smallBtn,padding:"9px 12px"}} disabled={busy} onClick={compare}>{busy ? `Checking ${progress} records…` : "Compare Supabase projects"}</button>
+    </div>
+    {result?.error && <div role="alert" style={{marginTop:10,color:"#9a2f2f",fontSize:12}}>{result.error}</div>}
+    {result && !result.error && <div style={{marginTop:12,fontSize:12,lineHeight:1.8}}>
+      <div><b>Supabase authorized rows:</b> {result.imported} · <b>Google Sheets visible projects:</b> {result.sheetCount} · <b>Matching IDs:</b> {result.matched}</div>
+      <div><b>Only in Sheets:</b> {result.onlyInSheets.length} · <b>Only in Supabase:</b> {result.onlyInSupabase.length} · <b>Field differences:</b> {result.different.length}</div>
+      {result.onlyInSheets.length > 0 && <div>Sheets-only IDs: {result.onlyInSheets.slice(0,15).join(", ")}{result.onlyInSheets.length>15?" …":""}</div>}
+      {result.onlyInSupabase.length > 0 && <div>Supabase-only IDs: {result.onlyInSupabase.slice(0,15).join(", ")}{result.onlyInSupabase.length>15?" …":""}</div>}
+      {result.different.length > 0 && <div>First differences: {result.different.slice(0,10).map(x=>`${x.id} (${x.fields.join(", ")})`).join("; ")}</div>}
+      <div style={{color:T.inkDim,marginTop:5}}>Counts reflect projects authorized by the Preview API, not necessarily all 73 imported rows. No source was overwritten.</div>
+    </div>}
+  </section>;
+}
+
 function ProjectView({ state, persist }) {
   // Fast scope saving: update UI immediately, then combine rapid checkbox
   // changes into one Google Sheets request after a short idle period.
@@ -6766,6 +6845,7 @@ function ProjectView({ state, persist }) {
       </div>;
 
   return <div>
+    <SupabaseProjectComparison sheetProjects={state.projects || []} />
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:14,flexWrap:"wrap"}}>
       <div>
         <h1 className="studio-page-heading studio-scope-heading">Projects & Scope of Work</h1>
