@@ -6516,6 +6516,47 @@ function SupabaseProjectReadTable({ onBack }) {
   </section>;
 }
 
+
+// Preview-only migration diagnostics. These checks never modify application data.
+function SupabaseMigrationStageChecks({onClose}) {
+  const [checks,setChecks] = useState([]);
+  const [running,setRunning] = useState(false);
+  const abortRef = useRef(null);
+  useEffect(() => () => abortRef.current?.abort(), []);
+  const stages = [
+    {id:"connection",label:"1. Database connection and imported schema",url:"/api/supabase-projects?check=connection",verify:j=>j.connected === true && j.schemaAccessible === true,details:j=>"PostgreSQL connection and schema accessible"},
+    {id:"session",label:"2. Preview sign-in session",url:"/api/supabase-projects?check=session",verify:j=>j.data?.signedIn === true && j.data?.preview === true,details:j=>j.data?.signedIn ? "Signed-in session detected" : "No valid signed-in session"},
+    {id:"inventory",label:"3. Imported project integrity",url:"/api/supabase-projects?check=inventory",verify:j=>j.data?.total_rows > 0 && j.data?.missing_project_ids === 0 && j.data?.duplicate_project_ids === 0,details:j=>`${j.data?.total_rows ?? "?"} rows; ${j.data?.missing_project_ids ?? "?"} missing IDs; ${j.data?.duplicate_project_ids ?? "?"} duplicate IDs`},
+    {id:"projects",label:"4. Authorized project read and pagination",url:"/api/supabase-projects?list=projects&page=1&limit=10",verify:j=>Array.isArray(j.data) && j.pagination?.page === 1 && typeof j.pagination?.hasMore === "boolean",details:j=>`${j.data?.length ?? 0} authorized records returned on page 1; more pages: ${j.pagination?.hasMore ? "yes" : "no"}`},
+  ];
+  async function run() {
+    if(running) return;
+    abortRef.current?.abort(); const controller=new AbortController();abortRef.current=controller;
+    setRunning(true);setChecks([]);
+    for(const stage of stages) {
+      if(controller.signal.aborted) break;
+      try {
+        const response=await fetch(stage.url,{credentials:"same-origin",cache:"no-store",signal:controller.signal});
+        const json=await response.json();
+        const pass=response.ok && json?.ok === true && stage.verify(json);
+        setChecks(old=>[...old,{id:stage.id,label:stage.label,pass,detail:pass?stage.details(json):(json?.error?.message || stage.details(json) || `HTTP ${response.status}`)}]);
+      } catch(e) {
+        if(controller.signal.aborted) break;
+        setChecks(old=>[...old,{id:stage.id,label:stage.label,pass:false,detail:e.message || "Request failed"}]);
+      }
+    }
+    if(!controller.signal.aborted) setRunning(false);
+  }
+  return <section style={{border:`1px solid ${T.line}`,background:"#fff",padding:16,marginBottom:16,fontFamily:FONT_BODY}}>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
+      <div><strong>Supabase migration · stage diagnostics</strong><div style={{fontSize:12,color:T.inkDim,marginTop:4}}>Preview-only, read-only tests. No database records are changed.</div></div>
+      <div style={{display:"flex",gap:8}}><button type="button" style={smallBtn} disabled={running} onClick={run}>{running?"Checking stages…":"Run stage checks"}</button><button type="button" style={smallBtn} onClick={onClose}>Close</button></div>
+    </div>
+    {checks.map(c=><div key={c.id} style={{fontSize:12,marginTop:10,padding:9,background:c.pass?"#eef5ed":"#fff2ed",border:`1px solid ${T.line}`}}><strong>{c.pass?"PASS":"NEEDS ATTENTION"} — {c.label}</strong><div style={{marginTop:4}}>{c.detail}</div></div>)}
+    <div style={{fontSize:12,marginTop:14,color:T.inkDim}}>Not yet verified: full table-by-table migration, Google Sheets field parity, Create/Edit/Complete/Rollback writes, row-level security, file uploads, and production cutover. These require separate implementation and tests; a green diagnostic result does not certify them.</div>
+  </section>;
+}
+
 function ProjectView({ state, persist }) {
   // Fast scope saving: update UI immediately, then combine rapid checkbox
   // changes into one Google Sheets request after a short idle period.
@@ -6528,6 +6569,7 @@ function ProjectView({ state, persist }) {
   const latestProjectStateRef = useRef(state);
   latestProjectStateRef.current = state;
   const [supabaseReadMode, setSupabaseReadMode] = useState(false);
+  const [showMigrationDiagnostics,setShowMigrationDiagnostics] = useState(false);
   const [tab, setTab] = useState("list");
   const [selectedId, setSelectedId] = useState(state.projects[0]?.id || null);
   const [showNewProject, setShowNewProject] = useState(false);
@@ -6898,6 +6940,8 @@ function ProjectView({ state, persist }) {
   if (supabaseReadMode) return <SupabaseProjectReadTable onBack={() => setSupabaseReadMode(false)} />;
   return <div>
     {typeof window !== "undefined" && /\.vercel\.app$/i.test(window.location.hostname) && <div style={{display:"flex",justifyContent:"flex-end",marginBottom:10}}><button type="button" style={{...smallBtn,background:T.navy,color:"#fff"}} onClick={() => setSupabaseReadMode(true)}>View projects from Supabase (read-only)</button></div>}
+    {typeof window !== "undefined" && /\.vercel\.app$/i.test(window.location.hostname) && <div style={{display:"flex",justifyContent:"flex-end",marginBottom:10}}><button type="button" style={smallBtn} onClick={()=>setShowMigrationDiagnostics(v=>!v)}>{showMigrationDiagnostics?"Hide migration stage checks":"Check Supabase migration stages"}</button></div>}
+    {showMigrationDiagnostics && <SupabaseMigrationStageChecks onClose={()=>setShowMigrationDiagnostics(false)} />}
     <SupabaseProjectComparison sheetProjects={state.projects || []} />
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:14,flexWrap:"wrap"}}>
       <div>
