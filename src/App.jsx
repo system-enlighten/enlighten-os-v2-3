@@ -6391,8 +6391,6 @@ function WorkflowDelegationView({state,initialProjectId=''}){
 // Does not change application state or write to either database.
 function SupabaseProjectComparison({ sheetProjects }) {
   const [result, setResult] = useState(null);
-  const [supabaseRows, setSupabaseRows] = useState([]);
-  const [showSupabaseRows, setShowSupabaseRows] = useState(false);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const controllerRef = useRef(null);
@@ -6404,7 +6402,7 @@ function SupabaseProjectComparison({ sheetProjects }) {
     controllerRef.current?.abort();
     const controller = new AbortController();
     controllerRef.current = controller;
-    setBusy(true); setResult(null); setProgress(0); setSupabaseRows([]); setShowSupabaseRows(false);
+    setBusy(true); setResult(null); setProgress(0);
     try {
       const imported = [];
       let page = 1;
@@ -6440,9 +6438,8 @@ function SupabaseProjectComparison({ sheetProjects }) {
           ["architect", s.architect], ["projectStatus", s.projectStatus || s.status],
         ];
         const mismatches = fields.filter(([key, val]) => String(p[key] ?? "").trim() !== String(val ?? "").trim()).map(([key]) => key);
-        if (mismatches.length) different.push({ id, fields: mismatches, values: mismatches.map(key => ({ field: key, sheets: String(fields.find(f => f[0] === key)?.[1] ?? ""), supabase: String(p[key] ?? "") })) });
+        if (mismatches.length) different.push({ id, fields: mismatches });
       }
-      setSupabaseRows(imported);
       setResult({ imported: imported.length, sheetCount: sheetMap.size, matched: [...supaMap.keys()].filter(id => sheetMap.has(id)).length, onlyInSheets, onlyInSupabase, different });
     } catch (error) {
       if (error.name !== "AbortError") setResult({ error: error.message || "Comparison failed" });
@@ -6463,11 +6460,59 @@ function SupabaseProjectComparison({ sheetProjects }) {
       {result.onlyInSheets.length > 0 && <div>Sheets-only IDs: {result.onlyInSheets.slice(0,15).join(", ")}{result.onlyInSheets.length>15?" …":""}</div>}
       {result.onlyInSupabase.length > 0 && <div>Supabase-only IDs: {result.onlyInSupabase.slice(0,15).join(", ")}{result.onlyInSupabase.length>15?" …":""}</div>}
       {result.different.length > 0 && <div>First differences: {result.different.slice(0,10).map(x=>`${x.id} (${x.fields.join(", ")})`).join("; ")}</div>}
-      {result.different.length > 0 && <details style={{marginTop:8}}><summary style={{cursor:"pointer"}}>Inspect differing field values</summary>{result.different.slice(0,20).map(d=><div key={d.id} style={{padding:8,borderBottom:`1px solid ${T.line}`}}><b>{d.id}</b>{d.values.map(v=><div key={v.field}><b>{v.field}</b> · Sheets: {v.sheets || "(blank)"} · Supabase: {v.supabase || "(blank)"}</div>)}</div>)}</details>}
-      <div style={{marginTop:10}}><button type="button" style={{...smallBtn,padding:"8px 12px"}} onClick={()=>setShowSupabaseRows(v=>!v)}>{showSupabaseRows ? "Hide Supabase projects" : `View ${supabaseRows.length} Supabase projects (read-only)`}</button></div>
-      {showSupabaseRows && <div style={{marginTop:10,maxHeight:440,overflow:"auto",border:`1px solid ${T.line}`}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}><thead><tr>{["Project no.","Project name","Client","Architect","Status"].map(h=><th key={h} style={{position:"sticky",top:0,background:"#D2CDC1",padding:9,textAlign:"left"}}>{h}</th>)}</tr></thead><tbody>{supabaseRows.map(p=><tr key={p.projectId}><td style={{padding:8,borderBottom:`1px solid ${T.line}`}}>{p.projectNo}</td><td style={{padding:8,borderBottom:`1px solid ${T.line}`}}>{p.projectName}</td><td style={{padding:8,borderBottom:`1px solid ${T.line}`}}>{p.client}</td><td style={{padding:8,borderBottom:`1px solid ${T.line}`}}>{p.architect}</td><td style={{padding:8,borderBottom:`1px solid ${T.line}`}}>{p.projectStatus}</td></tr>)}</tbody></table></div>}
       <div style={{color:T.inkDim,marginTop:5}}>Counts reflect projects authorized by the Preview API, not necessarily all 73 imported rows. No source was overwritten.</div>
     </div>}
+  </section>;
+}
+
+// Phase 2: Preview-only Supabase project table. No create/update/delete requests.
+function SupabaseProjectReadTable({ onBack }) {
+  const [rows, setRows] = useState([]);
+  const [busy, setBusy] = useState(true);
+  const [error, setError] = useState("");
+  const [filter, setFilter] = useState("Ongoing");
+  const [query, setQuery] = useState("");
+  const scopeColumns = [["Basement","basement"],["Stilt Floor","stiltFloor"],["GF","gf"],["1F","1f"],["2F","2f"],["3F","3f"],["Terrace","terrace"],["Facade","facade"],["Landscape","landscape"],["Bath Elevation","bathElevation"],["Furniture","wardrobe"],["Art Curation","artCuration"]];
+  useEffect(() => {
+    const controller = new AbortController();
+    async function load() {
+      setBusy(true); setError("");
+      try {
+        const result = [];
+        let page = 1;
+        while (page <= 100) {
+          const response = await fetch(`/api/supabase-projects?list=projects&page=${page}&limit=10`, { credentials:"same-origin",cache:"no-store",signal:controller.signal });
+          const json = await response.json();
+          if (!response.ok || !json?.ok || !Array.isArray(json.data)) throw new Error(json?.error?.message || `Project page ${page} failed`);
+          result.push(...json.data);
+          if (!json.pagination?.hasMore) break;
+          if (!Number.isInteger(json.pagination.nextPage) || json.pagination.nextPage <= page) throw new Error("Invalid pagination response");
+          page = json.pagination.nextPage;
+        }
+        if (page > 100) throw new Error("Pagination safety limit reached");
+        if (!controller.signal.aborted) setRows(result);
+      } catch (e) { if (e.name !== "AbortError") setError(e.message || "Supabase read failed"); }
+      finally { if (!controller.signal.aborted) setBusy(false); }
+    }
+    load();
+    return () => controller.abort();
+  }, []);
+  const completed = p => String(p.projectStatus || "").toLowerCase() === "completed" || p.completed === true;
+  const visible = rows.filter(p => (filter === "All" || (filter === "Completed" ? completed(p) : !completed(p))) && [p.projectNo,p.projectName,p.client,p.architect].join(" ").toLowerCase().includes(query.toLowerCase()));
+  return <section style={{fontFamily:FONT_BODY}}>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap",marginBottom:16}}>
+      <div><h1 className="studio-page-heading studio-scope-heading">Projects & Scope of Work</h1><div style={{fontSize:12,color:T.inkDim,marginTop:6}}>Supabase Preview · read-only project data · no edits or saves</div></div>
+      <button type="button" style={smallBtn} onClick={onBack}>Return to Google Sheets editing</button>
+    </div>
+    <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:16}}>
+      {['Ongoing','Completed','All'].map(x=><button key={x} type="button" style={{...smallBtn,background:filter===x?T.navy:'#fff',color:filter===x?'#fff':T.ink}} onClick={()=>setFilter(x)}>{x}</button>)}
+      <input aria-label="Search Supabase projects" placeholder="Search project, client or architect" value={query} onChange={e=>setQuery(e.target.value)} style={{...inputStyle,maxWidth:310}} />
+      <span style={{fontFamily:FONT_MONO,fontSize:11,color:T.inkDim}}>{busy?`Loading ${rows.length} projects…`:`${visible.length} shown / ${rows.length} loaded`}</span>
+    </div>
+    {error && <div role="alert" style={{padding:12,border:`1px solid ${T.redline}`,color:T.redline,marginBottom:14}}>Supabase read failed: {error}. Your Google Sheets data has not changed. <button type="button" style={smallBtn} onClick={onBack}>Return to Google Sheets</button></div>}
+    {busy && <p role="status">Loading authorized project records from Supabase…</p>}
+    {!busy && !error && <div style={{overflowX:"auto",border:`1px solid ${T.line}`,background:'#fff'}}><table style={{borderCollapse:'collapse',minWidth:1500,width:'100%',fontSize:11}}><thead><tr>{['S. No','Current Project','Client','Architect',...scopeColumns.map(([name])=>name),'Status'].map(h=><th key={h} style={{padding:'11px 8px',background:'#D2CDC1',border:`1px solid ${T.line}`,textAlign:'left',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead><tbody>{visible.map(p=><tr key={p.projectId}><td style={{...cell,whiteSpace:'nowrap'}}>{p.projectNo||'—'}</td><td style={{...cell,minWidth:200,fontWeight:700}}>{p.projectName||'—'}</td><td style={cell}>{p.client||'—'}</td><td style={cell}>{p.architect||'—'}</td>{scopeColumns.map(([name,key])=><td key={key} title={`${name}: ${p[key]?'Yes':'No'}`} style={{...cell,textAlign:'center',background:p[key]?'#E8F2E9':'#FAF9F5',color:p[key]?'#245C2B':'#999',fontSize:16}}>{p[key]?'☑':'☐'}</td>)}<td style={cell}>{p.projectStatus||'—'}</td></tr>)}{visible.length===0&&<tr><td colSpan={5+scopeColumns.length} style={{padding:18}}>No projects match this filter.</td></tr>}</tbody></table></div>}
+    <p style={{fontSize:11,color:T.inkDim,marginTop:12}}>This view reads the imported Supabase records only. Project edits and related modules remain on Google Sheets until the write migration is implemented and tested.</p>
   </section>;
 }
 
@@ -6482,6 +6527,7 @@ function ProjectView({ state, persist }) {
   const [projectSaveMessage,setProjectSaveMessage] = useState("");
   const latestProjectStateRef = useRef(state);
   latestProjectStateRef.current = state;
+  const [supabaseReadMode, setSupabaseReadMode] = useState(false);
   const [tab, setTab] = useState("list");
   const [selectedId, setSelectedId] = useState(state.projects[0]?.id || null);
   const [showNewProject, setShowNewProject] = useState(false);
@@ -6849,7 +6895,9 @@ function ProjectView({ state, persist }) {
         <div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim,marginTop:10}}>Edit Client and Architect in the contact list above. Save Project closes this editor and updates the summary immediately.</div>
       </div>;
 
+  if (supabaseReadMode) return <SupabaseProjectReadTable onBack={() => setSupabaseReadMode(false)} />;
   return <div>
+    {typeof window !== "undefined" && /\.vercel\.app$/i.test(window.location.hostname) && <div style={{display:"flex",justifyContent:"flex-end",marginBottom:10}}><button type="button" style={{...smallBtn,background:T.navy,color:"#fff"}} onClick={() => setSupabaseReadMode(true)}>View projects from Supabase (read-only)</button></div>}
     <SupabaseProjectComparison sheetProjects={state.projects || []} />
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:14,flexWrap:"wrap"}}>
       <div>
