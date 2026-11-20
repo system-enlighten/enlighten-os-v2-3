@@ -34,10 +34,10 @@ export function buildColumnTable(data,zones=[],products=[]){
  }).sort((a,b)=>{const zoneOrder=cn=>(cn.match(/^[A-Z]+/)?.[0]||'').split('').reduce((n,c)=>n*26+c.charCodeAt(0)-64,0);return zoneOrder(a.cn)-zoneOrder(b.cn)||String(a.floor||'').localeCompare(String(b.floor||''),undefined,{numeric:true})||a.cn.localeCompare(b.cn,undefined,{numeric:true})});return {rows:result,warnings:[...new Set(warnings)]};
 }
 
-export function parseTechnicalExport(text){
+export function parseTechnicalExport(text,{allowEmpty=false}={}){
  const data=parseOutputText(text,true),names=data.headers.map(key);
  if(!names.includes('CN')||!names.includes('HOUSINGNUMBER'))throw Error('The first row must contain the CN and HOUSINGNUMBER headers from your text export.');
- if(!data.rows.length)throw Error('The export contains no lighting rows.');
+ if(!data.rows.length&&!allowEmpty)throw Error('The export contains no lighting rows.');
  return {...data,sourceText:String(text)};
 }
 export function shortTechnicalFloor(floor){
