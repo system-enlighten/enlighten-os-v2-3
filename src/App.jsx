@@ -17,6 +17,7 @@ import {monday,istDay} from './hour-calendar.mjs';
 import {useTimelineCalendar,CalendarPersonalControls,TimelineCalendarDay} from './TimelineCalendar.jsx';
 import ProjectRecords from './ProjectRecords.jsx';
 import TechnicalOutput from './TechnicalOutput.jsx';
+import {canAdministerTechnical} from './technical-access.mjs';
 import TechnicalDocumentation from './TechnicalDocumentation.jsx';
 import MomPointsEditor,{SavedMomPoints,MomPhotoLinks} from './MomPoints.jsx';
 import {newMomPoint,splitMomPoints,momPointNotes,prepareMomPoints} from './mom-points.mjs';
@@ -4225,7 +4226,7 @@ function TechnicalTableView({state}){
  const projects=orderedProjects(state.projects);
  const defaultProject=projects.find(p=>!projectIsCompleted(p))??projects[0];
  const projectId=selectedProjectId??String(defaultProject?.id??'');
- const viewer=state.currentUser?.appAccess?.toLowerCase()==='viewer',admin=!!projectId&&!viewer&&((wihSystemAccount(state.currentUser)&&state.currentUser?.appAccess?.toLowerCase()==='admin')||state.currentUser?.projectRoles?.[String(projectId)]==='Admin');
+ const viewer=state.currentUser?.appAccess?.toLowerCase()==='viewer',admin=canAdministerTechnical(state.currentUser,projectId);
  const project=state.projects.find(p=>String(p.id)===String(projectId));
  const canEditTechnical=!!projectId&&!viewer&&!!wihProjectRole(state.currentUser,projectId);
  useEffect(()=>{let live=true;Promise.all([fetch('/technical-library/database.json').then(r=>{if(!r.ok)throw Error();return r.json();}),apiRequest('listTechnicalFittings',{},'GET',90000)]).then(([seed,overrides])=>{if(live){const all=new Map((seed.fittings||[]).map(f=>[f.id,f]));overrides.forEach(f=>all.set(f.id,f));setDatabase([...all.values()]);}}).catch(()=>{});return()=>{live=false;};},[]);
