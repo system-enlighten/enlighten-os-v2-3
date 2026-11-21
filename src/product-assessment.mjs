@@ -1,3 +1,4 @@
+import {buildColumnTable} from './technical-column-logic.mjs';
 const clean=v=>String(v??'').trim(),norm=v=>clean(v).toUpperCase().replace(/\s+/g,'');
 export const ratingLabels=['Cutoff','LED Quality','Driver Quality','Build Quality'];
 export const assessmentKey=(code,linear)=>norm(code)+'|'+(linear?'m':'pcs');
@@ -28,7 +29,8 @@ export function assessmentGroups(data,products=[]){
   if(!/^(?:\d+(?:\.\d+)?|\.\d+)\s*(?:mm|m)?$/i.test(raw)||Number(raw.replace(/\s*(mm|m)$/i,''))<=0){g.missingLengths++;warnings.push(`${code} · Output row ${index+1}: linear length needs review.`);return}
   const metres=value(r,['LENGTHINMETRE','LENGTHINMETERS','LENGTHINMETRES'])||(/m$/i.test(raw)&&!/mm$/i.test(raw));g.quantity+=Number(raw.replace(/\s*(mm|m)$/i,''))/(metres?1:1000);
  });
- return {groups:[...groups.values()].map(g=>({...g,quantity:Number(g.quantity.toFixed(6)),circuits:[...g.circuits].filter(Boolean)})),warnings};
+ const media=assessmentDesignMedia(data,products);
+ return {groups:[...groups.values()].map(g=>({...g,reference:media.get(norm(g.code))?.reference||null,fixture:media.get(norm(g.code))?.fixture||null,quantity:Number(g.quantity.toFixed(6)),circuits:[...g.circuits].filter(Boolean)})),warnings};
 }
 export function newAssessmentOption(id){return {id,brand:'',article:'',price:'',quantity:'',remarks:'',photo:null,ratings:[0,0,0,0]}}
 export function optionQuantity(group,option){return option.quantity===''||option.quantity===undefined?group.quantity:Number(option.quantity)}
@@ -49,3 +51,13 @@ export function linkedAssessmentGroup(group,saved){
  return {options,selectedId};
 }
 export function manufacturerSpecUrl(product){return /^https:\/\//i.test(product?.specs?.datasheet||'')?product.specs.datasheet:'';}
+
+// Count source fixture occurrences, not circuit groups or uploaded file-list order.
+export function assessmentDesignMedia(data,products=[]){
+ const byIndex=new Map();
+ for(const row of buildColumnTable(data,data.assessmentZones||[],products).rows)for(const i of row.sourceIndices)byIndex.set(i,row.override||{});
+ const headers=(data.headers||[]).map(norm),codeColumn=['HOUSINGNUMBER','FITTINGTYPE','PRODUCTCODE'].map(k=>headers.indexOf(k)).find(i=>i>=0),counts=new Map();
+ if(codeColumn===undefined)return new Map();
+ (data.rows||[]).forEach((row,i)=>{const code=norm(row[codeColumn]);if(!code)return;if(!counts.has(code))counts.set(code,{reference:new Map(),fixture:new Map()});for(const kind of ['reference','fixture']){const media=byIndex.get(i)?.[kind];if(!media?.url)continue;const key=media.driveFileId||media.url,all=counts.get(code)[kind],found=all.get(key);if(found)found.count++;else all.set(key,{count:1,media});}});
+ return new Map([...counts].map(([code,kinds])=>[code,Object.fromEntries(Object.entries(kinds).map(([kind,all])=>[kind,[...all.values()].sort((a,b)=>b.count-a.count)[0]?.media||null]))]));
+}
