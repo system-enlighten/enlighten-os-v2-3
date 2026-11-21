@@ -213,3 +213,17 @@
 .studio-app-content .studio-heading-text p{margin:0;font-size:13px;line-height:1.5;color:var(--studio-ink)}
 .studio-app-content .studio-heading-text .studio-home-kicker{font-size:10px;color:#6d604c}
 .studio-feedback-intro{margin:0 0 18px;font-size:13px}
+
+/* Matched worksheet headings and Timeline controls. */
+.studio-drive-actions{display:flex;align-items:flex-start;flex-wrap:wrap;gap:10px;margin:16px 0 14px}
+.studio-drive-actions .studio-drive-settings{margin:0}
+.studio-drive-settings-body{max-width:900px}
+.studio-system-title{margin:18px 0 12px;padding:10px 0 0}
+.studio-system-title h1{margin:0!important}
+.studio-app-content .studio-project-scope-title{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;padding:10px 0 48px;margin:18px 0 0;border-top:2px solid var(--studio-ink)}
+.studio-project-scope-title>div:last-child{margin-top:8px}
+.studio-app-content .attendance-filters{gap:10px 14px;margin:18px 0 12px;align-items:flex-end;color:var(--studio-ink);font-family:var(--studio-body-font)}
+.studio-app-content .attendance-filters>label{display:flex;flex-direction:column;gap:6px;font-family:var(--studio-mono-font,monospace);font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--studio-muted,#53616a)}
+.studio-app-content .attendance-filters :is(input,select){box-sizing:border-box;height:38px;padding:8px 12px;border:1px solid var(--studio-rule);border-radius:0;background:#fff;color:var(--studio-ink);font-family:var(--studio-body-font);font-size:13px;font-weight:400;letter-spacing:normal;text-transform:none;box-shadow:none}
+.studio-app-content .attendance-filters>button{height:38px;padding:8px 12px;border:1px solid var(--studio-blue,#1b4d84);border-radius:0;background:#fff;color:var(--studio-blue,#1b4d84);font:500 11px var(--studio-mono-font,monospace);box-shadow:none}
+@media(max-width:650px){.studio-project-scope-title>div:last-child{flex-wrap:wrap}.studio-drive-actions{gap:8px}}
