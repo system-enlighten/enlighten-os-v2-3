@@ -1,8 +1,22 @@
 export function productTypeSections(catalogue,database,originalFittings=database){
  const byCode=new Map(database.map(f=>[String(f.fittingType||'').trim(),f])),sections=[],used=new Set();let category='Product types',icons=[],mounts=[],headerRow=0;
  const byId=new Map(database.map(f=>[f.id,f]));
+ const importedRows=new Map((catalogue?.sections||[]).map(section=>[section.codeRow,section]));
  const originalByCode=new Map(originalFittings.map(f=>[String(f.fittingType||'').trim(),f]));
  for(const [r,row] of (catalogue?.rows||[]).entries()){
+  const imported=importedRows.get(r);
+  if(catalogue?.sections&&!imported)continue;
+  if(imported){
+   const {photoRow,iconRow,mountRow}=imported;
+   const items=row.flatMap((cell,c)=>{
+    const fitting=byId.get(cell.fittingId);
+    if(!fitting)return [];
+    used.add(fitting.id);
+    return [{fitting,sourceColumn:c,sourceRow:r,order:c*1024,icon:fitting.iconUrl,reference:fitting.thumbnailUrl,mount:catalogue.rows[mountRow]?.[c]?.text||''}];
+   });
+   sections.push({id:'row-'+r,headerRow:iconRow,photoRow,mountRow,label:imported.category,items});
+   continue;
+  }
   const title=String(row[0]?.text||'').trim();if(title&&row.slice(1).some(c=>c.image)){if(!/height/i.test(title)){category=title;headerRow=r;icons=row;mounts=catalogue.rows[r+1]||[];}}
   const cells=row.flatMap((cell,c)=>{const code=String(cell.text||'').trim(),original=originalByCode.get(code);const f=original?byId.get(original.id):byCode.get(code);if(!c||!f||used.has(f.id))return [];used.add(f.id);return [{fitting:f,sourceColumn:c,sourceRow:r,order:c*1024,icon:f.iconUrl??icons[c]?.image,reference:f.thumbnailUrl??catalogue.rows[r-1]?.[c]?.image,mount:mounts[c]?.text||''}];});
   if(cells.length){const height=String(catalogue.rows[r-1]?.[0]?.text||'').trim();sections.push({id:'row-'+r,headerRow,label:[category,height].filter(Boolean).join(' · ').replace(/\n/g,' '),items:cells});}
