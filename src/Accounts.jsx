@@ -281,6 +281,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
   const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
   const [asOf,setAsOf]=useState(today);
   const [reportFY,setReportFY]=useState('current');
+  const [payrollTab,setPayrollTab]=useState('payroll');
   const [payMonth,setPayMonth]=useState(()=>today().slice(0,7)),[staffQuery,setStaffQuery]=useState('');
   const [coaQuery,setCoaQuery]=useState('');
   const [ledgerHead,setLedgerHead]=useState(null);
@@ -668,6 +669,8 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
     </>}
 
     {page==='Payroll'&&<>
+      <div className="accounts-toolbar" role="tablist" aria-label="Payroll sections">{[['payroll','Payroll'],['attendance','Attendance']].map(([id,label])=><button type="button" key={id} role="tab" aria-selected={payrollTab===id} onClick={()=>setPayrollTab(id)} style={{background:payrollTab===id?'#102238':'#fff',color:payrollTab===id?'#fff':'#142238',padding:'10px 18px',border:'1px solid #d2cdc1'}}>{label}</button>)}</div>
+      {payrollTab==='attendance'?<iframe title="Payroll attendance register" src="/payroll/attendance.html" onLoad={e=>e.currentTarget.contentWindow.postMessage({type:'enlighten-attendance-employees',employees:employees.map(({id,name})=>({id,name}))},window.location.origin)} style={{width:'100%',height:'82vh',minHeight:550,border:'1px solid #d2cdc1',background:'#f5f1e8'}}/>:<>
       <div className="accounts-toolbar">
         <label>Payroll month <input type="month" value={payMonth} onChange={e=>setPayMonth(e.target.value)}/></label>
         <label>Find employee <input type="search" value={staffQuery} onChange={e=>setStaffQuery(e.target.value)} placeholder="Name or department"/></label>
@@ -698,7 +701,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
 
       <h2>Payroll history</h2>
       <Table columns={['Employee','Month','Earned','Overtime','Deductions','Advance recovery','Net pay','Action']} rows={records.filter(r=>r.kind==='payroll').slice().reverse().map(r=>({key:r.id,cells:[r.employee,r.date.slice(0,7),money(r.earned),money(r.overtime),money(r.deductions),money(r.advance),money(r.amount),<button onClick={()=>setSelected(r)}>Payslip</button>]}))}/>
-    </>}
+    </>}</>}
 
     {page==='Financial Reports'&&<>
       <div className="accounts-toolbar" style={{justifyContent:'space-between',marginBottom:16}}>
