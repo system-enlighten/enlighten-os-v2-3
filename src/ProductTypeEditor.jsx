@@ -2,7 +2,7 @@ import React,{useState} from 'react';
 import './ProductDialog.css';
 
 const fields=[['fittingType','Fitting type code'],['iconUrl','Icon'],['thumbnailUrl','Reference image'],['brand','Brand / IP / Article'],['x','X'],['pcbWidth','PCB width'],['standardLengths','Standard lengths'],['wattage','Wattage (W or W/m)']];
-export default function ProductTypeEditor({fitting,onSave,onUpload,onClose,onOpenProducts,renderImage}){
+export default function ProductTypeEditor({fitting,onSave,onUpload,onClose,onOpenProducts,onDelete,deleteBlocked,renderImage}){
  const [draft,setDraft]=useState(fitting),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const update=(field,value)=>setDraft(current=>({...current,[field]:value}));
  async function submit(event){
@@ -10,6 +10,13 @@ export default function ProductTypeEditor({fitting,onSave,onUpload,onClose,onOpe
   if(busy)return;
   setBusy(true);setError('');
   try{await onSave({...draft,fittingType:draft.fittingType.trim()});}
+  catch(err){setError(err.message);}
+  finally{setBusy(false);}
+ }
+ async function remove(){
+  if(busy||deleteBlocked||!window.confirm(`Delete fitting type ${fitting.fittingType} from Product Database?`))return;
+  setBusy(true);setError('');
+  try{await onDelete();}
   catch(err){setError(err.message);}
   finally{setBusy(false);}
  }
@@ -37,7 +44,8 @@ export default function ProductTypeEditor({fitting,onSave,onUpload,onClose,onOpe
       {media&&<>{draft[key]&&renderImage(draft[key],label)}<label>Upload {label.toLowerCase()}<input type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={event=>upload(event,key)}/></label></>}
      </div>;
     })}</div>
-    <div className="product-actions"><button type="submit" disabled={busy||!draft.fittingType.trim()}>{busy?'Working…':'Save fitting type'}</button><button type="button" disabled={busy} onClick={onClose}>Cancel</button>{onOpenProducts&&<button type="button" disabled={busy} onClick={onOpenProducts}>Manage manufacturer products</button>}</div>
+    <div className="product-actions"><button type="submit" disabled={busy||!draft.fittingType.trim()}>{busy?'Working…':'Save fitting type'}</button><button type="button" disabled={busy} onClick={onClose}>Cancel</button>{onOpenProducts&&<button type="button" disabled={busy} onClick={onOpenProducts}>Manage manufacturer products</button>}{onDelete&&<button type="button" className="fitting-delete" disabled={busy||deleteBlocked} aria-describedby={deleteBlocked?'fitting-delete-note':undefined} onClick={remove}>Delete fitting type</button>}</div>
+    {onDelete&&deleteBlocked&&<p id="fitting-delete-note">Remove the linked manufacturer products before deleting this fitting type.</p>}
    </form>
   </section>
  </div>;

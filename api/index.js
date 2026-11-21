@@ -7,7 +7,7 @@ const google = new OAuth2Client();
 const SERVER_CACHE = new Map();
 const SERVER_CACHE_TTL_MS = 45 * 1000;
 const CACHEABLE_SERVER_READS = new Set(['listDepartments','listDesignations','listDrawingTaskMaster','getWorkflowCapabilities']);
-const CACHE_CLEARING_MUTATIONS = new Set(['saveDepartment','deleteDepartment','saveDesignation','deleteDesignation','saveDrawingTaskMaster','saveMasterItem']);
+const CACHE_CLEARING_MUTATIONS = new Set(['deleteTechnicalFitting','saveTechnicalFitting','saveDepartment','deleteDepartment','saveDesignation','deleteDesignation','saveDrawingTaskMaster','saveMasterItem']);
 const READ_ACTIONS = new Set(['getProjectCloseout','getWorkflowWorkspace','getWorkflowDelegation','listEmailDrawingIntakes','getProjectOnboarding','getTechnicalWorkbook','listTechnicalTables','getTechnicalTable','listTechnicalFittings','cadStatus','cadViewerToken','getIssueDrawingContext','getDrawingPortal','getPortalDrawingChunk','getDirectoryDrawingAccess','listRecentDrawingRegister','getDriveLibraryConfig','listProjectDrive','listMomTasks','listExecutionVisits','authSession','getProjectWorkspace','listDrawingRegister','getProjectWorkflowTasks','listProjectRoles','listProjectPeople','listSitePunchIns','health','getCurrentUser','bootstrap','listProjects','listProjectContacts','listLineOfWork','getWorkflowCapabilities','listFloorZones','listTeamMembers','listDepartments','listDesignations','listDrawingTaskMaster','getDesignDashboard','getWIH']);
 export async function verifyGoogleIdentity(token, audience) {
   const ticket=await google.verifyIdToken({idToken:token,audience});

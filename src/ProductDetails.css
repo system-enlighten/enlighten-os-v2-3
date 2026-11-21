@@ -4,11 +4,7 @@
 
 .product-comparison-scroll{overflow-x:auto;margin-top:20px}.product-comparison{width:100%;min-width:1100px;border-collapse:collapse;table-layout:fixed;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:500}.product-comparison th,.product-comparison td{border:1px solid #c9c9c4;padding:10px;text-align:center;vertical-align:middle;font-size:13px;overflow-wrap:anywhere}.product-comparison th{background:#c7f51f;color:#102238;font-size:14px;padding:16px 8px}.product-comparison td{background:#fff}.product-comparison p{margin:7px 0}.product-comparison .comparison-fitting{padding:0;vertical-align:top}.comparison-fitting figure{margin:0;border-bottom:1px solid #c9c9c4}.comparison-fitting figure>img{width:100%;height:190px;object-fit:contain;display:block}.comparison-fitting figcaption{padding:8px;font-size:11px;color:#68737c}.comparison-fitting-details{display:flex;gap:8px;align-items:center;justify-content:center;min-height:170px;padding:14px;box-sizing:border-box;background:#f0f0ed}.comparison-fitting-details>div{flex:1}.comparison-fitting-details p{font-size:12px;color:#727b81}.comparison-application-empty{height:140px;display:flex;align-items:center;justify-content:center;background:#fafaf7;font-size:12px;color:#798086}.product-comparison .comparison-photo{padding:0}.comparison-photo>button{display:block;width:100%;border:0!important;background:white;padding:0!important}.comparison-photo .technical-media{width:100%!important;height:140px!important}.comparison-photo .technical-media img{object-fit:contain!important}.comparison-row-actions{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px;font-size:11px}.comparison-row-actions button{padding:4px 7px}.comparison-row-actions label{display:flex;align-items:center;gap:3px}.product-comparison .comparison-article button{border:0;padding:0;color:#3f8292;text-decoration:underline;background:transparent;white-space:pre-wrap}.product-comparison .comparison-notes{white-space:pre-wrap}.product-comparison .comparison-ratings{padding:0;background:#ededeb}.comparison-ratings>div{display:flex;align-items:center;justify-content:space-between;gap:6px;border-bottom:1px solid #c9c9c4;padding:9px 7px;font-size:11px}.comparison-ratings>div:last-child{border-bottom:0}.comparison-ratings>div>span:last-child{white-space:nowrap}.comparison-ratings button{border:0!important;padding:1px!important;font-size:17px;background:transparent!important}.comparison-ratings button:disabled{opacity:1}.comparison-muted,.comparison-empty-note{color:#75808a;font-size:12px}
 
-/* Compact product entry with a persistent, live specification sheet. */
-.product-editor-split{display:grid;grid-template-columns:minmax(300px,.85fr) minmax(0,1.15fr);gap:20px;align-items:start;margin-top:12px}
-.product-editor-split .product-form-compact{max-height:68vh;overflow-y:auto;padding-right:12px;scrollbar-gutter:stable;min-width:0}
 .product-form-compact h2{margin:0 0 6px;font-size:20px}
-.product-form-compact .product-form-help{font-size:12px;line-height:1.4;margin:0 0 12px;color:#62727a}
 .product-form-compact .product-fields{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px}
 .product-form-compact label{font-size:12px;line-height:1.35;min-width:0}
 .product-form-compact input:not([type=checkbox]),.product-form-compact select,.product-form-compact textarea{padding:7px 8px;margin:4px 0 6px;font-size:13px;min-height:32px}
@@ -26,21 +22,10 @@
 .product-form-compact legend{font-size:12px}
 .product-form-compact .product-ai-import{padding:8px 10px;margin:8px 0 12px}
 .product-form-compact .product-ai-import>summary{cursor:pointer;font-size:12px;font-weight:600}
-.product-form-compact .product-brand-tiles{gap:5px;margin:8px 0}
-.product-form-compact .product-brand-tiles:empty{display:none}
-.product-form-compact .product-brand-tiles button{font-size:11px;padding:4px 6px}
-.product-form-compact .product-brand-tiles img{width:40px;height:24px}
 .product-form-compact>.product-actions{position:sticky;bottom:0;background:#fff;border-top:1px solid #ddd7ca;margin:10px 0 0;padding:10px 0;z-index:3}
-.product-editor-preview{min-width:0;position:sticky;top:0;background:#f4f2ec;border:1px solid #ded8ca;padding:12px}
-.product-editor-preview h3{font-size:14px;margin:0 0 4px}
-.product-editor-preview>p{font-size:11px;color:#61727b;margin:0 0 12px}
 .spec-live-preview{width:100%;background:#fff;box-shadow:0 1px 5px #00000012}
-@media(max-width:900px){.product-editor-split{grid-template-columns:1fr}.product-editor-split .product-form-compact{max-height:none;overflow:visible;padding-right:0}.product-editor-preview{position:static;order:-1}}
-@media(max-width:480px){.product-form-compact .product-fields{grid-template-columns:1fr}.product-editor-split{gap:12px}}
 
 /* Visual choices retain lighting graphics and an uncluttered larger sheet. */
-.product-editor-split{grid-template-columns:minmax(330px,.72fr) minmax(0,1.28fr);gap:22px}
-.product-editor-preview{padding:0;background:transparent;border:0}
 .product-section-title{display:flex;align-items:center;gap:9px;width:100%}
 .product-section-title>svg:first-child{color:#4d7e7a;flex-shrink:0}
 .product-section-title>span{flex:1}
@@ -64,6 +49,16 @@
 .product-visual-intro span{font-size:11px;color:#728282}
 .product-asset-preview{height:82px;display:flex;justify-content:center;align-items:center;background:#f8f8f3;border:1px dashed #bdcfc6;border-radius:5px;color:#7c9b8a;margin-bottom:8px}
 .product-asset-preview img{width:100%;height:100%;object-fit:contain}
-@media(min-width:1000px){.product-dialog:has(.product-editor-split){width:min(96vw,1600px);max-width:1600px}}
-@media(max-width:900px){.product-editor-split{grid-template-columns:1fr}}
 @media(max-width:480px){.product-form-compact .product-visual-options .product-choices{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.product-panel.product-dialog:has(.product-editor),.assessment-preview:has(.product-editor){width:min(680px,100%);box-sizing:border-box}
+.product-editor{min-width:0}
+.product-editor .product-visual-intro{margin-bottom:12px}
+.product-editor .product-visual-intro .product-type-badge{width:44px;height:44px}
+.product-editor-tools .product-ai-import{margin:8px 0}
+.product-editor .product-asset-preview{height:56px}
+.product-editor .product-asset-preview img{max-height:56px}
+.product-editor #product-draft-spec-preview{overflow:auto}
+.product-editor>.product-actions button:last-child{margin-inline-start:auto}
+.product-editor .product-editor-specs .product-visual-options .product-choices{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:480px){.product-editor .product-fields{grid-template-columns:1fr}}

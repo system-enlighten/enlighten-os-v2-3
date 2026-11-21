@@ -37,7 +37,7 @@ export default function GeneratedTechnicalTable({projectId,request,canEdit,canEd
  useEffect(()=>{
   let live=true;++generation.current;imageCache.current.clear();setSelectedCircuits([]);setData(null);setZones([]);setProducts([]);setDirty(false);setPicker(null);setSourceEditor(null);setLighting('All');setMissingIcons({});setError('');setBusy(false);if(!projectId)return;setBusy(true);
   Promise.all([request('getTechnicalDocumentation',{projectId},'POST',90000),request('listFloorZones',{projectId},'POST',90000),fetch('/technical-library/database.json').then(r=>{if(!r.ok)throw Error('Product Database could not load');return r.json()}),request('listTechnicalFittings',{},'GET',90000)]).then(([d,z,seed,updates])=>{
-   if(!live)return;const map=new Map(seed.fittings.map(p=>[p.id,p]));updates.forEach(p=>map.set(p.id,{...map.get(p.id),...p}));const database=[...map.values()],baseline=d.sourceText?d:{...d,sourceText:serializeTechnicalOutput(d)},normalized=materializeCmfOverrides(baseline,buildColumnTable(baseline,z,database).rows);setData(normalized);setDirty(!productAssessment&&normalized!==baseline);setZones(z);setProducts(database);
+   if(!live)return;const map=new Map(seed.fittings.map(p=>[p.id,p]));updates.forEach(p=>map.set(p.id,{...map.get(p.id),...p}));const database=[...map.values()].filter(f=>!f.deleted),baseline=d.sourceText?d:{...d,sourceText:serializeTechnicalOutput(d)},normalized=materializeCmfOverrides(baseline,buildColumnTable(baseline,z,database).rows);setData(normalized);setDirty(!productAssessment&&normalized!==baseline);setZones(z);setProducts(database);
   }).catch(e=>live&&setError(e.message)).finally(()=>live&&setBusy(false));return()=>{live=false;++generation.current};
  },[projectId]);
  const calculated=useMemo(()=>{const base=buildColumnTable(data||{},zones,products);if(!productAssessment)return base;const selected=selectedProductTechnicalRows(base.rows,productAssessment,products);return {rows:selected.rows,warnings:[...base.warnings,...selected.warnings],totalDesign:base.rows.length}},[data,zones,products,productAssessment]);
@@ -62,7 +62,7 @@ export default function GeneratedTechnicalTable({projectId,request,canEdit,canEd
   const n=generation.current;setError('');setOptions([]);setQuery('');setPicker({id:row.id,ids,cn:row.cn,kind,media:row.override[kind]||null,loading:true,uploading:false,error:''});
   try{
    let list;if(kind==='reference'){const r=await loadApplications(request);if(r.warning)throw Error(r.warning);list=r.records.map(r=>({id:r.id,label:[r.title,r.category,r.fittingType].filter(Boolean).join(' · '),url:r.imageUrl}));}
-   else if(kind==='fixture'){const map=new Map();products.filter(p=>p.iconUrl).forEach(p=>map.set(p.iconUrl,{id:p.id,label:p.fittingType,url:icons[p.iconUrl]||p.iconUrl}));list=[...map.values()];}
+   else if(kind==='fixture'){const map=new Map();products.filter(p=>p.iconUrl).forEach(p=>map.set(p.iconUrl,{id:p.id,label:p.fittingType,url:icons[p.iconUrl]||p.iconUrl}));list=[...map.values()].filter(f=>!f.deleted);}
    else list=await projectImages();
    if(n===generation.current){setOptions(list.filter(m=>m.url));setPicker(p=>p?{...p,loading:false}:null)}
   }catch(e){if(n===generation.current)setPicker(p=>p?{...p,error:e.message,loading:false}:null)}

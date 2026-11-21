@@ -15,5 +15,20 @@ export function productTypeSections(catalogue,database,originalFittings=database
 export function insertionPlacement(section,index){const before=section.items[index-1]?.order,after=section.items[index]?.order;return {group:section.id,order:before===undefined?(after??1024)-1024:after===undefined?before+1024:(before+after)/2};}
 export function movedPlacement(section,index,direction){const remaining={...section,items:section.items.filter((_,i)=>i!==index)};return insertionPlacement(remaining,Math.max(0,Math.min(remaining.items.length,index+direction)));}
 
-export function productTypeSlots(section){const slots=new Map();let cursor=1;for(const item of section.items){const column=Math.max(cursor,Math.ceil(item.order/1024),1);slots.set(column,item);cursor=column+1;}return slots;}
-export function dropProductPlacement(section,draggedId,column,after=false){const target=productTypeSlots(section).get(column);if(!target||target.fitting.id===draggedId)return {group:section.id,order:column*1024};const remaining={...section,items:section.items.filter(i=>i.fitting.id!==draggedId)};const index=remaining.items.findIndex(i=>i.fitting.id===target.fitting.id);return insertionPlacement(remaining,index+(after?1:0));}
+function slotLayout(section){
+ const slots=new Map(),deletedColumns=[];
+ let cursor=1;
+ for(const item of section.items){
+  const column=Math.max(cursor,Math.ceil(item.order/1024),1);
+  cursor=column+1;
+  if(item.fitting.deleted)deletedColumns.push(column);
+  else slots.set(column-deletedColumns.length,item);
+ }
+ return {slots,deletedColumns};
+}
+export function productTypeSlots(section){return slotLayout(section).slots;}
+export function productTypePlacementAt(section,column){
+ for(const deleted of slotLayout(section).deletedColumns){if(deleted<=column)column++;}
+ return {group:section.id,order:column*1024};
+}
+export function dropProductPlacement(section,draggedId,column,after=false){const target=productTypeSlots(section).get(column);if(!target||target.fitting.id===draggedId)return productTypePlacementAt(section,column);const remaining={...section,items:section.items.filter(i=>i.fitting.id!==draggedId)};const index=remaining.items.findIndex(i=>i.fitting.id===target.fitting.id);return insertionPlacement(remaining,index+(after?1:0));}
