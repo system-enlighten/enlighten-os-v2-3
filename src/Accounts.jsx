@@ -1,3 +1,4 @@
+import DesignTransactions from './DesignTransactions.jsx';
 import StudioHeading from './StudioHeading.jsx';
 import AccountsReconciliation from './AccountsReconciliation.jsx';
 import {ProjectBilling} from './ProjectBilling.jsx';
@@ -606,12 +607,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
       <Table columns={['Date','Type','Project','Description','Ledger head','Amount','IDFC']} rows={records.filter(r=>r.kind==='legacyDesign').map(r=>({key:r.id,cells:[r.date,r.type,r.projectName,r.description,r.head,money(r.amount),r.idfc?'Matched':'—']}))}/>
     </details>}
 
-    {page==='Debit / Credit'&&<>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',margin:'12px 0'}}>
-        {!readOnly&&<button className="accounts-overview-primary" onClick={()=>begin('transaction')}>＋ New transaction</button>}
-      </div>
-      <Table columns={['Date','Value date','Account','Direction','Ledger head','Project','Reference','Amount']} rows={records.filter(r=>r.kind==='transaction'||r.kind==='reconciliation'&&r.postings?.length>0).map(r=>({key:r.id,cells:[r.date,r.valueDate||r.date,r.bank,r.direction,r.head,r.projectName||'Studio',r.reference||'—',money(r.categorizedAmount??r.amount)]}))}/>
-    </>}
+    {page==='Debit / Credit'&&<DesignTransactions records={records} projects={projects} heads={heads} request={request} onSaved={load} readOnly={readOnly}/>}
 
 
     {page==='Chart of Accounts'&&<>
