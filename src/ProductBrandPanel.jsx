@@ -3,8 +3,8 @@ import {ProductForm,ProductOverview} from './ProductDetails.jsx';
 import './ProductDetails.css';
 import './ProductDialog.css';
 import React,{useState} from 'react';
-export default function ProductBrandPanel({fitting,admin,onClose,onSave,renderImage,onUpload,onAi,brands=[],application}){
- const [tab,setTab]=useState('products'),[draft,setDraft]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[view,setView]=useState(null);
+export default function ProductBrandPanel({fitting,admin,onClose,onSave,renderImage,onUpload,onAi,brands=[],application,startAdding=false}){
+ const [tab,setTab]=useState('products'),[draft,setDraft]=useState(()=>startAdding?{id:'product-'+Date.now()+'-'+Math.random().toString(36).slice(2,8),brand:'',model:'',imageUrl:'',notes:'',rating:0}:null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[view,setView]=useState(null);
  const products=[...(fitting.products||[])].sort((a,b)=>Number(b.id===fitting.preferredProductId)-Number(a.id===fitting.preferredProductId));
  const button={padding:'8px 12px',border:'1px solid #8c9dac',background:'#fff',color:'#102238',font:'inherit',cursor:'pointer'};
  const input={padding:9,border:'1px solid #d8d3c8',width:'100%',boxSizing:'border-box',font:'inherit'};
