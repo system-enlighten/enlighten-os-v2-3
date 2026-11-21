@@ -40,3 +40,27 @@
 .assessment-design-reference{width:100%;height:95pt;overflow:hidden;margin-bottom:6pt}.assessment-design-reference img{display:block}.assessment-design-fixture{height:65pt;display:grid;place-items:center}.assessment-design-fixture img{max-width:100%;max-height:65pt;object-fit:contain}.assessment-design-reference~.assessment-fixture{max-height:65pt}
 
 .assessment-missing-code{display:block;color:#9d3024}.assessment-type-actions:has(.assessment-missing-code){display:grid;justify-items:center;gap:6px}
+
+.assessment-preview-header{align-items:flex-start}
+.assessment-corner-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:4px}
+.assessment-corner-actions button,.assessment-preview .assessment-preview-tabs button,.assessment-preview .assessment-sheet-actions button{display:inline-flex;align-items:center;gap:5px;background:transparent;border:1px solid transparent;border-radius:4px;padding:6px 8px;font-size:12px}
+.assessment-corner-actions button:hover,.assessment-preview .assessment-sheet-actions button:hover{background:#e8e3d8}
+.assessment-corner-actions .assessment-delete-product{color:#952f29}
+.assessment-preview .assessment-preview-tabs{margin:8px 0;gap:4px}
+.assessment-preview .assessment-preview-tabs button[aria-pressed=true]{color:#142238;background:#e9e4d9;border-color:#d9d3c6}
+.assessment-sheet-actions{justify-content:flex-end;margin:0;gap:4px}
+.assessment-sheet-context{font-size:12px}
+.assessment-sheet-context summary{cursor:pointer;width:max-content}
+@media(max-width:560px){.assessment-preview-header{flex-wrap:wrap}.assessment-corner-actions{margin-left:auto}}
+
+.assessment-sheet-surface{margin-top:10px;padding:8px;background:#fff;border:1px solid #d9d3c6}
+.assessment-sheet-surface>.assessment-corner-actions{padding:0 0 8px}
+.assessment-sheet-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,220px);gap:12px;align-items:start}
+.assessment-sheet-layout iframe{display:block;box-sizing:border-box}
+.assessment-sheet-rail{position:relative;isolation:isolate;display:grid;padding:14px 12px 14px 0}
+.assessment-sheet-rail::before{content:"";position:absolute;inset:0 0 0 auto;width:22px;background:#ccc;z-index:-1}
+.assessment-sheet-rail button,.assessment-sheet-rail a{display:flex;align-items:center;gap:12px;min-height:46px;padding:8px 10px;background:#f0f0f0;border:1px solid #929292;border-radius:0;text-align:left;color:#191919;text-decoration:none;font:12px/1.3 "Courier New",monospace}
+.assessment-sheet-rail>*+*{margin-top:-1px}
+.assessment-sheet-rail svg{flex:none}
+.assessment-sheet-rail button:not(:disabled):hover,.assessment-sheet-rail a:hover{background:#e1e1e1}
+@media(max-width:740px){.assessment-sheet-layout{grid-template-columns:minmax(0,1fr)}.assessment-sheet-rail{grid-row:1;justify-self:end;width:min(220px,100%)}}
