@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { Search, DollarSign, ArrowUpRight, CheckCircle2, Clock } from 'lucide-react';
+import { Search } from 'lucide-react';
+import StudioHeading from './StudioHeading.jsx';
 
 const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -123,10 +124,10 @@ export default function PaymentDashboard({ projects = [], milestones = [], recei
 
   return (
     <div className="payment-dashboard-wrapper">
-      <p>Projects: shared project register. Project amount: signed Legal &amp; Contracts value. Monthly cells show proformas raised and actual payments received.</p>
+      <StudioHeading title="Payment Dashboard" department="Accounts"/>
       {/* KPI Cards Header */}
-      <div className="accounts-overview-grid" style={{ marginBottom: 16 }}>
-        <div className="accounts-overview-card" style={{ padding: 14 }}>
+      <div className="payment-kpis">
+        <div className="accounts-overview-card payment-kpi">
           <small style={{ color: '#666', fontWeight: 500 }}>Total Project Value</small>
           <strong className="accounts-balance" style={{ margin: '4px 0', fontSize: 20 }}>
             {money(overall.commitment)}
@@ -134,7 +135,7 @@ export default function PaymentDashboard({ projects = [], milestones = [], recei
           <span style={{ fontSize: 12, color: '#486073' }}>Across {overall.count} projects</span>
         </div>
 
-        <div className="accounts-overview-card" style={{ padding: 14 }}>
+        <div className="accounts-overview-card payment-kpi">
           <small style={{ color: '#2e7d32', fontWeight: 500 }}>Total Collections Received</small>
           <strong className="accounts-balance" style={{ margin: '4px 0', fontSize: 20, color: '#2e7d32' }}>
             {money(overall.received)}
@@ -144,7 +145,7 @@ export default function PaymentDashboard({ projects = [], milestones = [], recei
           </span>
         </div>
 
-        <div className="accounts-overview-card" style={{ padding: 14 }}>
+        <div className="accounts-overview-card payment-kpi">
           <small style={{ color: '#c62828', fontWeight: 500 }}>Outstanding Balance</small>
           <strong className="accounts-balance" style={{ margin: '4px 0', fontSize: 20, color: '#c62828' }}>
             {money(overall.balance)}
@@ -159,7 +160,8 @@ export default function PaymentDashboard({ projects = [], milestones = [], recei
           <Search size={16} color="#888" />
           <input
             type="search"
-            placeholder="Search project or client..."
+            aria-label="Search project or client"
+            placeholder="Search project or client…"
             value={query}
             onChange={e => setQuery(e.target.value)}
             style={{ width: '100%', maxWidth: 320 }}
@@ -167,8 +169,8 @@ export default function PaymentDashboard({ projects = [], milestones = [], recei
         </div>
 
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-          <label style={{ fontSize: 13, fontWeight: 500 }}>Period View: </label>
-          <select value={selectedFY} onChange={e => setSelectedFY(e.target.value)}>
+          <label htmlFor="payment-period">Period</label>
+          <select id="payment-period" value={selectedFY} onChange={e => setSelectedFY(e.target.value)}>
             <option value="all">All Available Months (Chronological)</option>
             {fiscalYears.map(fy => (
               <option key={fy} value={fy}>{fy}</option>
@@ -185,19 +187,6 @@ export default function PaymentDashboard({ projects = [], milestones = [], recei
             {visibleMonths.map(({ key }) => <col key={key} />)}
           </colgroup>
           <thead>
-            <tr className="payment-sheet-totals">
-              <th scope="row" colSpan={2} style={{ textAlign: 'left', fontWeight: 700, paddingLeft: 12 }}>
-                Monthly Collections Total
-              </th>
-              <td>{money(overall.commitment)}</td>
-              <td style={{ color: '#2e7d32', fontWeight: 700 }}>{money(overall.received)}</td>
-              <td style={{ color: '#c62828', fontWeight: 700 }}>{money(overall.balance)}</td>
-              {visibleMonths.map(({ key }) => (
-                <td key={key} style={{ fontWeight: 700, background: monthTotals.has(key) ? '#e8f5e9' : 'transparent' }}>
-                  {monthTotals.has(key) ? money(monthTotals.get(key)) : '—'}
-                </td>
-              ))}
-            </tr>
             <tr>
               {headings.map(label => <th scope="col" key={label}>{label}</th>)}
               {visibleMonths.map(({ key, label }) => <th scope="col" key={key}>{label}</th>)}
@@ -213,7 +202,7 @@ export default function PaymentDashboard({ projects = [], milestones = [], recei
                   onClick={() => setActiveProjectId(isSelected ? null : row.id)}
                   style={{
                     cursor: 'pointer',
-                    background: isSelected ? '#fff9c4' : undefined
+                    background: isSelected ? '#e4ece8' : undefined
                   }}
                 >
                   <th scope="row" style={{ fontWeight: 600 }}>{row.name}</th>
@@ -244,6 +233,21 @@ export default function PaymentDashboard({ projects = [], milestones = [], recei
               </tr>
             )}
           </tbody>
+          <tfoot>
+            <tr className="payment-sheet-totals">
+              <th scope="row" colSpan={2}>
+                Monthly Collections Total
+              </th>
+              <td>{money(overall.commitment)}</td>
+              <td style={{ color: '#2e7d32', fontWeight: 700 }}>{money(overall.received)}</td>
+              <td style={{ color: '#c62828', fontWeight: 700 }}>{money(overall.balance)}</td>
+              {visibleMonths.map(({ key }) => (
+                <td key={key}>
+                  {monthTotals.has(key) ? money(monthTotals.get(key)) : '—'}
+                </td>
+              ))}
+            </tr>
+          </tfoot>
         </table>
       </div>
     </div>

@@ -127,19 +127,19 @@
  .accounts-cash-flow dl div+div{margin:0}
 }
 
-.payment-sheet-scroll{overflow:auto;max-height:72dvh;border:1px solid #aaa;background:#fff}
-.accounts table.payment-sheet{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0;font:12px/1.35 Helvetica,Arial,sans-serif;color:#161616}
+.payment-sheet-scroll{overflow:auto;max-height:72dvh;border:1px solid var(--studio-rule);background:#fff}
+.accounts table.payment-sheet{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0;font:inherit;font-size:13px;color:var(--studio-ink)}
 .payment-sheet col{width:108px}
 .payment-sheet col:first-child{width:235px}
 .payment-sheet col:nth-child(2){width:185px}
 .payment-sheet col:nth-child(n+3):nth-child(-n+5){width:155px}
-.accounts .payment-sheet :is(th,td){padding:5px 8px;border-right:1px solid #cecece;border-bottom:1px solid #cecece;vertical-align:middle;text-align:right;white-space:nowrap}
+.accounts .payment-sheet :is(th,td){padding:9px 12px;border-right:1px solid var(--studio-rule);border-bottom:1px solid var(--studio-rule);font-variant-numeric:tabular-nums;vertical-align:middle;text-align:right;white-space:nowrap}
 .accounts .payment-sheet thead{position:sticky;top:0;z-index:2}
-.accounts .payment-sheet thead th{background:#ff0}
-.accounts .payment-sheet-totals :is(th,td){background:#fff}
+.accounts .payment-sheet thead th{background:#d2cdc1;color:var(--studio-ink);border-bottom:2px solid var(--studio-ink)}
+.accounts .payment-sheet-totals :is(th,td){background:#e5ece8;border-top:2px solid var(--studio-accent);font-weight:700}
 .accounts .payment-sheet tr>:first-child,.accounts .payment-sheet tr:not(.payment-sheet-totals)>:nth-child(2){text-align:left}
-.accounts .payment-sheet tbody th{font-weight:400;background:#fff}
-.accounts .payment-sheet tbody tr:hover>*{background:#fffde4}
+.accounts .payment-sheet tbody th{background:inherit;font-weight:600}
+.accounts .payment-sheet tbody tr:hover>*{background:#edf1ee}
 .payment-sheet-actions{margin-top:14px}
 .payment-sheet-actions summary{cursor:pointer}
 
@@ -188,3 +188,13 @@
 
 .invoice-source-notice{padding:10px 14px;background:#fff4df;border-bottom:1px solid #ddcba7;font-size:12px;line-height:1.5}
 .invoice-source-notice p{margin:0 0 4px}
+
+.payment-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:16px}
+.payment-kpi{padding:16px;border-top:2px solid var(--studio-accent)}
+.accounts-dashboard .accounts-overview-card>header{border-top:2px solid var(--studio-accent)}
+.accounts-dashboard .accounts-overview-card h2{font-size:18px}
+.accounts-dashboard .accounts-overview-body>small{display:block;color:var(--studio-muted,#46596b)}
+.accounts-dashboard[aria-busy=true] .accounts-chart-bars{opacity:.45}
+.accounts-banking-tabs{display:flex;gap:6px;margin:0 0 16px;border-bottom:1px solid var(--studio-rule)}
+.accounts-banking-tabs button[aria-pressed=true]{background:var(--studio-ink);color:#fff}
+@media(max-width:700px){.payment-kpis{grid-template-columns:minmax(0,1fr)}}

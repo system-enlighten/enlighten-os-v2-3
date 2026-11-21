@@ -6,7 +6,7 @@ import Accounts, {accountsPages} from './Accounts.jsx';
 import TeamAvailability from './TeamAvailability.jsx';
 import './DepartmentDirectory.css';
 import React,{useCallback,useEffect,useState} from 'react';
-import {BookOpen, ChartNoAxesColumnIncreasing, ClipboardList, FileText, Landmark, ListChecks, Receipt, ReceiptIndianRupee, Timer, Users, Wallet} from 'lucide-react';
+import {BookOpen, ChartNoAxesColumnIncreasing, ClipboardList, FileText, Landmark, Receipt, ReceiptIndianRupee, Timer, Users, Wallet} from 'lucide-react';
 import PerformanceAttendance,{MissedCheckoutNotice} from './PerformanceAttendance.jsx';
 export const departments={
  studio:['Studio · Operations',[]],
@@ -28,7 +28,6 @@ const accountsNavigation=[
  {id:'Invoices',label:'Invoices',group:'BILLING',icon:Receipt},
  {id:'Debit / Credit',label:'Debit / Credit',group:'BOOKKEEPING',icon:Receipt},
  {id:'Banking',label:'Banking',group:'BOOKKEEPING',icon:Landmark},
- {id:'Reconciliation',label:'Reconciliation',group:'BOOKKEEPING',icon:ListChecks},
  {id:'Chart of Accounts',label:'Chart of Accounts',group:'BOOKKEEPING',icon:BookOpen},
  {id:'Financial Reports',label:'Financial Reports',group:'BOOKKEEPING',icon:ChartNoAxesColumnIncreasing},
  {id:'GST',label:'GST',group:'FILING & COMPLIANCE',icon:ReceiptIndianRupee},
@@ -53,7 +52,7 @@ export function DepartmentWorkspace({id,name=departments[id][0],user,request:api
  const go=(next,bank)=>{setError('');setAttendanceDay('');setReconciliationBank(bank);setPage(next);};
  const fmt=s=>new Date(s).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit'});
  const content=<>
- {page!=='Timeline'&&(!isAccounts||!['Home','Performance'].includes(page))&&<h1 className={isAccounts?'studio-page-heading':undefined}>{page==='Home'?name:page}</h1>}
+ {page!=='Timeline'&&(!isAccounts||!['Home','Performance','Payment Dashboard','Banking'].includes(page))&&<h1 className={isAccounts?'studio-page-heading':undefined}>{page==='Home'?name:page}</h1>}
  {error&&<p role="alert">{error}</p>}
  {isAccounts&&page==='Home'&&<div className="studio-home accounts-home-intro">
    <header className="studio-home-intro">

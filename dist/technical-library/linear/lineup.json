@@ -1,0 +1,767 @@
+{
+  "sourceSheet": "LINEAR LIGHTS Line up",
+  "groups": [
+    {
+      "id": "linear-3",
+      "row": 3,
+      "applications": [
+        {
+          "column": 3,
+          "url": "/technical-library/linear/56470345447d729c.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "L1NS.DB|001",
+          "image": "/technical-library/linear/ad1e85a07fede41c.png",
+          "note": ""
+        }
+      ],
+      "label": "Cabinet downlight"
+    },
+    {
+      "id": "linear-5",
+      "row": 5,
+      "applications": [
+        {
+          "column": 3,
+          "url": "/technical-library/linear/c5d038035ce1fde7.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "L1NS.DL|003",
+          "image": "/technical-library/linear/81ff8cfb99fc330e.png",
+          "note": ""
+        }
+      ],
+      "label": "Glass shelf lighting"
+    },
+    {
+      "id": "linear-7",
+      "row": 7,
+      "applications": [
+        {
+          "column": 2,
+          "url": "/technical-library/linear/f26111c09b17e54f.png"
+        },
+        {
+          "column": 3,
+          "url": "/technical-library/linear/da06dd9f03612642.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "L1CR.3S|004",
+          "image": "/technical-library/linear/377191d845beab19.png",
+          "note": ""
+        }
+      ],
+      "label": "Stair / low-level lighting"
+    },
+    {
+      "id": "linear-9",
+      "row": 9,
+      "applications": [
+        {
+          "column": 3,
+          "url": "/technical-library/linear/f180d32f9e1c2fdf.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "L1NS.DL|005",
+          "image": "/technical-library/linear/6b81b59f8313974b.png",
+          "note": ""
+        }
+      ],
+      "label": "Cabinet uplight"
+    },
+    {
+      "id": "linear-12",
+      "row": 12,
+      "applications": [
+        {
+          "column": 3,
+          "url": "/technical-library/linear/6bd5be839c951293.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "L1NS.DL|007",
+          "image": "/technical-library/linear/e81d85ded635410c.png",
+          "note": ""
+        }
+      ],
+      "label": "Cabinet side lighting"
+    },
+    {
+      "id": "linear-15",
+      "row": 15,
+      "applications": [
+        {
+          "column": 2,
+          "url": "/technical-library/linear/4ecc79ed6751079a.png"
+        },
+        {
+          "column": 3,
+          "url": "/technical-library/linear/d73a4285a01ecc8b.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "XXXX.XX|023",
+          "image": "/technical-library/linear/dfa8fc57471b81f0.png",
+          "note": "DIFFUSED"
+        },
+        {
+          "code": "L1NS.DL|006",
+          "image": "/technical-library/linear/264313898b415775.png",
+          "note": "DIFFUSED"
+        },
+        {
+          "code": "L1RS.DB|024",
+          "image": "/technical-library/linear/ce2fa51abc90c7d6.png",
+          "note": ""
+        },
+        {
+          "code": "L1CV.IH|025",
+          "image": "/technical-library/linear/28dce5308f4ef73b.png",
+          "note": ""
+        },
+        {
+          "code": "L1NS.DL|059",
+          "image": "/technical-library/linear/4ed9285887c542e3.png",
+          "note": ""
+        }
+      ],
+      "label": "Corner / angled shelf lighting"
+    },
+    {
+      "id": "linear-18",
+      "row": 18,
+      "applications": [
+        {
+          "column": 3,
+          "url": "/technical-library/linear/67650ef5a36df4de.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "XXXX.XX|029",
+          "image": "/technical-library/linear/2768f87420b3f9a3.png",
+          "note": "DIFFUSED"
+        },
+        {
+          "code": "L1CR.DB|028",
+          "image": "/technical-library/linear/00b835df76f32d27.png",
+          "note": "DIFFUSED"
+        }
+      ],
+      "label": "Diffused ceiling line"
+    },
+    {
+      "id": "linear-21",
+      "row": 21,
+      "applications": [
+        {
+          "column": 3,
+          "url": "/technical-library/linear/67650ef5a36df4de.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "L1CR.DB|026",
+          "image": "/technical-library/linear/149cf55d7776188f.png",
+          "note": "ASYMETRIC"
+        },
+        {
+          "code": "L1CR.DB|027",
+          "image": "/technical-library/linear/b424b2257b360c62.png",
+          "note": "ASYMETRIC"
+        }
+      ],
+      "label": "Asymmetric recessed line",
+      "continuedApplication": true
+    },
+    {
+      "id": "linear-24",
+      "row": 24,
+      "applications": [
+        {
+          "column": 3,
+          "url": "/technical-library/linear/b5e2aa67535c47dc.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "XXXX.XX|033",
+          "image": "/technical-library/linear/07a6c903bb14507d.png",
+          "note": "DIFFUSED \n10\u00ba|30\u00ba|60\u00ba"
+        }
+      ],
+      "label": "Concealed shelf wash"
+    },
+    {
+      "id": "linear-27",
+      "row": 27,
+      "applications": [
+        {
+          "column": 2,
+          "url": "/technical-library/linear/ecf76b114acfbc04.png"
+        },
+        {
+          "column": 3,
+          "url": "/technical-library/linear/36f3fe491e003760.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "XXXX.XX|030",
+          "image": "/technical-library/linear/da2e6bffb6e0099e.png",
+          "note": "DIFFUSED"
+        }
+      ],
+      "label": "Side-emitting shelf light"
+    },
+    {
+      "id": "linear-30",
+      "row": 30,
+      "applications": [
+        {
+          "column": 3,
+          "url": "/technical-library/linear/49e991c11348f4d5.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "L4CR.DB|035",
+          "image": "/technical-library/linear/a9149aabdb6e8acc.png",
+          "note": "DIFFUSED \n10\u00ba|30\u00ba|60\u00ba"
+        }
+      ],
+      "label": "Recessed ceiling channel"
+    },
+    {
+      "id": "linear-33",
+      "row": 33,
+      "applications": [
+        {
+          "column": 0,
+          "url": "/technical-library/linear/35fae5015a911523.png"
+        },
+        {
+          "column": 1,
+          "url": "/technical-library/linear/7deea0c895f8f31d.png"
+        },
+        {
+          "column": 2,
+          "url": "/technical-library/linear/32775f023eca0a56.png"
+        },
+        {
+          "column": 3,
+          "url": "/technical-library/linear/42403417c145617c.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "L1RS.3C|39",
+          "image": "/technical-library/linear/602bcb5b6f97f2c5.png",
+          "note": "30\u00ba"
+        },
+        {
+          "code": "L1CS.DB|040",
+          "image": null,
+          "note": "DIFFUSED"
+        },
+        {
+          "code": "L1CS.3A|041",
+          "image": null,
+          "note": "ASSYMETRIC"
+        },
+        {
+          "code": "L1CS.3S|039",
+          "image": null,
+          "note": "30\u00ba 60\u00ba"
+        }
+      ],
+      "label": "Ceiling wash / grazing"
+    },
+    {
+      "id": "linear-36",
+      "row": 36,
+      "applications": [
+        {
+          "column": 1,
+          "url": "/technical-library/linear/67650ef5a36df4de.png"
+        },
+        {
+          "column": 2,
+          "url": "/technical-library/linear/525260fff548874d.png"
+        },
+        {
+          "column": 3,
+          "url": "/technical-library/linear/3a2ac17ef5082246.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "L1CR.DB|035",
+          "image": "/technical-library/linear/75352b890ab7e074.png",
+          "note": "DIFFUSED"
+        },
+        {
+          "code": "L1CR.3S|036",
+          "image": null,
+          "note": "30\u00ba 60\u00ba"
+        },
+        {
+          "code": "L1CR.3A|037",
+          "image": null,
+          "note": "ASSYMETRIC"
+        }
+      ],
+      "label": "Ceiling multi-directional"
+    },
+    {
+      "id": "linear-43",
+      "row": 43,
+      "applications": [
+        {
+          "column": 3,
+          "url": "/technical-library/linear/f466daca15224ebb.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "L1CR.3A|037",
+          "image": "/technical-library/linear/6f336bd1b12328ab.png",
+          "note": ""
+        }
+      ],
+      "label": "Ceiling edge / cove"
+    },
+    {
+      "id": "linear-45",
+      "row": 45,
+      "applications": [
+        {
+          "column": 3,
+          "url": "/technical-library/linear/fb3d5a7c26504922.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "L1CR.DL|046",
+          "image": "/technical-library/linear/c7001ee3f0eeb3dd.png",
+          "note": ""
+        }
+      ],
+      "label": "Recessed profile 046"
+    },
+    {
+      "id": "linear-47",
+      "row": 47,
+      "applications": [
+        {
+          "column": 3,
+          "url": "/technical-library/linear/a98130ac6eecaa7e.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "L1CR.DL|047",
+          "image": "/technical-library/linear/3ef2b923a5b6bf90.png",
+          "note": ""
+        }
+      ],
+      "label": "Recessed profile 047"
+    },
+    {
+      "id": "linear-49",
+      "row": 49,
+      "applications": [
+        {
+          "column": 3,
+          "url": "/technical-library/linear/c3b5215d7c2adf7b.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "L1CR.DL|048",
+          "image": "/technical-library/linear/abe28cb04cf5fddb.png",
+          "note": ""
+        }
+      ],
+      "label": "Wall-edge profile 048"
+    },
+    {
+      "id": "linear-51",
+      "row": 51,
+      "applications": [
+        {
+          "column": 3,
+          "url": "/technical-library/linear/e16f6368a0816f49.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "L1WR.DL|049",
+          "image": "/technical-library/linear/d36f6cf402a07625.png",
+          "note": ""
+        }
+      ],
+      "label": "Wall recessed profile 049"
+    },
+    {
+      "id": "linear-53",
+      "row": 53,
+      "applications": [
+        {
+          "column": 3,
+          "url": "/technical-library/linear/a1af18da045e1128.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "L1WR.DL|050",
+          "image": "/technical-library/linear/041dd7758aad702e.png",
+          "note": ""
+        }
+      ],
+      "label": "Wall corner profile 050"
+    },
+    {
+      "id": "linear-55",
+      "row": 55,
+      "applications": [
+        {
+          "column": 3,
+          "url": "/technical-library/linear/06ab92207b33ae87.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "L1WS.DL|051",
+          "image": "/technical-library/linear/b86a6647a90a42b1.png",
+          "note": ""
+        }
+      ],
+      "label": "Wall surface profile 051"
+    },
+    {
+      "id": "linear-57",
+      "row": 57,
+      "applications": [
+        {
+          "column": 3,
+          "url": "/technical-library/linear/85a7719d1453b4e3.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "L1RS.3G|020",
+          "image": "/technical-library/linear/d93711c506771518.png",
+          "note": ""
+        }
+      ],
+      "label": "Ceiling-to-wall grazing"
+    },
+    {
+      "id": "linear-60",
+      "row": 60,
+      "applications": [
+        {
+          "column": 3,
+          "url": "/technical-library/linear/85a7719d1453b4e3.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "LC1RS.3G|021",
+          "image": "/technical-library/linear/fa3fc76e879f720a.png",
+          "note": ""
+        }
+      ],
+      "label": "Ceiling wall wash"
+    },
+    {
+      "id": "linear-62",
+      "row": 62,
+      "applications": [
+        {
+          "column": 3,
+          "url": "/technical-library/linear/6634cafabfd5495e.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "LC1FR.3G|022",
+          "image": "/technical-library/linear/8269f1eaeaddf806.png",
+          "note": ""
+        }
+      ],
+      "label": "Floor-to-wall grazing"
+    },
+    {
+      "id": "linear-64",
+      "row": 64,
+      "applications": [
+        {
+          "column": 3,
+          "url": "/technical-library/linear/d73a4285a01ecc8b.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "L1NS.DL|025",
+          "image": "/technical-library/linear/3d3a505c51eba5a2.png",
+          "note": ""
+        },
+        {
+          "code": "LC1CV.IB|025",
+          "image": "/technical-library/linear/a8ecd609e5be4347.png",
+          "note": ""
+        }
+      ],
+      "label": "Shelf corner lighting"
+    },
+    {
+      "id": "linear-66",
+      "row": 66,
+      "applications": [
+        {
+          "column": 3,
+          "url": "/technical-library/linear/67650ef5a36df4de.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "L1NS.DL|041",
+          "image": "/technical-library/linear/9e0e7605ae4ca832.png",
+          "note": ""
+        },
+        {
+          "code": "L1NS.DL|041",
+          "image": "/technical-library/linear/6cd9006693a7ad15.png",
+          "note": ""
+        }
+      ],
+      "label": "Shelf edge lighting"
+    },
+    {
+      "id": "linear-68",
+      "row": 68,
+      "applications": [
+        {
+          "column": 3,
+          "url": "/technical-library/linear/858f47918aa8908a.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "L1FS.DL|053",
+          "image": "/technical-library/linear/9931bb6680772af5.png",
+          "note": ""
+        }
+      ],
+      "label": "Floor edge lighting"
+    },
+    {
+      "id": "linear-70",
+      "row": 70,
+      "applications": [
+        {
+          "column": 3,
+          "url": "/technical-library/linear/40535abc981d8dc8.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "L1FR.DL|056",
+          "image": "/technical-library/linear/a264b5ae43e7e18c.png",
+          "note": ""
+        },
+        {
+          "code": "L1FR.DL|057",
+          "image": "/technical-library/linear/eae7dec934eb7dc7.png",
+          "note": ""
+        },
+        {
+          "code": "X1FR.DL|055",
+          "image": "/technical-library/linear/45d875fc11c18782.png",
+          "note": ""
+        }
+      ],
+      "label": "Floor recessed profiles"
+    },
+    {
+      "id": "linear-72",
+      "row": 72,
+      "applications": [
+        {
+          "column": 3,
+          "url": "/technical-library/linear/40535abc981d8dc8.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "L1NS.DL|018",
+          "image": "/technical-library/linear/a264b5ae43e7e18c.png",
+          "note": ""
+        }
+      ],
+      "label": "Profile 018"
+    },
+    {
+      "id": "linear-74",
+      "row": 74,
+      "applications": [
+        {
+          "column": 3,
+          "url": "/technical-library/linear/40535abc981d8dc8.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "L1NS.DL|019",
+          "image": "/technical-library/linear/a264b5ae43e7e18c.png",
+          "note": ""
+        }
+      ],
+      "label": "Profile 019"
+    },
+    {
+      "id": "linear-76",
+      "row": 76,
+      "applications": [
+        {
+          "column": 3,
+          "url": "/technical-library/linear/40535abc981d8dc8.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "L1WS.DB|061",
+          "image": "/technical-library/linear/a264b5ae43e7e18c.png",
+          "note": ""
+        }
+      ],
+      "label": "Wall surface diffused"
+    },
+    {
+      "id": "linear-78",
+      "row": 78,
+      "applications": [
+        {
+          "column": 2,
+          "url": "/technical-library/linear/c1c7ae808f741fe3.png"
+        },
+        {
+          "column": 3,
+          "url": "/technical-library/linear/5a1206e1162e65af.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "L1NS.DL|011",
+          "image": "/technical-library/linear/990d48420f942b34.png",
+          "note": ""
+        },
+        {
+          "code": "L1NS.DL|015",
+          "image": "/technical-library/linear/c1320ce2fec03646.png",
+          "note": ""
+        }
+      ],
+      "label": "Shelf downlight profiles"
+    },
+    {
+      "id": "linear-80",
+      "row": 80,
+      "applications": [
+        {
+          "column": 3,
+          "url": "/technical-library/linear/4d5e914f09ed7ec8.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "L1NS.DL|012",
+          "image": "/technical-library/linear/e8bc821d05cc6d74.png",
+          "note": ""
+        },
+        {
+          "code": "L1NS.DL|016",
+          "image": "/technical-library/linear/e523da38f3ffcccb.png",
+          "note": ""
+        },
+        {
+          "code": "L1NS.DL|013",
+          "image": "/technical-library/linear/5b83061c917cedfc.png",
+          "note": ""
+        },
+        {
+          "code": "L1NS.DL|017",
+          "image": "/technical-library/linear/7064da4d1bb8f7b2.png",
+          "note": ""
+        }
+      ],
+      "label": "Shelf up / down profiles"
+    },
+    {
+      "id": "linear-82",
+      "row": 82,
+      "applications": [
+        {
+          "column": 3,
+          "url": "/technical-library/linear/198470cce2563efb.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "L1NS.DL|010",
+          "image": "/technical-library/linear/8d3e54e8c71a290a.png",
+          "note": ""
+        }
+      ],
+      "label": "Shelf profile 010"
+    },
+    {
+      "id": "linear-84",
+      "row": 84,
+      "applications": [
+        {
+          "column": 3,
+          "url": "/technical-library/linear/8d2421840c1a4b0f.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "L1NS.DL|014",
+          "image": "/technical-library/linear/1ca1cb89b98beaf2.png",
+          "note": ""
+        }
+      ],
+      "label": "Shelf profile 014"
+    },
+    {
+      "id": "linear-86",
+      "row": 86,
+      "applications": [
+        {
+          "column": 3,
+          "url": "/technical-library/linear/bf274f1b60f7e863.png"
+        }
+      ],
+      "products": [
+        {
+          "code": "LINR.DL|058",
+          "image": "/technical-library/linear/651e649924b5f25f.png",
+          "note": ""
+        }
+      ],
+      "label": "Display corner lighting"
+    }
+  ]
+}

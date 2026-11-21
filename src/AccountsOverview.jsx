@@ -20,26 +20,27 @@ function Card({title,action,children,wide=false}){
   </section>;
 }
 
-function ActivityChart({rows,labels}){
+function ActivityChart({rows,labels,loading=false}){
+  const display=value=>loading?'—':amount(value);
   const values=rows.flatMap(r=>[r.first,r.second]);
   const top=Math.max(1,...values),bottom=Math.min(0,...values),range=top-bottom||1;
   return <>
     <div className="accounts-chart-legend"><span>{labels[0]}</span><span>{labels[1]}</span></div>
     <div className="accounts-chart" aria-hidden="true" style={{gridTemplateColumns:'repeat('+rows.length+',minmax(0,1fr))'}}>
       {rows.map(row=><div key={row.label}><div className="accounts-chart-bars">
-        {[row.first,row.second].map((value,index)=><span key={index} title={row.label+' · '+labels[index]+' · '+amount(value)}
+        {[row.first,row.second].map((value,index)=><span key={index} title={row.label+' · '+labels[index]+' · '+display(value)}
           style={{height:Math.abs(value)/range*100+'%',bottom:(Math.min(0,value)-bottom)/range*100+'%'}}/>)}
       </div><small>{row.label}</small></div>)}
     </div>
     <details className="accounts-chart-values"><summary>View chart values</summary>
       <div className="accounts-scroll"><table><thead><tr><th>Period</th><th>{labels[0]}</th><th>{labels[1]}</th></tr></thead>
-        <tbody>{rows.map(row=><tr key={row.label}><td>{row.label}</td><td>{amount(row.first)}</td><td>{amount(row.second)}</td></tr>)}</tbody>
+        <tbody>{rows.map(row=><tr key={row.label}><td>{row.label}</td><td>{display(row.first)}</td><td>{display(row.second)}</td></tr>)}</tbody>
       </table></div>
     </details>
   </>;
 }
 
-export function AccountsDashboard({data,today,onNavigate}){
+export function AccountsDashboard({data,today,onNavigate,loading=false}){
   const [previous,setPrevious]=useState(false);
   const year=fiscalStart(today)-Number(previous),months=monthsFor(year),start=months[0]+'-01';
   const {records,heads,projects}=data;
@@ -60,42 +61,43 @@ export function AccountsDashboard({data,today,onNavigate}){
   const outstanding=invoice=>Math.max(0,invoice.amount-sum(receipts.filter(r=>r.invoiceId===invoice.id),r=>r.amount||0));
   const receivable=sum(invoices,outstanding);
   const overdue=sum(invoices.filter(r=>(r.dueDate||r.date)<today),outstanding);
-  const payable=-sum(posted,r=>movement(r,['Accounts Payable']));
+  const payable=sum(posted,r=>-movement(r,['Accounts Payable']));
+  const display=value=>loading?'—':amount(value);
   const expenses=expenseHeads.map(head=>({head,value:sum(period,r=>movement(r,[head]))})).filter(row=>row.value>0).sort((a,b)=>b.value-a.value).slice(0,5);
   const activeProjects=projects.filter(project=>period.some(r=>r.projectId===project.id&&r.postings?.length));
   const balances=bankAccounts.map(bank=>({bank,balance:sum(posted,r=>movement(r,[bank]))}));
 
-  return <div className="accounts-dashboard">
+  return <div className="accounts-dashboard" aria-busy={loading}>
     <nav className="accounts-overview-tools" aria-label="Dashboard controls">
       <label>Period <select value={previous?'previous':'current'} onChange={e=>setPrevious(e.target.value==='previous')}><option value="current">This Fiscal Year (FY {year}-{String(year+1).slice(2)})</option><option value="previous">Previous Fiscal Year (FY {year-1}-{String(year).slice(2)})</option></select></label>
     </nav>
     <div className="accounts-overview-grid">
       <Card title="Total Receivables" action={<button onClick={()=>onNavigate('Payment Dashboard')}>View receivables <ArrowUpRight size={13}/></button>}>
-        <span>Total unpaid client invoices</span><strong className="accounts-balance">{amount(receivable)}</strong>
+        <span>Total unpaid client invoices</span><strong className="accounts-balance">{display(receivable)}</strong>
         <div className="accounts-receivables-meter"><span style={{width:(receivable?overdue/receivable*100:0)+'%'}}/></div>
-        <div className="accounts-overview-inline"><span>Current <b>{amount(receivable-overdue)}</b></span><span>Overdue <b>{amount(overdue)}</b></span></div>
+        <div className="accounts-overview-inline"><span>Current <b>{display(receivable-overdue)}</b></span><span>Overdue <b>{display(overdue)}</b></span></div>
       </Card>
       <Card title="Total Payables" action={<button onClick={()=>onNavigate('Financial Reports')}>View reports <ArrowUpRight size={13}/></button>}>
-        <span>Accounts Payable ledger balance</span><strong className="accounts-balance">{amount(payable)}</strong>
-        <small>Outstanding vendor bills &amp; supplier obligations</small>
+        <span>Accounts Payable ledger balance</span><strong className="accounts-balance">{display(payable)}</strong>
+        <small>Outstanding rent, salaries, maintenance, contractor payments and office fit-out expenses</small>
       </Card>
       <Card title="Cash Flow" wide>
-        <div className="accounts-cash-flow"><ActivityChart rows={flows} labels={['Incoming','Outgoing']}/>
-          <dl>{[['Opening cash',opening],['Incoming',incoming],['Outgoing',outgoing],['Closing cash',opening+incoming-outgoing]].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{amount(value)}</dd></div>)}</dl>
+        <div className="accounts-cash-flow"><ActivityChart loading={loading} rows={flows} labels={['Incoming','Outgoing']}/>
+          <dl>{[['Opening cash',opening],['Incoming',incoming],['Outgoing',outgoing],['Closing cash',opening+incoming-outgoing]].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{display(value)}</dd></div>)}</dl>
         </div>
       </Card>
       <Card title="Income and Expense">
-        <div className="accounts-overview-inline"><span>Total income <strong>{amount(sum(income,r=>r.first))}</strong></span><span>Total expenses <strong>{amount(sum(income,r=>r.second))}</strong></span></div>
-        <ActivityChart rows={income} labels={['Income','Expenses']}/>
+        <div className="accounts-overview-inline"><span>Total income <strong>{display(sum(income,r=>r.first))}</strong></span><span>Total expenses <strong>{display(sum(income,r=>r.second))}</strong></span></div>
+        <ActivityChart loading={loading} rows={income} labels={['Income','Expenses']}/>
       </Card>
       <Card title="Top Expenses">
-        {expenses.length?<ul className="accounts-overview-list">{expenses.map(row=><li key={row.head}><span>{row.head}</span><strong>{amount(row.value)}</strong></li>)}</ul>:<p>No expenses recorded for this fiscal year.</p>}
+        {expenses.length?<ul className="accounts-overview-list">{expenses.map(row=><li key={row.head}><span>{row.head}</span><strong>{display(row.value)}</strong></li>)}</ul>:<p>{loading?'Loading expenses…':'No expenses recorded for this fiscal year.'}</p>}
       </Card>
       <Card title="Projects" action={<button onClick={()=>onNavigate('Payment Dashboard')}>Project balances <ArrowUpRight size={13}/></button>}>
-        {activeProjects.length?<ul className="accounts-overview-list">{activeProjects.slice(0,6).map(project=><li key={project.id}><span>{project.name}</span><strong>{amount(sum(invoices.filter(r=>r.projectId===project.id),outstanding))}</strong></li>)}</ul>:<p>No projects with posted activity this fiscal year.</p>}
+        {activeProjects.length?<ul className="accounts-overview-list">{activeProjects.slice(0,6).map(project=><li key={project.id}><span>{project.name}</span><strong>{display(sum(invoices.filter(r=>r.projectId===project.id),outstanding))}</strong></li>)}</ul>:<p>{loading?'Loading project balances…':'No projects with posted activity this fiscal year.'}</p>}
       </Card>
       <Card title="Bank and Cash Accounts" action={<button onClick={()=>onNavigate('Banking')}>View Banking <ArrowUpRight size={13}/></button>}>
-        <ul className="accounts-overview-list">{balances.map(({bank,balance})=><li key={bank}><span>{bankLabel[bank]}</span><strong>{amount(balance)}</strong></li>)}</ul>
+        <ul className="accounts-overview-list">{balances.map(({bank,balance})=><li key={bank}><span>{bankLabel[bank]}</span><strong>{display(balance)}</strong></li>)}</ul>
       </Card>
     </div>
   </div>;
@@ -116,7 +118,7 @@ export function BankingOverview({records,today,onNavigate}){
 
   return <>
     <nav className="accounts-overview-tools" aria-label="Banking actions">
-      <button className="accounts-overview-primary" onClick={()=>onNavigate('Reconciliation',bank==='all'?undefined:bank)}>Import statement / Reconcile</button>
+      <button className="accounts-overview-primary" onClick={()=>onNavigate('Banking',bank==='all'?'IDFC':bank)}>Import statement / Reconcile</button>
       <button onClick={()=>onNavigate('Debit / Credit')}>Record Transaction</button>
       <button onClick={()=>onNavigate('Chart of Accounts')}>Chart of Accounts</button>
     </nav>
@@ -139,7 +141,7 @@ export function BankingOverview({records,today,onNavigate}){
         <td>
           {key==='Cash'?
             <button onClick={()=>onNavigate('Debit / Credit')}>Cash Book</button>:
-            <button onClick={()=>onNavigate('Reconciliation',key)}>Reconcile</button>
+            <button onClick={()=>onNavigate('Banking',key)}>Reconcile</button>
           }
         </td>
       </tr>)}</tbody>

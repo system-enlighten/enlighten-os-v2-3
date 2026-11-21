@@ -9,6 +9,6 @@ export function StudioHeadingText({title,department="Studio"}){
  </div>;
 }
 
-export default function StudioHeading({title,children}){
- return <header className="studio-desk-heading"><StudioHeadingText title={title}/>{children}</header>;
+export default function StudioHeading({title,department,children}){
+ return <header className="studio-desk-heading"><StudioHeadingText title={title} department={department}/>{children}</header>;
 }

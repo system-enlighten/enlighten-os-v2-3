@@ -1,3 +1,4 @@
+import StudioHeading from './StudioHeading.jsx';
 import AccountsReconciliation from './AccountsReconciliation.jsx';
 import {ProjectBilling} from './ProjectBilling.jsx';
 import {invoiceForDisplay} from './InvoiceHistory.js';
@@ -8,7 +9,7 @@ import {AccountsDashboard, BankingOverview, GstOverview, bankAccounts, studioGst
 import PagesInvoice, {printPagesInvoice} from './PagesInvoice.jsx';
 import { Mail, Share2, Printer, Edit3, DollarSign, Download, Search, CheckCircle, ArrowRight, X } from 'lucide-react';
 
-export const accountsPages = ['Projects & Clients','Payment Dashboard','Estimates','Invoices','Debit / Credit','Banking','Reconciliation','GST','Chart of Accounts','Payroll','Financial Reports'];
+export const accountsPages = ['Projects & Clients','Payment Dashboard','Estimates','Invoices','Debit / Credit','Banking','GST','Chart of Accounts','Payroll','Financial Reports'];
 const banks = bankAccounts;
 const today = () => new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Kolkata'});
 const money = n => new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR'}).format((n||0)/100);
@@ -131,12 +132,13 @@ function InvoiceDocument({invoice,documentRef}){
   </>;
 }
 
-function InvoiceWorkspace({records,invoice,editing,busy,form,onChoose,onNew,onEdit,onClose,onPayment,canPay,sent,onMarkSent}){
+function InvoiceWorkspace({records,invoice,editing,busy,form,onChoose,onNew,onEdit,onClose,onPayment,canPay,sent,onMarkSent,isEstimate,onConvert,converted}){
   const documentRef=useRef(null), editorRef=useRef(null);
   const [message,setMessage]=useState('');
   const [query,setQuery]=useState('');
   const [sendOpen,setSendOpen]=useState(false);
 
+  const documentLabel=isEstimate?'Estimate':'Invoice';
   const number=invoice?invoiceForDisplay(invoice).number:undefined;
   useEffect(()=>{setMessage('');setSendOpen(false);},[invoice?.id]);
   const original=invoice?.kind==='legacyInvoice'?originalInvoice(invoiceForDisplay(invoice).sourceUrl||invoice.attachment):{};
@@ -144,7 +146,7 @@ function InvoiceWorkspace({records,invoice,editing,busy,form,onChoose,onNew,onEd
 
   const shareText = useMemo(() => {
     if (!invoice) return '';
-    return `*Invoice ${number} from Enlighten Designs*\n` +
+    return `*${documentLabel} ${number} from Enlighten Designs*\n` +
       `Client: ${invoice.client || '—'}\n` +
       `Project: ${invoice.projectName || '—'}\n` +
       `Amount Due: ${money(invoice.amount)}\n` +
@@ -155,13 +157,13 @@ function InvoiceWorkspace({records,invoice,editing,busy,form,onChoose,onNew,onEd
       `A/C#: 10148974324\n` +
       `IFSC: IDFB0020126\n` +
       (original.url ? `\nView Document: ${original.url}` : '');
-  }, [invoice, number, original]);
+  }, [invoice, number, original, documentLabel]);
 
   const share=async()=>{
     try{
       if(navigator.clipboard){
         await navigator.clipboard.writeText(shareText);
-        setMessage('✓ Invoice & bank remittance details copied to clipboard!');
+        setMessage('✓ Document and bank remittance details copied to clipboard!');
       } else if(navigator.share){
         await navigator.share({title:number,text:shareText,...(original.url?{url:original.url}:{})});
       }
@@ -182,7 +184,7 @@ function InvoiceWorkspace({records,invoice,editing,busy,form,onChoose,onNew,onEd
 
   // Gmail direct compose URL (works flawlessly in browser without requiring Apple Mail desktop app)
   const recipientEmail = invoice?.contactEmail || '';
-  const emailSubject = `Invoice ${number} - Enlighten Designs - ${invoice?.projectName || ''}`;
+  const emailSubject = `${documentLabel} ${number} - Enlighten Designs - ${invoice?.projectName || ''}`;
   const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(recipientEmail)}&su=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(shareText)}`;
   const mailtoUrl = `mailto:${encodeURIComponent(recipientEmail)}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(shareText)}`;
 
@@ -190,22 +192,22 @@ function InvoiceWorkspace({records,invoice,editing,busy,form,onChoose,onNew,onEd
   const visible=records.filter(record=>[record.number,record.sourceNumber,record.client,record.projectName].some(value=>String(value||'').toLowerCase().includes(search)));
 
   return <div className="invoice-workspace">
-    <aside className="invoice-list" aria-label="Invoice list">
-      <header><h2>{invoice?.documentType==='Proforma Invoice'?'Estimates / Proforma':'Invoices'}</h2>{onNew&&<button type="button" disabled={editing} onClick={onNew}>＋ New estimate / proforma</button>}</header>
-      <input type="search" className="invoice-search" aria-label="Search invoices" placeholder="Search invoices by client, project, or no..." value={query} onChange={e=>setQuery(e.target.value)}/>
+    <aside className="invoice-list" aria-label={documentLabel+" list"}>
+      <header><h2>{isEstimate?"Estimates":"Invoices"}</h2>{onNew&&<button type="button" disabled={editing} onClick={onNew}>＋ Add New Estimate</button>}</header>
+      <input type="search" className="invoice-search" aria-label={`Search ${documentLabel.toLowerCase()}s`} placeholder="Search by client, project, or number…" value={query} onChange={e=>setQuery(e.target.value)}/>
       {visible.map(record=><button className="invoice-list-row" type="button" key={record.id} disabled={editing||busy} aria-current={invoice?.id===record.id?'true':undefined} onClick={()=>onChoose(record)}>
         <strong>{record.client||record.projectName||record.number}</strong><strong>{money(record.amount)}</strong>
         <span>{[record.sourceNumber||record.number,record.date].filter(Boolean).join(' · ')}</span>
         <small>{record.kind==='legacyInvoice'?'Imported':record.documentType}</small>
       </button>)}
-      {!visible.length&&<p>{search?'No matching invoices.':'No invoices yet.'}</p>}
+      {!visible.length&&<p>{search?`No matching ${documentLabel.toLowerCase()}s.`:`No ${documentLabel.toLowerCase()}s yet.`}</p>}
     </aside>
 
     <section className="invoice-detail" aria-label="Invoice detail">
       {invoice?<><header className="invoice-detail-heading">
         <div>
           <small>{invoice.projectName||invoice.client||'Invoice'}</small>
-          <h2>{editing?'New invoice':number}</h2>
+          <h2>{editing?(converted?'Invoice draft':`${invoice.isEdit?'Edit':'New'} ${documentLabel.toLowerCase()}`):number}</h2>
         </div>
         {onClose&&<button type="button" onClick={onClose} aria-label={editing?'Cancel invoice draft':'Close invoice'}>×</button>}
       </header>
@@ -214,14 +216,16 @@ function InvoiceWorkspace({records,invoice,editing,busy,form,onChoose,onNew,onEd
           {editing ? (
             <button type="button" onClick={()=>editorRef.current?.querySelector('input,select')?.focus()} title="Jump to draft fields">Jump to Form</button>
           ) : (
-            <button type="button" disabled={!onEdit||busy} onClick={()=>onEdit?.(invoice)} title="Edit invoice details">
-              <Edit3 size={13} style={{marginRight:4}}/> Edit Invoice
+            <button type="button" disabled={!onEdit||busy} onClick={()=>onEdit?.(invoice)} title={`Edit ${documentLabel.toLowerCase()} details`}>
+              <Edit3 size={13} style={{marginRight:4}}/> Edit {documentLabel}
             </button>
           )}
 
           <button type="button" disabled={editing} onClick={()=>setSendOpen(!sendOpen)} style={{background:sendOpen?'#eee':undefined}}>
-            <Mail size={13} style={{marginRight:4}}/> Send Invoice
+            <Mail size={13} style={{marginRight:4}}/> Send {documentLabel}
           </button>
+
+          {!editing&&isEstimate&&onConvert&&<button type="button" disabled={busy} onClick={onConvert}><ArrowRight size={13}/> {converted?'View Invoice':'Convert to Invoice'}</button>}
 
           <button type="button" disabled={editing} onClick={share} title="Copy WhatsApp/Slack summary with remittance details">
             <Share2 size={13} style={{marginRight:4}}/> Share Details
@@ -242,10 +246,10 @@ function InvoiceWorkspace({records,invoice,editing,busy,form,onChoose,onNew,onEd
         {sendOpen && !editing && (
           <div style={{background:'#fbfbfb',borderBottom:'2px solid #ddd',padding:14,fontSize:13}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
-              <strong>Send Invoice {number} to Client</strong>
+              <strong>Send {documentLabel} {number} to Client</strong>
               <button type="button" onClick={()=>setSendOpen(false)} style={{border:0,background:'transparent',cursor:'pointer',fontSize:16}}>×</button>
             </div>
-            <p style={{margin:'0 0 10px',color:'#555'}}>Choose how you want to dispatch this invoice:</p>
+            <p style={{margin:'0 0 10px',color:'#555'}}>Choose how you want to send this {documentLabel.toLowerCase()}:</p>
             <div style={{display:'flex',flexWrap:'wrap',gap:8,alignItems:'center'}}>
               <a href={gmailUrl} target="_blank" rel="noreferrer" className="accounts-overview-primary" style={{textDecoration:'none',padding:'7px 12px',display:'inline-flex',alignItems:'center',gap:6}}>
                 <Mail size={14}/> Open in Gmail Web
@@ -267,7 +271,7 @@ function InvoiceWorkspace({records,invoice,editing,busy,form,onChoose,onNew,onEd
             <InvoiceDocument invoice={invoice} documentRef={documentRef}/>
           </div>
         </div>
-      </>:<p className="invoice-action-message">Select an invoice to preview it.</p>}
+      </>:<p className="invoice-action-message">Select {isEstimate?"an estimate":"an invoice"} to preview it.</p>}
     </section>
   </div>;
 }
@@ -283,6 +287,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
   const [bank,setBank]=useState('IDFC');
   const [cashFrom,setCashFrom]=useState(()=>String(Number(today().slice(0,4))-(today().slice(5,7)<'04'?1:0))+'-04-01');
   const printRef=useRef(null), saving=useRef(false);
+  const invoiceToOpen=useRef(null);
   const [invoiceClosed,setInvoiceClosed]=useState(false);
 
   const readOnly=/^viewer$/i.test(user.appAccess);
@@ -294,8 +299,8 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
   };
 
   useEffect(()=>{load();},[]);
-  useEffect(()=>{if(page==='Reconciliation'&&reconciliationBank&&reconciliationBank!=='Cash')setBank(reconciliationBank);},[page,reconciliationBank]);
-  useEffect(()=>{setDraft(null);setSelected(null);setInvoiceClosed(false);setNotice('');setError('');setLedgerHead(null);},[page]);
+  useEffect(()=>{if(page==='Banking'&&reconciliationBank)setBank(reconciliationBank);},[page,reconciliationBank]);
+  useEffect(()=>{setDraft(null);setSelected(invoiceToOpen.current);invoiceToOpen.current=null;setInvoiceClosed(false);setNotice('');setLedgerHead(null);},[page]);
 
   const save=async e=>{
     if(e?.preventDefault)e.preventDefault();
@@ -307,7 +312,10 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
       setData(d=>({...d,records:[...d.records.filter(r=>r.id!==record.id),record]}));
       if(record.kind==='receipt')await load();
       setDraft(null);setNotice(record.generatedInvoiceId?'Payment received. Invoice automatically issued for the payment date.':'Saved to Accounts.');
-      if(['invoice','payroll'].includes(record.kind))setSelected(record);
+      if(draft.convertedFromEstimateId){
+        invoiceToOpen.current=record;
+        onNavigate('Invoices');
+      }else if(['invoice','payroll'].includes(record.kind))setSelected(record);
     }catch(e){setError(e.message);}
     finally{saving.current=false;setBusy(false);}
   };
@@ -326,6 +334,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
     catch(e){setError(e.message);}
   };
 
+  if(!data&&page==='Home')return <section className="accounts">{error&&<p role="alert" className="accounts-error">{error} <button onClick={load}>Retry</button></p>}<AccountsDashboard data={{records:[],heads:[],projects:[]}} today={today()} onNavigate={onNavigate} loading/></section>;
   if(!data)return <>{error?<><p role="alert">{error}</p><button onClick={load}>Retry</button></>:<p role="status">Loading Accounts…</p>}</>;
 
   const {records,projects,employees}=data;
@@ -398,6 +407,22 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
     .sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
   const activeInvoice=draft?.kind==='receipt'?draft.targetInvoice:draft?.kind==='invoice'?draftInvoice(draft,projects):
     ['invoice','legacyInvoice'].includes(selected?.kind)?selected:invoiceClosed?null:invoiceList[0];
+  const convertedId=activeInvoice?.id&&`${activeInvoice.id}-INVOICE`;
+  const convertedInvoice=invoices.find(row=>row.id===convertedId);
+  const canConvert=page==='Estimates'&&!readOnly&&!draft&&activeInvoice?.kind==='invoice'
+    &&activeInvoice.items?.length>0&&(convertedInvoice||paid(activeInvoice.id)===0);
+  const convertEstimate=()=>{
+    if(convertedInvoice){
+      invoiceToOpen.current=convertedInvoice;
+      onNavigate('Invoices');
+      return;
+    }
+    const details=Object.fromEntries(['projectId','projectName','client','address','state','stateCode','gstin','po','orderDate','contact','contactEmail','phone','dueDate','milestoneId'].map(key=>[key,activeInvoice[key]??'']));
+    begin('invoice',{
+      ...details,id:convertedId,convertedFromEstimateId:activeInvoice.id,
+      items:activeInvoice.items.map(({description,sac,unit,quantity,rate})=>({description,sac,unit,quantity,rate:(rate/100).toFixed(2)}))
+    });
+  };
   const sent=records.find(r=>r.kind==='invoiceDispatch'&&r.sentInvoiceId===activeInvoice?.id);
 
   const markSent=async()=>{
@@ -407,7 +432,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
     try{
       const record=await request('saveAccounts',{kind:'invoiceDispatch',id:crypto.randomUUID(),date:today(),sentInvoiceId:activeInvoice.id});
       setData(current=>({...current,records:[...current.records.filter(r=>r.id!==record.id),record]}));
-      setNotice('Invoice marked as sent.');
+      setNotice(page==='Estimates'?'Estimate marked as sent.':'Invoice marked as sent.');
     }catch(e){setError(e.message);}
     finally{saving.current=false;setBusy(false);}
   };
@@ -440,7 +465,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
   const editor=draft&&<form onSubmit={save} className="accounts-form">
       <h2>{({
         milestone:'Schedule milestone',
-        invoice: draft.isEdit ? 'Edit invoice' : 'Raise invoice',
+        invoice: draft.documentType==='Proforma Invoice' ? (draft.isEdit?'Edit estimate':'New estimate') : (draft.isEdit?'Edit invoice':'New invoice'),
         receipt: draft.targetInvoice ? `Record receipt · ${draft.targetInvoice.number}` : 'Record receipt',
         transaction:'Record transaction',
         payroll: draft.isEdit ? 'Edit payroll' : 'Post payroll',
@@ -483,7 +508,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
       {draft.kind==='opening'&&<>{options('Debit head','debitHead',heads.map(([h])=>h),true)}{options('Credit head','creditHead',heads.map(([h])=>h),true)}{field('Opening reference','description','text',true)}</>}
       {['transaction','reconciliation'].includes(draft.kind)&&<>{field('Value date','valueDate','date')}{field('Beneficiary','beneficiary')}{options('Classification','classification',['Project direct cost','Studio overhead','Owner drawings'])}{draft.head==='Employee Advances'&&options('Employee','employeeId',employees.map(e=>[e.id,e.name]),true)}</>}
       {draft.kind==='invoice'&&<>
-        {options('Document type','documentType',(page==='Estimates'?['Proforma Invoice']:['Invoice','Bill of Supply']),true)}
+        {options('Document type','documentType',(page==='Estimates'&&!draft.convertedFromEstimateId?['Proforma Invoice']:['Invoice','Bill of Supply']),true)}
         {options('Milestone','milestoneId',milestones.filter(m=>m.projectId===draft.projectId&&!invoices.some(r=>r.milestoneId===m.id)).map(m=>[m.id,m.description]),false,id=>{const m=milestones.find(r=>r.id===id);if(m)update('items',[{...freshItem(),description:m.description,rate:m.amount/100}]);})}
         {field('Due date','dueDate','date')}{field('Client','client','text',true)}
         <label>Billing address<textarea required value={draft.address||''} onChange={e=>update('address',e.target.value)}/></label>
@@ -503,7 +528,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
         {[['Description','description','text'],['SAC','sac','text'],['Unit','unit','text'],['Quantity','quantity','number'],['Unit rate (INR)','rate','number']].map(([label,key,type])=><label key={key}>{label}<input required type={type} min={type==='number'?(key==='rate'?.01:1):undefined} step={key==='rate'?.01:undefined} value={line[key]} onChange={e=>update('items',draft.items.map((other,j)=>j===i?{...other,[key]:e.target.value}:other))}/></label>)}
         <button type="button" disabled={draft.items.length===1} onClick={()=>update('items',draft.items.filter((_,j)=>i!==j))}>Remove line</button></div>)}
       <button type="button" disabled={draft.items.length>=25} onClick={()=>update('items',[...draft.items,freshItem()])}>Add line</button></>}
-      <div className="accounts-actions"><button type="submit">{busy?'Saving…':draft.kind==='invoice'?(draft.isEdit?'Update invoice':'Save invoice'):'Save'}</button><button type="button" onClick={()=>setDraft(null)}>Cancel</button></div></fieldset>
+      <div className="accounts-actions"><button type="submit">{busy?'Saving…':draft.kind==='invoice'?(draft.documentType==='Proforma Invoice'?(draft.isEdit?'Update estimate':'Save estimate'):(draft.isEdit?'Update invoice':'Save invoice')):'Save'}</button><button type="button" onClick={()=>setDraft(null)}>Cancel</button></div></fieldset>
     </form>;
 
   return <section className="accounts">
@@ -511,18 +536,27 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
     {error&&<p role="alert" className="accounts-error">{error}</p>}{notice&&<p role="status" style={{background:'#e8f5e9',padding:8,borderRadius:3,color:'#1b5e20'}}>{notice}</p>}
     
     {page==='Home'&&<AccountsDashboard data={data} today={today()} onNavigate={onNavigate}/>}
-    {page==='Banking'&&<BankingOverview records={records} today={today()} onNavigate={onNavigate}/>}
+    {page==='Banking'&&<>
+      <StudioHeading title="Banking" department="Accounts"/>
+      <nav className="accounts-banking-tabs" aria-label="Banking views" data-sheet-tabs>
+        <button type="button" aria-pressed={!reconciliationBank} onClick={()=>onNavigate('Banking')}>Overview</button>
+        <button type="button" aria-pressed={Boolean(reconciliationBank)} onClick={()=>onNavigate('Banking',bank)}>Reconciliation</button>
+      </nav>
+      {reconciliationBank
+        ? <AccountsReconciliation records={records} projects={projects} heads={heads} bank={bank} setBank={setBank} request={request} onSaved={load} readOnly={readOnly} onNavigate={onNavigate}/>
+        : <BankingOverview records={records} today={today()} onNavigate={onNavigate}/>}
+    </>}
     {page==='GST'&&<GstOverview records={records} today={today()} onRecord={readOnly||busy?null:period=>begin('gstFiling',{period})}/>}
     
     {page==='Projects & Clients'&&<ProjectBilling projects={projects} request={request} onSaved={load} readOnly={readOnly}/>}
-    {page==='Invoices'&&<p>Invoices are issued automatically when a proforma payment is recorded. Historical invoices remain available here.</p>}
+    {page==='Invoices'&&<p>Invoices created from estimates or issued when an estimate payment is recorded appear here with historical invoices.</p>}
     {page==='Payment Dashboard'&&<>
       <PaymentDashboard projects={projects} milestones={milestones} receipts={receipts} invoices={records.filter(r=>['invoice','legacyInvoice'].includes(r.kind))} money={money}/>
       <details className="payment-sheet-actions" open>
         <summary>Billing &amp; Payment Action Center</summary>
         <div style={{display:'flex',gap:10,margin:'12px 0'}}>
           {!readOnly&&<button onClick={()=>begin('milestone')}>＋ Add milestone</button>}
-          {!readOnly&&<button className="accounts-overview-primary" onClick={()=>{ onNavigate('Estimates'); }}>＋ New estimate / proforma</button>}
+          {!readOnly&&<button className="accounts-overview-primary" onClick={()=>{ onNavigate('Estimates'); }}>＋ Add New Estimate</button>}
         </div>
       <Table columns={['Project','Milestone / invoice','Due','Amount','Received','Outstanding','Status','Action']} rows={[
         ...milestones.filter(m=>!invoices.some(r=>r.milestoneId===m.id)).map(m=>({key:m.id,cells:[m.projectName,m.description,m.date,money(m.amount),'—','—','Scheduled',!readOnly&&<button onClick={()=>{
@@ -535,6 +569,9 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
     </>}
 
     {['Estimates','Invoices'].includes(page)&&<InvoiceWorkspace
+      isEstimate={page==='Estimates'}
+      onConvert={canConvert?convertEstimate:undefined}
+      converted={Boolean(convertedInvoice||draft?.convertedFromEstimateId)}
       records={invoiceList}
       invoice={activeInvoice}
       editing={draft?.kind==='invoice'}
@@ -552,7 +589,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
         });
       }}
       onClose={busy?undefined:()=>{if(draft)setDraft(null);else{setSelected(null);setInvoiceClosed(true);}}}
-      canPay={!readOnly&&!busy&&!draft&&activeInvoice&&(activeInvoice.amount>paid(activeInvoice.id))}
+      canPay={!readOnly&&!busy&&!draft&&!convertedInvoice&&activeInvoice&&(activeInvoice.amount>paid(activeInvoice.id))}
       onPayment={()=>{
         begin('receipt',{
           invoiceId:activeInvoice.id,
@@ -575,7 +612,6 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
       <Table columns={['Date','Value date','Account','Direction','Ledger head','Project','Reference','Amount']} rows={records.filter(r=>r.kind==='transaction'||r.kind==='reconciliation'&&r.postings?.length>0).map(r=>({key:r.id,cells:[r.date,r.valueDate||r.date,r.bank,r.direction,r.head,r.projectName||'Studio',r.reference||'—',money(r.categorizedAmount??r.amount)]}))}/>
     </>}
 
-    {page==='Reconciliation'&&<AccountsReconciliation records={records} projects={projects} heads={heads} bank={bank} setBank={setBank} request={request} onSaved={load} readOnly={readOnly} onNavigate={onNavigate}/>}
 
     {page==='Chart of Accounts'&&<>
       <div className="accounts-toolbar" style={{justifyContent:'space-between'}}>
