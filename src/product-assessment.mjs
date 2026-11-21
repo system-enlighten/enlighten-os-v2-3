@@ -23,7 +23,7 @@ export function assessmentGroups(data,products=[]){
   const code=value(r,['HOUSINGNUMBER','FITTINGTYPE','PRODUCTCODE']);if(!code){warnings.push(`Output row ${index+1}: no product code; add it in Technical Table | Design.`);return}
   const type=value(r,['TYPE','NAME']),raw=value(r,['LENGTHINMETRE','LENGTHINMETERS','LENGTHINMETRES'])||value(r,['LENGTH']);
   const linear=/^(L\d|ALP)/i.test(code)||/linear|strip|profile|tape/i.test(type)||/^\d+(?:\.\d+)?\s*(mm|m)?$/i.test(raw);
-  const id=assessmentKey(code,linear);if(!groups.has(id)){const p=products.find(p=>norm(p.fittingType)===norm(code));groups.set(id,{id,code,type,unit:linear?'m':'pcs',linear,quantity:0,missingLengths:0,sourceIndices:[],circuits:new Set(),icon:p?.iconUrl||'',catalogOptions:catalogOptionsForCode(code,products)})}
+  const id=assessmentKey(code,linear);if(!groups.has(id)){const p=products.find(p=>norm(p.fittingType)===norm(code));groups.set(id,{id,code,type,unit:linear?'m':'pcs',linear,quantity:0,missingLengths:0,sourceIndices:[],circuits:new Set(),icon:p?.iconUrl||'',registered:!!p,catalogOptions:catalogOptionsForCode(code,products)})}
   const g=groups.get(id);g.sourceIndices.push(index);g.circuits.add(value(r,['CN','CIRCUITNUMBER']));
   if(!linear){g.quantity++;return}
   if(!/^(?:\d+(?:\.\d+)?|\.\d+)\s*(?:mm|m)?$/i.test(raw)||Number(raw.replace(/\s*(mm|m)$/i,''))<=0){g.missingLengths++;warnings.push(`${code} · Output row ${index+1}: linear length needs review.`);return}
@@ -47,7 +47,7 @@ export function productTechnicalRows(rows,assessment){
 
 export function linkedAssessmentGroup(group,saved){
  const prior=saved?.options||[];let selectedId='';
- const options=group.catalogOptions.map(option=>{const old=prior.find(o=>o.id===option.id)||prior.find(o=>norm(o.brand)===norm(option.brand)&&norm(o.article)===norm(option.article));if(old?.id===saved?.selectedId)selectedId=option.id;return {...option,quantity:'',remarks:old?.remarks??option.remarks,ratings:old?.ratings?.slice()||option.ratings.slice()};});
+ const options=group.catalogOptions.map(option=>{const old=prior.find(o=>o.id===option.id)||prior.find(o=>!o.id.startsWith('catalog-')&&norm(o.brand)===norm(option.brand)&&norm(o.article)===norm(option.article));if(old&&old.id===saved?.selectedId)selectedId=option.id;return {...option,quantity:'',remarks:old?.remarks??option.remarks,ratings:old?.ratings?.slice()||option.ratings.slice()};});
  return {options,selectedId};
 }
 export function manufacturerSpecUrl(product){return /^https:\/\//i.test(product?.specs?.datasheet||'')?product.specs.datasheet:'';}

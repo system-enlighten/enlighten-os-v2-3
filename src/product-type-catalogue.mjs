@@ -1,11 +1,13 @@
-export function productTypeSections(catalogue,database){
+export function productTypeSections(catalogue,database,originalFittings=database){
  const byCode=new Map(database.map(f=>[String(f.fittingType||'').trim(),f])),sections=[],used=new Set();let category='Product types',icons=[],mounts=[],headerRow=0;
+ const byId=new Map(database.map(f=>[f.id,f]));
+ const originalByCode=new Map(originalFittings.map(f=>[String(f.fittingType||'').trim(),f]));
  for(const [r,row] of (catalogue?.rows||[]).entries()){
   const title=String(row[0]?.text||'').trim();if(title&&row.slice(1).some(c=>c.image)){if(!/height/i.test(title)){category=title;headerRow=r;icons=row;mounts=catalogue.rows[r+1]||[];}}
-  const cells=row.flatMap((cell,c)=>{const f=byCode.get(String(cell.text||'').trim());if(!c||!f||used.has(f.id))return [];used.add(f.id);return [{fitting:f,sourceColumn:c,sourceRow:r,order:c*1024,icon:f.iconUrl||icons[c]?.image,reference:f.thumbnailUrl||catalogue.rows[r-1]?.[c]?.image,mount:mounts[c]?.text||''}];});
+  const cells=row.flatMap((cell,c)=>{const code=String(cell.text||'').trim(),original=originalByCode.get(code);const f=original?byId.get(original.id):byCode.get(code);if(!c||!f||used.has(f.id))return [];used.add(f.id);return [{fitting:f,sourceColumn:c,sourceRow:r,order:c*1024,icon:f.iconUrl??icons[c]?.image,reference:f.thumbnailUrl??catalogue.rows[r-1]?.[c]?.image,mount:mounts[c]?.text||''}];});
   if(cells.length){const height=String(catalogue.rows[r-1]?.[0]?.text||'').trim();sections.push({id:'row-'+r,headerRow,label:[category,height].filter(Boolean).join(' · ').replace(/\n/g,' '),items:cells});}
  }
- const extra={id:'additional',label:'Additional product types',items:[...byCode.values()].filter(f=>!used.has(f.id)).map((f,i)=>({fitting:f,order:(i+1)*1024,icon:f.iconUrl,reference:f.thumbnailUrl,mount:''}))};sections.push(extra);
+ const extra={id:'additional',label:'Additional product types',items:database.filter(f=>!used.has(f.id)).map((f,i)=>({fitting:f,order:(i+1)*1024,icon:f.iconUrl,reference:f.thumbnailUrl,mount:''}))};sections.push(extra);
  const valid=new Set(sections.map(g=>g.id));const placed=sections.map(g=>({...g,items:[]}));const map=new Map(placed.map(g=>[g.id,g]));
  for(const g of sections)for(const item of g.items){const p=item.fitting.cataloguePlacement,target=p&&valid.has(p.group)?p.group:g.id;map.get(target).items.push({...item,order:Number.isFinite(p?.order)?p.order:item.order});}
  return placed.map(g=>({...g,items:g.items.sort((a,b)=>a.order-b.order||a.fitting.id.localeCompare(b.fitting.id))}));

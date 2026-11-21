@@ -1,19 +1,33 @@
 import React,{useEffect,useState} from 'react';
-import {ProductOverview} from './ProductDetails.jsx';
+import {ProductForm,ProductOverview} from './ProductDetails.jsx';
 import ProductSpecSheet from './ProductSpecSheet.jsx';
 import {manufacturerSpecUrl} from './product-assessment.mjs';
 const actions=[['sample','◈','Request sample'],['mockup','▧','Request mockup'],['contact','✉','Contact manufacturer'],['product-list','＋','Add to product list'],['purchase-order','▤','Release PO']];
-export default function AssessmentProductPreview({product,fitting,group,projectId,request,canEdit,onClose,initialView='product'}){
+export default function AssessmentProductPreview({product,fitting,group,projectId,request,canEdit,onClose,onEdit,onDelete,onUpload,onAi,initialView='product'}){
  const [view,setView]=useState(initialView),[history,setHistory]=useState(null),[error,setError]=useState(''),[draft,setDraft]=useState(null),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
  useEffect(()=>{let alive=true;request('getProductWorkflow',{projectId,brand:product.brand},'POST',90000).then(r=>{if(alive)setHistory(r)}).catch(e=>{if(alive)setError(e.message)});return()=>{alive=false}},[projectId,product.brand]);
  const article=product.specs?.article||product.model,url=manufacturerSpecUrl(product);
  function start(kind){setMessage('');setError('');setDraft({id:'product-action-'+crypto.randomUUID(),kind,fittingId:fitting.id,productId:product.id,code:group.code,brand:product.brand,article,quantity:group.quantity,unit:group.unit,rate:product.specs?.price??'',currency:product.specs?.currency||'INR',partner:'',contact:'',billing:'',notes:'',version:''});setView('action');}
  async function save(e){e.preventDefault();setBusy(true);setError('');try{const saved=await request('saveProductWorkflowDraft',{...draft,projectId,expectedVersion:draft.version},'POST',90000);setDraft(saved);setHistory(h=>({...h,drafts:[...(h?.drafts||[]).filter(r=>r.id!==saved.id),saved]}));setMessage(draft.kind==='product-list'?'Added to this project’s product list.':'Draft saved. It has not been sent or released.');}catch(e){setError(e.message)}finally{setBusy(false)}}
+ async function edit(value){
+  setBusy(true);setError('');
+  try{await onEdit(value);setView('product');setMessage('Product details saved to Product Database.');}
+  catch(e){setError(e.message);}
+  finally{setBusy(false);}
+ }
+ async function remove(){
+  if(!window.confirm(`Delete ${product.brand} · ${article} from Product Database? It will be removed from assessments that use this fitting type.`))return;
+  setBusy(true);setError('');
+  try{await onDelete();}
+  catch(e){setError(e.message);}
+  finally{setBusy(false);}
+ }
  return <div className="assessment-modal" role="dialog" aria-modal="true" aria-label={`${product.brand} ${article} product preview`}><div className="assessment-preview">
-  <header className="assessment-preview-header"><div><small>{group.code} · {group.quantity} {group.unit}</small><h2>{product.brand} · {article}</h2></div><button type="button" onClick={onClose}>Close ×</button></header>
-  <nav className="assessment-preview-tabs" aria-label="Product preview sections">{[['product','Product overview'],['sheet','System spec sheet'],['brand','Brand & partner history']].map(([key,label])=><button type="button" key={key} aria-pressed={view===key} onClick={()=>setView(key)}>{label}</button>)}</nav>
-  <div className="assessment-preview-actions">{actions.map(([key,icon,label])=><button key={key} disabled={!canEdit||busy} onClick={()=>start(key)}><span aria-hidden="true">{icon}</span>{label}</button>)}{url?<a href={url} target="_blank" rel="noopener noreferrer">⇩ Manufacturer datasheet</a>:<button onClick={()=>setView('sheet')}>⇩ Download system datasheet</button>}</div>
+  <header className="assessment-preview-header"><div><small>{group.code} · {group.quantity} {group.unit}</small><h2>{product.brand} · {article}</h2></div><button type="button" disabled={busy} onClick={onClose}>Close ×</button></header>
+  <nav className="assessment-preview-tabs" aria-label="Product preview sections">{[['product','Product overview'],['sheet','System spec sheet'],['brand','Brand & partner history']].map(([key,label])=><button type="button" key={key} disabled={busy} aria-pressed={view===key} onClick={()=>setView(key)}>{label}</button>)}</nav>
+  <div className="assessment-preview-actions">{canEdit&&onEdit&&view!=='edit'&&<button type="button" disabled={busy} onClick={()=>{setMessage('');setError('');setView('edit')}}>Edit product</button>}{canEdit&&onDelete&&view!=='edit'&&<button type="button" disabled={busy} onClick={remove}>Delete product</button>}{actions.map(([key,icon,label])=><button key={key} disabled={!canEdit||busy} onClick={()=>start(key)}><span aria-hidden="true">{icon}</span>{label}</button>)}{url?<a href={url} target="_blank" rel="noopener noreferrer">⇩ Manufacturer datasheet</a>:<button onClick={()=>setView('sheet')}>⇩ Download system datasheet</button>}</div>
   {error&&<p role="alert" className="assessment-error">{error}</p>}{message&&<p role="status">{message}</p>}
+  {view==='edit'&&canEdit&&<ProductForm key={product.id} product={product} fitting={fitting} brands={[]} busy={busy} onUpload={onUpload} onAi={onAi} onCancel={()=>setView('product')} onSave={edit}/>}
   {view==='product'&&<ProductOverview product={product} fitting={fitting} admin={false} onBack={onClose} renderImage={(src,alt)=>src?<img src={src} alt={alt} style={{maxWidth:'100%',maxHeight:300,objectFit:'contain'}}/>:null}/>}
   {view==='sheet'&&<ProductSpecSheet product={product} fitting={fitting} onClose={()=>setView('product')}/>}
   {view==='brand'&&<section><h3>{product.brand} · Partner history</h3><p>Supplier rates, project ratings, service issues and resolution times will appear when verified supply and service records are connected. No history is recorded here yet.</p><p>Sample, mockup and purchase-order drafts are shown below. Drafts do not count as supplied products or completed orders.</p>{!history?<p>{error?'History could not load.':'Loading project records…'}</p>:history.drafts.length?<div className="assessment-history">{history.drafts.map(r=><article key={r.id}><strong>{actions.find(a=>a[0]===r.kind)?.[2]||r.kind}</strong><p>{r.article} · {r.partner||'Partner not entered'} · {r.status}</p><p>{r.rate===''?'Price on request':`${r.currency} ${r.rate}`} · {r.quantity} {r.unit}</p><p>{r.notes}</p><button disabled={!canEdit} onClick={()=>{setDraft(r);setView('action');setMessage('')}}>Open record</button></article>)}</div>:<p>No requests or product-list entries for this brand in this project.</p>}</section>}
