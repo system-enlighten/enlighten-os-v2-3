@@ -14,9 +14,19 @@ export function productQuantities(data,products=[],zones=[]){
  }).sort((a,b)=>a.code.localeCompare(b.code,undefined,{numeric:true})||a.unit.localeCompare(b.unit));
  return {groups,warnings:[...new Set(warnings)],pieceTotal:groups.filter(g=>!g.linear).reduce((n,g)=>n+g.quantity,0),metreTotal:Number(groups.filter(g=>g.linear).reduce((n,g)=>n+g.quantity,0).toFixed(6))};
 }
-export function selectedProjectSpecSheets(quantities,products,assessment){
+export function selectedProjectSpecSheets(quantities,products,assessment,{includeSavedOnly=false}={}){
  const selected=selectedAssessment(assessment),sheets=new Map(),warnings=[];
- for(const g of quantities){const option=selected.get(g.id);if(!option)continue;
+ const groups=[...quantities];
+ if(includeSavedOnly){
+  const currentIds=new Set(quantities.map(group=>group.id));
+  for(const id of selected.keys()){
+   if(currentIds.has(id)||!/^.+\|(m|pcs)$/.test(id))continue;
+   const code=id.slice(0,id.lastIndexOf('|'));
+   groups.push({id,code,areas:[]});
+   warnings.push(`${code}: saved selection has no matching row in the current Output. Confirm the fitting code in Product Assessment.`);
+  }
+ }
+ for(const g of groups){const option=selected.get(g.id);if(!option)continue;
   const matches=[];
   for(const f of products.filter(f=>norm(f.fittingType)===norm(g.code))){
    for(const p of f.products||[]){const catalog=catalogOptionsForCode(g.code,[{...f,products:[p]}])[0];if(catalog?.id===option.id)matches.push(p);}
@@ -31,7 +41,7 @@ export function selectedProjectSpecSheets(quantities,products,assessment){
   if(!sheets.has(id))sheets.set(id,{id,product,codes:[],areas:[],intents:[],sources:[],photo:option.photo,complete:!!full});
   const sheet=sheets.get(id);sheet.codes.push(g.code);sheet.areas.push(...(option.review?.area?[option.review.area]:g.areas));sheet.intents.push(...intent);sheet.sources.push(g.id);
  }
- return {sheets:[...sheets.values()].map(s=>({...s,codes:[...new Set(s.codes)],areas:[...new Set(s.areas)],intents:[...new Set(s.intents)]})),warnings,selectedCount:quantities.filter(g=>selected.has(g.id)).length};
+ return {sheets:[...sheets.values()].map(s=>({...s,codes:[...new Set(s.codes)],areas:[...new Set(s.areas)],intents:[...new Set(s.intents)]})),warnings,selectedCount:groups.filter(g=>selected.has(g.id)).length};
 }
 export function quantityCsv(model){const cell=v=>{let t=String(v??'');if(/^[\s]*[=+@-]/.test(t))t="'"+t;return '"'+t.replaceAll('"','""')+'"'};return [['Product code','Description','Quantity','Unit','Circuits','Areas','Missing lengths'],...model.groups.map(g=>[g.code,g.type,g.quantity,g.unit,g.circuitRows.map(c=>[shortTechnicalFloor(c.floor),c.cn].filter(Boolean).join(' | ')).join(', '),g.areas.join(', '),g.missingLengths])].map(r=>r.map(cell).join(',')).join('\r\n');}
 export function boqScheduleRows(quantities,products,assessment){

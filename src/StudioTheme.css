@@ -20,7 +20,7 @@
 .studio-app-content :is(h1,h2,h3,h4,h5,h6){
  /* Some legacy views set heading typography inline. */
  font-family:var(--studio-heading-font)!important;
- font-weight:400!important;
+ font-weight:600!important;
  letter-spacing:var(--studio-heading-spacing)!important;
  line-height:1.22!important;
 }

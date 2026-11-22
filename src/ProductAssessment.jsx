@@ -84,6 +84,7 @@ export default function ProductAssessment({project,projectId,request,canEdit,onO
      <option value="all">All fittings</option><option value="pending">Awaiting selection</option><option value="selected">Selected</option><option value="missing">Missing fitting codes</option>
     </select></label>
     {canEdit&&<button className="technical-primary-action" disabled={busy||!dirty} onClick={()=>save()}>Save selections</button>}
+    {dirty&&<span role="status">Unsaved changes. Save selections to update Project Spec Sheets.</span>}
     <button disabled={busy||!selected} onClick={()=>dirty?save(true):onOpenProductTable?.()}>{dirty?'Save and open product table':'Open product table'}</button>
     <details className="technical-toolbar-menu"><summary>More</summary><div>
      <button onClick={()=>setFit(x=>!x)}>{fit?'View at 100%':'Fit to width'}</button>
