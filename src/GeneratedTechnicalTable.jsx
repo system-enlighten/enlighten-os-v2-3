@@ -26,7 +26,7 @@ function TechnicalTextCell({value,label,editable,onCommit,onOpen,hasMultiple=fal
  if(editing)return <textarea aria-label={label} autoFocus value={draft} maxLength={4000} onChange={e=>setDraft(e.target.value)} onBlur={finish} onKeyDown={e=>{if(e.key==='Escape'){cancelled.current=true;setEditing(false)}else if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();e.currentTarget.blur()}}} style={{font:'inherit',color:'inherit',textAlign:'inherit',width:'100%',minHeight:'65pt',padding:'4pt',border:'1px solid #648a83',background:'#fff'}}/>;
  return <button type="button" aria-label={`Edit ${label}`} title="Click to edit" onClick={()=>{if(hasMultiple||onOpen){onOpen?.();return}cancelled.current=false;setDraft(value||'');setEditing(true)}} style={{font:'inherit',color:'inherit',textAlign:'inherit',whiteSpace:'pre-wrap',border:0,padding:'4pt',width:'100%',minHeight:'40pt',background:'transparent',cursor:'text'}}>{value||'\u00a0'}</button>;
 }
-export default function GeneratedTechnicalTable({projectId,request,canEdit,canEditText=canEdit,canEditMedia=canEdit,productAssessment=null}){
+export default function GeneratedTechnicalTable({projectId,projectName,request,canEdit,canEditText=canEdit,canEditMedia=canEdit,productAssessment=null}){
  const [data,setData]=useState(null),[zones,setZones]=useState([]),[products,setProducts]=useState([]),[busy,setBusy]=useState(false),[error,setError]=useState(''),[dirty,setDirty]=useState(false),[picker,setPicker]=useState(null),[options,setOptions]=useState([]),[query,setQuery]=useState(''),[lighting,setLighting]=useState('All'),[fit,setFit]=useState(true),[width,setWidth]=useState(1200),[missingIcons,setMissingIcons]=useState({}),[sourceEditor,setSourceEditor]=useState(null);
  const host=useRef(null),generation=useRef(0),imageCache=useRef(new Map());
  const [selectedCircuits,setSelectedCircuits]=useState([]);
@@ -96,15 +96,42 @@ export default function GeneratedTechnicalTable({projectId,request,canEdit,canEd
    {section.rows.map(row=><tr key={row.id} data-circuit={row.cn} style={{height:sheet.heights[2]+'pt'}}>{rowCells(row,print).map((value,index)=><td key={index} style={cell(index+1)}>{value||'\u00a0'}</td>)}</tr>)}
   </React.Fragment>)}
  </tbody>)}</table>;
+ const fileHeading=data?.sourceName?.trim()||'Technical Table';
+ const designHeading=<header className="technical-document-heading">
+  <h1>Light Fittings Technical Table</h1>
+  {projectName&&<h2>{projectName}</h2>}
+  <p>Lights with a specific character are a part of the <strong>exhibit designers’ BOQ</strong> &amp; not this Technical Table.<br/>For detailed description, refer luminaire specification sheets.</p>
+ </header>;
  return <div ref={host} className="generated-technical-document">
   {!projectId?<p>Select a project to generate its Technical Table.</p>:<>
    <div className="technical-controls">{error&&<p role="alert" style={{color:'#a23424'}}>{error}</p>}{busy&&<p role="status">Loading or saving technical documentation…</p>}</div>
-   {data&&<><div className="technical-controls" style={{display:'flex',gap:12,alignItems:'center',margin:'14px 0'}}><button onClick={()=>setFit(x=>!x)}>{fit?'View at 100%':'Fit to width'}</button>{(canEdit||canEditText||canEditMedia)&&<button disabled={busy||!dirty} onClick={save}>Save table edits</button>}{!productAssessment&&<button disabled={busy||!data.rows.length} onClick={downloadOutput}>Download updated Output (.txt)</button>}<button type="button" aria-pressed={filtersEnabled} className="output-filter-toggle" onClick={()=>{setFiltersEnabled(v=>!v);if(filtersEnabled)setColumnFilters({})}}>☰ Filter</button><span>{visibleRows.length} of {calculated.rows.length} circuits · {Math.round(scale*100)}%{dirty?' · Unsaved changes':''}</span><label style={{marginLeft:'auto',display:'flex',gap:8,alignItems:'center'}}>Lighting view<select aria-label="Filter lighting type" value={lighting} onChange={e=>setLighting(e.target.value)} style={{padding:'9px 14px',background:'#fff',border:'1px solid #1b3553',color:'#142238'}}>{['All',...layers].map(value=><option key={value} value={value}>{value} ({value==='All'?calculated.rows.length:calculated.rows.filter(r=>r.lighting===value).length})</option>)}</select></label></div>
-    <div className="technical-controls">{!productAssessment&&<><TechnicalSheetsExport data={data} projectId={projectId} request={imageRequest} canEdit={canEdit} zones={zones} products={products}/><p>Click product code, application, size, CMF or illuminance to type a correction. Enter applies it; Escape cancels. Corrections update the original Output rows. Save before leaving; downloads include current edits.</p></>}{productAssessment&&<p>{calculated.rows.length} of {calculated.totalDesign} design circuits have a selected product. Product photographs, model numbers and manufacturer specifications come from saved Product Assessment selections. Blank product fields require catalogue data; design quantities and site heights are retained.</p>}{calculated.warnings.length>0&&<details><summary>{calculated.warnings.length} items need review</summary><ul>{calculated.warnings.map(w=><li key={w}>{w}</li>)}</ul></details>}</div>
-    {!productAssessment&&canEditMedia&&<div className="technical-controls" style={{display:'flex',gap:12,alignItems:'center',flexWrap:'wrap',margin:'12px 0'}}><span>{selectedReferenceIds.length} circuits selected</span><button disabled={busy||!eligibleReferenceRows.length} onClick={()=>setSelectedCircuits(ids=>[...new Set([...ids,...eligibleReferenceRows.map(r=>r.id)])])}>Select visible circuits without reference</button><button disabled={busy||!selectedReferenceIds.length} onClick={()=>setSelectedCircuits([])}>Clear selection</button><button disabled={busy||!selectedReferenceIds.length} onClick={()=>{const rows=calculated.rows.filter(r=>selectedReferenceIds.includes(r.id));if(rows.length)choose(rows[0],'reference',rows.map(r=>r.id))}}>Apply reference to selected circuits</button></div>}
+   {!productAssessment&&<div className="technical-controls technical-heading-preview">{designHeading}</div>}
+   {data&&<>
+    <div className="technical-controls technical-themed-toolbar">
+     {(canEdit||canEditText||canEditMedia)&&<button className="technical-primary-action" disabled={busy||!dirty} onClick={save}>Save table edits</button>}
+     <label>Lighting<select aria-label="Filter lighting type" value={lighting} onChange={e=>setLighting(e.target.value)}>{['All',...layers].map(value=><option key={value} value={value}>{value} ({value==='All'?calculated.rows.length:calculated.rows.filter(r=>r.lighting===value).length})</option>)}</select></label>
+     <button type="button" aria-pressed={filtersEnabled} onClick={()=>{setFiltersEnabled(v=>!v);if(filtersEnabled)setColumnFilters({})}}>Column filters</button>
+     <button onClick={()=>setFit(x=>!x)}>{fit?'View at 100%':'Fit to width'}</button>
+     {!productAssessment&&<details className="technical-toolbar-menu"><summary>Export</summary><div>
+      <button disabled={busy||!data.rows.length} onClick={downloadOutput}>Download Output (.txt)</button>
+      <TechnicalSheetsExport data={data} projectId={projectId} request={imageRequest} canEdit={canEdit} zones={zones} products={products}/>
+     </div></details>}
+     <span className="technical-toolbar-status">{visibleRows.length} of {calculated.rows.length} circuits · {Math.round(scale*100)}%{dirty?' · Unsaved changes':''}</span>
+    </div>
+    <div className="technical-controls technical-themed-toolbar technical-secondary-tools">
+     {calculated.warnings.length>0&&<details><summary>{calculated.warnings.length} items need review</summary><ul>{calculated.warnings.map(w=><li key={w}>{w}</li>)}</ul></details>}
+     {!productAssessment&&canEditMedia&&<details><summary>Reference images{selectedReferenceIds.length>0&&` · ${selectedReferenceIds.length} selected`}</summary>
+      <div className="technical-reference-actions">
+       <button disabled={busy||!eligibleReferenceRows.length} onClick={()=>setSelectedCircuits(ids=>[...new Set([...ids,...eligibleReferenceRows.map(r=>r.id)])])}>Select visible without reference</button>
+       <button disabled={busy||!selectedReferenceIds.length} onClick={()=>setSelectedCircuits([])}>Clear selection</button>
+       <button disabled={busy||!selectedReferenceIds.length} onClick={()=>{const rows=calculated.rows.filter(r=>selectedReferenceIds.includes(r.id));if(rows.length)choose(rows[0],'reference',rows.map(r=>r.id))}}>Apply reference</button>
+      </div>
+     </details>}
+     {!productAssessment&&(canEdit||canEditText)&&<details><summary>Editing help</summary><p>Click a product code, application, size, CMF or illuminance to edit. Press Enter to apply or Escape to cancel. Save table edits to update Output.</p></details>}
+    </div>
     {Object.keys(columnFilters).length>0&&<div className="technical-controls output-filter-summary"><span>{visibleRows.length} circuits match the column filters</span><button onClick={()=>setColumnFilters({})}>Clear column filters</button></div>}
-    <div className="technical-screen-table" style={{overflow:'auto',background:'#fff',padding:16,border:'1px solid #ded8ca',marginTop:14}}>{table(sections)}{!visibleRows.length&&<p>{calculated.rows.length?'No circuits match the selected filters.':productAssessment?'Select and save products in Product Assessment to generate product circuit rows.':'Upload Output to generate circuit rows.'}</p>}</div>
-    <div className="technical-print-pages">{printPages.map((groups,i)=><section className="technical-print-page" key={i}>{table(groups,true)}</section>)}</div>
+    <div className="technical-screen-table" style={{overflow:'auto',background:'#fff',padding:16,border:'1px solid #ded8ca',marginTop:10}}>{!productAssessment&&<h2 className="technical-file-heading">{fileHeading}</h2>}{table(sections)}{!visibleRows.length&&<p>{calculated.rows.length?'No circuits match the selected filters.':productAssessment?'Select and save products in Product Assessment to generate product circuit rows.':'Upload Output to generate circuit rows.'}</p>}</div>
+    <div className="technical-print-pages">{printPages.map((groups,i)=><section className="technical-print-page" key={i}>{!productAssessment&&<>{i===0&&designHeading}<h2 className="technical-file-heading">{fileHeading}</h2></>}{table(groups,true)}</section>)}</div>
    </>}
   </>}
   {sourceEditor&&<div role="dialog" aria-modal="true" aria-label={`Edit original Output for ${sourceEditor.cn}`} className="technical-controls" style={{position:'fixed',inset:0,zIndex:2000,background:'#0008',display:'grid',placeItems:'center'}}><div style={{background:'#f5f1e8',padding:24,width:'min(900px,94vw)',maxHeight:'90vh',overflow:'auto'}}>

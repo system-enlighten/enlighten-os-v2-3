@@ -64,3 +64,15 @@
 .assessment-sheet-rail svg{flex:none}
 .assessment-sheet-rail button:not(:disabled):hover,.assessment-sheet-rail a:hover{background:#e1e1e1}
 @media(max-width:740px){.assessment-sheet-layout{grid-template-columns:minmax(0,1fr)}.assessment-sheet-rail{grid-row:1;justify-self:end;width:min(220px,100%)}}
+
+.product-assessment .assessment-review-tip{font-size:12px;color:#4f5b6d}
+.product-assessment .technical-toolbar-menu>div{display:grid;gap:4px}
+
+.product-assessment .assessment-design-reference{height:210pt}
+.product-assessment .assessment-design-fixture{height:82pt}
+.product-assessment .assessment-design-fixture img{max-height:82pt}
+.product-assessment .assessment-fixture{width:min(100%,125pt);max-height:175pt}
+.product-assessment .assessment-design-reference~.assessment-fixture{max-height:80pt}
+.product-assessment .assessment-fitting-code{font-size:.86em;overflow-wrap:anywhere}
+.product-assessment .assessment-type-actions .assessment-fitting-action{font:700 11pt/1.25 TechnicalHelvetica,sans-serif;max-width:100%;padding:5pt 8pt;background:#e4f2ee;border:1px solid #42857b;color:#164c46;border-radius:3px}
+.product-assessment .assessment-type-actions .assessment-fitting-action:not(:disabled):hover{background:#cde9e2}

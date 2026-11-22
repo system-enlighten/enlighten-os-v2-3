@@ -50,3 +50,20 @@
 .technical-image-upload{font-size:12px;padding-top:10px}.technical-image-picker-error{color:#a23424;font-size:12px}
 @media(max-width:900px){.technical-image-picker{width:94vw;height:88vh;padding:14px}.technical-image-picker-body.has-selection{grid-template-columns:minmax(0,1fr) 210px}}
 @media(max-width:600px){.technical-image-picker-body.has-selection{grid-template-columns:minmax(0,1fr)}.technical-image-framing{border-left:0;border-top:1px solid #d9d3c7;padding:10px 0;max-height:180px}.technical-image-picker-body.has-selection .technical-image-gallery-scroll{min-height:170px}.technical-image-framing-preview{height:110px}.technical-image-view-options button{padding:7px 5px;font-size:10px}.technical-image-choice img{height:170px}}
+
+.technical-document-heading{border-top:4px solid #b6f516;border-bottom:1px solid #d8d0c1;padding:16px 0 13px;margin:10px 0;color:#142238}
+.technical-document-heading h1{font:700 clamp(24px,3.2vw,40px)/1 'TechnicalFounders',sans-serif;text-transform:uppercase;margin:0 0 5px}
+.technical-document-heading h2{font:700 20px/1.15 'TechnicalFounders',sans-serif;margin:0}
+.technical-document-heading p{font:12px/1.5 'TechnicalHelvetica',sans-serif;margin:9px 0 0}
+.technical-file-heading{text-align:center;overflow-wrap:anywhere;font:700 13px/1.4 'TechnicalHelvetica',sans-serif;margin:0 0 8px}
+.technical-themed-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:10px 0;color:#142238;font-size:12px}
+.technical-themed-toolbar button,.technical-themed-toolbar select,.technical-themed-toolbar input,.technical-themed-toolbar summary{font:inherit;color:#142238;background:#fff;border:1px solid #d4cdc0;border-radius:0;padding:7px 10px}
+.technical-themed-toolbar button,.technical-themed-toolbar summary{cursor:pointer}
+.technical-themed-toolbar button:disabled{opacity:.5;cursor:default}
+.technical-themed-toolbar .technical-primary-action,.technical-themed-toolbar button[aria-pressed=true]{background:#0c1c32;color:white;border-color:#0c1c32}
+.technical-themed-toolbar label{display:flex;align-items:center;gap:6px}
+.technical-themed-toolbar .technical-toolbar-status{margin-left:auto;color:#4f5b6d}
+.technical-toolbar-menu{position:relative}
+.technical-toolbar-menu>div{position:absolute;z-index:5;min-width:230px;left:0;top:100%;padding:8px;border:1px solid #d4cdc0;background:white}
+.technical-secondary-tools{align-items:flex-start}
+.technical-reference-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
