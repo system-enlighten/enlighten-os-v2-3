@@ -1,5 +1,6 @@
 /* Shared typography and drawing-sheet finishes for the signed-in workspace. */
 .studio-app-shell{
+ --studio-heading-spacing:.04em;
  --studio-heading-font:"TechnicalFounders",Inter,system-ui,sans-serif;
  --studio-body-font:Inter,system-ui,sans-serif;
  --studio-ink:#132237;
@@ -19,8 +20,8 @@
 .studio-app-content :is(h1,h2,h3,h4,h5,h6){
  /* Some legacy views set heading typography inline. */
  font-family:var(--studio-heading-font)!important;
- font-weight:600!important;
- letter-spacing:-.018em!important;
+ font-weight:400!important;
+ letter-spacing:var(--studio-heading-spacing)!important;
  line-height:1.22!important;
 }
 .studio-app-content h1{font-size:clamp(1.85rem,3vw,2.5rem)!important}
@@ -111,7 +112,7 @@
 .studio-app-content :is(.studio-home h1,h1.studio-page-heading,.studio-project-heading,.journal-masthead h1){
  font-family:var(--studio-heading-font)!important;
  font-size:clamp(1.85rem,3vw,2.5rem)!important;
- letter-spacing:-.04em!important;
+ letter-spacing:var(--studio-heading-spacing)!important;
  color:var(--studio-ink);
 }
 .studio-app-content .studio-page-heading{margin:0 0 12px}
@@ -172,7 +173,7 @@
 .studio-app-content .diary-meeting-status{color:#34534c;background:#e7ede8}
 .studio-app-content .feedback-media-sections>section{background:#eee9dd;border-top:2px solid var(--studio-ink)}
 .studio-app-content .feedback-media-sections .feedback-upload-button{display:inline-flex}
-.studio-app-content :is(.studio-sheet-panel,.studio-home-card)>h2{letter-spacing:-.025em!important}
+.studio-app-content :is(.studio-sheet-panel,.studio-home-card)>h2{letter-spacing:var(--studio-heading-spacing)!important}
 .studio-performance{font-size:.82rem;line-height:1.5}
 .studio-performance>section{background:var(--studio-surface);border-top:2px solid var(--studio-ink)!important}
 .studio-performance>section h3{margin-top:0}

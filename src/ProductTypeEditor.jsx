@@ -4,6 +4,7 @@ import './ProductDialog.css';
 const fields=[['fittingType','Fitting type code'],['iconUrl','Icon'],['thumbnailUrl','Reference image'],['brand','Brand / IP / Article'],['x','X'],['pcbWidth','PCB width'],['standardLengths','Standard lengths'],['wattage','Wattage (W or W/m)']];
 export default function ProductTypeEditor({fitting,onSave,onUpload,onClose,onOpenProducts,onDelete,deleteBlocked,renderImage}){
  const [draft,setDraft]=useState(fitting),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ const visibleFields=/^L/i.test(draft.fittingType.trim())?fields:fields.slice(0,3);
  const update=(field,value)=>setDraft(current=>({...current,[field]:value}));
  async function submit(event){
   event.preventDefault();
@@ -37,7 +38,7 @@ export default function ProductTypeEditor({fitting,onSave,onUpload,onClose,onOpe
    </header>
    {error&&<p role="alert">{error}</p>}
    <form className="product-form" onSubmit={submit}>
-    <div className="product-fields">{fields.map(([key,label])=>{
+    <div className="product-fields">{visibleFields.map(([key,label])=>{
      const media=key==='iconUrl'||key==='thumbnailUrl';
      return <div key={key}>
       <label>{label}{media?' URL':''}<input autoFocus={key==='fittingType'} required={key==='fittingType'} maxLength={media?2000:500} disabled={busy} value={draft[key]||''} onChange={event=>update(key,event.target.value)}/></label>

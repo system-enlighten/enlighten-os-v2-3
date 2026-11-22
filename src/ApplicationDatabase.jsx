@@ -6,7 +6,18 @@ export default function ApplicationDatabase({state,request,onOpenFitting}){
  useEffect(()=>{let active=true;loadApplications(request).then(r=>{if(active){setRows(r.records);setError(r.warning)}}).catch(e=>{if(active)setError(e.message)});Promise.all([fetch('/technical-library/database.json').then(r=>r.json()),request('listTechnicalFittings',{},'GET',90000)]).then(([seed,overrides])=>{const map=new Map(seed.fittings.map(f=>[f.id,f]));overrides.forEach(f=>map.set(f.id,f));if(active)setFittings([...map.values()].filter(f=>!f.deleted))}).catch(e=>{if(active)setError(e.message)});return()=>{active=false}},[]);
  const categories=[...new Set(fittings.map(f=>f.category).filter(Boolean))].sort();const admin=String(state.currentUser?.appAccess).toLowerCase()==='admin';
  const save=async e=>{e.preventDefault();setBusy(true);setError('');try{const r=await request('saveApplicationImage',{record:draft},'POST',90000);setRows(a=>a.map(v=>v.id===r.id?{...v,...r}:v).some(v=>v.id===r.id)?a.map(v=>v.id===r.id?{...v,...r}:v):[...a,r]);setDraft(null)}catch(e){setError(e.message)}finally{setBusy(false)}};
- const shown=rows.filter(r=>(filter==='unassigned'?!r.category&&!r.fittingType:!filter||applicationCategories(r).includes(filter))&&[r.title,r.category,r.fittingType].join(' ').toLowerCase().includes(query.toLowerCase()));const current=rows.find(r=>r.id===selected),linked=current?fittings.filter(f=>applicationMatches(current,f)):[];
+ const shown=rows.filter(r=>(filter==='unassigned'?!r.category&&!r.fittingType:!filter||applicationCategories(r).includes(filter))&&[r.title,r.category,r.fittingType].join(' ').toLowerCase().includes(query.toLowerCase()));const current=rows.find(r=>r.id===selected);
+ const linkedFittings=record=>fittings.filter(f=>String(f.applicationImageId||'')===String(record.id)||applicationMatches(record,f));
+ const linked=current?linkedFittings(current):[];
+ function productThumbnails(products){
+  return <div className="application-product-thumbnails">{products.map(f=>{
+   const image=f.thumbnailUrl||f.iconUrl;
+   if(!image)return null;
+   return <button key={f.id} type="button" aria-label={`Open product ${f.fittingType}`} onClick={()=>onOpenFitting(f.id)}>
+    <img src={image} alt="" loading="lazy"/>
+   </button>;
+  })}</div>;
+ }
  const [view,setView]=useState('gallery');
  const detailRef=useRef(null);
  const formRef=useRef(null);
@@ -42,18 +53,18 @@ export default function ApplicationDatabase({state,request,onOpenFitting}){
          <button type="button" onClick={()=>setSelected(null)}>Close</button>
          {admin&&<button type="button" onClick={()=>edit(current)}>Edit links</button>}
        </div>
-       <h2>{current.title}</h2>
+       <h2 className="application-detail-caption">{current.title}</h2>
        {current.notes&&<p>{current.notes}</p>}
        <h3>Products for this effect</h3>
        {!linked.length&&<p>No linked products found.</p>}
-       <div className="product-brand-tiles">
-         {linked.map(f=><button key={f.id} type="button" onClick={()=>onOpenFitting(f.id)}>{f.iconUrl&&<img src={f.iconUrl} alt=""/>}{f.fittingType}<small style={{display:'block'}}>{f.category}</small></button>)}
-       </div>
+       {productThumbnails(linked)}
      </div>
    </article>}
    <p className="application-count" role="status">{shown.length} {shown.length===1?'reference':'references'}</p>
    <ul className="application-references" data-view={view}>
-     {shown.slice(0,limit).map(record=><li key={record.id} className="application-reference">
+     {shown.slice(0,limit).map(record=>{
+      const products=linkedFittings(record).filter(f=>f.thumbnailUrl||f.iconUrl);
+      return <li key={record.id} className="application-reference">
        <button type="button" className="application-photo" aria-label={'View products for '+record.title} onClick={()=>setSelected(record.id)}>
          <img loading="lazy" src={record.imageUrl} alt=""/>
        </button>
@@ -62,10 +73,10 @@ export default function ApplicationDatabase({state,request,onOpenFitting}){
          <p>{applicationCategories(record).join(' · ')||record.fittingType||'Needs category link'}</p>
        </div>
        <div className="application-actions">
-         <button type="button" onClick={()=>setSelected(record.id)}>View products</button>
+         {productThumbnails(products.slice(0,4))}
          {admin&&<button type="button" onClick={()=>edit(record)}>Edit links</button>}
        </div>
-     </li>)}
+     </li>;})}
    </ul>
    {shown.length>limit&&<button type="button" onClick={()=>setLimit(v=>v+36)}>Show more references</button>}
  </section>;

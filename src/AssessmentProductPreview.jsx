@@ -1,8 +1,7 @@
-import {ProductFamily} from './ProductFamily.jsx';
+import {ProductFamily,ProductFamilyEditor} from './ProductFamily.jsx';
 import {Pencil,Trash2,X,Package,FilePlus,FileDown,MessageSquare,Link2,Megaphone} from 'lucide-react';
 import React,{useEffect,useState} from 'react';
 import {CatalogueSpecEditor as ProductForm} from './CatalogueSpecEditor.jsx';
-import {ProductOverview} from './ProductDetails.jsx';
 import ProductSpecSheet from './ProductSpecSheet.jsx';
 import {manufacturerSpecUrl} from './product-assessment.mjs';
 const actions=[
@@ -21,7 +20,7 @@ export default function AssessmentProductPreview({product,fitting,group,projectI
  async function save(e){e.preventDefault();setBusy(true);setError('');try{const saved=await request('saveProductWorkflowDraft',{...draft,projectId,expectedVersion:draft.version},'POST',90000);setDraft(saved);setHistory(h=>({...h,drafts:[...(h?.drafts||[]).filter(r=>r.id!==saved.id),saved]}));setMessage(draft.kind==='product-list'?'Added to this project’s product list.':'Draft saved. It has not been sent or released.');}catch(e){setError(e.message)}finally{setBusy(false)}}
  async function edit(value){
   setBusy(true);setError('');
-  try{await onEdit(value);setView('sheet');setMessage('Product details saved to Product Database.');}
+  try{await onEdit(value);setView(view==='family-edit'?'product':'sheet');setMessage('Product details saved to Product Database.');}
   catch(e){setError(e.message);}
   finally{setBusy(false);}
  }
@@ -32,10 +31,11 @@ export default function AssessmentProductPreview({product,fitting,group,projectI
   catch(e){setError(e.message);}
   finally{setBusy(false);}
  }
+ const editing=view==='edit'||view==='family-edit';
  const cornerActions=(
    <div className="assessment-corner-actions" aria-label="Product actions">
-    {view!=='edit'&&canEdit&&onEdit&&<button type="button" disabled={busy} onClick={()=>{setMessage('');setError('');setView('edit')}}><Pencil size={14}/>Edit</button>}
-    {view!=='edit'&&canEdit&&onDelete&&<button type="button" className="assessment-delete-product" disabled={busy} onClick={remove}><Trash2 size={14}/>Delete</button>}
+    {!editing&&canEdit&&onEdit&&<button type="button" disabled={busy} onClick={()=>{setMessage('');setError('');setView(view==='product'?'family-edit':'edit')}}><Pencil size={14}/>Edit</button>}
+    {!editing&&canEdit&&onDelete&&<button type="button" className="assessment-delete-product" disabled={busy} onClick={remove}><Trash2 size={14}/>Delete</button>}
     <button type="button" aria-label="Close product" title="Close" disabled={busy} onClick={onClose}><X size={18}/></button>
    </div>
  );
@@ -44,10 +44,11 @@ export default function AssessmentProductPreview({product,fitting,group,projectI
    <div><small>{group.code} · {group.quantity} {group.unit}</small><h2>{product.brand} · {article}</h2></div>
    {view!=='sheet'&&cornerActions}
   </header>
-  {view!=='edit'&&<nav className="assessment-preview-tabs" aria-label="Product preview sections">{[['sheet','Spec sheet'],['product','Family view'],['brand','Partner history']].map(([key,label])=><button type="button" key={key} disabled={busy} aria-pressed={view===key} onClick={()=>setView(key)}>{label}</button>)}</nav>}
+  {!editing&&<nav className="assessment-preview-tabs" aria-label="Product preview sections">{[['sheet','Spec sheet'],['product','Family view'],['brand','Partner history']].map(([key,label])=><button type="button" key={key} disabled={busy} aria-pressed={view===key} onClick={()=>setView(key)}>{label}</button>)}</nav>}
   {error&&<p role="alert" className="assessment-error">{error}</p>}{message&&<p role="status">{message}</p>}
   {view==='edit'&&canEdit&&<ProductForm key={product.id} product={product} fitting={fitting} brands={[]} busy={busy} onUpload={onUpload} onAi={onAi} onCancel={()=>setView('sheet')} onSave={edit}/>}
-  {view==='product'&&<><ProductFamily product={product} catalogue={catalogue}/><details><summary>Full product overview</summary><ProductOverview product={product} fitting={fitting} admin={false} onBack={onClose} renderImage={(src,alt)=>src?<img src={src} alt={alt} style={{maxWidth:'100%',maxHeight:300,objectFit:'contain'}}/>:null}/></details></>}
+  {view==='family-edit'&&canEdit&&<ProductFamilyEditor key={product.id} product={product} busy={busy} onCancel={()=>setView('product')} onSave={edit}/>}
+  {view==='product'&&<ProductFamily product={product} catalogue={catalogue}/>}
   {view==='sheet'&&<ProductSpecSheet product={product} fitting={fitting} initialContext={context} review={review} onReview={canEdit?onReview:undefined} catalogue={catalogue} compact cornerActions={cornerActions} renderSheetActions={printPdf=><nav className="assessment-sheet-rail" aria-label="Spec sheet actions">
    {actions.map(([key,Icon,label])=>{
     const content=<><Icon size={19} aria-hidden="true"/><span>{label}</span></>;

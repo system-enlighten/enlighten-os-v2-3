@@ -3,3 +3,22 @@
 .product-panel.fitting-editor{width:min(760px,100%)}.fitting-editor .product-fields{margin-bottom:16px}.fitting-editor .product-fields>div{min-width:0}.fitting-editor .product-fields img{max-width:100%;max-height:100px;object-fit:contain}
 
 .fitting-editor .fitting-delete{color:#9e3128;border-color:#c99c97}.fitting-editor .fitting-delete:disabled{opacity:.5}
+.product-dialog .product-comparison{min-width:760px;color:#111;background:#fff}
+.product-dialog .product-comparison th{background:#c7f51f;color:#111;font-size:13px;font-weight:700;text-align:center;border:1px solid #a8a89f;padding:16px 8px}
+.product-dialog .product-comparison td{border:1px solid #a8a89f;color:#111;font-size:12px;text-align:center}
+.product-dialog .product-comparison .comparison-fitting{background:#fff}
+.product-dialog .comparison-fitting figure>img{height:150px;object-fit:contain}
+.product-dialog .comparison-pick{margin:8px;color:#164f4b;background:#e4f1ed}
+.comparison-image-picker{margin:14px 0;padding:16px;border:1px solid #d9dfda;background:white}
+.comparison-image-picker header{display:flex;align-items:center;justify-content:space-between}
+.comparison-image-picker label{display:flex;align-items:center;gap:10px}
+.comparison-image-options{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;max-height:320px;overflow:auto;margin-top:12px}
+.comparison-image-options button{background:#f6f7f3;border:1px solid #d9dfda;color:inherit}
+.comparison-image-options button[aria-pressed=true]{border-color:#327169}
+.comparison-image-options img{width:100%;height:90px;object-fit:contain;display:block}
+.comparison-review-list article{padding:16px;margin:12px 0;border:1px solid #d9dfda}
+.comparison-rating-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.comparison-rating-grid>div{display:grid;padding:8px;background:#f4f6f1}
+.comparison-rating-grid button{font-size:18px;border:0;background:transparent;color:#805816;padding:2px}
+.comparison-project-review{padding:10px 0;border-top:1px solid #ddd}
+.comparison-project-review p{white-space:pre-wrap;margin:6px 0}
