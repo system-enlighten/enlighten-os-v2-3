@@ -4251,6 +4251,16 @@ function TechnicalTableView({state}){
  const projectId=selectedProjectId??String(defaultProject?.id??'');
  const viewer=state.currentUser?.appAccess?.toLowerCase()==='viewer',admin=canAdministerTechnical(state.currentUser,projectId);
  const project=state.projects.find(p=>String(p.id)===String(projectId));
+ const technicalRequest=React.useMemo(
+  ()=>createTechnicalWorkspaceRequest(apiRequest),
+  [state.currentUser?.userId,state.currentUser?.email]
+ );
+ function switchTab(id){
+  if(id===tab)return;
+  if(tab==='database')technicalRequest.invalidate('listTechnicalFittings');
+  if(tab==='zones')technicalRequest.invalidate('listFloorZones',{projectId});
+  setTab(id);
+ }
  const canEditTechnical=!!projectId&&!viewer&&!!wihProjectRole(state.currentUser,projectId);
  useEffect(()=>{if(!workbookSettingsOpen)return;let live=true;Promise.all([fetch('/technical-library/database.json').then(r=>{if(!r.ok)throw Error();return r.json();}),apiRequest('listTechnicalFittings',{},'GET',90000)]).then(([seed,overrides])=>{if(live){const all=new Map((seed.fittings||[]).map(f=>[f.id,f]));overrides.forEach(f=>all.set(f.id,f));setDatabase([...all.values()].filter(f=>!f.deleted));}}).catch(()=>{});return()=>{live=false;};},[workbookSettingsOpen]);
  const loadTable=async(id=projectId,heading=header)=>{if(!id)return;const r=await apiRequest('getNativeTechnicalTable',{projectId:id,...(heading?{headerRow:Number(heading)}:{})},'POST',90000);return r;};
