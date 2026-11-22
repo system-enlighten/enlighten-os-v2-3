@@ -200,9 +200,9 @@
   font-family: 'Studio Home Founders';
   src: url('./technical-assets/FoundersGrotesk-Semibold.woff2') format('woff2');
   font-weight: 600;
-  font-display: swap;
+  font-display: block;
 }
-.studio-app-content .studio-home .studio-home-intro .studio-heading-text h1 {
+.studio-app-shell .studio-app-content main.studio-home > .studio-home-intro .studio-heading-text > h1.studio-page-heading {
   font-family: 'Studio Home Founders', var(--studio-heading-font) !important;
   font-weight: 600 !important;
 }

@@ -1,3 +1,5 @@
+import {useTechnicalBackgroundRefresh} from './useTechnicalBackgroundRefresh.js';
+import {fittingIconOptions} from './fitting-icon-options.js';
 import TableColumnFilter from './TableColumnFilter.jsx';
 import {technicalFilterValues,filterTechnicalRows} from './technical-filters.mjs';
 import {applyCircuitMedia} from './technical-bulk-media.mjs';
@@ -41,6 +43,13 @@ export default function GeneratedTechnicalTable({projectId,projectName,projectCo
    if(!live)return;const map=new Map(seed.fittings.map(p=>[p.id,p]));updates.forEach(p=>map.set(p.id,{...map.get(p.id),...p}));const database=[...map.values()].filter(f=>!f.deleted),baseline=d.sourceText?d:{...d,sourceText:serializeTechnicalOutput(d)},normalized=materializeCmfOverrides(baseline,buildColumnTable(baseline,z,database).rows);setData(normalized);setDirty(!productAssessment&&normalized!==baseline);setZones(z);setProducts(database);
   }).catch(e=>live&&setError(e.message)).finally(()=>live&&setBusy(false));return()=>{live=false;++generation.current};
  },[projectId]);
+ useTechnicalBackgroundRefresh({request,action:'getTechnicalDocumentation',projectId,enabled:!!data&&!dirty&&!busy&&!picker&&!sourceEditor,onUpdate:next=>{
+  if(next.version===data.version)return;
+  const baseline=next.sourceText?next:{...next,sourceText:serializeTechnicalOutput(next)};
+  const normalized=materializeCmfOverrides(baseline,buildColumnTable(baseline,zones,products).rows);
+  setData(normalized);
+  setDirty(!productAssessment&&normalized!==baseline);
+ }});
  const calculated=useMemo(()=>{const base=buildColumnTable(data||{},zones,products);if(!productAssessment)return base;const selected=selectedProductTechnicalRows(base.rows,productAssessment,products);return {rows:selected.rows,warnings:[...base.warnings,...selected.warnings],totalDesign:base.rows.length}},[data,zones,products,productAssessment]);
  const [filtersEnabled,setFiltersEnabled]=useState(false),[columnFilters,setColumnFilters]=useState({});
  useEffect(()=>{setColumnFilters({});setFiltersEnabled(false)},[projectId,!!productAssessment]);
@@ -61,7 +70,7 @@ export default function GeneratedTechnicalTable({projectId,projectName,projectCo
   const n=generation.current;setError('');setOptions([]);setQuery('');setPicker({id:row.id,ids,cn:row.cn,kind,media:row.override[kind]||null,loading:true,uploading:false,error:''});
   try{
    let list;if(kind==='reference'){const r=await loadApplications(request);if(r.warning)throw Error(r.warning);list=r.records.map(r=>({id:r.id,label:[r.title,r.category,r.fittingType].filter(Boolean).join(' · '),url:r.imageUrl}));}
-   else if(kind==='fixture'){const map=new Map();products.filter(p=>p.iconUrl).forEach(p=>map.set(p.iconUrl,{id:p.id,label:p.fittingType,url:icons[p.iconUrl]||p.iconUrl}));list=[...map.values()].filter(f=>!f.deleted);}
+   else if(kind==='fixture')list=fittingIconOptions(products);
    else list=await projectImages();
    if(n===generation.current){setOptions(list.filter(m=>m.url));setPicker(p=>p?{...p,loading:false}:null)}
   }catch(e){if(n===generation.current)setPicker(p=>p?{...p,error:e.message,loading:false}:null)}

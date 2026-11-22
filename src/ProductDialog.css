@@ -34,3 +34,6 @@
 .comparison-image-options{grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:4px}
 .product-dialog .comparison-image-options button{padding:0;border-radius:0;overflow:hidden}
 .comparison-image-options img{height:96px}
+.fitting-icon-options button{display:flex;flex-direction:column;align-items:center;gap:4px}
+.fitting-icon-options img{height:64px}
+.fitting-icon-options span{padding:0 4px 5px;overflow-wrap:anywhere}

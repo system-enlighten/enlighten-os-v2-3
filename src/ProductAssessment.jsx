@@ -1,3 +1,4 @@
+import {useTechnicalBackgroundRefresh} from './useTechnicalBackgroundRefresh.js';
 import {buildColumnTable} from './technical-column-logic.mjs';
 import ProductTypeEditor from './ProductTypeEditor.jsx';
 import ProductBrandPanel from './ProductBrandPanel.jsx';
@@ -23,6 +24,7 @@ export default function ProductAssessment({project,projectId,request,canEdit,onO
  useEffect(()=>{const n=++generation.current;setData(null);setAssessment({groups:{},version:''});setDirty(false);setProductEditor(null);setSpecPreview(null);setMissingType(null);setError('');setMessage('');setBusy(false);if(!projectId)return;setBusy(true);
   Promise.all([request('getTechnicalDocumentation',{projectId},'POST',90000),request('getProductAssessment',{projectId},'POST',90000),fetch('/technical-library/database.json').then(r=>{if(!r.ok)throw Error('Product Database could not load.');return r.json()}),request('listTechnicalFittings',{},'GET',90000),request('listFloorZones',{projectId},'POST',90000)]).then(([d,a,seed,updates,zones])=>{if(n!==generation.current)return;const all=new Map((seed.fittings||[]).map(p=>[p.id,p]));updates.forEach(p=>all.set(p.id,{...all.get(p.id),...p}));setData({...d,assessmentZones:zones});setProducts([...all.values()].filter(f=>!f.deleted));const loaded=assessmentGroups(d,[...all.values()].filter(f=>!f.deleted));setAssessment({...a,groups:{...a.groups,...Object.fromEntries(loaded.groups.filter(g=>a.groups[g.id]).map(g=>[g.id,linkedAssessmentGroup(g,a.groups[g.id])]))}})}).catch(e=>n===generation.current&&setError(e.message)).finally(()=>n===generation.current&&setBusy(false));return()=>{generation.current++};
  },[projectId,revision]);
+ useTechnicalBackgroundRefresh({request,action:'getProductAssessment',projectId,enabled:!!data&&!busy&&!dirty&&!specPreview&&!productEditor&&!missingType,onUpdate:next=>setAssessment(current=>current.version===next.version?current:next)});
  const model=useMemo(()=>assessmentGroups(data||{},products),[data,products]);
  const savedGroup=g=>linkedAssessmentGroup(g,assessment.groups[g.id]);
  const groups=model.groups.filter(g=>{
@@ -88,7 +90,7 @@ export default function ProductAssessment({project,projectId,request,canEdit,onO
     <button disabled={busy||!selected} onClick={()=>dirty?save(true):onOpenProductTable?.()}>{dirty?'Save and open product table':'Open product table'}</button>
     <details className="technical-toolbar-menu"><summary>More</summary><div>
      <button onClick={()=>setFit(x=>!x)}>{fit?'View at 100%':'Fit to width'}</button>
-     <button disabled={busy||dirty} onClick={()=>setRevision(n=>n+1)}>Refresh assessment</button>
+     <button disabled={busy||dirty} onClick={()=>{for(const action of ['getTechnicalDocumentation','getProductAssessment','listFloorZones'])request.invalidate?.(action,{projectId});request.invalidate?.('listTechnicalFittings');setRevision(n=>n+1);}}>Refresh assessment</button>
      <button onClick={()=>window.print()}>Print / Save PDF</button>
     </div></details>
     <span className="technical-toolbar-status">{selected} of {model.groups.length} selected{dirty?' · Unsaved changes':''}</span>
@@ -110,7 +112,7 @@ export default function ProductAssessment({project,projectId,request,canEdit,onO
    </tr>))}</tbody>})}</table>{!groups.length&&<p>{model.groups.length?'No fitting types match this search.':'Upload Output with product codes to create the Product Assessment Sheet.'}</p>}</div>
    <div className="assessment-total"><strong>Total</strong><span>{money(grandTotal)}{model.groups.some(g=>{const state=savedGroup(g);return state.options.some(o=>o.id===state.selectedId&&o.price==='')})?' · Excludes products priced on request':''}</span></div>
   </>}</>}
-  {missingType&&<ProductTypeEditor fitting={missingType} onSave={registerType} onUpload={uploadAsset} onClose={()=>setMissingType(null)} renderImage={renderImage}/>}
+  {missingType&&<ProductTypeEditor iconFittings={products} fitting={missingType} onSave={registerType} onUpload={uploadAsset} onClose={()=>setMissingType(null)} renderImage={renderImage}/>}
   {productEditor&&<ProductBrandPanel key={productEditor.id} startAdding fitting={productEditor} admin={canEdit} onClose={()=>setProductEditor(null)} onUpload={uploadAsset} onAi={payload=>request('draftProductFromSpreadsheet',{...payload,fittingCode:productEditor.fittingType},'POST',180000)} renderImage={renderImage} onSave={async fitting=>{
    const saved=await saveCatalogue(fitting);
    setProductEditor(saved);setDirty(true);setMessage('Product Database updated. Save assessment selections when finished.');
