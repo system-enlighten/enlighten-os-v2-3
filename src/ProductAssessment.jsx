@@ -1,3 +1,4 @@
+import {buildColumnTable} from './technical-column-logic.mjs';
 import ProductTypeEditor from './ProductTypeEditor.jsx';
 import ProductBrandPanel from './ProductBrandPanel.jsx';
 import AssessmentProductPreview from './AssessmentProductPreview.jsx';
@@ -14,7 +15,7 @@ function Photo({media,projectId,request,effect=false}){
  useEffect(()=>{let live=true;setError(false);setUrl(media.driveFileId?'':media.url);if(media.driveFileId)request('getTechnicalProjectImage',{projectId,fileId:media.driveFileId},'POST',90000).then(r=>live&&setUrl(r.url)).catch(()=>live&&setError(true));return()=>{live=false}},[media.url,media.driveFileId,projectId]);
  return error?<span>Image unavailable</span>:url?<img src={url} alt={media.label||(effect?'Design reference':'Product photograph')} style={effect?{width:'100%',height:'100%',objectFit:'cover',objectPosition:`${media.x??50}% ${media.y??50}%`,transform:`scale(${media.zoom||1})`,transformOrigin:`${media.x??50}% ${media.y??50}%`}:undefined} onError={()=>setError(true)}/>:<span>Loading photo…</span>;
 }
-export default function ProductAssessment({projectId,request,canEdit,onOpenProductTable,initialData=null,initialAssessment={groups:{},version:''},initialProducts=[]}){
+export default function ProductAssessment({project,projectId,request,canEdit,onOpenProductTable,initialData=null,initialAssessment={groups:{},version:''},initialProducts=[]}){
  const [data,setData]=useState(initialData),[products,setProducts]=useState(initialProducts),[assessment,setAssessment]=useState(initialAssessment),[busy,setBusy]=useState(false),[dirty,setDirty]=useState(false),[error,setError]=useState(''),[fit,setFit]=useState(true),[width,setWidth]=useState(1200),[filter,setFilter]=useState(''),[review,setReview]=useState('all'),[revision,setRevision]=useState(0),[message,setMessage]=useState(''),[productEditor,setProductEditor]=useState(null),[specPreview,setSpecPreview]=useState(null),[missingType,setMissingType]=useState(null);
  const generation=useRef(0),host=useRef(null),dirtyRef=useRef(false);dirtyRef.current=dirty;
  useEffect(()=>{const observer=new ResizeObserver(e=>setWidth(e[0].contentRect.width));if(host.current)observer.observe(host.current);return()=>observer.disconnect()},[]);
@@ -56,7 +57,17 @@ export default function ProductAssessment({projectId,request,canEdit,onOpenProdu
  </div>;
  const uploadAsset=async file=>{if(file.size>3*1024*1024)throw Error('Use a file under 3 MB.');const base64=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=()=>reject(Error('Could not read file.'));reader.readAsDataURL(file)});return request('uploadTechnicalProductAsset',{projectId,name:file.name,mimeType:file.type,base64},'POST',120000)};
  const productFor=o=>{const fitting=products.find(f=>f.id===o.fittingId),product=fitting?.products?.find(p=>p.id===o.productId);return {fitting,product}};
- function openPreview(g,o,initialView='sheet'){const {product,fitting}=productFor(o);if(product)setSpecPreview({product,fitting,group:g,initialView});}
+ const technicalRows=useMemo(()=>buildColumnTable(data||{},data?.assessmentZones||[],products).rows,[data,products]);
+ function openPreview(g,o,initialView='sheet'){const {product,fitting}=productFor(o);if(product){
+ const indices=new Set(g.sourceIndices);
+ const related=technicalRows.filter(row=>row.sourceIndices.some(i=>indices.has(i)));
+ const unique=values=>[...new Set(values.filter(Boolean))].join(' · ');
+ setSpecPreview({product,fitting,group:g,optionId:o.id,initialView,context:{
+  project:project?.name||'',location:project?.city||project?.location||'',
+  area:project?.area||project?.locality||unique(related.map(r=>r.zone?.area||r.zone?.room||r.zone?.areaName||r.zone?.name)),
+  designIntent:unique(related.map(r=>r.application))
+ }});
+ }}
  function articleLink(g,o){return <button className="assessment-article" onClick={()=>openPreview(g,o)}>{o.article||'View product'}</button>;}
 
  const widths=layout.widths.map((w,i)=>i===0?Math.ceil(w*1.45):w);
@@ -97,7 +108,7 @@ export default function ProductAssessment({projectId,request,canEdit,onOpenProdu
    const saved=await saveCatalogue(fitting);
    setProductEditor(saved);setDirty(true);setMessage('Product Database updated. Save assessment selections when finished.');
   }}/>}
-  {specPreview&&<AssessmentProductPreview {...specPreview} projectId={projectId} request={request} canEdit={canEdit} onClose={()=>setSpecPreview(null)} onUpload={uploadAsset} onAi={payload=>request('draftProductFromSpreadsheet',{...payload,fittingCode:specPreview.fitting.fittingType},'POST',180000)} onEdit={async product=>{
+  {specPreview&&<AssessmentProductPreview {...specPreview} catalogue={products.flatMap(f=>f.products||[])} review={savedGroup(specPreview.group).options.find(o=>o.id===specPreview.optionId)?.review} onReview={review=>change(specPreview.group,specPreview.optionId,{review})} projectId={projectId} request={request} canEdit={canEdit} onClose={()=>setSpecPreview(null)} onUpload={uploadAsset} onAi={payload=>request('draftProductFromSpreadsheet',{...payload,fittingCode:specPreview.fitting.fittingType},'POST',180000)} onEdit={async product=>{
    const fitting=await saveCatalogue({...specPreview.fitting,products:specPreview.fitting.products.map(p=>p.id===product.id?product:p)});
    setSpecPreview({...specPreview,fitting,product:fitting.products.find(p=>p.id===product.id)});
   }} onDelete={async()=>{

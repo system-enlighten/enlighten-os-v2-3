@@ -1,6 +1,6 @@
 /* Shared typography and drawing-sheet finishes for the signed-in workspace. */
 .studio-app-shell{
- --studio-heading-font:"Space Grotesk",Inter,system-ui,sans-serif;
+ --studio-heading-font:"TechnicalFounders",Inter,system-ui,sans-serif;
  --studio-body-font:Inter,system-ui,sans-serif;
  --studio-ink:#132237;
  --studio-paper:#f4f1e8;

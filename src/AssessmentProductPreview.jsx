@@ -1,6 +1,8 @@
+import {ProductFamily} from './ProductFamily.jsx';
 import {Pencil,Trash2,X,Package,FilePlus,FileDown,MessageSquare,Link2,Megaphone} from 'lucide-react';
 import React,{useEffect,useState} from 'react';
-import {ProductForm,ProductOverview} from './ProductDetails.jsx';
+import {CatalogueSpecEditor as ProductForm} from './CatalogueSpecEditor.jsx';
+import {ProductOverview} from './ProductDetails.jsx';
 import ProductSpecSheet from './ProductSpecSheet.jsx';
 import {manufacturerSpecUrl} from './product-assessment.mjs';
 const actions=[
@@ -11,7 +13,7 @@ const actions=[
  ['product-list',Link2,'Add to product list'],
  ['purchase-order',Megaphone,'Release PO']
 ];
-export default function AssessmentProductPreview({product,fitting,group,projectId,request,canEdit,onClose,onEdit,onDelete,onUpload,onAi,initialView='sheet'}){
+export default function AssessmentProductPreview({product,fitting,group,projectId,request,canEdit,onClose,onEdit,onDelete,onUpload,onAi,context={},catalogue=[],review,onReview,initialView='sheet'}){
  const [view,setView]=useState(initialView),[history,setHistory]=useState(null),[error,setError]=useState(''),[draft,setDraft]=useState(null),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
  useEffect(()=>{let alive=true;request('getProductWorkflow',{projectId,brand:product.brand},'POST',90000).then(r=>{if(alive)setHistory(r)}).catch(e=>{if(alive)setError(e.message)});return()=>{alive=false}},[projectId,product.brand]);
  const article=product.specs?.article||product.model,url=manufacturerSpecUrl(product);
@@ -42,11 +44,11 @@ export default function AssessmentProductPreview({product,fitting,group,projectI
    <div><small>{group.code} · {group.quantity} {group.unit}</small><h2>{product.brand} · {article}</h2></div>
    {view!=='sheet'&&cornerActions}
   </header>
-  {view!=='edit'&&<nav className="assessment-preview-tabs" aria-label="Product preview sections">{[['sheet','Spec sheet'],['product','Overview'],['brand','Partner history']].map(([key,label])=><button type="button" key={key} disabled={busy} aria-pressed={view===key} onClick={()=>setView(key)}>{label}</button>)}</nav>}
+  {view!=='edit'&&<nav className="assessment-preview-tabs" aria-label="Product preview sections">{[['sheet','Spec sheet'],['product','Family view'],['brand','Partner history']].map(([key,label])=><button type="button" key={key} disabled={busy} aria-pressed={view===key} onClick={()=>setView(key)}>{label}</button>)}</nav>}
   {error&&<p role="alert" className="assessment-error">{error}</p>}{message&&<p role="status">{message}</p>}
   {view==='edit'&&canEdit&&<ProductForm key={product.id} product={product} fitting={fitting} brands={[]} busy={busy} onUpload={onUpload} onAi={onAi} onCancel={()=>setView('sheet')} onSave={edit}/>}
-  {view==='product'&&<ProductOverview product={product} fitting={fitting} admin={false} onBack={onClose} renderImage={(src,alt)=>src?<img src={src} alt={alt} style={{maxWidth:'100%',maxHeight:300,objectFit:'contain'}}/>:null}/>}
-  {view==='sheet'&&<ProductSpecSheet product={product} fitting={fitting} compact cornerActions={cornerActions} renderSheetActions={printPdf=><nav className="assessment-sheet-rail" aria-label="Spec sheet actions">
+  {view==='product'&&<><ProductFamily product={product} catalogue={catalogue}/><details><summary>Full product overview</summary><ProductOverview product={product} fitting={fitting} admin={false} onBack={onClose} renderImage={(src,alt)=>src?<img src={src} alt={alt} style={{maxWidth:'100%',maxHeight:300,objectFit:'contain'}}/>:null}/></details></>}
+  {view==='sheet'&&<ProductSpecSheet product={product} fitting={fitting} initialContext={context} review={review} onReview={canEdit?onReview:undefined} catalogue={catalogue} compact cornerActions={cornerActions} renderSheetActions={printPdf=><nav className="assessment-sheet-rail" aria-label="Spec sheet actions">
    {actions.map(([key,Icon,label])=>{
     const content=<><Icon size={19} aria-hidden="true"/><span>{label}</span></>;
     if(key==='datasheet'&&url)return <a key={key} href={url} target="_blank" rel="noopener noreferrer">{content}</a>;

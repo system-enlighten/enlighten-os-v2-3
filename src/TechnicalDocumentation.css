@@ -67,3 +67,13 @@
 .technical-toolbar-menu>div{position:absolute;z-index:5;min-width:230px;left:0;top:100%;padding:8px;border:1px solid #d4cdc0;background:white}
 .technical-secondary-tools{align-items:flex-start}
 .technical-reference-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+
+.studio-app-content .technical-document-heading h1,.technical-document-heading h1{font-family:TechnicalFounders,sans-serif!important;font-weight:600!important;font-size:clamp(26px,4vw,50.4px)!important;line-height:1!important;letter-spacing:-.02em!important;color:#000;margin:0 0 5px}
+.studio-app-content .technical-document-heading h2,.technical-document-heading h2{font-family:TechnicalFounders,sans-serif!important;font-weight:700!important;font-size:24.48px!important;line-height:1.06!important;letter-spacing:.01em!important;color:#000;margin:0}
+.technical-document-heading{border-top:4px solid #b6f516;padding:22px 5px 15px;margin:0 0 10px}
+.technical-document-heading p{margin:12px 0 0}
+.technical-file-heading{font-size:9.5px;font-weight:400;letter-spacing:.02em}
+.technical-review-strip{margin:10px 0;background:#fff0c6;border:1px solid #e6be61;border-left:4px solid #cf8c13;color:#5a3700}
+.technical-review-strip summary{padding:9px 12px;font-weight:600;cursor:pointer}
+.technical-review-strip li{padding:2px 0}
+.technical-toolbar-menu input[type=number]{width:70px}

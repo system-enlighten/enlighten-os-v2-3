@@ -136,6 +136,14 @@ export default async function handler(req,res) {
       const value=createAppSession(identity,secret,audience,requestHost(req));setSessionCookie(req,res,value,SESSION_SECONDS);
       return send(200,{ok:true,data:{signedIn:true}});
     }
+    if(method==='POST'&&['getVendorLuminaireItem','submitVendorLuminaireOffer'].includes(action)){
+      const payload=body.payload||{};
+      if(typeof payload.token!=='string'||!/^[a-f0-9]{64}$/i.test(payload.token)||typeof payload.itemId!=='string'||payload.itemId.length>200||JSON.stringify(payload).length>55000)return send(400,{ok:false,error:{message:'Invalid luminaire invitation or submission.'}});
+      const vendorIdentity={sub:'vendor-luminaire-intake',email:'vendor-intake@invalid.example',email_verified:true};
+      const response=await fetchAppsScript(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(signRequest(action,payload,vendorIdentity,secret)),signal:AbortSignal.timeout(30000)});
+      const result=await response.json();
+      return send(result.ok?200:400,result);
+    }
     if(!identity)return send(401,{ok:false,error:{message:'Your session has ended. Sign in again.'}});
     const serverCacheKey=JSON.stringify([identity.sub,identity.email,action,query]);
     if(method==='GET'&&CACHEABLE_SERVER_READS.has(action)){

@@ -26,16 +26,16 @@ function TechnicalTextCell({value,label,editable,onCommit,onOpen,hasMultiple=fal
  if(editing)return <textarea aria-label={label} autoFocus value={draft} maxLength={4000} onChange={e=>setDraft(e.target.value)} onBlur={finish} onKeyDown={e=>{if(e.key==='Escape'){cancelled.current=true;setEditing(false)}else if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();e.currentTarget.blur()}}} style={{font:'inherit',color:'inherit',textAlign:'inherit',width:'100%',minHeight:'65pt',padding:'4pt',border:'1px solid #648a83',background:'#fff'}}/>;
  return <button type="button" aria-label={`Edit ${label}`} title="Click to edit" onClick={()=>{if(hasMultiple||onOpen){onOpen?.();return}cancelled.current=false;setDraft(value||'');setEditing(true)}} style={{font:'inherit',color:'inherit',textAlign:'inherit',whiteSpace:'pre-wrap',border:0,padding:'4pt',width:'100%',minHeight:'40pt',background:'transparent',cursor:'text'}}>{value||'\u00a0'}</button>;
 }
-export default function GeneratedTechnicalTable({projectId,projectName,request,canEdit,canEditText=canEdit,canEditMedia=canEdit,productAssessment=null}){
- const [data,setData]=useState(null),[zones,setZones]=useState([]),[products,setProducts]=useState([]),[busy,setBusy]=useState(false),[error,setError]=useState(''),[dirty,setDirty]=useState(false),[picker,setPicker]=useState(null),[options,setOptions]=useState([]),[query,setQuery]=useState(''),[lighting,setLighting]=useState('All'),[fit,setFit]=useState(true),[width,setWidth]=useState(1200),[missingIcons,setMissingIcons]=useState({}),[sourceEditor,setSourceEditor]=useState(null);
+export default function GeneratedTechnicalTable({projectId,projectName,projectCode,request,canEdit,canEditText=canEdit,canEditMedia=canEdit,productAssessment=null}){
+ const [data,setData]=useState(null),[zones,setZones]=useState([]),[products,setProducts]=useState([]),[busy,setBusy]=useState(false),[error,setError]=useState(''),[dirty,setDirty]=useState(false),[picker,setPicker]=useState(null),[options,setOptions]=useState([]),[query,setQuery]=useState(''),[lighting,setLighting]=useState('All'),[zoom,setZoom]=useState('fit'),[revision,setRevision]=useState(0),[width,setWidth]=useState(1200),[missingIcons,setMissingIcons]=useState({}),[sourceEditor,setSourceEditor]=useState(null);
  const host=useRef(null),generation=useRef(0),imageCache=useRef(new Map());
- const [selectedCircuits,setSelectedCircuits]=useState([]);
+ 
  const [imageView,setImageView]=useState('large');const pickerDialog=useRef(null);const pickerOpen=!!picker;
  useEffect(()=>{if(!pickerOpen)return;const previous=document.activeElement;const onKey=e=>{if(e.key==='Escape'){if(pickerDialog.current?.dataset.uploading!=='true')setPicker(null);return}if(e.key!=='Tab')return;const list=[...(pickerDialog.current?.querySelectorAll('button:not(:disabled),input:not(:disabled),[tabindex="0"]')||[])].filter(el=>el.getClientRects().length);if(!list.length)return;const first=list[0],last=list[list.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}};window.addEventListener('keydown',onKey);pickerDialog.current?.querySelector('button')?.focus();return()=>{window.removeEventListener('keydown',onKey);previous?.focus?.()};},[pickerOpen]);
  const imageRequest=(action,p,...rest)=>{if(action!=='getTechnicalProjectImage')return request(action,p,...rest);const key=p.projectId+'|'+p.fileId;if(!imageCache.current.has(key))imageCache.current.set(key,request(action,p,...rest).catch(e=>{imageCache.current.delete(key);throw e}));return imageCache.current.get(key)};
  useEffect(()=>{const observer=new ResizeObserver(e=>setWidth(e[0].contentRect.width));if(host.current)observer.observe(host.current);return()=>observer.disconnect()},[]);
  useEffect(()=>{
-  let live=true;++generation.current;imageCache.current.clear();setSelectedCircuits([]);setData(null);setZones([]);setProducts([]);setDirty(false);setPicker(null);setSourceEditor(null);setLighting('All');setMissingIcons({});setError('');setBusy(false);if(!projectId)return;setBusy(true);
+  let live=true;++generation.current;imageCache.current.clear();setData(null);setZones([]);setProducts([]);setDirty(false);setPicker(null);setSourceEditor(null);setLighting('All');setRevision(0);setZoom('fit');setMissingIcons({});setError('');setBusy(false);if(!projectId)return;setBusy(true);
   Promise.all([request('getTechnicalDocumentation',{projectId},'POST',90000),request('listFloorZones',{projectId},'POST',90000),fetch('/technical-library/database.json').then(r=>{if(!r.ok)throw Error('Product Database could not load');return r.json()}),request('listTechnicalFittings',{},'GET',90000)]).then(([d,z,seed,updates])=>{
    if(!live)return;const map=new Map(seed.fittings.map(p=>[p.id,p]));updates.forEach(p=>map.set(p.id,{...map.get(p.id),...p}));const database=[...map.values()].filter(f=>!f.deleted),baseline=d.sourceText?d:{...d,sourceText:serializeTechnicalOutput(d)},normalized=materializeCmfOverrides(baseline,buildColumnTable(baseline,z,database).rows);setData(normalized);setDirty(!productAssessment&&normalized!==baseline);setZones(z);setProducts(database);
   }).catch(e=>live&&setError(e.message)).finally(()=>live&&setBusy(false));return()=>{live=false;++generation.current};
@@ -44,8 +44,6 @@ export default function GeneratedTechnicalTable({projectId,projectName,request,c
  const [filtersEnabled,setFiltersEnabled]=useState(false),[columnFilters,setColumnFilters]=useState({});
  useEffect(()=>{setColumnFilters({});setFiltersEnabled(false)},[projectId,!!productAssessment]);
  const visibleRows=filterTechnicalRows(calculated.rows.filter(row=>lighting==='All'||row.lighting===lighting),columnFilters,!!productAssessment);
- const eligibleReferenceRows=visibleRows.filter(row=>!row.override.reference?.url);
- const selectedReferenceIds=calculated.rows.filter(row=>selectedCircuits.includes(row.id)&&!row.override.reference?.url).map(row=>row.id);
  const sections=technicalZoneSections(visibleRows),printPages=technicalPrintPages(visibleRows,6);
  const edit=(id,patch)=>{setData(d=>({...d,overrides:{...d.overrides,[id]:{...d.overrides?.[id],...patch}}}));setDirty(true)};
  async function save(){const n=generation.current;setBusy(true);setError('');try{const d=await request('saveTechnicalDocumentation',{projectId,headers:data.headers,rows:data.rows,rules:{},overrides:data.overrides||{},sourceText:data.sourceText,sourceName:data.sourceName,expectedVersion:data.version},'POST',150000);if(n===generation.current){setData(d);setDirty(false)}}catch(e){if(n===generation.current)setError(e.message)}finally{if(n===generation.current)setBusy(false)}}
@@ -55,7 +53,7 @@ export default function GeneratedTechnicalTable({projectId,projectName,request,c
   setSourceEditor({groupId:row.id,cn:row.cn,items,error:''});
  }
  function applySourceEditor(){try{const changes=sourceEditor.items.filter(item=>item.value!==item.initial).map(item=>({rowIndex:item.rowIndex,field:item.field,value:item.value,...(item.column>=0?{column:item.column}:{})}));if(changes.length){setData(applyOutputEdits(data,changes,{groupId:sourceEditor.groupId}));setDirty(true);setMissingIcons(m=>{const next={...m};delete next[sourceEditor.groupId];return next})}setSourceEditor(null)}catch(e){setSourceEditor(p=>({...p,error:e.message}))}}
- function downloadOutput(){try{const output=serializeTechnicalOutput(materializeCmfOverrides(data,calculated.rows)),blob=new Blob([output],{type:'text/plain;charset=utf-8'}),url=URL.createObjectURL(blob),anchor=document.createElement('a');anchor.href=url;anchor.download=(data.sourceName||('Output_'+projectId+'.txt')).replace(/\.txt$/i,'')+'_updated.txt';document.body.appendChild(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);setError('')}catch(e){setError(e.message)}}
+ function downloadOutput(){try{const output=serializeTechnicalOutput(materializeCmfOverrides(data,calculated.rows)),blob=new Blob([output],{type:'text/plain;charset=utf-8'}),url=URL.createObjectURL(blob),anchor=document.createElement('a');anchor.href=url;anchor.download=fileHeading+' - OUTPUT.txt';document.body.appendChild(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);setError('')}catch(e){setError(e.message)}}
  const textCell=(row,field,value,print)=>{if(print||!canEditText||busy)return value||'\u00a0';const mixed=new Set(sourceFieldValues(data,row.sourceIndices,field).map(item=>item.value)).size>1;return <TechnicalTextCell value={value} label={`${editableOutputFields[field].label} for ${row.cn}`} editable onCommit={value=>commitSource(row,field,value)} {...(mixed?{hasMultiple:true,onOpen:()=>openSource(row,[field])}:{})}/>};
  async function projectImages(){const list=[];let offset=0;do{const r=await request('listProjectDrive',{projectId,category:'Received',offset},'POST',90000);list.push(...r.entries.filter(e=>e.kind==='file'&&(/^image\//.test(e.mimeType)||/\.(png|jpe?g|webp)$/i.test(e.name))).map(e=>({id:e.id,driveFileId:e.id,label:e.name,url:`https://drive.google.com/thumbnail?id=${encodeURIComponent(e.id)}&sz=w1600`})));offset=r.nextOffset;}while(offset!==null&&offset!==undefined&&offset<10000);return list}
  async function choose(row,kind,ids=[row.id]){
@@ -73,15 +71,14 @@ export default function GeneratedTechnicalTable({projectId,projectName,request,c
    const media=await request('uploadTechnicalFixtureImage',{projectId,name:file.name,base64},'POST',120000);if(n===generation.current)setPicker(p=>p?{...p,media:{...media,zoom:1,x:50,y:50},uploading:false}:null);
   }catch(e){if(n===generation.current)setPicker(p=>p?{...p,error:e.message,uploading:false}:null)}
  }
- const sheet=source.table,widths=productAssessment?[190,90,150,210,210,180,150,145,135,210,210,180]:[...sheet.widths,150],total=widths.reduce((a,b)=>a+b,0)*4/3,scale=fit?Math.max(.1,Math.min(1,(width-32)/total)):1;
+ const sheet=source.table,widths=productAssessment?[190,90,150,210,210,180,150,145,135,210,210,180]:[...sheet.widths,150],total=widths.reduce((a,b)=>a+b,0)*4/3,scale=zoom==='fit'?Math.max(.1,Math.min(1,(width-32)/total)):Number(zoom)/100;
  const cell=(i,header=false)=>{const c=sheet.cells[header?0:2][Math.min(i,11)];return {border:'0.5pt solid #777',padding:'4pt',fontFamily:c.font?.includes('Founders')?'TechnicalFounders':'TechnicalHelvetica',fontSize:c.size+'pt',fontWeight:c.bold?600:400,textAlign:c.align||'left',verticalAlign:'middle',whiteSpace:'pre-wrap',overflowWrap:'anywhere',background:header?'#bff81c':i===0?'#e5e5e5':'white',color:'#000'}};
  const picture=(row,kind,print=false)=>{
   const selected=row.override[kind],fixture=kind==='fixture',icon=fixture&&row.icon&&!missingIcons[row.id];
   const content=selected?.url?<TechnicalMedia media={selected} request={imageRequest} projectId={projectId} style={fixture?{width:'100%',height:'100%',objectFit:'contain'}:framing(selected)}/>:icon?<FixtureImage url={row.icon} cn={row.cn} onMissing={()=>setMissingIcons(m=>({...m,[row.id]:true}))}/>:print||!canEditMedia?'':fixture?'Add image':'Select image';
   if(print)return <div style={{height:fixture?'90pt':'110pt',overflow:'hidden'}}>{content}</div>;
   const imageButton=<button type="button" aria-label={`${fixture?'Add or change fixture':kind==='image3d'?'Choose 3D':'Choose reference'} image for ${row.cn}`} disabled={!canEditMedia||busy} onClick={()=>choose(row,kind)} style={{border:0,padding:0,width:'100%',height:fixture?'90pt':'110pt',overflow:'hidden',background:'transparent',color:'#555',font:'inherit',cursor:canEditMedia?'pointer':'default'}}>{content}</button>;
-  if(kind!=='reference'||!canEditMedia||productAssessment||selected?.url)return imageButton;
-  return <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'4pt',height:'110pt',width:'100%'}}><div style={{flex:'0 1 auto',minWidth:0}}>{imageButton}</div><input type="checkbox" aria-label={'Select reference for circuit '+row.cn} title={'Include '+row.cn+' when applying a reference image'} checked={selectedCircuits.includes(row.id)} disabled={busy} onChange={e=>setSelectedCircuits(ids=>e.target.checked?[...ids,row.id]:ids.filter(id=>id!==row.id))} style={{appearance:'auto',width:'20.16pt',height:'20.16pt',minWidth:'20.16pt',flex:'0 0 20.16pt',margin:0,accentColor:'#142238',cursor:'pointer'}}/></div>;
+  return imageButton;
  };
  const rowCells=(row,print)=>productAssessment?[row.cn,row.productPhoto?<div style={{height:'110pt',overflow:'hidden'}}><TechnicalMedia media={row.productPhoto} request={imageRequest} projectId={projectId} alt={`Selected product ${row.modelNo}`} style={{width:'100%',height:'100%',objectFit:'contain'}}/></div>:<span>Image not supplied</span>,row.modelNo,row.productName,row.productIlluminance,row.productOptics,row.productHeight,row.icon?<div style={{height:'90pt'}}><FixtureImage url={row.icon} cn={row.cn}/></div>:null,row.productColour,row.productControl,row.quantity]:[
   row.cn,picture(row,'fixture',print),textCell(row,'code',row.code,print),textCell(row,'application',row.application,print),picture(row,'image3d',print),picture(row,'reference',print),textCell(row,'object',row.object,print),textCell(row,'cmf',row.cmf,print),
@@ -96,7 +93,8 @@ export default function GeneratedTechnicalTable({projectId,projectName,request,c
    {section.rows.map(row=><tr key={row.id} data-circuit={row.cn} style={{height:sheet.heights[2]+'pt'}}>{rowCells(row,print).map((value,index)=><td key={index} style={cell(index+1)}>{value||'\u00a0'}</td>)}</tr>)}
   </React.Fragment>)}
  </tbody>)}</table>;
- const fileHeading=data?.sourceName?.trim()||'Technical Table';
+ const safeProjectCode=String(projectCode||projectId||'PROJECT').replace(/[^a-z0-9_-]/gi,'-');
+ const fileHeading=`${safeProjectCode} - TECH TABLE 01${revision?` - REV ${revision}`:''}`;
  const designHeading=<header className="technical-document-heading">
   <h1>Light Fittings Technical Table</h1>
   {projectName&&<h2>{projectName}</h2>}
@@ -105,33 +103,25 @@ export default function GeneratedTechnicalTable({projectId,projectName,request,c
  return <div ref={host} className="generated-technical-document">
   {!projectId?<p>Select a project to generate its Technical Table.</p>:<>
    <div className="technical-controls">{error&&<p role="alert" style={{color:'#a23424'}}>{error}</p>}{busy&&<p role="status">Loading or saving technical documentation…</p>}</div>
-   {!productAssessment&&<div className="technical-controls technical-heading-preview">{designHeading}</div>}
    {data&&<>
     <div className="technical-controls technical-themed-toolbar">
      {(canEdit||canEditText||canEditMedia)&&<button className="technical-primary-action" disabled={busy||!dirty} onClick={save}>Save table edits</button>}
      <label>Lighting<select aria-label="Filter lighting type" value={lighting} onChange={e=>setLighting(e.target.value)}>{['All',...layers].map(value=><option key={value} value={value}>{value} ({value==='All'?calculated.rows.length:calculated.rows.filter(r=>r.lighting===value).length})</option>)}</select></label>
      <button type="button" aria-pressed={filtersEnabled} onClick={()=>{setFiltersEnabled(v=>!v);if(filtersEnabled)setColumnFilters({})}}>Column filters</button>
-     <button onClick={()=>setFit(x=>!x)}>{fit?'View at 100%':'Fit to width'}</button>
+     <label>View<select aria-label="Table zoom" value={zoom} onChange={e=>setZoom(e.target.value)}>
+      <option value="fit">Fit to width</option>{[25,50,75,100].map(value=><option key={value} value={value}>{value}%</option>)}
+     </select></label>
      {!productAssessment&&<details className="technical-toolbar-menu"><summary>Export</summary><div>
+      <label>Revision<input type="number" min="0" max="999" step="1" value={revision} onChange={e=>setRevision(Math.max(0,Math.min(999,Math.floor(Number(e.target.value)||0))))}/></label>
       <button disabled={busy||!data.rows.length} onClick={downloadOutput}>Download Output (.txt)</button>
-      <TechnicalSheetsExport data={data} projectId={projectId} request={imageRequest} canEdit={canEdit} zones={zones} products={products}/>
+      <TechnicalSheetsExport exportTitle={fileHeading} data={data} projectId={projectId} request={imageRequest} canEdit={canEdit} zones={zones} products={products}/>
      </div></details>}
      <span className="technical-toolbar-status">{visibleRows.length} of {calculated.rows.length} circuits · {Math.round(scale*100)}%{dirty?' · Unsaved changes':''}</span>
     </div>
-    <div className="technical-controls technical-themed-toolbar technical-secondary-tools">
-     {calculated.warnings.length>0&&<details><summary>{calculated.warnings.length} items need review</summary><ul>{calculated.warnings.map(w=><li key={w}>{w}</li>)}</ul></details>}
-     {!productAssessment&&canEditMedia&&<details><summary>Reference images{selectedReferenceIds.length>0&&` · ${selectedReferenceIds.length} selected`}</summary>
-      <div className="technical-reference-actions">
-       <button disabled={busy||!eligibleReferenceRows.length} onClick={()=>setSelectedCircuits(ids=>[...new Set([...ids,...eligibleReferenceRows.map(r=>r.id)])])}>Select visible without reference</button>
-       <button disabled={busy||!selectedReferenceIds.length} onClick={()=>setSelectedCircuits([])}>Clear selection</button>
-       <button disabled={busy||!selectedReferenceIds.length} onClick={()=>{const rows=calculated.rows.filter(r=>selectedReferenceIds.includes(r.id));if(rows.length)choose(rows[0],'reference',rows.map(r=>r.id))}}>Apply reference</button>
-      </div>
-     </details>}
-     {!productAssessment&&(canEdit||canEditText)&&<details><summary>Editing help</summary><p>Click a product code, application, size, CMF or illuminance to edit. Press Enter to apply or Escape to cancel. Save table edits to update Output.</p></details>}
-    </div>
+    {calculated.warnings.length>0&&<details className="technical-controls technical-review-strip"><summary>{calculated.warnings.length} items need review</summary><ul>{calculated.warnings.map(w=><li key={w}>{w}</li>)}</ul></details>}
     {Object.keys(columnFilters).length>0&&<div className="technical-controls output-filter-summary"><span>{visibleRows.length} circuits match the column filters</span><button onClick={()=>setColumnFilters({})}>Clear column filters</button></div>}
-    <div className="technical-screen-table" style={{overflow:'auto',background:'#fff',padding:16,border:'1px solid #ded8ca',marginTop:10}}>{!productAssessment&&<h2 className="technical-file-heading">{fileHeading}</h2>}{table(sections)}{!visibleRows.length&&<p>{calculated.rows.length?'No circuits match the selected filters.':productAssessment?'Select and save products in Product Assessment to generate product circuit rows.':'Upload Output to generate circuit rows.'}</p>}</div>
-    <div className="technical-print-pages">{printPages.map((groups,i)=><section className="technical-print-page" key={i}>{!productAssessment&&<>{i===0&&designHeading}<h2 className="technical-file-heading">{fileHeading}</h2></>}{table(groups,true)}</section>)}</div>
+    <div className="technical-screen-table" style={{overflow:'auto',background:'#fff',padding:16,border:'1px solid #ded8ca',marginTop:10}}>{!productAssessment&&<>{designHeading}<div className="technical-file-heading">{fileHeading}</div></>}{table(sections)}{!visibleRows.length&&<p>{calculated.rows.length?'No circuits match the selected filters.':productAssessment?'Select and save products in Product Assessment to generate product circuit rows.':'Upload Output to generate circuit rows.'}</p>}</div>
+    <div className="technical-print-pages">{printPages.map((groups,i)=><section className="technical-print-page" key={i}>{!productAssessment&&<>{i===0&&designHeading}<div className="technical-file-heading">{fileHeading}</div></>}{table(groups,true)}</section>)}</div>
    </>}
   </>}
   {sourceEditor&&<div role="dialog" aria-modal="true" aria-label={`Edit original Output for ${sourceEditor.cn}`} className="technical-controls" style={{position:'fixed',inset:0,zIndex:2000,background:'#0008',display:'grid',placeItems:'center'}}><div style={{background:'#f5f1e8',padding:24,width:'min(900px,94vw)',maxHeight:'90vh',overflow:'auto'}}>
@@ -146,7 +136,7 @@ export default function GeneratedTechnicalTable({projectId,projectName,request,c
    {picker.error&&<p role="alert" className="technical-image-picker-error">{picker.error}</p>}{picker.uploading&&<p role="status">Uploading image…</p>}
    <div className={'technical-image-picker-body'+(picker.media?' has-selection':'')}><div className="technical-image-gallery-scroll">{picker.loading?<p role="status">Loading images…</p>:<div className={'technical-image-gallery is-'+imageView}>{options.filter(m=>m.label.toLowerCase().includes(query.toLowerCase())).map(m=><button type="button" className="technical-image-choice" key={m.id} aria-pressed={picker.media?.id===m.id} disabled={picker.uploading} onClick={()=>setPicker(p=>({...p,media:{...m,zoom:1,x:50,y:50}}))}><img src={m.url} alt="" loading="lazy"/><span>{m.label}</span></button>)}</div>}{!picker.loading&&!options.filter(m=>m.label.toLowerCase().includes(query.toLowerCase())).length&&<p>{options.length?'No images match your search.':picker.kind==='fixture'?'Upload an image for this fixture.':'No images available in this source.'}</p>}</div>
    {picker.media&&<aside className="technical-image-framing"><h3>Selected image</h3><div className="technical-image-framing-preview"><TechnicalMedia media={picker.media} request={imageRequest} projectId={projectId} alt="Selected image framing" style={picker.kind==='fixture'?{width:'100%',height:'100%',objectFit:'contain'}:framing(picker.media)}/></div><p>{picker.media.label}</p>{picker.kind!=='fixture'&&[['zoom','Zoom',1,5,.05],['x','Horizontal position',0,100,1],['y','Vertical position',0,100,1]].map(([k,label,min,max,step])=><label key={k}>{label}<input type="range" min={min} max={max} step={step} value={picker.media[k]??(k==='zoom'?1:50)} onChange={e=>{const value=Number(e.target.value);setPicker(p=>({...p,media:{...p.media,[k]:value}}))}}/></label>)}</aside>}</div>
-   <footer className="technical-image-picker-footer"><button type="button" disabled={picker.uploading} onClick={()=>setPicker(null)}>Cancel</button><button type="button" className="technical-image-use" disabled={!picker.media||picker.uploading||picker.loading} onClick={()=>{setData(d=>applyCircuitMedia(d,picker.ids||[picker.id],picker.kind,picker.media));setDirty(true);setSelectedCircuits([]);setPicker(null)}}>Use image</button><button type="button" disabled={picker.uploading} onClick={()=>{setData(d=>applyCircuitMedia(d,picker.ids||[picker.id],picker.kind,null));setDirty(true);setPicker(null)}}>Clear image</button></footer>
+   <footer className="technical-image-picker-footer"><button type="button" disabled={picker.uploading} onClick={()=>setPicker(null)}>Cancel</button><button type="button" className="technical-image-use" disabled={!picker.media||picker.uploading||picker.loading} onClick={()=>{setData(d=>applyCircuitMedia(d,picker.ids||[picker.id],picker.kind,picker.media));setDirty(true);setPicker(null)}}>Use image</button><button type="button" disabled={picker.uploading} onClick={()=>{setData(d=>applyCircuitMedia(d,picker.ids||[picker.id],picker.kind,null));setDirty(true);setPicker(null)}}>Clear image</button></footer>
   </section></div>}
 
  </div>;

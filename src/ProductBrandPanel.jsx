@@ -1,5 +1,6 @@
 import ProductComparison from './ProductComparison.jsx';
-import {ProductForm,ProductOverview} from './ProductDetails.jsx';
+import {CatalogueSpecEditor as ProductForm} from './CatalogueSpecEditor.jsx';
+import {ProductOverview} from './ProductDetails.jsx';
 import './ProductDetails.css';
 import './ProductDialog.css';
 import React,{useState} from 'react';

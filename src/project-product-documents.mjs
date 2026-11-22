@@ -25,17 +25,19 @@ export function selectedProjectSpecSheets(quantities,products,assessment){
   const full=matches.length===1?matches[0]:null;
   if(!full)warnings.push(`${g.code} · ${option.brand} ${option.article}: ${matches.length>1?'multiple catalogue matches':'no matching Product Database specification'}. Missing fields are left blank.`);
   const product={...(full||{}),brand:option.brand,model:full?.model||option.article,imageUrl:option.photo?.driveFileId?'':option.photo?.url||full?.imageUrl||'',specs:{...full?.specs,article:option.article,price:option.price},notes:option.remarks||full?.notes||''};
-  const id=norm(option.brand)+'|'+norm(option.article);
-  if(!sheets.has(id))sheets.set(id,{id,product,codes:[],areas:[],sources:[],photo:option.photo,complete:!!full});
-  const sheet=sheets.get(id);sheet.codes.push(g.code);sheet.areas.push(...g.areas);sheet.sources.push(g.id);
+  const intent=[...new Set((g.circuitRows||[]).map(r=>r.application).filter(Boolean))];
+  if(option.review)product.specs.specSheet={...product.specs.specSheet,customization:option.review.customization||'',equivalents:(option.review.equivalents||[]).join(' · ')};
+  const id=norm(option.brand)+'|'+norm(option.article)+(option.review?'|'+g.id:'');
+  if(!sheets.has(id))sheets.set(id,{id,product,codes:[],areas:[],intents:[],sources:[],photo:option.photo,complete:!!full});
+  const sheet=sheets.get(id);sheet.codes.push(g.code);sheet.areas.push(...(option.review?.area?[option.review.area]:g.areas));sheet.intents.push(...intent);sheet.sources.push(g.id);
  }
- return {sheets:[...sheets.values()].map(s=>({...s,codes:[...new Set(s.codes)],areas:[...new Set(s.areas)]})),warnings,selectedCount:quantities.filter(g=>selected.has(g.id)).length};
+ return {sheets:[...sheets.values()].map(s=>({...s,codes:[...new Set(s.codes)],areas:[...new Set(s.areas)],intents:[...new Set(s.intents)]})),warnings,selectedCount:quantities.filter(g=>selected.has(g.id)).length};
 }
 export function quantityCsv(model){const cell=v=>{let t=String(v??'');if(/^[\s]*[=+@-]/.test(t))t="'"+t;return '"'+t.replaceAll('"','""')+'"'};return [['Product code','Description','Quantity','Unit','Circuits','Areas','Missing lengths'],...model.groups.map(g=>[g.code,g.type,g.quantity,g.unit,g.circuitRows.map(c=>[shortTechnicalFloor(c.floor),c.cn].filter(Boolean).join(' | ')).join(', '),g.areas.join(', '),g.missingLengths])].map(r=>r.map(cell).join(',')).join('\r\n');}
 export function boqScheduleRows(quantities,products,assessment){
  const selected=selectedAssessment(assessment),book=selectedProjectSpecSheets(quantities,products,assessment);
  return quantities.map((g,i)=>{const option=selected.get(g.id),sheet=book.sheets.find(s=>s.sources.includes(g.id)),p=sheet?.product,s=p?.specs||{};const controls=[...new Set(g.rows.map(r=>outputValue(g.headers||[],r,['CONTROL','DIMMING'])).filter(Boolean))];
-  return {id:g.id,serial:i+1,control:(s.control||[]).join(' | ')||controls.join(' / '),image:p?.imageUrl||g.fitting?.thumbnailUrl||g.icon||'',photo:sheet?.photo,code:g.code,make:p?.brand||'',article:s.article||'',equivalents:s.specSheet?.equivalents||'',quantity:option?.quantity!==''&&option?.quantity!=null?Number(option.quantity):g.quantity,unit:g.linear?'Mt':'Pc',missingLengths:g.missingLengths,selected:!!option};
+  return {id:g.id,serial:i+1,control:(s.control||[]).join(' | ')||controls.join(' / '),image:p?.imageUrl||g.fitting?.thumbnailUrl||g.icon||'',photo:sheet?.photo,code:g.code,make:p?.brand||'',article:s.article||'',equivalents:option?.review?.equivalents?.join(' · ')||s.specSheet?.equivalents||'',quantity:option?.quantity!==''&&option?.quantity!=null?Number(option.quantity):g.quantity,unit:g.linear?'Mt':'Pc',missingLengths:g.missingLengths,selected:!!option};
  });
 }
 export function boqCsv(rows,headers){const quote=v=>{let t=String(v??'');if(/^[\s]*[=+@-]/.test(t))t="'"+t;return '"'+t.replaceAll('"','""')+'"'};return [headers,...rows.map(r=>[r.serial,r.control,'',r.code,r.make,r.article,r.equivalents,r.quantity,r.unit])].map(row=>row.map(quote).join(',')).join('\r\n');}
