@@ -45,7 +45,7 @@ export default function ProductTypeEditor({fitting,onSave,onUpload,onClose,onOpe
       {media&&<>{draft[key]&&renderImage(draft[key],label)}<label>Upload {label.toLowerCase()}<input type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={event=>upload(event,key)}/></label></>}
      </div>;
     })}</div>
-    <div className="product-actions"><button type="submit" disabled={busy||!draft.fittingType.trim()}>{busy?'Working…':'Save fitting type'}</button><button type="button" disabled={busy} onClick={onClose}>Cancel</button>{onOpenProducts&&<button type="button" disabled={busy} onClick={onOpenProducts}>Manage manufacturer products</button>}{onDelete&&<button type="button" className="fitting-delete" disabled={busy||deleteBlocked} aria-describedby={deleteBlocked?'fitting-delete-note':undefined} onClick={remove}>Delete fitting type</button>}</div>
+    <div className="product-actions"><button className="fitting-save" type="submit" disabled={busy||!draft.fittingType.trim()}>{busy?'Working…':'Save fitting type'}</button><button type="button" disabled={busy} onClick={onClose}>Cancel</button>{onOpenProducts&&<button className="fitting-manage" type="button" disabled={busy} onClick={onOpenProducts}>Manage manufacturer products</button>}{onDelete&&<button type="button" className="fitting-delete" disabled={busy||deleteBlocked} aria-describedby={deleteBlocked?'fitting-delete-note':undefined} onClick={remove}>Delete fitting type</button>}</div>
     {onDelete&&deleteBlocked&&<p id="fitting-delete-note">Remove the linked manufacturer products before deleting this fitting type.</p>}
    </form>
   </section>
