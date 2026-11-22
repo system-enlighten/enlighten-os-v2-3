@@ -195,3 +195,14 @@
 .studio-home-task-board .studio-home-pending-project h3{padding:5px 8px}
 .studio-home-task-board .studio-home-pending-task>summary{padding:5px 8px;margin-top:4px}
 @media(max-width:480px){.studio-home-task-board>.studio-home-card{padding:10px}}
+
+@font-face {
+  font-family: 'Studio Home Founders';
+  src: url('./technical-assets/FoundersGrotesk-Semibold.woff2') format('woff2');
+  font-weight: 600;
+  font-display: swap;
+}
+.studio-app-content .studio-home .studio-home-intro .studio-heading-text h1 {
+  font-family: 'Studio Home Founders', var(--studio-heading-font) !important;
+  font-weight: 600 !important;
+}
