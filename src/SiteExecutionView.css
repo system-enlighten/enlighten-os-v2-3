@@ -3,3 +3,18 @@
 .site-circuit-mom{margin:8px 0;padding:8px;background:#f3f0e7;min-width:150px;text-align:left}
 .site-circuit-mom ul{margin:4px 0 0;padding-inline-start:17px}
 .site-circuit-mom li{white-space:pre-wrap}
+.site-execution-sheet {
+ background: #fff;
+ border: 1px solid #ded8ca;
+ padding: 16px;
+ margin-top: 10px;
+}
+.site-execution-sheet .site-execution-scroll { margin-top: 0; }
+.site-execution-sheet table { font-family: TechnicalHelvetica, sans-serif; color: #000; }
+.site-execution-sheet th,
+.site-execution-sheet td { border: 1px solid #aaa; }
+.site-execution-sheet th {
+ background: #bff81c;
+ font-family: TechnicalFounders, sans-serif;
+ font-weight: 600;
+}

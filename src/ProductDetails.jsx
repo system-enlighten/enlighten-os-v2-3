@@ -37,7 +37,7 @@ export function ProductForm({product,fitting={},brands,onSave,onCancel,onUpload,
  <div className="product-fields">{field('flux','Luminous flux (lm)',true,'number')}{field('cri','CRI',true,'number')}{detailField('brightness','Measured illuminance (lx, with distance)')}{detailField('optics','Beam angle or optical reference')}{['r9','ugr','sdcm'].map(key=>detailField(key))}</div>
  {options('colour','Light colour',groups.colour)}{options('spectra','Further spectra',groups.spectra)}{options('distribution','Distribution pattern',groups.distribution)}</details>
  <details className="product-form-section"><summary><ProductSectionTitle title="Electrical & controls"/></summary>
- <div className="product-fields">{powerInput}{['driverType','voltage','electricalClass','ambient','maximum','thd','powerFactor'].map(key=>detailField(key))}</div>
+ <div className="product-fields">{powerInput}{['driverType','driverWattage','voltage','electricalClass','ambient','maximum','thd','powerFactor'].map(key=>detailField(key))}</div>
  {options('control','Control methods',groups.control)}{options('infrastructure','Infrastructure',groups.infrastructure)}</details>
  <details className="product-form-section"><summary><ProductSectionTitle title="Lifetime, warranty & pricing"/></summary>
  <div className="product-fields"><label>Rated lifetime (hours)<input type="number" min="0" step="any" value={spec.life??''} onChange={e=>{const life=e.target.value;setD(x=>({...x,specs:{...x.specs,life,specSheet:{...x.specs.specSheet,lifeYears:''}}}));}}/></label>{numericFields.slice(7,9).map(([k,l])=>field(k,l,true,'number'))}{detailField('lifeRating')}

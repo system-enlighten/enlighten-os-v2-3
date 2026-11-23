@@ -4,7 +4,7 @@ import TableColumnFilter from './TableColumnFilter.jsx';
 import {technicalFilterValues,filterTechnicalRows} from './technical-filters.mjs';
 import {applyCircuitMedia} from './technical-bulk-media.mjs';
 import {Grid3X3,LayoutGrid,Image as ImageIcon,X} from 'lucide-react';
-import {selectedProductTechnicalRows,productTechnicalHeaders} from './product-technical.mjs';
+import {selectedProductTechnicalRows,productTechnicalHeaders,circuitDrivers,driverHeaders} from './product-technical.mjs';
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import './TechnicalDocumentation.css';
 import source from './technical-documentation.json';
@@ -51,6 +51,7 @@ export default function GeneratedTechnicalTable({projectId,projectName,projectCo
   setDirty(!productAssessment&&normalized!==baseline);
  }});
  const calculated=useMemo(()=>{const base=buildColumnTable(data||{},zones,products);if(!productAssessment)return base;const selected=selectedProductTechnicalRows(base.rows,productAssessment,products);return {rows:selected.rows,warnings:[...base.warnings,...selected.warnings],totalDesign:base.rows.length}},[data,zones,products,productAssessment]);
+ const [showDrivers,setShowDrivers]=useState(false);
  const [filtersEnabled,setFiltersEnabled]=useState(false),[columnFilters,setColumnFilters]=useState({});
  useEffect(()=>{setColumnFilters({});setFiltersEnabled(false)},[projectId,!!productAssessment]);
  const visibleRows=filterTechnicalRows(calculated.rows.filter(row=>lighting==='All'||row.lighting===lighting),columnFilters,!!productAssessment);
@@ -81,7 +82,7 @@ export default function GeneratedTechnicalTable({projectId,projectName,projectCo
    const media=await request('uploadTechnicalFixtureImage',{projectId,name:file.name,base64},'POST',120000);if(n===generation.current)setPicker(p=>p?{...p,media:{...media,zoom:1,x:50,y:50},uploading:false}:null);
   }catch(e){if(n===generation.current)setPicker(p=>p?{...p,error:e.message,uploading:false}:null)}
  }
- const sheet=source.table,widths=productAssessment?[190,90,150,210,210,180,150,145,135,210,210,180]:[...sheet.widths,150],total=widths.reduce((a,b)=>a+b,0)*4/3,scale=zoom==='fit'?Math.max(.1,Math.min(1,(width-32)/total)):Number(zoom)/100;
+ const sheet=source.table,widths=productAssessment?[190,90,150,210,210,150,150,150,145,135,210,210,180,...(showDrivers?[140,140,140,140,140]:[])]:[...sheet.widths,150],total=widths.reduce((a,b)=>a+b,0)*4/3,scale=zoom==='fit'?Math.max(.1,Math.min(1,(width-32)/total)):Number(zoom)/100;
  const cell=(i,header=false)=>{const c=sheet.cells[header?0:2][Math.min(i,11)];return {border:'0.5pt solid #777',padding:'4pt',fontFamily:c.font?.includes('Founders')?'TechnicalFounders':'TechnicalHelvetica',fontSize:c.size+'pt',fontWeight:c.bold?600:400,textAlign:c.align||'left',verticalAlign:'middle',whiteSpace:'pre-wrap',overflowWrap:'anywhere',background:header?'#bff81c':i===0?'#e5e5e5':'white',color:'#000'}};
  const picture=(row,kind,print=false)=>{
   const selected=row.override[kind],fixture=kind==='fixture',icon=fixture&&row.icon&&!missingIcons[row.id];
@@ -99,13 +100,13 @@ export default function GeneratedTechnicalTable({projectId,projectName,projectCo
     onChange={e=>{const checked=e.target.checked;setSelectedReferences(ids=>checked?[...ids,row.id]:ids.filter(id=>id!==row.id));}}/>
   </div>;
  };
- const rowCells=(row,print)=>productAssessment?[row.cn,row.productPhoto?<div style={{height:'110pt',overflow:'hidden'}}><TechnicalMedia media={row.productPhoto} request={imageRequest} projectId={projectId} alt={`Selected product ${row.modelNo}`} style={{width:'100%',height:'100%',objectFit:'contain'}}/></div>:<span>Image not supplied</span>,row.modelNo,row.productName,row.productIlluminance,row.productOptics,row.productHeight,row.icon?<div style={{height:'90pt'}}><FixtureImage url={row.icon} cn={row.cn}/></div>:null,row.productColour,row.productControl,row.quantity]:[
+ const rowCells=(row,print)=>productAssessment?[row.cn,row.productPhoto?<div style={{height:'110pt',overflow:'hidden'}}><TechnicalMedia media={row.productPhoto} request={imageRequest} projectId={projectId} alt={`Selected product ${row.modelNo}`} style={{width:'100%',height:'100%',objectFit:'contain'}}/></div>:<span>Image not supplied</span>,row.modelNo,row.productName,row.productBrightness,row.productEnergy,row.productOptics,row.productHeight,row.icon?<div style={{height:'90pt'}}><FixtureImage url={row.icon} cn={row.cn}/></div>:null,row.productColour,row.productControl,row.quantity,...(showDrivers?circuitDrivers(row,data.headers).values:[])]:[
   row.cn,picture(row,'fixture',print),textCell(row,'code',row.code,print),textCell(row,'application',row.application,print),picture(row,'image3d',print),picture(row,'reference',print),textCell(row,'object',row.object,print),textCell(row,'cmf',row.cmf,print),
   print||!canEditText||busy?row.height:<TechnicalTextCell value={row.height} label={`Height / distance for ${row.cn}`} editable onOpen={()=>openSource(row,['height','distance','surface','mount'])}/>,
   textCell(row,'illuminance',row.illuminance,print),print||!canEditText||busy||!row.linear?row.quantity:<TechnicalTextCell value={row.quantity} label={`Linear lengths for ${row.cn}`} editable onOpen={()=>openSource(row,['length'])}/>,
   print?row.lighting:<div role="group" aria-label={`Lighting category for ${row.cn}`} style={{display:'grid',gridTemplateColumns:'1fr',gridTemplateRows:'repeat(4,20pt)',height:'86pt',gap:'2pt',width:'100%'}}>{lightingChoices.map(v=><button type="button" key={v} aria-pressed={row.lighting===v} disabled={!canEditMedia||busy} onClick={()=>edit(row.id,{lighting:toggleLightingCategory(row.lighting,v)})} style={{padding:'0 3pt',height:'20pt',boxSizing:'border-box',lineHeight:'18pt',whiteSpace:'nowrap',minWidth:0,fontFamily:'TechnicalHelvetica',fontSize:'12pt',border:'0.5pt solid '+(row.lighting===v?'#142238':'#bab6ae'),background:row.lighting===v?'#142238':'#fff',color:row.lighting===v?'#fff':'#142238',cursor:canEditMedia?'pointer':'default'}}>{v}</button>)}</div>
  ];
- const table=(groups,print=false)=><table aria-label={print?'Printable Technical Table':'Calculated Technical Table'} style={{zoom:print?1:scale,tableLayout:'fixed',borderCollapse:'collapse',width:widths.reduce((a,b)=>a+b,0)+'pt'}}><colgroup>{widths.map((w,i)=><col key={i} style={{width:w+'pt'}}/>)}</colgroup><thead><tr style={{height:sheet.heights[0]+'pt'}}>{(productAssessment?productTechnicalHeaders:[...sheet.cells[0].map(c=>c.text),'CATEGORY']).map((name,i)=><th key={i} style={cell(i,true)}>{print?name:<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'3pt'}}><span>{name}</span>{filtersEnabled&&<TableColumnFilter label={name} values={calculated.rows.map(row=>technicalFilterValues(row,!!productAssessment)[i])} selected={columnFilters[i]} onApply={values=>setColumnFilters(all=>{const next={...all};if(values===null)delete next[i];else next[i]=values;return next})}/>}</div>}</th>)}</tr></thead>{groups.map((group,groupIndex)=><tbody key={group.id} data-zone={group.code}>
+ const table=(groups,print=false)=><table aria-label={print?'Printable Technical Table':'Calculated Technical Table'} style={{zoom:print?1:scale,tableLayout:'fixed',borderCollapse:'collapse',width:widths.reduce((a,b)=>a+b,0)+'pt'}}><colgroup>{widths.map((w,i)=><col key={i} style={{width:w+'pt'}}/>)}</colgroup><thead><tr style={{height:sheet.heights[0]+'pt'}}>{(productAssessment?[...productTechnicalHeaders,...(showDrivers?driverHeaders:[])]:[...sheet.cells[0].map(c=>c.text),'CATEGORY']).map((name,i)=><th key={i} style={cell(i,true)}>{print?name:<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'3pt'}}><span>{name}</span>{filtersEnabled&&(!productAssessment||i<productTechnicalHeaders.length)&&<TableColumnFilter label={name} values={calculated.rows.map(row=>technicalFilterValues(row,!!productAssessment)[i])} selected={columnFilters[i]} onApply={values=>setColumnFilters(all=>{const next={...all};if(values===null)delete next[i];else next[i]=values;return next})}/>}</div>}</th>)}</tr></thead>{groups.map((group,groupIndex)=><tbody key={group.id} data-zone={group.code}>
   {groupIndex>0&&<tr className="technical-zone-divider" aria-hidden="true"><td colSpan={widths.length} style={{height:'26pt',padding:0,background:'#000',border:'0.5pt solid #000'}}/></tr>}
   {group.sections.map((section,sectionIndex)=><React.Fragment key={section.label}>
    <tr className="technical-category-band">{sectionIndex===0&&<td rowSpan={group.rowSpan} style={cell(0)}>{group.label}</td>}<th scope="rowgroup" colSpan={widths.length-1} style={{...cell(1),height:'26pt',background:'#e5e5e5',color:'#142238',textAlign:'left',padding:'4pt 10pt',fontWeight:600}}>{section.label}</th></tr>
@@ -130,6 +131,7 @@ export default function GeneratedTechnicalTable({projectId,projectName,projectCo
      <label>View<select aria-label="Table zoom" value={zoom} onChange={e=>setZoom(e.target.value)}>
       <option value="fit">Fit to width</option>{[25,50,75,100].map(value=><option key={value} value={value}>{value}%</option>)}
      </select></label>
+     {productAssessment&&<button type="button" aria-pressed={showDrivers} onClick={()=>setShowDrivers(v=>!v)}>{showDrivers?'Hide driver calculations':'Calculate drivers'}</button>}
      {onRefreshProducts&&<button type="button" disabled={busy} onClick={onRefreshProducts}>Refresh selected products</button>}
      <details className="technical-toolbar-menu"><summary>Export</summary><div>
       <label>Revision<input type="number" min="0" max="999" step="1" value={revision} onChange={e=>setRevision(Math.max(0,Math.min(999,Math.floor(Number(e.target.value)||0))))}/></label>
@@ -145,7 +147,7 @@ export default function GeneratedTechnicalTable({projectId,projectName,projectCo
     </div>
     {calculated.warnings.length>0&&<details className="technical-controls technical-review-strip"><summary>{calculated.warnings.length} items need review</summary><ul>{calculated.warnings.map(w=><li key={w}>{w}</li>)}</ul></details>}
     {Object.keys(columnFilters).length>0&&<div className="technical-controls output-filter-summary"><span>{visibleRows.length} circuits match the column filters</span><button onClick={()=>setColumnFilters({})}>Clear column filters</button></div>}
-    <div className="technical-screen-table" style={{overflow:'auto',background:'#fff',padding:16,border:'1px solid #ded8ca',marginTop:10}}>{documentHeading}<div className="technical-file-heading">{fileHeading}</div>{table(sections)}{!visibleRows.length&&<p>{calculated.rows.length?'No circuits match the selected filters.':productAssessment?'Select and save products in Product Assessment to generate product circuit rows.':'Upload Output to generate circuit rows.'}</p>}</div>
+    <div className="technical-screen-table" style={{overflow:'auto',background:'#fff',padding:16,border:'1px solid #ded8ca',marginTop:10}}>{documentHeading}{productAssessment&&showDrivers&&<p>Total wattage shows the product rating. Driver estimates use the total circuit load plus 20%, divided by the rated driver wattage and rounded up. Enter the driver wattage in the product specification.</p>}<div className="technical-file-heading">{fileHeading}</div>{table(sections)}{!visibleRows.length&&<p>{calculated.rows.length?'No circuits match the selected filters.':productAssessment?'Select and save products in Product Assessment to generate product circuit rows.':'Upload Output to generate circuit rows.'}</p>}</div>
     <div className="technical-print-pages">{printPages.map((groups,i)=><section className="technical-print-page" key={i}>{i===0&&documentHeading}<div className="technical-file-heading">{fileHeading}</div>{table(groups,true)}</section>)}</div>
    </>}
   </>}

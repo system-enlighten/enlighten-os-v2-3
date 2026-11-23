@@ -3,11 +3,10 @@
 .feedback-view .feedback-report > .feedback-report-toggle[aria-expanded="true"] {
   color: #9b2525;
   border: 1px solid currentColor;
+  background: transparent;
   padding: 8px 12px;
 }
 
 .feedback-view .feedback-report > .feedback-report-toggle[aria-expanded="true"]:hover {
-  color: #9b2525;
-  border-color: currentColor;
-  background: #fae9e6;
+  box-shadow: none;
 }

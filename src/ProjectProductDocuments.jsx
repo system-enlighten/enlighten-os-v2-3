@@ -1,3 +1,5 @@
+import {buildColumnTable} from './technical-column-logic.mjs';
+import {selectedProductTechnicalRows,circuitDrivers} from './product-technical.mjs';
 import {luminaireOfferLink,vendorScheduleDocument} from './LuminaireEquivalentForm.jsx';
 import boqLayout from './boq-layout.json';
 import React,{useEffect,useMemo,useRef,useState} from 'react';
@@ -10,6 +12,24 @@ const number=n=>new Intl.NumberFormat('en-IN',{maximumFractionDigits:4}).format(
 const download=(text,type,name)=>{const url=URL.createObjectURL(new Blob([text],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
 const detailHeaders=['Zone','CN','Thumbnail','Luminaire Details','Fitting Type','Optics','Application','Effect','Height','Illuminance','Aim | Direction','Colour','Control','Qty','Unit'];
 function CircuitDetails({group,headers}){const read=(r,names)=>[...new Set(r.rows.map(row=>outputValue(headers,row,names)).filter(Boolean))].join(' / ');return <table className="project-circuit-quantities"><thead><tr>{detailHeaders.map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{group.circuitRows.map(r=><tr key={r.id}><td>{[shortTechnicalFloor(r.floor),r.zone?.area||r.zone?.room||r.zone?.areaName||r.zone?.name||r.zone?.zoneName||r.zoneCode].filter(Boolean).join(' | ')}</td><td>{r.cn}</td><td>{group.icon&&<img src={icons[group.icon]||group.icon} alt="Fixture"/>}</td><td>{r.type}</td><td>{r.code}</td><td>{read(r,['OPTICS','BEAMANGLE','BEAM'])}</td><td>{r.application}</td><td>{read(r,['EFFECT'])}</td><td>{r.height}</td><td>{r.illuminance}</td><td>{read(r,['AIM','AIM|DIRECTION','DIRECTION'])}</td><td>{read(r,['COLOUR','COLOR','CCT'])}</td><td>{read(r,['CONTROL','DIMMING'])}</td><td>{r.quantity}</td><td>{group.unit}</td></tr>)}</tbody></table>}
+function DriverQuantities({circuits}) {
+ const totals=new Map();
+ let needsReview=0;
+ for(const circuit of circuits){
+  if(circuit.quantity===null){needsReview++;continue;}
+  totals.set(circuit.driverWatts,(totals.get(circuit.driverWatts)||0)+circuit.quantity);
+ }
+ return <section>
+  <h3>Driver quantities</h3>
+  {totals.size>0&&<table className="project-quantities">
+   <thead><tr><th>Driver wattage</th><th>Quantity</th></tr></thead>
+   <tbody>{[...totals].sort(([a],[b])=>a-b).map(([watts,quantity])=><tr key={watts}><td>{number(watts)} W</td><td>{number(quantity)}</td></tr>)}</tbody>
+   <tfoot><tr><th>Total drivers</th><td>{number([...totals.values()].reduce((a,b)=>a+b,0))}</td></tr></tfoot>
+  </table>}
+  {!circuits.length&&<p>Save product selections in Product Assessment to calculate driver quantities.</p>}
+  {needsReview>0&&<p>{needsReview} selected circuit{needsReview===1?'':'s'} need a valid load and driver wattage before they can be counted.</p>}
+ </section>;
+}
 export default function ProjectProductDocuments({projectId,project,request,view,canIssue=false}){
  const [data,setData]=useState(null),[products,setProducts]=useState([]),[zones,setZones]=useState([]),[assessment,setAssessment]=useState({groups:{}}),[busy,setBusy]=useState(false),[error,setError]=useState(''),[refresh,setRefresh]=useState(0),[query,setQuery]=useState(''),[expanded,setExpanded]=useState({}),[sheets,setSheets]=useState([]),[photoWarnings,setPhotoWarnings]=useState([]),[exporting,setExporting]=useState(false);
  const frame=useRef(null);
@@ -18,9 +38,14 @@ export default function ProjectProductDocuments({projectId,project,request,view,
  useEffect(()=>{setInvitation(null);setOffers(null);},[projectId]);
 
  useEffect(()=>{let live=true;setData(null);setAssessment({groups:{}});setExpanded({});setSheets([]);setError('');setQuery('');if(!projectId){setBusy(false);return}setBusy(true);
- Promise.all([request('getTechnicalDocumentation',{projectId},'POST',90000),request('listFloorZones',{projectId},'POST',90000),fetch('/technical-library/database.json').then(r=>{if(!r.ok)throw Error('Product Database could not load.');return r.json()}),request('listTechnicalFittings',{},'GET',90000),view!=='quantities'?request('getProductAssessment',{projectId},'POST',90000):Promise.resolve({groups:{}})]).then(([d,z,seed,updates,a])=>{if(!live)return;const all=new Map((seed.fittings||[]).map(f=>[f.id,f]));updates.forEach(f=>all.set(f.id,{...all.get(f.id),...f}));setData(d);setZones(z);setProducts([...all.values()].filter(f=>!f.deleted));setAssessment(a)}).catch(e=>live&&setError(e.message)).finally(()=>live&&setBusy(false));return()=>{live=false};
+ Promise.all([request('getTechnicalDocumentation',{projectId},'POST',90000),request('listFloorZones',{projectId},'POST',90000),fetch('/technical-library/database.json').then(r=>{if(!r.ok)throw Error('Product Database could not load.');return r.json()}),request('listTechnicalFittings',{},'GET',90000),request('getProductAssessment',{projectId},'POST',90000)]).then(([d,z,seed,updates,a])=>{if(!live)return;const all=new Map((seed.fittings||[]).map(f=>[f.id,f]));updates.forEach(f=>all.set(f.id,{...all.get(f.id),...f}));setData(d);setZones(z);setProducts([...all.values()].filter(f=>!f.deleted));setAssessment(a)}).catch(e=>live&&setError(e.message)).finally(()=>live&&setBusy(false));return()=>{live=false};
  },[projectId,refresh,view]);
  const model=useMemo(()=>productQuantities(data||{},products,zones),[data,products,zones]);
+ const drivers=useMemo(()=>{
+  if(view!=='quantities'||!data)return {circuits:[],warnings:[]};
+  const selected=selectedProductTechnicalRows(buildColumnTable(data,zones,products).rows,assessment,products);
+  return {circuits:selected.rows.map(row=>circuitDrivers(row,data.headers)),warnings:selected.warnings};
+ },[view,data,zones,products,assessment]);
  const book=useMemo(()=>selectedProjectSpecSheets(model.groups,products,assessment,{includeSavedOnly:view==='spec'}),[model,products,assessment,view]);
  const context=useMemo(()=>({project:project?.name||'',location:[project?.address,project?.city].filter(Boolean).join(', ')}),[project]);
  useEffect(()=>{let live=true;setSheets([]);setPhotoWarnings([]);if(view==='quantities')return;
@@ -28,7 +53,7 @@ export default function ProjectProductDocuments({projectId,project,request,view,
  const boq=useMemo(()=>boqScheduleRows(model.groups,products,assessment).map(r=>({...r,image:sheets.find(s=>s.sources.includes(r.id))?.product.imageUrl||r.image})),[model,products,assessment,sheets]);
  const html=useMemo(()=>combinedSpecSheetDocument(sheets,context),[sheets,context]);
  const groups=model.groups.filter(g=>[g.code,g.type,...g.areas].join(' ').toLowerCase().includes(query.toLowerCase()));
- const warnings=view==='quantities'?model.warnings:[...book.warnings,...photoWarnings];
+ const warnings=view==='quantities'?[...new Set([...model.warnings,...drivers.warnings])]:[...book.warnings,...photoWarnings];
  const exportBook=async()=>{setExporting(true);setError('');try{if(photoWarnings.length)throw Error('A selected product photograph is unavailable. Refresh or correct its image before downloading.');const embedded=await embedSpecSheetEntries(sheets);download(combinedSpecSheetDocument(embedded.entries,context,embedded.fonts),'text/html;charset=utf-8','Selected_Product_Spec_Sheets.html')}catch(e){setError(e.message)}finally{setExporting(false)}};
  async function issueSchedule(){
   setExporting(true);setError('');
@@ -50,7 +75,7 @@ export default function ProjectProductDocuments({projectId,project,request,view,
  {!!warnings.length&&<details className="project-document-warnings"><summary>{warnings.length} items need review</summary><ul>{warnings.map((w,i)=><li key={i}>{w}</li>)}</ul></details>}
  {view==='schedule'?<>{currentInvitation&&<p role="status">Vendor links expire on {new Date(currentInvitation.expires).toLocaleDateString()}. Share the downloaded schedule with the invited vendors.</p>}
  {offers?.projectId===projectId&&<section><h3>Vendor offers ({offers.rows.length})</h3>{offers.rows.map(o=><details key={o.offerId}><summary>{o.item.code} · {o.vendor} · {o.brand} {o.model} · {o.currency} {o.price}</summary><p>{o.email}</p>{[['specifications','Technical specifications'],['photometry','Photometry'],['compliance','Compliance'],['warranty','Warranty'],['commercial','Commercial terms']].map(([key,label])=><p key={key}><strong>{label} </strong>{o[key]||'—'}</p>)}<ul>{o.documents.map((doc,i)=><li key={i}><a href={doc.url} target="_blank" rel="noreferrer">{doc.name}</a></li>)}</ul></details>)}</section>}
- <BoqSchedule rows={boq} token={currentInvitation?.token}/></>:view==='quantities'?<div className="project-quantities-scroll"><table className="project-quantities"><thead><tr>{['Product','Housing / Product code','Luminaire Details','Quantity','Unit','Total Circuits','Areas','Circuit Details'].map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{groups.map(g=><React.Fragment key={g.id}><tr><td>{(g.fitting?.thumbnailUrl||g.icon)&&<img src={g.fitting?.thumbnailUrl||icons[g.icon]||g.icon} alt={g.code}/>}</td><td><strong>{g.code}</strong></td><td>{g.type}</td><td>{g.missingLengths?'≥ ':''}{number(g.quantity)}{g.missingLengths>0&&<small>{g.missingLengths} lengths missing</small>}</td><td>{g.unit}</td><td>{g.circuitRows.length}</td><td>{g.areas.join('\n')}</td><td><button type="button" aria-expanded={!!expanded[g.id]} onClick={()=>setExpanded(x=>({...x,[g.id]:!x[g.id]}))}>{expanded[g.id]?'Hide':'Show'} circuits</button></td></tr>{expanded[g.id]&&<tr><td colSpan={8}><div className="project-quantities-scroll"><CircuitDetails group={g} headers={data.headers}/></div></td></tr>}</React.Fragment>)}</tbody><tfoot><tr><th colSpan={3}>Total quantities</th><td colSpan={5}>{number(model.pieceTotal)} pcs · {number(model.metreTotal)} m{model.groups.some(g=>g.missingLengths)&&' · Partial: review missing lengths'}</td></tr></tfoot></table>{!groups.length&&<p>{model.groups.length?'No matching products.':'No product quantities found. Upload Output in Technical Table first.'}</p>}</div>:sheets.length?<><div className="project-spec-index">{sheets.map(s=><span key={s.id}>{s.codes.join(' / ')} · {s.product.brand} · {s.product.specs?.article}</span>)}</div><SpecSheetBookPreview html={html} pageCount={sheets.length} frameRef={frame}/></>:<p>{book.sheets.length?'Preparing selected product photographs…':'No saved product selections were found for this project. In Product Assessment, tick the product and click Save selections, then refresh this page.'}</p>}</>}
+ <BoqSchedule rows={boq} token={currentInvitation?.token}/></>:view==='quantities'?<><div className="project-quantities-scroll"><table className="project-quantities"><thead><tr>{['Product','Housing / Product code','Luminaire Details','Quantity','Unit','Total Circuits','Areas','Circuit Details'].map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{groups.map(g=><React.Fragment key={g.id}><tr><td>{(g.fitting?.thumbnailUrl||g.icon)&&<img src={g.fitting?.thumbnailUrl||icons[g.icon]||g.icon} alt={g.code}/>}</td><td><strong>{g.code}</strong></td><td>{g.type}</td><td>{g.missingLengths?'≥ ':''}{number(g.quantity)}{g.missingLengths>0&&<small>{g.missingLengths} lengths missing</small>}</td><td>{g.unit}</td><td>{g.circuitRows.length}</td><td>{g.areas.join('\n')}</td><td><button type="button" aria-expanded={!!expanded[g.id]} onClick={()=>setExpanded(x=>({...x,[g.id]:!x[g.id]}))}>{expanded[g.id]?'Hide':'Show'} circuits</button></td></tr>{expanded[g.id]&&<tr><td colSpan={8}><div className="project-quantities-scroll"><CircuitDetails group={g} headers={data.headers}/></div></td></tr>}</React.Fragment>)}</tbody><tfoot><tr><th colSpan={3}>Total quantities</th><td colSpan={5}>{number(model.pieceTotal)} pcs · {number(model.metreTotal)} m{model.groups.some(g=>g.missingLengths)&&' · Partial: review missing lengths'}</td></tr></tfoot></table>{!groups.length&&<p>{model.groups.length?'No matching products.':'No product quantities found. Upload Output in Technical Table first.'}</p>}</div><DriverQuantities circuits={drivers.circuits}/></>:sheets.length?<><div className="project-spec-index">{sheets.map(s=><span key={s.id}>{s.codes.join(' / ')} · {s.product.brand} · {s.product.specs?.article}</span>)}</div><SpecSheetBookPreview html={html} pageCount={sheets.length} frameRef={frame}/></>:<p>{book.sheets.length?'Preparing selected product photographs…':'No saved product selections were found for this project. In Product Assessment, tick the product and click Save selections, then refresh this page.'}</p>}</>}
  </section>;
 }
 
