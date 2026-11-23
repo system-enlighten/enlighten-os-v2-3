@@ -18,3 +18,10 @@
 @media(max-width:600px){.reconcile-header,.reconcile-balance{padding:16px}.reconcile-balance-note{display:none}.reconcile-summary{grid-template-columns:1fr}.accounts .reconcile-panel [role=tab]{font-size:11px}.reconcile-match-heading{padding:15px 12px 3px}.accounts .reconcile-match-heading h2{font-size:19px}.accounts .reconcile-match{padding:18px 12px}.reconcile-views{display:grid;grid-template-columns:1fr 1fr}.accounts .reconcile-views button{padding:10px}.reconcile-match-filters{grid-template-columns:1fr}.reconcile-panel{min-height:600px}}
 .reconcile-main .accounts-scroll{max-height:65vh;overflow:auto}.reconcile-main th{position:sticky;top:0;z-index:1}.reconcile-panel{min-height:min(680px,85vh)}
 @media(max-width:1150px){.has-panel .reconcile-main .accounts-scroll{max-height:260px}.reconcile-panel{min-height:min(600px,80vh)}}
+
+.reconcile-main tr.reconcile-exact-match:not(.is-selected) > td {
+  background: #fff2c9;
+}
+.reconcile-main tr.reconcile-confirmed-match > td {
+  background: #e3f1e5;
+}
