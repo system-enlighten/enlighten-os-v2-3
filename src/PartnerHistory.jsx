@@ -13,7 +13,8 @@ const today=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Kolkata'}).forma
 
 export default function PartnerHistory({history,product,fitting,group,context,canEdit,request,projectId,onSaved,onOpenDraft}){
  const [entry,setEntry]=useState(null),[saving,setSaving]=useState(false),[error,setError]=useState('');
- const records=history?.records||[];
+ const closedRequests=(history?.drafts||[]).filter(row=>row.status==='closed').map(row=>({...row,date:String(row.closedAt||'').slice(0,10),site:row.location,project:context.project,editable:false}));
+ const records=[...(history?.records||[]),...closedRequests];
  const terms=records.find(r=>r.kind==='terms');
  const currentTerms=records.find(r=>r.kind==='terms'&&r.editable);
  const warranty=product.specs?.warranty;
@@ -66,7 +67,7 @@ export default function PartnerHistory({history,product,fitting,group,context,ca
      <td>{r.article===article&&(product.imageUrl||fitting.thumbnailUrl)&&<img src={product.imageUrl||fitting.thumbnailUrl} alt=""/>}</td>
      <td>{r.article||r.code||'—'}</td><td>{r.project||'—'}{r.site&&<small>{r.site}</small>}</td>
      {service?<><td>{r.notes}</td><td>{r.resolved||'Open'}</td><td>{r.resolved?`${days(r.date,r.resolved)} days`:'—'}</td></>:<td>{r.quantity} {r.unit}</td>}
-     <td>{r.date}</td><td>{r.reference||'—'}</td>
+     <td>{r.date}</td><td>{[r.reference,r.result].filter(Boolean).join(' · ')||'—'}</td>
      {canEdit&&<td>{r.editable&&<button type="button" disabled={saving} onClick={()=>open(kind,r)}>Edit</button>}</td>}
     </tr>):<tr><td colSpan={columns.length+Number(canEdit)}>No records yet.</td></tr>}</tbody></table></div>
    </section>;

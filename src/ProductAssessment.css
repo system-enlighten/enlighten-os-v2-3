@@ -98,3 +98,9 @@
 .catalogue-spec-attachment label,.catalogue-spec-attachment input{display:block}
 .catalogue-spec-attachment input{margin-top:4px;max-width:100%}
 .catalogue-spec-attachment-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:4px;overflow-wrap:anywhere}
+.assessment-document-status{padding:10px 0 0;font-size:12px}
+.assessment-document-status ul{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:4px}
+.assessment-sheet-rail .assessment-document-status :is(button,a){width:100%;min-height:38px;gap:7px;font:inherit}
+.assessment-document-status a svg{color:#25663f}
+.assessment-document-status button svg{color:#986126}
+.assessment-document-status small{display:block;color:#68645d;margin-top:2px}

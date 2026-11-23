@@ -54,7 +54,12 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  };
  const today=day(new Date()),admin=String(user?.appAccess).toLowerCase()==='admin';
  useEffect(()=>{let live=true;loadWork().then(r=>{if(live){setRows(Array.isArray(r)?r:[]);setReady(true);}}).catch(e=>{if(live)setError(e.message);});request('getStudioDay',{},'POST').then(r=>{if(live)setLog(r);}).catch(e=>{if(live)setError(e.message);});return()=>{live=false;};},[request,loadWork]);
- const save=async(action)=>{if(busy)return;setBusy(true);setError('');try{setLog({...await request('saveStudioDay',{action,note,start,end,...(action==='entry'?manualWork:{})},'POST'),missedDay:log?.missedDay});window.dispatchEvent(new Event('enlighten-attendance-change'));if(['break','out'].includes(action)){try{const updated=await loadWork();if(Array.isArray(updated))setRows(updated);}catch{setError('Attendance saved. Refresh Home to update the task display.');}}if(action==='entry'){setNote('');setStart('');setEnd('');setManualWork(emptyWork);}}catch(e){setError(e.message);}finally{setBusy(false);}};
+ const save=async(action)=>{if(busy)return;setBusy(true);setError('');try{const saved=await request('saveStudioDay',{action,note,start,end,...(action==='entry'?manualWork:{})},'POST');
+ setLog({...saved,missedDay:log?.missedDay});
+ if(saved.pausedTasks?.length){
+  const paused=new Map(saved.pausedTasks.map(task=>[String(task.designTaskId),task]));
+  setRows(rows=>rows.map(row=>({...row,...paused.get(String(row.designTaskId))})));
+ }window.dispatchEvent(new Event('enlighten-attendance-change'));if(['break','out'].includes(action)){try{const updated=await loadWork();if(Array.isArray(updated))setRows(updated);}catch{setError('Attendance saved. Refresh Home to update the task display.');}}if(action==='entry'){setNote('');setStart('');setEnd('');setManualWork(emptyWork);}}catch(e){setError(e.message);}finally{setBusy(false);}};
  const [timerBusy,setTimerBusy]=useState(''),[timerError,setTimerError]=useState(''),[clock,setClock]=useState(Date.now());
  const [weekOffset,setWeekOffset]=useState(0),[selectedDay,setSelectedDay]=useState('');
  useEffect(()=>{const tick=setInterval(()=>setClock(Date.now()),1000);return()=>clearInterval(tick);},[]);
@@ -124,7 +129,7 @@ export default function StudioHome({state,user,request,loadWork,navigate,theme:T
  const elapsed=r=>{const startAt=Date.parse(r.startAt),seconds=Math.floor((Number(r.totalMinutes)||0)*60+(running(r)&&Number.isFinite(startAt)?Math.max(0,clock-startAt)/1000:0));return [Math.floor(seconds/3600),Math.floor(seconds/60)%60,seconds%60].map(v=>String(v).padStart(2,'0')).join(':');};
  const ownSchedule=rows.filter(r=>(admin||own(r))&&!done(r)&&r.plan?.plannedStart&&day(new Date(r.plan.plannedStart))===today).map(r=>({time:stamp(r.plan.plannedStart),end:r.plan.plannedEnd?stamp(r.plan.plannedEnd):'',title:title(r)}));
  const panel={background:'#fff',border:'1px solid '+T.line,padding:16,minWidth:0};
- const loggingButton=r=><button type="button" style={buttonStyle} title={!own(r)?'Only the assigned team member can log time':undefined} disabled={!own(r)||isWaiting(r)||busy||!!timerBusy||!!log?.breakStart&&!running(r)||String(user?.appAccess).toLowerCase()==='viewer'} onClick={()=>timerAction(r)}>{timerBusy===r.designTaskId?'Updating…':running(r)?'Pause logging':/paused/i.test(r.status||'')?'Resume logging':'Start logging'}</button>;
+ const loggingButton=r=><button type="button" style={buttonStyle} title={!own(r)?'Only the assigned team member can log time':undefined} disabled={!own(r)||isWaiting(r)||busy||!!timerBusy||!!(log?.breakStart||log?.checkOut)&&!running(r)||String(user?.appAccess).toLowerCase()==='viewer'} onClick={()=>timerAction(r)}>{timerBusy===r.designTaskId?'Updating…':running(r)?'Pause logging':/paused/i.test(r.status||'')?'Resume logging':'Start logging'}</button>;
  const pendingRow=(r,label,showProject=true)=><div className="studio-home-task-row" key={r.designTaskId}><div><strong>{label}</strong><p>{[showProject&&projectName(r),r.assigneeName||'Unassigned',r.status,r.plan?.plannedStart&&day(new Date(r.plan.plannedStart))].filter(Boolean).join(' · ')}</p></div>{loggingButton(r)}</div>;
  const taskRow=r=>{
   const due=deadlineDate(r);

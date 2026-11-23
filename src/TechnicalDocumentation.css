@@ -84,3 +84,27 @@
 
 .technical-screen-table .technical-document-heading p{margin-top:20px}
 .technical-screen-table .technical-document-heading{margin-bottom:45px}
+
+.lighting-zone-sheet {
+ background: #fff;
+ border: 1px solid #ded8ca;
+ padding: 16px;
+}
+.lighting-zone-sheet .technical-document-heading { margin-bottom: 24px; }
+.lighting-zone-scroll { overflow-x: auto; }
+.lighting-zone-table td.lighting-zone-area { text-align: left !important; }
+.lighting-zone-table .lighting-zone-load {
+ background: #eaf4d7 !important;
+ color: #1d3827 !important;
+ font-weight: 700 !important;
+ font-variant-numeric: tabular-nums;
+}
+.lighting-zone-table .lighting-zone-load[data-partial="true"] { background: #fff1cf !important; }
+.lighting-zone-table tfoot .lighting-zone-load { background: #285343 !important; color: #fff !important; }
+.lighting-zone-table tfoot .lighting-zone-load small { color: #ffe5a6 !important; }
+.lighting-zone-review {
+ margin: 12px 0;
+ padding: 8px 12px;
+ border-inline-start: 3px solid #bd7a29;
+ background: #fff1cf;
+}
