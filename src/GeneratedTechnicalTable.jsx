@@ -65,6 +65,33 @@ export default function GeneratedTechnicalTable({projectId,projectName,projectCo
   setSourceEditor({groupId:row.id,cn:row.cn,items,error:''});
  }
  function applySourceEditor(){try{const changes=sourceEditor.items.filter(item=>item.value!==item.initial).map(item=>({rowIndex:item.rowIndex,field:item.field,value:item.value,...(item.column>=0?{column:item.column}:{})}));if(changes.length){setData(applyOutputEdits(data,changes,{groupId:sourceEditor.groupId}));setDirty(true);setMissingIcons(m=>{const next={...m};delete next[sourceEditor.groupId];return next})}setSourceEditor(null)}catch(e){setSourceEditor(p=>({...p,error:e.message}))}}
+ function exportToRetina(){
+  try{
+   if(!projectId||!data)throw Error('Open a saved project output before exporting.');
+   const baseline=buildColumnTable(data,zones,products).rows;
+   if(baseline.reduce((count,row)=>count+row.rows.length,0)!==data.rows.filter(row=>row.some(cell=>String(cell??'').trim())).length)throw Error('Add a circuit number to each populated Output row before exporting.');
+   if(calculated.rows.length!==baseline.length)throw Error('Select a product in Product Assessment for every circuit before exporting to Retina.');
+   const items=calculated.rows.flatMap(row=>{
+    const sku=String(row.modelNo||'').trim();
+    if(!sku)throw Error(`${row.cn}: the selected product has no article number.`);
+    const source={sku,circuit:row.cn,zone:String(row.zone?.zoneName||row.zoneCode||''),floor:String(row.floor||'')};
+    if(!row.linear)return [{...source,kind:'Basic',count:row.rows.length}];
+    return row.quantity.split(' + ').map(length=>{
+     const match=length.match(/^(\d+(?:\.\d+)?) m$/);
+     const lengthMm=match?Math.round(Number(match[1])*1000):0;
+     if(lengthMm<1)throw Error(`${row.cn}: enter a valid cut length before exporting.`);
+     return {...source,kind:'Linear',count:1,lengthMm};
+    });
+   });
+   if(items.length>300)throw Error('Retina accepts up to 300 estimate lines per export.');
+   const payload={schema:'enlighten-retina-v1',projectId,projectName,projectCode,technicalVersion:data.version??null,items};
+   const url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));
+   const link=document.createElement('a');
+   link.href=url;link.download=`Retina-${projectCode||projectId}.json`;link.click();
+   setTimeout(()=>URL.revokeObjectURL(url),1000);
+   setError('');
+  }catch(error){setError(error.message);}
+ }
  function downloadOutput(){try{const output=serializeTechnicalOutput(materializeCmfOverrides(data,calculated.rows)),blob=new Blob([output],{type:'text/plain;charset=utf-8'}),url=URL.createObjectURL(blob),anchor=document.createElement('a');anchor.href=url;anchor.download=fileHeading+' - OUTPUT.txt';document.body.appendChild(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);setError('')}catch(e){setError(e.message)}}
  const textCell=(row,field,value,print)=>{if(print||!canEditText||busy)return value||'\u00a0';const mixed=new Set(sourceFieldValues(data,row.sourceIndices,field).map(item=>item.value)).size>1;return <TechnicalTextCell value={value} label={`${editableOutputFields[field].label} for ${row.cn}`} editable onCommit={value=>commitSource(row,field,value)} {...(mixed?{hasMultiple:true,onOpen:()=>openSource(row,[field])}:{})}/>};
  async function projectImages(){const list=[];let offset=0;do{const r=await request('listProjectDrive',{projectId,category:'Received',offset},'POST',90000);list.push(...r.entries.filter(e=>e.kind==='file'&&(/^image\//.test(e.mimeType)||/\.(png|jpe?g|webp)$/i.test(e.name))).map(e=>({id:e.id,driveFileId:e.id,label:e.name,url:`https://drive.google.com/thumbnail?id=${encodeURIComponent(e.id)}&sz=w1600`})));offset=r.nextOffset;}while(offset!==null&&offset!==undefined&&offset<10000);return list}
@@ -144,6 +171,7 @@ export default function GeneratedTechnicalTable({projectId,projectName,projectCo
       {!productAssessment&&<><button disabled={busy||!data.rows.length} onClick={downloadOutput}>Download Output (.txt)</button>
       <TechnicalSheetsExport exportTitle={fileHeading} data={data} projectId={projectId} request={imageRequest} canEdit={canEdit} zones={zones} products={products}/></>}
      </div></details>
+     {productAssessment&&<button type="button" disabled={busy||dirty||!calculated.rows.length} onClick={exportToRetina}>Export to Retina</button>}
      <span className="technical-toolbar-status">{visibleRows.length} of {calculated.rows.length} circuits · {Math.round(scale*100)}%{dirty?' · Unsaved changes':''}</span>
     </div>
     {calculated.warnings.length>0&&<details className="technical-controls technical-review-strip"><summary>{calculated.warnings.length} items need review</summary><ul>{calculated.warnings.map(w=><li key={w}>{w}</li>)}</ul></details>}
