@@ -4121,7 +4121,7 @@ function PerformanceView({state,request=apiRequest}){
  const accessible=rows.filter(r=>projectIds.has(String(r.projectId))&&wihCanSeeTask(state.currentUser,r));
  const members=[...new Map(accessible.map(r=>[String(r.assigneeUserId||''),r.assigneeName||r.task?.assigneeName||'Unassigned'])).entries()];
  const selected=manager?employee:String(state.currentUser?.userId||'');
- const tasks=accessible.filter(r=>selected==='all'||String(r.assigneeUserId||'')===selected).map(r=>({...r,title:r.task?.taskType||'Design Task',projectName:(state.projects||[]).find(p=>String(p.id)===String(r.projectId))?.name||r.task?.projectName||'',floor:r.task?.floor||'',area:r.task?.area||'',assignee:r.assigneeName||r.task?.assigneeName||'',hours:Number(r.totalMinutes||0)/60,status:String(r.status||r.task?.status||'Not Started')}));
+ const tasks=accessible.filter(r=>selected==='all'||String(r.assigneeUserId||'')===selected).map(r=>({...r,title:r.task?.taskType||'Design Task',projectName:workProjects.get(String(r.projectId))?.name||r.task?.projectName||'',floor:r.task?.floor||'',area:r.task?.area||'',assignee:r.assigneeName||r.task?.assigneeName||'',hours:Number(r.totalMinutes||0)/60,status:String(r.status||r.task?.status||'Not Started')}));
  const [projectFilter,setProjectFilter]=useState('');
  const timeRows=tasks.filter(t=>(!projectFilter||String(t.projectId)===projectFilter)&&Number(t.totalMinutes)>0);
  const minutes=timeRows.reduce((sum,t)=>sum+Number(t.totalMinutes),0);
@@ -4336,6 +4336,9 @@ function TimesheetView({ state, persist, calendarOnly=false }) {
   const [wihDiagnostics,setWihDiagnostics]=useState(()=>initialWihCache?.diagnostics||null);
   const [completeEditor, setCompleteEditor] = useState(null);
   const [busyId, setBusyId] = useState("");
+  const [selectedLogging,setSelectedLogging]=useState([]);
+  const [loggingEditor,setLoggingEditor]=useState(null);
+  const [loggingError,setLoggingError]=useState('');
   const activeTeam=(state.teamMaster||[]).filter(m=>m.active!==false&&String(m.active).toLowerCase()!=="false");
   const teamNames=activeTeam.map(m=>m.name).filter(Boolean);
 
@@ -4387,10 +4390,10 @@ function TimesheetView({ state, persist, calendarOnly=false }) {
       if(wihMounted.current&&generation===AUTH_SESSION_GENERATION){if(failed)setReconcileError('Some project work could not be updated. Use Refresh work to retry.');}
     }finally{wihRecovery.current=false;if(wihMounted.current&&generation===AUTH_SESSION_GENERATION)setReconciling(false);}
   };
-  useEffect(()=>{wihMounted.current=true;refreshAndRecover(false);return()=>{wihMounted.current=false;wihRequestSeq.current++;};},[]);
+  useEffect(()=>{wihMounted.current=true;refresh(false);return()=>{wihMounted.current=false;wihRequestSeq.current++;};},[]);
 
-  const currentProjectIds=new Set((state.projects||[]).map(p=>String(p.id)));
-  const visibleRemoteTasks=remoteTasks.filter(r=>currentProjectIds.has(String(r.projectId||r.task?.projectId))&&wihCanSeeTask(state.currentUser,r));
+  const workProjects=new Map((state.projects||[]).map(p=>[String(p.id),p]));
+  const visibleRemoteTasks=remoteTasks.filter(r=>workProjects.has(String(r.projectId||r.task?.projectId))&&wihCanSeeTask(state.currentUser,r));
   const displayTasks=visibleRemoteTasks.length?visibleRemoteTasks.map(r=>({
     ...r,
     id:r.designTaskId,
@@ -4402,7 +4405,7 @@ function TimesheetView({ state, persist, calendarOnly=false }) {
     drawingReviewRequired:r.task?.drawingReviewRequired===true||String(r.task?.drawingReviewRequired)==="true",
     milestone:r.task?.milestone||"", parentTask:r.task?.parentTask||"", parentDesignTaskId:r.task?.parentDesignTaskId||"",
     predecessorTaskId:r.task?.predecessorTaskId||"", completionUploadRequired:r.completionUploadRequired !== false && String(r.completionUploadRequired)!=="false",
-    projectName:(state.projects||[]).find(p=>String(p.id)===String(r.projectId))?.name||r.task?.projectName||"",
+    projectName:workProjects.get(String(r.projectId))?.name||r.task?.projectName||"",
     floor:r.task?.floor||"",
     area:r.task?.area||"",
     batchCoverage:(()=>{try{return JSON.parse(r.task?.workflowCoverage||"[]");}catch{return [];}})(),
@@ -4439,12 +4442,33 @@ function TimesheetView({ state, persist, calendarOnly=false }) {
     Unallotted:displayTasks.filter(t=>!isDone(t.status)&&!t.assigneeUserId).length,
     All:displayTasks.length
   };
-  const sectionTasks=displayTasks.filter(t=>taskSection==="All"?true:taskSection==="Completed"?isDone(t.status):taskSection==="Unallotted"?!isDone(t.status)&&!t.assigneeUserId:!isDone(t.status));
+  const sectionTasks=displayTasks.filter(t=>workTab==="project"?!isDone(t.status):taskSection==="All"?true:taskSection==="Completed"?isDone(t.status):taskSection==="Unallotted"?!isDone(t.status)&&!t.assigneeUserId:!isDone(t.status));
   const tasks=sectionTasks.filter(matches).sort((a,b)=>Number(wihUrgency(b,clock).urgent)-Number(wihUrgency(a,clock).urgent)||String(a.plan?.internalDueDate||'9999').localeCompare(String(b.plan?.internalDueDate||'9999')));
   const endedSessions=displayTasks.filter(t=>matches(t)&&run(t)&&t.plan&&!isDone(t.status)&&Date.parse(t.plan.plannedEnd)<=clock);
   const people=[...new Set(teamNames)];
   useEffect(()=>{if(person!=="All"&&person!=="@me"&&!people.includes(person))setPerson("All");},[person,people.join("\u0000")]);
+  const sharedActive=displayTasks.filter(t=>run(t)&&t.sharedSession&&isProgress(t.status));
+  const canSelectLogging=t=>run(t)&&!isDone(t.status)&&!isProgress(t.status)&&!isBlocked(t.status);
+  const selectedWork=displayTasks.filter(t=>selectedLogging.includes(t.designTaskId)&&canSelectLogging(t));
+  const selectLogging=t=>setSelectedLogging(ids=>ids.includes(t.designTaskId)?ids.filter(id=>id!==t.designTaskId):[...ids,t.designTaskId]);
+  async function updateSharedLogging(mode){
+    const work=mode==='pause'?sharedActive:loggingEditor.tasks;
+    setBusyId('shared');setLoggingError('');
+    try{
+      const updates=await apiRequest('sharedWorkSession',{mode,taskIds:work.map(t=>t.designTaskId),remarks:loggingEditor?.remarks,taskRemarks:loggingEditor?.taskRemarks},'POST');
+      const byId=new Map(updates.map(update=>[String(update.task.designTaskId),update]));
+      setRemoteTasks(rows=>rows.map(row=>{
+        const update=byId.get(String(row.designTaskId));
+        return update?{...row,...update.wih,task:update.task}:row;
+      }));
+      try{localStorage.removeItem(WIH_CACHE_KEY);}catch{}
+      setSelectedLogging([]);setLoggingEditor(null);
+      if(mode==='start')void refresh(true);
+    }catch(error){setLoggingError(error.message);}
+    finally{setBusyId('');}
+  }
   const action=async(t,kind)=>{
+    if(kind==='pause'&&t.sharedSession){await updateSharedLogging('pause');return;}
     if(!t.designTaskId||(["start","pause","resume"].includes(kind)&&!run(t)))return;
     setBusyId(t.designTaskId);
     try{if(kind==="start")await projectApi.startTask(t.designTaskId);if(kind==="pause")await projectApi.pauseTask(t.designTaskId);if(kind==="resume")await projectApi.resumeTask(t.designTaskId );if(kind==="review")await projectApi.acknowledgeWorkflowDrawing(t.designTaskId);if(kind==="skip")await projectApi.skipWorkflowSubtask(t.designTaskId);await refresh(true);}
@@ -4471,7 +4495,7 @@ function TimesheetView({ state, persist, calendarOnly=false }) {
   const loggingButton=(t,showDisabled=false)=>(showDisabled||run(t)&&!isDone(t.status))&&<button type="button" className="wih-compact-button" style={smallBtn} disabled={!!busyId||!run(t)||isDone(t.status)} title={isDone(t.status)?'Task completed':!run(t)?'Only the assigned team member can log time':undefined} onClick={()=>action(t,/in.?progress|running/i.test(t.status)?'pause':/paused/i.test(t.status)?'resume':'start')}>{String(busyId)===String(t.designTaskId)?'Updating…':/in.?progress|running/i.test(t.status)?'Pause logging':/paused/i.test(t.status)?'Resume logging':'Start logging'}</button>;
   return <div className="wih-workspace">
     {assign&&<div style={{position:'fixed',inset:0,zIndex:1000,background:'#0c1c3466',display:'grid',placeItems:'center',padding:16}}><section role="dialog" aria-modal="true" aria-labelledby="wih-assign-title" onKeyDown={e=>{if(e.key==='Escape'&&!assign.busy)setAssign(null);}} style={{background:T.paper||'#fff',border:'1px solid '+T.line,padding:24,width:'min(100%,440px)'}}><h3 id="wih-assign-title">Assign task</h3><p>{assign.task.projectName} · {assign.task.title}</p><label>Project team <select value={assign.id} disabled={assign.busy} onChange={e=>setAssign({...assign,id:e.target.value})}><option value="">{assign.busy?'Please wait…':assign.options.length?'Choose a team member':'No eligible team members'}</option>{assign.options.map(m=><option key={m.userId} value={m.userId}>{m.name}</option>)}</select></label>{assign.error&&<p role="alert">{assign.error}</p>}<div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:18}}><button autoFocus type="button" style={smallBtn} disabled={assign.busy} onClick={()=>setAssign(null)}>Cancel</button><button type="button" style={smallBtn} disabled={!assign.id||assign.busy} onClick={saveAssign}>Assign task</button></div></section></div>}
-    {!calendarOnly&&<div className="register-tabs" role="tablist" aria-label="Task sections" style={registerTabsStyle}>{[['todo','To-do'],['project','Project-wise'],['internal','Internal work']].map(([id,label])=><button key={id} role="tab" aria-selected={workTab===id} type="button" onClick={()=>{setWorkTab(id);if(id==='project')setTaskSection('All');setPlanningTask(null);}} style={registerTabStyle(workTab===id)}>{label}</button>)}</div>}
+    {!calendarOnly&&<div className="register-tabs" role="tablist" aria-label="Task sections" style={registerTabsStyle}>{[['todo','To-do'],['project','Project-wise'],['internal','Internal work']].map(([id,label])=><button key={id} role="tab" aria-selected={workTab===id} type="button" onClick={()=>{setWorkTab(id);if(id==='project')setTaskSection('Pending');setPlanningTask(null);}} style={registerTabStyle(workTab===id)}>{label}</button>)}</div>}
     {workTab==='internal'?<InternalAreas request={apiRequest} buttonStyle={smallBtn} inputStyle={inputStyle}/>:<>
     {!calendarOnly&&<header className="wih-register-head">
       <h1 className="studio-page-heading">Tasks</h1>
@@ -4486,15 +4510,33 @@ function TimesheetView({ state, persist, calendarOnly=false }) {
     {workTab==='calendar'&&endedSessions.length>0&&<div role="alert" style={{padding:12,border:`1px solid ${T.orange}`,fontSize:12,marginBottom:12}}>Session ended — resolve now. {endedSessions.map(t=><div key={t.designTaskId} style={{marginTop:6}}>{t.projectName} · {t.title} <button style={smallBtn} onClick={()=>setPlanningTask({...t})}>Extend / postpone</button><button style={smallBtn} disabled={busyId===t.designTaskId||isBlocked(t.status)} onClick={()=>setCompleteEditor({task:t,file:null,...workDrawingDetails(t),actualHours:t.hours||'',notes:''})}>Complete</button></div>)}<div style={{marginTop:6}}>The original TAT remains unchanged.</div></div>}
     {(workTab==='calendar'||planningTask)&&<WihPlanner onAction={action} busyId={busyId} onComplete={t=>setCompleteEditor({task:t,file:null,...workDrawingDetails(t),actualHours:t.hours||'',notes:''})} state={state} tasks={tasks} requestedTask={planningTask} onSaved={(id,plan)=>{setRemoteTasks(rows=>rows.map(r=>String(r.designTaskId)===String(id)?{...r,plan}:r));try{localStorage.removeItem(WIH_CACHE_KEY);}catch{}setPlanningTask(null);refresh(true);}}/>}
 
+    {workTab==='project'&&(
+      <div className="wih-sync-toolbar">
+        {selectedWork.length>0&&<button type="button" style={smallBtn} disabled={!!busyId||sharedActive.length>0} onClick={()=>{setLoggingError('');setLoggingEditor({tasks:selectedWork,remarks:'',taskRemarks:{}});}}>Start Selected ({selectedWork.length})</button>}
+        {sharedActive.length>0&&<button type="button" style={smallBtn} disabled={!!busyId} onClick={()=>updateSharedLogging('pause')}>Pause shared session ({sharedActive.length})</button>}
+        </div>
+    )}
+    {loggingError&&!loggingEditor&&<p role="alert">{loggingError}</p>}
+    {loggingEditor&&<div className="task-discussion-overlay"><form className="task-discussion-dialog" role="dialog" aria-label="Start work session" onSubmit={event=>{event.preventDefault();updateSharedLogging('start');}}>
+      <h3>Start work session</h3>
+      <label>Shared remark <textarea rows={2} maxLength={2000} value={loggingEditor.remarks} onChange={event=>setLoggingEditor({...loggingEditor,remarks:event.target.value})}/></label>
+      {loggingEditor.tasks.map(task=><div key={task.designTaskId}><label>{[task.projectName,task.floor,task.area,task.title].filter(Boolean).join(' · ')}
+        <input placeholder="Task remark (optional)" maxLength={2000} value={loggingEditor.taskRemarks[task.designTaskId]||''} onChange={event=>setLoggingEditor({...loggingEditor,taskRemarks:{...loggingEditor.taskRemarks,[task.designTaskId]:event.target.value}})}/>
+      </label></div>)}
+      {loggingError&&<p role="alert">{loggingError}</p>}
+      <button type="button" style={smallBtn} disabled={!!busyId} onClick={()=>setLoggingEditor(null)}>Cancel</button>{' '}
+      <button type="submit" style={smallBtn} disabled={!!busyId}>Start logging</button>
+    </form></div>}
     {loadingRemote&&remoteTasks.length===0&&<div role="status" style={{fontFamily:FONT_BODY,fontSize:12,fontWeight:400,lineHeight:1.5,color:T.inkDim,padding:"6px 0"}}>Loading work…</div>}
     {!loadingRemote&&!reconciling&&tasks.length===0&&<div style={{color:T.inkDim,fontFamily:FONT_BODY,fontSize:13,padding:"6px 0"}}>{displayTasks.length>0?'No tasks match this selection.':wihError?'The work list could not be refreshed. Please retry Refresh work.':<><strong>No received-drawing tasks are available yet.</strong><div style={{marginTop:8}}>{wihDiagnostics?.pendingClassification??(state.intakes||[]).filter(i=>!i.classified).length} drawing(s) awaiting classification. Open Classify, confirm the project, drawing type and floor / area, then refresh work.</div>{!!wihDiagnostics?.missingReceivedLink&&<div style={{marginTop:8}}>{wihDiagnostics.missingReceivedLink} existing task(s) have no valid received-drawing link. Check that their received files are linked to the same project and have not been trashed.</div>}</>}</div>}
     {workTab==='project'&&<div className="wih-project-cards">{projectGroups.map(([id,list])=><section key={id}><h3>{list[0].projectName||'Project'}</h3><ul>{projectCardTaskGroups(list).map(({key,floor,title,tasks})=>{
       const label=floor?floor+' · '+title:title;
-      if(tasks.length===1)return <li key={key}><strong>{label}</strong>{loggingButton(tasks[0],true)}</li>;
+      const selector=(task,text)=>canSelectLogging(task)?<label><input type="checkbox" checked={selectedLogging.includes(task.designTaskId)} onChange={()=>selectLogging(task)}/> {text}</label>:text;
+      if(tasks.length===1)return <li key={key}><div>{selector(tasks[0],<strong>{label}</strong>)}{(tasks[0].sessionRemarks||tasks[0].notes||tasks[0].task?.remarks)&&<small style={{display:'block'}}>{tasks[0].sessionRemarks||tasks[0].notes||tasks[0].task?.remarks}</small>}</div>{loggingButton(tasks[0],true)}</li>;
       const eligible=tasks.filter(t=>run(t)&&!isDone(t.status));
       return <li key={key} className="wih-ceiling-floor"><details>
         <summary><strong>{label}</strong></summary>
-        <ul>{tasks.map(t=><li key={t.designTaskId}><span>{t.area||'Floor drawing'}</span>{loggingButton(t,true)}</li>)}</ul>
+        <ul>{tasks.map(t=><li key={t.designTaskId}><div>{selector(t,t.area||'Floor drawing')}{(t.sessionRemarks||t.notes||t.task?.remarks)&&<small style={{display:'block'}}>{t.sessionRemarks||t.notes||t.task?.remarks}</small>}</div>{loggingButton(t,true)}</li>)}</ul>
       </details>{eligible.length<=1?loggingButton(eligible[0]||tasks[0],true):
         <button type="button" className="wih-compact-button" style={smallBtn} disabled={!!busyId} title="Choose the area to log time for" onClick={event=>{
           const details=event.currentTarget.previousElementSibling;
@@ -5514,6 +5556,7 @@ function ProjectLineOfWorkView({state,persist,selectedId,showProjectPicker=true,
   const [rows,setRows] = useState(()=>applyWorkflowDelegation(initialWorkspace?.workflow?.length?initialWorkspace.workflow:DESIGN_TASK_FLOW_TEMPLATE.map(r=>({...r})),project?.id,initialWorkspace?.rules||[]));
   const [legacy,setLegacy] = useState([]);
   const [instances,setInstances] = useState([]);
+  const [revisionDraft,setRevisionDraft]=useState(null);
   const [lightingMilestone,setLightingMilestone]=useState(null);
   const [historicalMeetings,setHistoricalMeetings]=useState([]),[meetingPrompt,setMeetingPrompt]=useState(null),[meetingError,setMeetingError]=useState('');
   const [drawingReceipts,setDrawingReceipts]=useState(null);
@@ -5538,7 +5581,7 @@ function ProjectLineOfWorkView({state,persist,selectedId,showProjectPicker=true,
   };
   useEffect(() => {
     let active = true; revision.current += 1;
-    setEditing(false);setPanel(null);setAreaKey("");setError("");setMessage("");setInstances([]);setLightingMilestone(null);setHistoricalMeetings([]);setMeetingPrompt(null);setMeetingError('');
+    setEditing(false);setPanel(null);setAreaKey("");setError("");setMessage("");setInstances([]);setLightingMilestone(null);setHistoricalMeetings([]);setMeetingPrompt(null);setMeetingError('');setRevisionDraft(null);
     if (!project) {setProjectRows([]);return;}
     const cached=cachedWorkflowWorkspace(project.id);setProjectRows(cached?.workflow||project.lineOfWorkResidence||project.lineOfWork||[],cached?.rules||[]);
     setLoading(!cached);
@@ -5593,7 +5636,34 @@ function ProjectLineOfWorkView({state,persist,selectedId,showProjectPicker=true,
   };
   const fieldStyle={...inputStyle,padding:"7px 8px",fontSize:12};
   const activationKey=r=>JSON.stringify([project.id,r.lineWorkId]);
-  const checksFor=sub=>instances.filter(row=>row.task?.parentDesignTaskId&&String(row.task.lineWorkId)===rowId(sub));
+  const workByStep=new Map(),revisionsBySource=new Map();
+  for(const row of instances){
+    const task=row.task;
+    if(!task)continue;
+    const [index,key]=task.revisionOf?[revisionsBySource,task.revisionOf]:[workByStep,task.lineWorkId];
+    if(!key||(!task.revisionOf&&!task.parentDesignTaskId))continue;
+    const id=String(key);
+    if(!index.has(id))index.set(id,[]);
+    index.get(id).push(row);
+  }
+  const checksFor=sub=>workByStep.get(rowId(sub))||[];
+  const revisionSources=sub=>checksFor(sub).filter(row=>/^completed$|^done$/i.test(row.status)&&(
+    canRecordHistory||String(row.assigneeUserId||row.task?.assigneeUserId)===String(state.currentUser?.userId)
+  ));
+  async function saveRevision(event){
+    event.preventDefault();
+    const draft=revisionDraft;
+    const pid=project.id;
+    setBusy(true);
+    try{
+      const created=await apiRequest('createTaskRevisions',{projectId:pid,taskIds:draft.ids,remarks:draft.remarks,assigneeUserId:draft.assignee,requestId:draft.requestId},'POST');
+      if(workflowProjectRef.current!==pid)return;
+      setInstances(rows=>[...rows.filter(row=>!created.some(task=>task.designTaskId===row.designTaskId)),...created.map(task=>({designTaskId:task.designTaskId,status:task.status,task}))]);
+      setRevisionDraft(null);setMessage('Revision added to Work in Hand.');
+      try{localStorage.removeItem('enlighten_wih_project_visibility_v2:'+String(state.currentUser?.userId||state.currentUser?.googleSubject||'anonymous'));}catch{}
+    }catch(error){if(workflowProjectRef.current===pid)setRevisionDraft(current=>current?{...current,error:error.message}:current);}
+    finally{setBusy(false);}
+  }
   const historicalFor=sub=>historicalMeetings.find(row=>String(row.projectId)===String(project.id)&&String(row.lineWorkId)===rowId(sub));
   const meetingVisit=(group,sub)=>group&&meetingForDesignSubtask(project,group,sub,designMeetingVisitRows(project,[group],visits));
   const canRecordHistory=String(state.currentUser?.appAccess).toLowerCase()==='admin'||String(state.currentUser?.appAccess).toLowerCase()!=='viewer'&&projectRole(state,project.id)==='Admin';
@@ -5663,7 +5733,12 @@ function ProjectLineOfWorkView({state,persist,selectedId,showProjectPicker=true,
               const visit=sub.taskCategory==='Meeting'?meetingVisit(g,sub):null;
               if(visit?.scheduledDate){openMeetingAction(visit,'record');return;}
               setMeetingError('');setMeetingPrompt({sub,visit,date:'',notes:''});
-            }} style={{marginRight:8,verticalAlign:'middle'}}/><button type="button" disabled={busy} aria-label={`Details ${sub.subtask}`} title="Open subtask details" onClick={()=>setPanel({kind:'subtask',id:rowId(sub)})} style={{border:0,background:'transparent',padding:0,fontFamily:FONT_BODY,fontSize:12,color:T.ink,textAlign:'left',cursor:'pointer',lineHeight:1.5}}><span style={{color:T.inkDim,marginRight:8,fontSize:11}}>{i+1}.</span>{sub.subtask}</button>{historicalFor(sub)&&<small style={{marginLeft:8}}>{sub.taskCategory==='Meeting'?'Historical meeting':'Historical completion'}{historicalFor(sub).date?' · '+formatProjectDate(historicalFor(sub).date):''}</small>}{workflowComment('subtask',rowId(sub),sub.subtask)}{sub.taskCategory==='Meeting'&&renderDesignMeetingControls(meetingForDesignSubtask(project,g,sub,stageVisits),sub.meetingMode,loading)}</td><td style={{...tdStyle,textAlign:'center',verticalAlign:'middle',fontSize:12}}><span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8}}><WorkflowStatusDot {...workflowDotStatus(workflowStatus(r,sub),workflowPrerequisite(r,drawingReceipts,zones,selectedArea,instances))}/><span>{sub.responsible||r.responsible||'Unassigned'}</span></span></td></tr>)}</tbody>
+            }} style={{marginRight:8,verticalAlign:'middle'}}/><button type="button" disabled={busy} aria-label={`Details ${sub.subtask}`} title="Open subtask details" onClick={()=>setPanel({kind:'subtask',id:rowId(sub)})} style={{border:0,background:'transparent',padding:0,fontFamily:FONT_BODY,fontSize:12,color:T.ink,textAlign:'left',cursor:'pointer',lineHeight:1.5}}><span style={{color:T.inkDim,marginRight:8,fontSize:11}}>{i+1}.</span>{sub.subtask}</button>{historicalFor(sub)&&<small style={{marginLeft:8}}>{sub.taskCategory==='Meeting'?'Historical meeting':'Historical completion'}{historicalFor(sub).date?' · '+formatProjectDate(historicalFor(sub).date):''}</small>}{workflowComment('subtask',rowId(sub),sub.subtask)}
+            {sub.taskCategory!=='Meeting'&&String(state.currentUser?.appAccess).toLowerCase()!=='viewer'&&revisionSources(sub).length>0&&<button type="button" style={smallBtn} disabled={busy} onClick={()=>{
+              const sources=revisionSources(sub);
+              setRevisionDraft({sub,sources,ids:sources.map(row=>row.designTaskId),remarks:'',assignee:'',requestId:crypto.randomUUID()});
+            }}>Add Revision</button>}
+            {checksFor(sub).flatMap(source=>revisionsBySource.get(String(source.designTaskId))||[]).map(row=><div key={row.designTaskId} style={{fontSize:11,marginTop:4}}>{[row.task.floor,row.task.taskType,row.status,row.task.remarks].filter(Boolean).join(' · ')}</div>)}{sub.taskCategory==='Meeting'&&renderDesignMeetingControls(meetingForDesignSubtask(project,g,sub,stageVisits),sub.meetingMode,loading)}</td><td style={{...tdStyle,textAlign:'center',verticalAlign:'middle',fontSize:12}}><span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8}}><WorkflowStatusDot {...workflowDotStatus(workflowStatus(r,sub),workflowPrerequisite(r,drawingReceipts,zones,selectedArea,instances))}/><span>{sub.responsible||r.responsible||'Unassigned'}</span></span></td></tr>)}</tbody>
           </table></div>
           {editing&&<button disabled={busy} style={{...smallBtn,marginTop:12}} onClick={()=>addSubtask(g)}>+ Add subtask</button>}
         </div>}
@@ -5675,6 +5750,18 @@ function ProjectLineOfWorkView({state,persist,selectedId,showProjectPicker=true,
       </section>}
       {!!aligned.remaining.length&&<section className="workflow-final-execution" aria-label="Further execution work" style={{minWidth:0,marginTop:8}}><h3 style={{fontFamily:FONT_DISPLAY,fontSize:17}}>Execution and Task</h3>{renderVisitTable(aligned.remaining.filter(row=>!/staging|scene setting/i.test(row.milestone)))}{aligned.remaining.some(row=>/staging|scene setting/i.test(row.milestone))&&<section aria-label="Final staging and scene setting" style={{marginTop:22,border:`2px solid ${T.blue}`,background:'#E8F1F8'}}><h3 style={{margin:0,padding:'12px 14px',background:T.navy,color:'#fff',fontFamily:FONT_DISPLAY,fontSize:16}}>Staging & Scene Setting <span style={{fontFamily:FONT_MONO,fontSize:10,color:T.cyan,marginLeft:12}}>FINAL MILESTONE</span></h3>{renderVisitTable(aligned.remaining.filter(row=>/staging|scene setting/i.test(row.milestone)))}</section>}</section>}
       </div></div>
+      {revisionDraft&&<div className="task-discussion-overlay"><form className="task-discussion-dialog" role="dialog" aria-label="Add revision" onSubmit={saveRevision}>
+        <h3>Add Revision</h3><p>{revisionDraft.sub.subtask}</p>
+        {revisionDraft.sources.map(row=><div key={row.designTaskId}><label><input type="checkbox" checked={revisionDraft.ids.includes(row.designTaskId)} onChange={event=>setRevisionDraft({...revisionDraft,ids:event.target.checked?[...revisionDraft.ids,row.designTaskId]:revisionDraft.ids.filter(id=>id!==row.designTaskId)})}/> {[row.task?.floor,row.task?.area].filter(Boolean).join(' · ')||'Project-wide'}</label></div>)}
+        <label>Revision remark <textarea required maxLength={2000} value={revisionDraft.remarks} onChange={event=>setRevisionDraft({...revisionDraft,remarks:event.target.value})}/></label>
+        {canRecordHistory&&<label>Assign to <select value={revisionDraft.assignee} onChange={event=>setRevisionDraft({...revisionDraft,assignee:event.target.value})}>
+          <option value="">Keep original assignee</option>
+          {(state.teamMaster||[]).filter(person=>person.userId&&person.active!==false&&String(person.active).toLowerCase()!=='false').map(person=><option key={person.userId} value={person.userId}>{person.name}</option>)}
+        </select></label>}
+        {revisionDraft.error&&<p role="alert">{revisionDraft.error}</p>}
+        <button type="button" style={smallBtn} disabled={busy} onClick={()=>setRevisionDraft(null)}>Cancel</button>{' '}
+        <button type="submit" style={smallBtn} disabled={busy||!revisionDraft.ids.length||!revisionDraft.remarks.trim()}>Save revision</button>
+      </form></div>}
       {meetingPrompt&&<div className="task-discussion-overlay"><section className="task-discussion-dialog" role="dialog" aria-modal="true" aria-labelledby="historical-completion-title">
         <h2 id="historical-completion-title">{meetingPrompt.sub.taskCategory==='Meeting'?'Has this meeting already happened?':'Was this step already completed?'}</h2><p>{meetingPrompt.sub.subtask}</p>
         <label>Actual date (optional)<input type="date" style={inputStyle} disabled={busy} value={meetingPrompt.date} onChange={e=>setMeetingPrompt({...meetingPrompt,date:e.target.value})}/></label>
