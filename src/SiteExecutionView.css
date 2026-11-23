@@ -18,3 +18,10 @@
  font-family: TechnicalFounders, sans-serif;
  font-weight: 600;
 }
+.site-execution-sheet .site-completion-cell { text-align: center; }
+.site-execution-sheet .site-completion-cell input[type=checkbox] {
+ width: 16.5px;
+ height: 16.5px;
+ margin: 0;
+ vertical-align: middle;
+}

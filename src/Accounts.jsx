@@ -1,3 +1,4 @@
+import {partyLedger} from './party-ledger.mjs';
 import DesignTransactions from './DesignTransactions.jsx';
 import StudioHeading from './StudioHeading.jsx';
 import AccountsReconciliation from './AccountsReconciliation.jsx';
@@ -10,7 +11,7 @@ import {AccountsDashboard, BankingOverview, GstOverview, bankAccounts, studioGst
 import PagesInvoice, {printPagesInvoice} from './PagesInvoice.jsx';
 import { Mail, Share2, Printer, Edit3, DollarSign, Download, Search, CheckCircle, ArrowRight, X } from 'lucide-react';
 
-export const accountsPages = ['Projects & Clients','Payment Dashboard','Estimates','Invoices','Debit / Credit','Banking','GST','Chart of Accounts','Payroll','Financial Reports'];
+export const accountsPages = ['Projects & Clients','Payment Dashboard','Estimates','Invoices','Debit / Credit','Banking','GST','Chart of Accounts','Party Ledger','Payroll','Financial Reports'];
 const banks = bankAccounts;
 const today = () => new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Kolkata'});
 const money = n => new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR'}).format((n||0)/100);
@@ -285,7 +286,8 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
   const [payrollTab,setPayrollTab]=useState('payroll');
   const [payMonth,setPayMonth]=useState(()=>today().slice(0,7)),[staffQuery,setStaffQuery]=useState('');
   const [coaQuery,setCoaQuery]=useState('');
-  const [ledgerHead,setLedgerHead]=useState(null);
+  const [headDraft,setHeadDraft]=useState(null),[partyKey,setPartyKey]=useState('');
+  const parties=useMemo(()=>partyLedger(page==='Party Ledger'?data?.records||[]:[]),[data,page]);
   const [bank,setBank]=useState('IDFC');
   const [cashFrom,setCashFrom]=useState(()=>String(Number(today().slice(0,4))-(today().slice(5,7)<'04'?1:0))+'-04-01');
   const printRef=useRef(null), saving=useRef(false);
@@ -302,7 +304,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
 
   useEffect(()=>{load();},[]);
   useEffect(()=>{if(page==='Banking'&&reconciliationBank)setBank(reconciliationBank);},[page,reconciliationBank]);
-  useEffect(()=>{setDraft(null);setSelected(invoiceToOpen.current);invoiceToOpen.current=null;setInvoiceClosed(false);setNotice('');setLedgerHead(null);},[page]);
+  useEffect(()=>{setDraft(null);setSelected(invoiceToOpen.current);invoiceToOpen.current=null;setInvoiceClosed(false);setNotice('');setHeadDraft(null);setPartyKey('');},[page]);
 
   const save=async e=>{
     if(e?.preventDefault)e.preventDefault();
@@ -318,6 +320,19 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
         invoiceToOpen.current=record;
         onNavigate('Invoices');
       }else if(['invoice','payroll'].includes(record.kind))setSelected(record);
+    }catch(e){setError(e.message);}
+    finally{saving.current=false;setBusy(false);}
+  };
+
+  const saveHead=async(remove=false)=>{
+    if(saving.current||readOnly)return;
+    saving.current=true;
+    setBusy(true);setError('');setNotice('');
+    try{
+      const heads=await request('saveAccountsHead',{...headDraft,remove});
+      setData(current=>({...current,heads}));
+      setHeadDraft(null);
+      setNotice(remove?'Account head deleted.':'Account head saved.');
     }catch(e){setError(e.message);}
     finally{saving.current=false;setBusy(false);}
   };
@@ -611,57 +626,52 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
 
 
     {page==='Chart of Accounts'&&<>
-      <div className="accounts-toolbar" style={{justifyContent:'space-between'}}>
-        <div style={{display:'inline-flex',alignItems:'center',gap:8}}>
-          <Search size={15} color="#888"/>
-          <input type="search" placeholder="Search ledger head or type..." value={coaQuery} onChange={e=>setCoaQuery(e.target.value)}/>
-        </div>
-        <span style={{fontSize:12,color:'#555'}}>Click any ledger head to view its transaction statement.</span>
+      <div className="accounts-toolbar">
+        <Search size={15} aria-hidden="true"/>
+        <input type="search" aria-label="Search accounts" placeholder="Search type, head or sub-head" value={coaQuery} onChange={e=>setCoaQuery(e.target.value)}/>
+        {!readOnly&&<button type="button" disabled={busy} onClick={()=>setHeadDraft({head:'',type:'',subhead:''})}>Add Head</button>}
       </div>
+      {headDraft&&<form className="accounts-preview" onSubmit={event=>{event.preventDefault();saveHead();}}>
+        <h2>{headDraft.previous?'Edit Head':'Add Head'}</h2>
+        <div className="accounts-toolbar">
+          <label>Type <select required value={headDraft.type} onChange={e=>setHeadDraft({...headDraft,type:e.target.value})}>
+            <option value="">Select type</option>
+            {['Asset','Liability','Equity','Revenue','Direct expense','Expense'].map(type=><option key={type}>{type}</option>)}
+          </select></label>
+          <label>Head <input required maxLength={120} value={headDraft.head} onChange={e=>setHeadDraft({...headDraft,head:e.target.value})}/></label>
+          <label>Sub-head <input maxLength={120} value={headDraft.subhead} onChange={e=>setHeadDraft({...headDraft,subhead:e.target.value})}/></label>
+          <button type="submit" disabled={busy}>Save Head</button>
+          <button type="button" disabled={busy} onClick={()=>setHeadDraft(null)}>Cancel</button>
+          {headDraft.previous&&<button type="button" disabled={busy} onClick={()=>{
+            if(window.confirm(`Delete the account head “${headDraft.previous}”?`))saveHead(true);
+          }}>Delete Head</button>}
+        </div>
+      </form>}
+      <Table columns={['Type','Head','Sub-head',...(!readOnly?['Action']:[])]}
+        rows={data.heads.filter(row=>row.join(' ').toLowerCase().includes(coaQuery.trim().toLowerCase())).map(row=>{
+          const [head,type,subhead='']=row;
+          return {key:head,cells:[type,<strong>{head}</strong>,subhead||'—',...(!readOnly?[
+            <button type="button" disabled={busy} onClick={()=>setHeadDraft({previous:head,expected:[head,type,subhead],head,type,subhead})}>Edit</button>
+          ]:[])]};
+        })}/>
+    </>}
 
-      <Table columns={['Division','Type','Head','Sub Head','Action']} rows={heads.filter(([h,t,s])=>[h,t,s].filter(Boolean).join(' ').toLowerCase().includes(coaQuery.trim().toLowerCase())).map(([head,type,subhead])=>({
-        cells:[
-          'Design',
-          type,
-          <strong style={{cursor:'pointer',color:'#102235'}} onClick={()=>setLedgerHead(head)}>{head}</strong>,
-          subhead||'—',
-          <button type="button" onClick={()=>setLedgerHead(head)}>View Statement</button>
-        ]
-      }))}/>
-
-      {/* Ledger statement drilldown modal */}
-      {ledgerHead&&(
-        <section className="accounts-preview" style={{marginTop:24}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-            <h2>General Ledger: {ledgerHead}</h2>
-            <button type="button" onClick={()=>setLedgerHead(null)}>Close Statement</button>
-          </div>
-          {(()=>{
-            const entries = records.flatMap(r=>(r.postings||[]).filter(p=>p.head===ledgerHead).map(p=>({
-              date: r.date,
-              reference: r.reference || r.number || '—',
-              description: r.description || r.projectName || r.client || r.kind,
-              debit: p.debit || 0,
-              credit: p.credit || 0
-            }))).sort((a,b)=>a.date.localeCompare(b.date));
-
-            let running = 0;
-            const rows = entries.map(e=>{
-              running += (e.debit - e.credit);
-              return {
-                cells: [e.date, e.reference, e.description, e.debit ? money(e.debit) : '—', e.credit ? money(e.credit) : '—', money(running)]
-              };
-            });
-
-            return (
-              <>
-                <p>Total Debit: <strong>{money(total(entries,'debit'))}</strong> &nbsp;|&nbsp; Total Credit: <strong>{money(total(entries,'credit'))}</strong> &nbsp;|&nbsp; Net Closing Balance: <strong>{money(running)}</strong></p>
-                <Table columns={['Date','Reference','Description','Debit','Credit','Running Balance']} rows={rows} empty="No transactions posted to this ledger head."/>
-              </>
-            );
-          })()}
-        </section>
-      )}
+    {page==='Party Ledger'&&<>
+      <div className="accounts-toolbar">
+        <label>Party <select value={partyKey} onChange={e=>setPartyKey(e.target.value)}>
+          <option value="">Select a client or beneficiary</option>
+          {[...parties].sort(([,a],[,b])=>a.name.localeCompare(b.name)).map(([key,party])=><option key={key} value={key}>{party.name}</option>)}
+        </select></label>
+      </div>
+      {parties.has(partyKey)?(()=>{
+        const party=parties.get(partyKey);
+        return <>
+          <p>Total debit <strong>{money(party.debit)}</strong> · Total credit <strong>{money(party.credit)}</strong> · Closing balance <strong>{money(party.debit-party.credit)}</strong></p>
+          <Table columns={['Date','Reference','Project','Description','Debit','Credit','Running balance']} rows={party.entries.map(({record,debit,credit,balance})=>({
+            key:record.id,cells:[record.date,record.reference||record.number||'—',record.projectName||'—',record.description||record.documentType||record.kind,debit?money(debit):'—',credit?money(credit):'—',money(balance)]
+          }))}/>
+        </>;
+      })():<p>{parties.size?'Select a party to see its posted transactions.':'No posted transactions have a client or beneficiary yet.'}</p>}
     </>}
 
     {page==='Payroll'&&<>

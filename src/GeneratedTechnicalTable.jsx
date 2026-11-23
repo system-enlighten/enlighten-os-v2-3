@@ -21,6 +21,7 @@ function TechnicalMedia({media,request,projectId,style,alt}){
  return failed?<span>Image unavailable. Choose another image.</span>:url?<img src={url} alt={alt||media.label||'Project image'} style={style} onError={()=>setFailed(true)}/>:<span>Loading image…</span>;
 }
 function FixtureImage({url,onMissing,cn}){return <img src={icons[url]||url} alt={`Fixture for ${cn}`} onError={onMissing} style={{width:'100%',height:'100%',maxHeight:'90pt',objectFit:'contain',transform:'scale(1.12)',transformOrigin:'center'}}/>}
+export function productTechnicalCells(row,request,projectId,driverValues=[]){return [row.cn,row.productPhoto?<div style={{height:'110pt',overflow:'hidden'}}><TechnicalMedia media={row.productPhoto} request={request} projectId={projectId} alt={`Selected product ${row.modelNo}`} style={{width:'100%',height:'100%',objectFit:'contain'}}/></div>:<span>Image not supplied</span>,row.modelNo,row.productName,row.productBrightness,row.productEnergy,row.productOptics,row.productHeight,row.icon?<div style={{height:'90pt'}}><FixtureImage url={row.icon} cn={row.cn}/></div>:null,row.productColour,row.productControl,row.quantity,...driverValues];}
 function TechnicalTextCell({value,label,editable,onCommit,onOpen,hasMultiple=false}){
  const [editing,setEditing]=useState(false),[draft,setDraft]=useState(value||'');const cancelled=useRef(false);
  const finish=()=>{if(cancelled.current){cancelled.current=false;setEditing(false);return}if(draft!==(value||''))onCommit(draft);setEditing(false)};
@@ -100,7 +101,7 @@ export default function GeneratedTechnicalTable({projectId,projectName,projectCo
     onChange={e=>{const checked=e.target.checked;setSelectedReferences(ids=>checked?[...ids,row.id]:ids.filter(id=>id!==row.id));}}/>
   </div>;
  };
- const rowCells=(row,print)=>productAssessment?[row.cn,row.productPhoto?<div style={{height:'110pt',overflow:'hidden'}}><TechnicalMedia media={row.productPhoto} request={imageRequest} projectId={projectId} alt={`Selected product ${row.modelNo}`} style={{width:'100%',height:'100%',objectFit:'contain'}}/></div>:<span>Image not supplied</span>,row.modelNo,row.productName,row.productBrightness,row.productEnergy,row.productOptics,row.productHeight,row.icon?<div style={{height:'90pt'}}><FixtureImage url={row.icon} cn={row.cn}/></div>:null,row.productColour,row.productControl,row.quantity,...(showDrivers?circuitDrivers(row,data.headers).values:[])]:[
+ const rowCells=(row,print)=>productAssessment?productTechnicalCells(row,imageRequest,projectId,showDrivers?circuitDrivers(row,data.headers).values:[]):[
   row.cn,picture(row,'fixture',print),textCell(row,'code',row.code,print),textCell(row,'application',row.application,print),picture(row,'image3d',print),picture(row,'reference',print),textCell(row,'object',row.object,print),textCell(row,'cmf',row.cmf,print),
   print||!canEditText||busy?row.height:<TechnicalTextCell value={row.height} label={`Height / distance for ${row.cn}`} editable onOpen={()=>openSource(row,['height','distance','surface','mount'])}/>,
   textCell(row,'illuminance',row.illuminance,print),print||!canEditText||busy||!row.linear?row.quantity:<TechnicalTextCell value={row.quantity} label={`Linear lengths for ${row.cn}`} editable onOpen={()=>openSource(row,['length'])}/>,

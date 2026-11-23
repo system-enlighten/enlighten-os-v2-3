@@ -29,6 +29,7 @@ const accountsNavigation=[
  {id:'Debit / Credit',label:'Debit / Credit',group:'BOOKKEEPING',icon:Receipt},
  {id:'Banking',label:'Banking',group:'BOOKKEEPING',icon:Landmark},
  {id:'Chart of Accounts',label:'Chart of Accounts',group:'BOOKKEEPING',icon:BookOpen},
+ {id:'Party Ledger',label:'Party Ledger',group:'BOOKKEEPING',icon:BookOpen},
  {id:'Financial Reports',label:'Financial Reports',group:'BOOKKEEPING',icon:ChartNoAxesColumnIncreasing},
  {id:'GST',label:'GST',group:'FILING & COMPLIANCE',icon:ReceiptIndianRupee},
  {id:'Office Policy',label:'Office Policy',group:'PEOPLE',icon:BookOpen},
