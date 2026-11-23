@@ -1,3 +1,5 @@
+import PayrollAttendance from './PayrollAttendance.jsx';
+import OfficePolicy from './OfficePolicy.jsx';
 import {partyLedger} from './party-ledger.mjs';
 import DesignTransactions from './DesignTransactions.jsx';
 import StudioHeading from './StudioHeading.jsx';
@@ -675,8 +677,8 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
     </>}
 
     {page==='Payroll'&&<>
-      <div className="accounts-toolbar" role="tablist" aria-label="Payroll sections">{[['payroll','Payroll'],['attendance','Attendance']].map(([id,label])=><button type="button" key={id} role="tab" aria-selected={payrollTab===id} onClick={()=>setPayrollTab(id)} style={{background:payrollTab===id?'#102238':'#fff',color:payrollTab===id?'#fff':'#142238',padding:'10px 18px',border:'1px solid #d2cdc1'}}>{label}</button>)}</div>
-      {payrollTab==='attendance'?<iframe title="Payroll attendance register" src="/payroll/attendance.html" onLoad={e=>e.currentTarget.contentWindow.postMessage({type:'enlighten-attendance-employees',employees:employees.map(({id,name})=>({id,name}))},window.location.origin)} style={{width:'100%',height:'82vh',minHeight:550,border:'1px solid #d2cdc1',background:'#f5f1e8'}}/>:<>
+      <div className="accounts-toolbar" role="tablist" aria-label="Payroll sections">{[['payroll','Payroll'],['attendance','Attendance'],['salary-policy','Salary Policy']].map(([id,label])=><button type="button" key={id} role="tab" aria-selected={payrollTab===id} onClick={()=>setPayrollTab(id)} style={{background:payrollTab===id?'#102238':'#fff',color:payrollTab===id?'#fff':'#142238',padding:'10px 18px',border:'1px solid #d2cdc1'}}>{label}</button>)}</div>
+      {payrollTab==='attendance'?<PayrollAttendance employees={employees} request={request} readOnly={readOnly}/>:payrollTab==='salary-policy'?<OfficePolicy salaryOnly/>:<>
       <div className="accounts-toolbar">
         <label>Payroll month <input type="month" value={payMonth} onChange={e=>setPayMonth(e.target.value)}/></label>
         <label>Find employee <input type="search" value={staffQuery} onChange={e=>setStaffQuery(e.target.value)} placeholder="Name or department"/></label>

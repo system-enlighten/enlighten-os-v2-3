@@ -3,3 +3,43 @@
 .transaction-bill-overlay{position:fixed;inset:0;background:#10223899;z-index:2400;display:grid;place-items:center;padding:20px}.transaction-bill-panel{width:min(1280px,94vw);height:90vh;background:#f5f1e8;display:flex;flex-direction:column;padding:18px;gap:12px}.transaction-bill-panel header,.transaction-bill-panel header>div{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}.transaction-bill-panel h2{margin:0}.transaction-bill-panel iframe{width:100%;flex:1;min-height:0;border:1px solid #d2cdc1;background:white}.transaction-bill-panel>img{width:100%;flex:1;min-height:0;object-fit:contain;background:white}.transaction-bill-panel p{font-size:12px;margin:0;color:#536675}.transaction-bill-panel a{color:#1b4d84}
 .transaction-ledger td{vertical-align:middle;min-width:0}.transaction-ledger table{font-size:13px}.transaction-ledger th{white-space:nowrap}.transaction-ledger .transaction-description{min-width:210px;max-width:340px;line-height:1.55;overflow-wrap:anywhere}.transaction-description strong{display:block}.transaction-ledger .transaction-amount{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;font-weight:600}.transaction-direction,.transaction-status{display:inline-block;padding:5px 8px;border-radius:3px;white-space:nowrap;font-size:12px}.transaction-direction.debit{background:#f7eee8;color:#875237}.transaction-direction.credit,.transaction-status.matched{background:#e8f1ed;color:#35685a}.transaction-status{background:#f3efe5;color:#786741}.transaction-actions button{display:block;margin:4px 0;white-space:nowrap;font:inherit;padding:6px 9px;border:1px solid #d2cdc1;background:white;color:#142238}.transaction-actions .transaction-delete{color:#a23424}.transaction-delete-dialog{background:#faf8f2;padding:28px;width:min(470px,90vw);border-top:3px solid #102238}.transaction-delete-dialog h2{margin-top:0}.transaction-delete-dialog p{line-height:1.6}
 .design-transaction-form [hidden]{display:none!important}
+
+.transaction-review-grid {
+  min-width: 0;
+  border: 1px solid #d2cdc1;
+  background: #fff;
+}
+.transaction-review-scroll-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #f0ede4;
+  border-bottom: 1px solid #d2cdc1;
+  font-size: 12px;
+  font-weight: 600;
+}
+.transaction-import .transaction-review-scroll-control input[type=range] {
+  flex: 1;
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  accent-color: #356c63;
+  cursor: ew-resize;
+}
+.transaction-review-grid .transaction-review-viewport {
+  max-height: min(55vh, 520px);
+  margin: 0;
+}
+.transaction-review-viewport thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.transaction-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 14px;
+}

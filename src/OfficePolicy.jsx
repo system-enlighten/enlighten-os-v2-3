@@ -1,7 +1,7 @@
 import React from 'react';
 import policy from './OfficePolicy.json';
 
-export default function OfficePolicy(){
+export default function OfficePolicy({salaryOnly=false}){
   const sections=[];
   let current={title:'Office timings',rows:[]};
   sections.push(current);
@@ -10,6 +10,7 @@ export default function OfficePolicy(){
     if(row[0]&&!row[1]){current={title:row[0],rows:[]};sections.push(current);}
     else current.rows.push(row);
   }
+  if(salaryOnly)return <article className="office-policy"><h2>Salary Policy</h2><ul>{sections.find(section=>section.title==='Salary')?.rows.map((row,index)=><li key={index}>{row[1]}</li>)}</ul></article>;
   return <article className="office-policy">
     <h2>{policy.rows[0][0]}</h2>
     <p>{policy.rows[1][0]}</p>
