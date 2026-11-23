@@ -4312,13 +4312,13 @@ function TimesheetView({ state, persist, calendarOnly=false }) {
   useEffect(()=>{const id=setInterval(()=>setClock(Date.now()),15000);return()=>clearInterval(id);},[]);
   const workUploadJob=useRef({});
   const [workUploadProgress,setWorkUploadProgress]=useState(null);
-  const showWihFilters=wihSystemAccount(state.currentUser);
+  const showWihFilters=!calendarOnly;
   const assignProject=id=>state.currentUser?.appAccess?.toLowerCase()!=="viewer"&&wihProjectRole(state.currentUser,id)==="Admin";
   const canAssign=(state.projects||[]).some(p=>assignProject(p.id));
   const canWork=canAssign||state.currentUser?.permissions?.wih==="own-edit";
   const [person, setPerson] = useState("All");
   const [taskSection, setTaskSection] = useState("Pending");
-  const WIH_CACHE_KEY = "enlighten_wih_project_visibility_v2:"+String(state.currentUser?.userId||state.currentUser?.googleSubject||"anonymous");
+  const WIH_CACHE_KEY = "enlighten_wih_project_visibility_v3:"+String(state.currentUser?.userId||state.currentUser?.googleSubject||"anonymous");
   const WIH_CACHE_MS = 30000;
   const readWihCache = () => {
     try {
@@ -4339,6 +4339,32 @@ function TimesheetView({ state, persist, calendarOnly=false }) {
   const [selectedLogging,setSelectedLogging]=useState([]);
   const [loggingEditor,setLoggingEditor]=useState(null);
   const [loggingError,setLoggingError]=useState('');
+  const [revisionDraft,setRevisionDraft]=useState(null),[revisionNotice,setRevisionNotice]=useState('');
+  async function openRevision(task){
+    const requestId=crypto.randomUUID();
+    setRevisionNotice('');
+    setRevisionDraft({task,requestId,zones:[],zoneIds:[],remarks:'',loading:true});
+    try{
+      const zones=(await projectApi.listFloorZones(task.projectId)).filter(zone=>zone.floorZoneId);
+      setRevisionDraft(draft=>draft?.requestId===requestId?{...draft,zones,loading:false}:draft);
+    }catch(error){setRevisionDraft(draft=>draft?.requestId===requestId?{...draft,loading:false,loadError:error.message}:draft);}
+  }
+  async function saveRevision(event){
+    event.preventDefault();
+    const draft=revisionDraft;
+    setBusyId('revision');
+    try{
+      const revisions=await apiRequest('createTaskRevisions',{
+        projectId:draft.task.projectId,taskIds:[draft.task.designTaskId],requestId:draft.requestId,remarks:draft.remarks,
+        ...(draft.zones.length?{zoneIds:draft.zoneIds}:{})
+      },'POST');
+      setRevisionDraft(null);
+      setRevisionNotice(revisions.length===1?'Revision added.':'Revisions added for '+revisions.length+' zones.');
+      try{localStorage.removeItem(WIH_CACHE_KEY);}catch{}
+      void refresh(true);
+    }catch(error){setRevisionDraft(current=>({...current,error:error.message}));}
+    finally{setBusyId('');}
+  }
   const activeTeam=(state.teamMaster||[]).filter(m=>m.active!==false&&String(m.active).toLowerCase()!=="false");
   const teamNames=activeTeam.map(m=>m.name).filter(Boolean);
 
@@ -4358,7 +4384,7 @@ function TimesheetView({ state, persist, calendarOnly=false }) {
       // WIH must show EVERY real Design Task / Design No. across every active project.
       // getWIH can contain only tasks that already have a WIH/timesheet row, so merge it
       // with each project's authoritative Design Dashboard task IDs from Google Sheets.
-      const wihRows=await apiRequest('getWIH',{includeCompleted:true,includeDiagnostics:true,fastRead:true},'GET',120000);
+      const wihRows=await apiRequest('getWIH',{includeCompleted:true,includeDiagnostics:true,fastRead:true,includeRevisionSources:!calendarOnly},'GET',120000);
       if(!wihMounted.current||seq!==wihRequestSeq.current||generation!==AUTH_SESSION_GENERATION)return null;
       if(!Array.isArray(wihRows)&&!Array.isArray(wihRows?.rows))throw Error('The backend returned an unexpected work list. Redeploy the included Code.gs and refresh.');
       const base=Array.isArray(wihRows)?wihRows:wihRows.rows;const diagnostics=wihRows?.diagnostics||null;setWihDiagnostics(diagnostics);
@@ -4393,7 +4419,7 @@ function TimesheetView({ state, persist, calendarOnly=false }) {
   useEffect(()=>{wihMounted.current=true;refresh(false);return()=>{wihMounted.current=false;wihRequestSeq.current++;};},[]);
 
   const workProjects=new Map((state.projects||[]).map(p=>[String(p.id),p]));
-  const visibleRemoteTasks=remoteTasks.filter(r=>workProjects.has(String(r.projectId||r.task?.projectId))&&wihCanSeeTask(state.currentUser,r));
+  const visibleRemoteTasks=remoteTasks.filter(r=>workProjects.has(String(r.projectId||r.task?.projectId))&&(r.revisionSourceOnly||wihCanSeeTask(state.currentUser,r)));
   const displayTasks=visibleRemoteTasks.length?visibleRemoteTasks.map(r=>({
     ...r,
     id:r.designTaskId,
@@ -4442,7 +4468,7 @@ function TimesheetView({ state, persist, calendarOnly=false }) {
     Unallotted:displayTasks.filter(t=>!isDone(t.status)&&!t.assigneeUserId).length,
     All:displayTasks.length
   };
-  const sectionTasks=displayTasks.filter(t=>workTab==="project"?!isDone(t.status):taskSection==="All"?true:taskSection==="Completed"?isDone(t.status):taskSection==="Unallotted"?!isDone(t.status)&&!t.assigneeUserId:!isDone(t.status));
+  const sectionTasks=displayTasks.filter(t=>!t.revisionSourceOnly||workTab==='todo'&&taskSection==='Completed').filter(t=>workTab==="project"?!isDone(t.status):taskSection==="All"?true:taskSection==="Completed"?isDone(t.status):taskSection==="Unallotted"?!isDone(t.status)&&!t.assigneeUserId:!isDone(t.status));
   const tasks=sectionTasks.filter(matches).sort((a,b)=>Number(wihUrgency(b,clock).urgent)-Number(wihUrgency(a,clock).urgent)||String(a.plan?.internalDueDate||'9999').localeCompare(String(b.plan?.internalDueDate||'9999')));
   const endedSessions=displayTasks.filter(t=>matches(t)&&run(t)&&t.plan&&!isDone(t.status)&&Date.parse(t.plan.plannedEnd)<=clock);
   const people=[...new Set(teamNames)];
@@ -4503,7 +4529,7 @@ function TimesheetView({ state, persist, calendarOnly=false }) {
     </header>}
     {workTab==='todo'&&projectGroups.length>0&&<nav className="wih-project-jump" aria-label="Jump to project">{projectGroups.map(([id,list])=><button type="button" key={id} style={smallBtn} onClick={()=>{setCollapsedProjects(previous=>{const next=new Set(previous);next.delete(id);return next;});const row=document.getElementById(projectAnchor(id));row?.scrollIntoView({block:'start'});row?.focus({preventScroll:true});}}>{list[0].projectName||'Project'}</button>)}</nav>}
     <div className="wih-register-controls">
-    {showWihFilters&&<div className="wih-quiet-filters"><div className="wih-status-filters" role="group" aria-label="Filter tasks by status"><span className="wih-filter-label">Tasks</span>{["Pending","Completed","Unallotted","All"].map(x=><button type="button" key={x} aria-pressed={taskSection===x} className={taskSection===x?'is-active':''} onClick={()=>setTaskSection(x)}>{x}<span>{loadingRemote&&!remoteTasks.length?'…':sectionCounts[x]}</span></button>)}</div><div className="wih-person-filter"><label htmlFor="wih-person-filter">Employee</label>{canAssign?<select id="wih-person-filter" aria-label="Filter work by employee" value={person} onChange={e=>setPerson(e.target.value)}><option value="All">All employees</option><option value="@me">My tasks</option>{people.map(p=><option key={p} value={p}>{p}</option>)}</select>:<span>{state.currentUser?.name} · Own tasks only</span>}</div></div>}
+    {showWihFilters&&<div className="wih-quiet-filters"><div className="wih-status-filters" role="group" aria-label="Filter tasks by status"><span className="wih-filter-label">Tasks</span>{["Pending","Completed","Unallotted","All"].map(x=><button type="button" key={x} aria-pressed={taskSection===x} className={taskSection===x?'is-active':''} onClick={()=>setTaskSection(x)}>{x}<span>{loadingRemote&&!remoteTasks.length?'…':sectionCounts[x]}</span></button>)}</div><div className="wih-person-filter"><label htmlFor="wih-person-filter">Employee</label>{canAssign?<select id="wih-person-filter" aria-label="Filter work by employee" value={person} onChange={e=>setPerson(e.target.value)}><option value="All">All employees</option><option value="@me">My tasks</option>{people.map(p=><option key={p} value={p}>{p}</option>)}</select>:<span>{state.currentUser?.name}{taskSection==='Completed'?' · Project completed tasks':' · Own active tasks'}</span>}</div></div>}
     <div className="wih-sync-toolbar"><button type="button" style={smallBtn} disabled={syncingRemote} onClick={()=>refreshAndRecover(true)}>Refresh work</button>{reconciling&&<span role="status" style={{fontFamily:FONT_BODY,fontSize:12,color:T.inkDim}}>Updating project work…</span>}{reconcileError&&<span role="alert" style={{fontFamily:FONT_BODY,fontSize:12,color:T.redline}}>{reconcileError}</span>}{wihError&&<span role="alert" style={{fontSize:12,color:T.redline}}>{wihError}</span>}</div>
     {workTab==='todo'&&<label className="wih-register-group"><input type="checkbox" checked={groupWork} onChange={e=>setGroupWork(e.target.checked)}/> Group work</label>}
     </div>
@@ -4571,9 +4597,24 @@ function TimesheetView({ state, persist, calendarOnly=false }) {
         </tr>}
         {(!grouped||expanded)&&group.tasks.map(t=>{
        const editable=canWork&&(assignProject(t.projectId)||t.assigneeUserId===state.currentUser?.userId),cell={padding:'8px 10px',fontSize:12,borderBottom:`1px solid ${T.line}`,verticalAlign:'middle'},marks=taskMarks[t.designTaskId]||{},project=(state.projects||[]).find(p=>String(p.id)===String(t.projectId));
-       return <tr className="wih-task-row" key={t.designTaskId}><td style={cell}><div style={{display:'flex',alignItems:'center',gap:1,whiteSpace:'nowrap'}}><input type="checkbox" checked={isDone(t.status)} className="wih-complete-check" disabled={!run(t)||isDone(t.status)} aria-label={'Complete '+t.title} onChange={()=>setCompleteEditor({task:t,file:null,...workDrawingDetails(t),actualHours:t.hours||'',notes:''})}/></div></td><td style={cell}><span className="wih-task-name"><span className="wih-task-marks"><button type="button" className="wih-row-icon" style={{...icon,'--wih-icon-color':marks.pinned?'#a13427':icon.color}} title={marks.pinned?'Unpin':'Pin'} aria-label={marks.pinned?'Unpin task':'Pin task'} aria-pressed={!!marks.pinned} onClick={()=>markTask(t.designTaskId,{pinned:!marks.pinned})}><WihPin size={15} aria-hidden="true" fill={marks.pinned?'currentColor':'none'}/></button><button type="button" className="wih-row-icon" style={{...icon,'--wih-icon-color':marks.priority==='high'?'#a13427':marks.priority==='low'?'#41765a':icon.color}} title={marks.priority==='high'?'High priority · click for low':marks.priority==='low'?'Low priority · click to clear':'Set high priority'} aria-label={(marks.priority||'Normal')+' priority for '+t.title+'. '+(marks.priority==='high'?'Set low':marks.priority==='low'?'Clear priority':'Set high')} onClick={()=>markTask(t.designTaskId,{priority:marks.priority==='high'?'low':marks.priority==='low'?'':'high'})}><WihFlag size={16} aria-hidden="true" fill={marks.priority?'currentColor':'none'}/></button></span><strong>{t.title}</strong></span></td><td style={cell}>{t.projectName}</td><td style={cell}>{project?.city||project?.projectControl?.city||'—'}</td><td style={cell}>{t.batchCoverage?.length>1?<details><summary>{t.batchCoverage.length} areas</summary>{t.batchCoverage.map(z=><div key={JSON.stringify([z.floor,z.area])}>{z.floor} · {z.area}</div>)}</details>:[t.floor||t.batchCoverage?.[0]?.floor,t.area||t.batchCoverage?.[0]?.area].filter(Boolean).join(' · ')||'—'}</td><td style={cell}>{t.drawingType||'—'}</td><td style={cell}><span className="wih-subtype"><span>{t.task?.taskCategory||t.task?.taskType||'—'}</span><button type="button" title="Comments" aria-label="Task comments" className="wih-row-icon" style={{...icon,'--wih-icon-color':taskThread?.task?.designTaskId===t.designTaskId?T.blue:icon.color}} disabled={threadPending} onClick={()=>threadAction(t,'read')}><WihComment size={16} aria-hidden="true" fill={taskThread?.task?.designTaskId===t.designTaskId?T.cyan:"none"}/></button></span></td><td style={cell}>{Number(t.task?.estimatedHours)>0?`${Number(t.task.estimatedHours)} h`:'—'}</td><td style={cell}>{t.plan?.internalDueDate?<><div>{t.plan.tatDays?`${t.plan.tatDays} d`:'—'} · {formatProjectDate(t.plan.internalDueDate)}</div>{wihUrgency(t,clock).urgent&&<div style={{fontSize:11,color:T.redline,fontWeight:600,marginTop:3}} className="wih-urgent-label">Urgent</div>}</>:editable&&!isDone(t.status)?<button className="wih-compact-button" style={smallBtn} onClick={()=>{setTatError('');setTatEditor({task:t,days:'',date:''});}}>Enter TAT</button>:<span style={{color:T.inkDim}}>TAT not entered</span>}</td><td style={cell}><WihDashboardStatus task={t}/></td><td style={cell}>{t.assigneeUserId?(t.assignee||'Assigned'):assignProject(t.projectId)&&!isDone(t.status)?<button type="button" className="wih-compact-button" style={smallBtn} onClick={()=>openAssign(t)}>Assign</button>:'Not assigned'}</td><td className="wih-action-cell" style={cell}>{loggingButton(t)}</td></tr>;
+       return <tr className="wih-task-row" key={t.designTaskId}><td style={cell}><div style={{display:'flex',alignItems:'center',gap:1,whiteSpace:'nowrap'}}><input type="checkbox" checked={isDone(t.status)} className="wih-complete-check" disabled={!run(t)||isDone(t.status)} aria-label={'Complete '+t.title} onChange={()=>setCompleteEditor({task:t,file:null,...workDrawingDetails(t),actualHours:t.hours||'',notes:''})}/></div></td><td style={cell}><span className="wih-task-name"><span className="wih-task-marks"><button type="button" className="wih-row-icon" style={{...icon,'--wih-icon-color':marks.pinned?'#a13427':icon.color}} title={marks.pinned?'Unpin':'Pin'} aria-label={marks.pinned?'Unpin task':'Pin task'} aria-pressed={!!marks.pinned} onClick={()=>markTask(t.designTaskId,{pinned:!marks.pinned})}><WihPin size={15} aria-hidden="true" fill={marks.pinned?'currentColor':'none'}/></button><button type="button" className="wih-row-icon" style={{...icon,'--wih-icon-color':marks.priority==='high'?'#a13427':marks.priority==='low'?'#41765a':icon.color}} title={marks.priority==='high'?'High priority · click for low':marks.priority==='low'?'Low priority · click to clear':'Set high priority'} aria-label={(marks.priority||'Normal')+' priority for '+t.title+'. '+(marks.priority==='high'?'Set low':marks.priority==='low'?'Clear priority':'Set high')} onClick={()=>markTask(t.designTaskId,{priority:marks.priority==='high'?'low':marks.priority==='low'?'':'high'})}><WihFlag size={16} aria-hidden="true" fill={marks.priority?'currentColor':'none'}/></button></span><strong>{t.title}</strong></span></td><td style={cell}>{t.projectName}</td><td style={cell}>{project?.city||project?.projectControl?.city||'—'}</td><td style={cell}>{t.batchCoverage?.length>1?<details><summary>{t.batchCoverage.length} areas</summary>{t.batchCoverage.map(z=><div key={JSON.stringify([z.floor,z.area])}>{z.floor} · {z.area}</div>)}</details>:[t.floor||t.batchCoverage?.[0]?.floor,t.area||t.batchCoverage?.[0]?.area].filter(Boolean).join(' · ')||'—'}</td><td style={cell}>{t.drawingType||'—'}</td><td style={cell}><span className="wih-subtype"><span>{t.task?.taskCategory||t.task?.taskType||'—'}</span><button type="button" title="Comments" aria-label="Task comments" className="wih-row-icon" style={{...icon,'--wih-icon-color':taskThread?.task?.designTaskId===t.designTaskId?T.blue:icon.color}} disabled={threadPending||t.revisionSourceOnly} onClick={()=>threadAction(t,'read')}><WihComment size={16} aria-hidden="true" fill={taskThread?.task?.designTaskId===t.designTaskId?T.cyan:"none"}/></button></span></td><td style={cell}>{Number(t.task?.estimatedHours)>0?`${Number(t.task.estimatedHours)} h`:'—'}</td><td style={cell}>{t.plan?.internalDueDate?<><div>{t.plan.tatDays?`${t.plan.tatDays} d`:'—'} · {formatProjectDate(t.plan.internalDueDate)}</div>{wihUrgency(t,clock).urgent&&<div style={{fontSize:11,color:T.redline,fontWeight:600,marginTop:3}} className="wih-urgent-label">Urgent</div>}</>:editable&&!isDone(t.status)?<button className="wih-compact-button" style={smallBtn} onClick={()=>{setTatError('');setTatEditor({task:t,days:'',date:''});}}>Enter TAT</button>:<span style={{color:T.inkDim}}>TAT not entered</span>}</td><td style={cell}><WihDashboardStatus task={t}/></td><td style={cell}>{t.assigneeUserId?(t.assignee||'Assigned'):assignProject(t.projectId)&&!isDone(t.status)?<button type="button" className="wih-compact-button" style={smallBtn} onClick={()=>openAssign(t)}>Assign</button>:'Not assigned'}</td><td className="wih-action-cell" style={cell}>{isDone(t.status)&&['admin','user'].includes(state.currentUser?.appAccess?.toLowerCase())?<button type="button" className="wih-compact-button" style={smallBtn} disabled={!!busyId} onClick={()=>openRevision(t)}>Add Revision</button>:loggingButton(t)}</td></tr>;
       })}</React.Fragment>;})}</React.Fragment>;})}
     </tbody></table></div></>}
+    {revisionNotice&&<p role="status">{revisionNotice}</p>}
+    {revisionDraft&&<div className="task-discussion-overlay"><form className="task-discussion-dialog" role="dialog" aria-modal="true" aria-label="Add revision" onSubmit={saveRevision}>
+      <h3>Add Revision</h3><p>{revisionDraft.task.projectName} · {revisionDraft.task.title}</p>
+      {revisionDraft.loading?<p role="status">Loading project zones…</p>:revisionDraft.loadError?<p role="alert">{revisionDraft.loadError}</p>:revisionDraft.zones.length?
+        <fieldset style={{maxHeight:'30vh',overflow:'auto'}}><legend>Affected zones</legend>
+          {revisionDraft.zones.map(zone=>{
+            const id=String(zone.floorZoneId);
+            return <label key={id} style={{display:'block'}}><input type="checkbox" checked={revisionDraft.zoneIds.includes(id)} onChange={e=>setRevisionDraft({...revisionDraft,zoneIds:e.target.checked?[...revisionDraft.zoneIds,id]:revisionDraft.zoneIds.filter(value=>value!==id)})}/> {[zone.floor,zone.zoneCode,zone.area].filter(Boolean).join(' · ')}</label>;
+          })}
+        </fieldset>:<p>This project has no saved zones. This revision will use the original task location.</p>}
+      <label>Revision remark <textarea required maxLength={2000} value={revisionDraft.remarks} onChange={e=>setRevisionDraft({...revisionDraft,remarks:e.target.value})}/></label>
+      {revisionDraft.error&&<p role="alert">{revisionDraft.error}</p>}
+      <button type="button" style={smallBtn} disabled={!!busyId} onClick={()=>setRevisionDraft(null)}>Cancel</button>{' '}
+      <button type="submit" style={smallBtn} disabled={!!busyId||revisionDraft.loading||!!revisionDraft.loadError||!revisionDraft.remarks.trim()||(revisionDraft.zones.length>0&&!revisionDraft.zoneIds.length)}>Save revision</button>
+    </form></div>}
     {taskThread&&<DiscussionDialog task={taskThread.task} data={taskThread} error={threadNotice} busy={threadPending} text={taskComment} setText={setTaskComment} showPriority onPost={priority=>threadAction(taskThread.task,'comment',priority)} onClose={()=>setTaskThread(null)} buttonStyle={smallBtn}/>}
 
     {tatEditor&&<div style={{position:'fixed',inset:0,zIndex:14000,background:'rgba(8,25,45,.45)',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}><div role="dialog" aria-modal="true" aria-label="Enter TAT" style={{width:'min(420px,95vw)',background:T.paper,padding:22,border:`1px solid ${T.line}`,fontFamily:FONT_BODY}}><h3 style={{fontFamily:FONT_DISPLAY,marginTop:0}}>Enter TAT</h3><p style={{fontSize:12}}>{tatEditor.task.projectName} · {tatEditor.task.title}</p><p style={{fontSize:12}}>Drawing received: {formatProjectDate(tatEditor.task.receipt?.receivedDate)||'—'}</p><WihTatFields received={tatEditor.task.receipt?.receivedDate} days={tatEditor.days} date={tatEditor.date} disabled={tatBusy} onChange={(days,date)=>setTatEditor(current=>({...current,days,date}))}/><p style={{fontSize:12}}>TAT and the calculated deadline are locked after saving.</p>{tatError&&<p role="alert" style={{fontSize:12,color:T.redline}}>{tatError}</p>}<div style={{display:'flex',gap:8,justifyContent:'flex-end'}}><button style={smallBtn} disabled={tatBusy} onClick={()=>setTatEditor(null)}>Cancel</button><button style={smallBtn} disabled={tatBusy||!wihTatDate(tatEditor.task.receipt?.receivedDate,tatEditor.days)} onClick={async()=>{if(tatBusy)return;setTatBusy(true);setTatError('');try{const plan=await apiRequest('saveWihPlan',{designTaskId:tatEditor.task.designTaskId,tatDays:Number(tatEditor.days),tatOnly:true},'POST',120000);setRemoteTasks(rows=>rows.map(r=>String(r.designTaskId)===String(tatEditor.task.designTaskId)?{...r,plan}:r));try{localStorage.removeItem(WIH_CACHE_KEY);}catch{}setTatEditor(null);}catch(e){setTatError(e.message);}finally{setTatBusy(false);}}}>{tatBusy?'Saving…':'Save TAT'}</button></div></div></div>}
@@ -5556,7 +5597,6 @@ function ProjectLineOfWorkView({state,persist,selectedId,showProjectPicker=true,
   const [rows,setRows] = useState(()=>applyWorkflowDelegation(initialWorkspace?.workflow?.length?initialWorkspace.workflow:DESIGN_TASK_FLOW_TEMPLATE.map(r=>({...r})),project?.id,initialWorkspace?.rules||[]));
   const [legacy,setLegacy] = useState([]);
   const [instances,setInstances] = useState([]);
-  const [revisionDraft,setRevisionDraft]=useState(null);
   const [lightingMilestone,setLightingMilestone]=useState(null);
   const [historicalMeetings,setHistoricalMeetings]=useState([]),[meetingPrompt,setMeetingPrompt]=useState(null),[meetingError,setMeetingError]=useState('');
   const [drawingReceipts,setDrawingReceipts]=useState(null);
@@ -5581,7 +5621,7 @@ function ProjectLineOfWorkView({state,persist,selectedId,showProjectPicker=true,
   };
   useEffect(() => {
     let active = true; revision.current += 1;
-    setEditing(false);setPanel(null);setAreaKey("");setError("");setMessage("");setInstances([]);setLightingMilestone(null);setHistoricalMeetings([]);setMeetingPrompt(null);setMeetingError('');setRevisionDraft(null);
+    setEditing(false);setPanel(null);setAreaKey("");setError("");setMessage("");setInstances([]);setLightingMilestone(null);setHistoricalMeetings([]);setMeetingPrompt(null);setMeetingError('');
     if (!project) {setProjectRows([]);return;}
     const cached=cachedWorkflowWorkspace(project.id);setProjectRows(cached?.workflow||project.lineOfWorkResidence||project.lineOfWork||[],cached?.rules||[]);
     setLoading(!cached);
@@ -5647,23 +5687,6 @@ function ProjectLineOfWorkView({state,persist,selectedId,showProjectPicker=true,
     index.get(id).push(row);
   }
   const checksFor=sub=>workByStep.get(rowId(sub))||[];
-  const revisionSources=sub=>checksFor(sub).filter(row=>/^completed$|^done$/i.test(row.status)&&(
-    canRecordHistory||String(row.assigneeUserId||row.task?.assigneeUserId)===String(state.currentUser?.userId)
-  ));
-  async function saveRevision(event){
-    event.preventDefault();
-    const draft=revisionDraft;
-    const pid=project.id;
-    setBusy(true);
-    try{
-      const created=await apiRequest('createTaskRevisions',{projectId:pid,taskIds:draft.ids,remarks:draft.remarks,assigneeUserId:draft.assignee,requestId:draft.requestId},'POST');
-      if(workflowProjectRef.current!==pid)return;
-      setInstances(rows=>[...rows.filter(row=>!created.some(task=>task.designTaskId===row.designTaskId)),...created.map(task=>({designTaskId:task.designTaskId,status:task.status,task}))]);
-      setRevisionDraft(null);setMessage('Revision added to Work in Hand.');
-      try{localStorage.removeItem('enlighten_wih_project_visibility_v2:'+String(state.currentUser?.userId||state.currentUser?.googleSubject||'anonymous'));}catch{}
-    }catch(error){if(workflowProjectRef.current===pid)setRevisionDraft(current=>current?{...current,error:error.message}:current);}
-    finally{setBusy(false);}
-  }
   const historicalFor=sub=>historicalMeetings.find(row=>String(row.projectId)===String(project.id)&&String(row.lineWorkId)===rowId(sub));
   const meetingVisit=(group,sub)=>group&&meetingForDesignSubtask(project,group,sub,designMeetingVisitRows(project,[group],visits));
   const canRecordHistory=String(state.currentUser?.appAccess).toLowerCase()==='admin'||String(state.currentUser?.appAccess).toLowerCase()!=='viewer'&&projectRole(state,project.id)==='Admin';
@@ -5734,10 +5757,6 @@ function ProjectLineOfWorkView({state,persist,selectedId,showProjectPicker=true,
               if(visit?.scheduledDate){openMeetingAction(visit,'record');return;}
               setMeetingError('');setMeetingPrompt({sub,visit,date:'',notes:''});
             }} style={{marginRight:8,verticalAlign:'middle'}}/><button type="button" disabled={busy} aria-label={`Details ${sub.subtask}`} title="Open subtask details" onClick={()=>setPanel({kind:'subtask',id:rowId(sub)})} style={{border:0,background:'transparent',padding:0,fontFamily:FONT_BODY,fontSize:12,color:T.ink,textAlign:'left',cursor:'pointer',lineHeight:1.5}}><span style={{color:T.inkDim,marginRight:8,fontSize:11}}>{i+1}.</span>{sub.subtask}</button>{historicalFor(sub)&&<small style={{marginLeft:8}}>{sub.taskCategory==='Meeting'?'Historical meeting':'Historical completion'}{historicalFor(sub).date?' · '+formatProjectDate(historicalFor(sub).date):''}</small>}{workflowComment('subtask',rowId(sub),sub.subtask)}
-            {sub.taskCategory!=='Meeting'&&String(state.currentUser?.appAccess).toLowerCase()!=='viewer'&&revisionSources(sub).length>0&&<button type="button" style={smallBtn} disabled={busy} onClick={()=>{
-              const sources=revisionSources(sub);
-              setRevisionDraft({sub,sources,ids:sources.map(row=>row.designTaskId),remarks:'',assignee:'',requestId:crypto.randomUUID()});
-            }}>Add Revision</button>}
             {checksFor(sub).flatMap(source=>revisionsBySource.get(String(source.designTaskId))||[]).map(row=><div key={row.designTaskId} style={{fontSize:11,marginTop:4}}>{[row.task.floor,row.task.taskType,row.status,row.task.remarks].filter(Boolean).join(' · ')}</div>)}{sub.taskCategory==='Meeting'&&renderDesignMeetingControls(meetingForDesignSubtask(project,g,sub,stageVisits),sub.meetingMode,loading)}</td><td style={{...tdStyle,textAlign:'center',verticalAlign:'middle',fontSize:12}}><span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8}}><WorkflowStatusDot {...workflowDotStatus(workflowStatus(r,sub),workflowPrerequisite(r,drawingReceipts,zones,selectedArea,instances))}/><span>{sub.responsible||r.responsible||'Unassigned'}</span></span></td></tr>)}</tbody>
           </table></div>
           {editing&&<button disabled={busy} style={{...smallBtn,marginTop:12}} onClick={()=>addSubtask(g)}>+ Add subtask</button>}
@@ -5750,18 +5769,6 @@ function ProjectLineOfWorkView({state,persist,selectedId,showProjectPicker=true,
       </section>}
       {!!aligned.remaining.length&&<section className="workflow-final-execution" aria-label="Further execution work" style={{minWidth:0,marginTop:8}}><h3 style={{fontFamily:FONT_DISPLAY,fontSize:17}}>Execution and Task</h3>{renderVisitTable(aligned.remaining.filter(row=>!/staging|scene setting/i.test(row.milestone)))}{aligned.remaining.some(row=>/staging|scene setting/i.test(row.milestone))&&<section aria-label="Final staging and scene setting" style={{marginTop:22,border:`2px solid ${T.blue}`,background:'#E8F1F8'}}><h3 style={{margin:0,padding:'12px 14px',background:T.navy,color:'#fff',fontFamily:FONT_DISPLAY,fontSize:16}}>Staging & Scene Setting <span style={{fontFamily:FONT_MONO,fontSize:10,color:T.cyan,marginLeft:12}}>FINAL MILESTONE</span></h3>{renderVisitTable(aligned.remaining.filter(row=>/staging|scene setting/i.test(row.milestone)))}</section>}</section>}
       </div></div>
-      {revisionDraft&&<div className="task-discussion-overlay"><form className="task-discussion-dialog" role="dialog" aria-label="Add revision" onSubmit={saveRevision}>
-        <h3>Add Revision</h3><p>{revisionDraft.sub.subtask}</p>
-        {revisionDraft.sources.map(row=><div key={row.designTaskId}><label><input type="checkbox" checked={revisionDraft.ids.includes(row.designTaskId)} onChange={event=>setRevisionDraft({...revisionDraft,ids:event.target.checked?[...revisionDraft.ids,row.designTaskId]:revisionDraft.ids.filter(id=>id!==row.designTaskId)})}/> {[row.task?.floor,row.task?.area].filter(Boolean).join(' · ')||'Project-wide'}</label></div>)}
-        <label>Revision remark <textarea required maxLength={2000} value={revisionDraft.remarks} onChange={event=>setRevisionDraft({...revisionDraft,remarks:event.target.value})}/></label>
-        {canRecordHistory&&<label>Assign to <select value={revisionDraft.assignee} onChange={event=>setRevisionDraft({...revisionDraft,assignee:event.target.value})}>
-          <option value="">Keep original assignee</option>
-          {(state.teamMaster||[]).filter(person=>person.userId&&person.active!==false&&String(person.active).toLowerCase()!=='false').map(person=><option key={person.userId} value={person.userId}>{person.name}</option>)}
-        </select></label>}
-        {revisionDraft.error&&<p role="alert">{revisionDraft.error}</p>}
-        <button type="button" style={smallBtn} disabled={busy} onClick={()=>setRevisionDraft(null)}>Cancel</button>{' '}
-        <button type="submit" style={smallBtn} disabled={busy||!revisionDraft.ids.length||!revisionDraft.remarks.trim()}>Save revision</button>
-      </form></div>}
       {meetingPrompt&&<div className="task-discussion-overlay"><section className="task-discussion-dialog" role="dialog" aria-modal="true" aria-labelledby="historical-completion-title">
         <h2 id="historical-completion-title">{meetingPrompt.sub.taskCategory==='Meeting'?'Has this meeting already happened?':'Was this step already completed?'}</h2><p>{meetingPrompt.sub.subtask}</p>
         <label>Actual date (optional)<input type="date" style={inputStyle} disabled={busy} value={meetingPrompt.date} onChange={e=>setMeetingPrompt({...meetingPrompt,date:e.target.value})}/></label>
