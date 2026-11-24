@@ -53,7 +53,7 @@ export function DepartmentWorkspace({id,name=departments[id][0],user,request:api
  const go=(next,bank)=>{setError('');setAttendanceDay('');setReconciliationBank(bank);setPage(next);};
  const fmt=s=>new Date(s).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit'});
  const content=<>
- {page!=='Timeline'&&(!isAccounts||!['Home','Performance','Payment Dashboard','Projects & Clients','Banking'].includes(page))&&<h1 className={isAccounts?'studio-page-heading':undefined}>{page==='Home'?name:page}</h1>}
+ {page!=='Timeline'&&(!isAccounts||!['Home','Performance','Payment Dashboard','Projects & Clients','Banking','Party Ledger','Payroll','Financial Reports'].includes(page))&&<h1 className={isAccounts?'studio-page-heading':undefined}>{page==='Home'?name:page}</h1>}
  {error&&<p role="alert">{error}</p>}
  {isAccounts&&page==='Home'&&<div className="studio-home accounts-home-intro">
    <header className="studio-home-intro">

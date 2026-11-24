@@ -1,6 +1,8 @@
 import React from 'react';
 import policy from './OfficePolicy.json';
 
+const sectionId=title=>'policy-'+title.toLowerCase().replaceAll(' ','-');
+
 export default function OfficePolicy({salaryOnly=false}){
   const sections=[];
   let current={title:'Office timings',rows:[]};
@@ -12,16 +14,19 @@ export default function OfficePolicy({salaryOnly=false}){
   }
   if(salaryOnly)return <article className="office-policy"><h2>Salary Policy</h2><ul>{sections.find(section=>section.title==='Salary')?.rows.map((row,index)=><li key={index}>{row[1]}</li>)}</ul></article>;
   return <article className="office-policy">
-    <h2>{policy.rows[0][0]}</h2>
-    <p>{policy.rows[1][0]}</p>
-    <nav aria-label="Policy sections">{sections.map(section=><a key={section.title} href={'#policy-'+section.title.replaceAll(' ','-')}>{section.title}</a>)}</nav>
-    {sections.map(section=><section key={section.title} id={'policy-'+section.title.replaceAll(' ','-')}>
+    <p className="office-policy-audience">Applies to the Admin and Design teams.</p>
+    <div className="office-policy-layout">
+    <nav aria-label="Policy sections">{sections.map(section=><a key={section.title} href={'#'+sectionId(section.title)}>{section.title}</a>)}</nav>
+    <div className="office-policy-sections">
+    {sections.map(section=><section key={section.title} id={sectionId(section.title)}>
       <h2>{section.title}</h2>
-      {section.title==='Attendance Status'?<div className="accounts-scroll"><table>
-        <thead><tr><th>Status</th><th>Attendance Value</th></tr></thead>
+      {section.title==='Attendance status'?<div className="accounts-scroll"><table>
+        <thead><tr><th scope="col">Status</th><th scope="col">Attendance value</th></tr></thead>
         <tbody>{section.rows.slice(1).map(row=><tr key={row[1]}><td>{row[1]}</td><td>{row[2]}</td></tr>)}</tbody>
       </table></div>:<ol>{section.rows.map((row,index)=><li key={index}>{row[1]}</li>)}</ol>}
     </section>)}
-    <p><a href={policy.source} target="_blank" rel="noreferrer">Open source policy sheet</a></p>
+    <p><a href={policy.source} target="_blank" rel="noreferrer">View policy source</a></p>
+    </div>
+    </div>
   </article>;
 }

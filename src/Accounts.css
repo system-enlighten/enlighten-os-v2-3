@@ -187,12 +187,30 @@
   }
 }
 
-.office-policy{max-width:1000px;line-height:1.65;font-size:14px}
-.office-policy>nav{display:flex;flex-wrap:wrap;gap:8px 18px;margin:16px 0}
-.office-policy>section{background:var(--studio-surface);border:1px solid var(--studio-rule);padding:16px 20px;margin:14px 0;scroll-margin-top:70px}
-.office-policy h2{margin:0 0 12px}
-.office-policy li{padding:3px 0;white-space:pre-line}
-.office-policy ol{padding-left:20px;margin-bottom:0}
+.office-policy{max-width:1100px;color:var(--studio-ink);line-height:1.55;font-size:14px}
+.office-policy-audience{margin:0 0 14px;color:#506476}
+.office-policy-layout{display:grid;grid-template-columns:210px minmax(0,1fr);gap:16px;align-items:start}
+.office-policy-layout nav{display:grid;background:#fff;border:1px solid var(--studio-rule)}
+.office-policy-layout nav a{padding:7px 10px;color:#24568a;text-decoration:none;font-size:12px}
+.office-policy-layout nav a+a{border-top:1px solid var(--studio-rule)}
+.office-policy-layout nav a:is(:hover,:focus-visible){background:#eaf2fa;text-decoration:underline}
+.office-policy-sections>section{background:#fff;border:1px solid var(--studio-rule);border-top:2px solid var(--studio-ink);padding:12px 16px;margin:0 0 10px;scroll-margin-top:90px}
+.office-policy h2{margin:0 0 8px;font-size:18px}
+.office-policy li{padding:2px 0}
+.office-policy ol{padding-left:20px;margin:0}
+.office-policy .accounts-scroll{margin:0}
+.office-policy table{border-collapse:collapse;font-size:13px;width:100%;text-align:left}
+.office-policy :is(th,td){padding:5px 9px;border-bottom:1px solid var(--studio-rule)}
+.office-policy th{background:#d2cdc1}
+.office-policy :is(th,td):last-child{text-align:right}
+.office-policy-sections>p a{color:#24568a;font-size:12px}
+@media(max-width:700px){
+ .office-policy-layout{grid-template-columns:minmax(0,1fr);gap:10px}
+ .office-policy-layout nav{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .office-policy-layout nav a{border-bottom:1px solid var(--studio-rule)}
+ .office-policy-layout nav a+a{border-top:0}
+}
+
 
 .accounts .invoice-paper-pane .accounts-invoice{font:12px/1.3 Arial,sans-serif;color:#222;padding:34px 28px}
 .accounts .accounts-invoice .invoice-brand{border-bottom:2px solid #222;padding:0 0 14px;margin:0 0 12px}
@@ -334,3 +352,33 @@
 .banking-overview .accounts-bank-totals strong{font-size:18px;font-variant-numeric:tabular-nums}
 .banking-chart-period{margin-top:12px;font-size:12px}
 .accounts .banking-overview :is(th,td){padding:6px 9px;font-size:12px;vertical-align:middle}
+
+.accounts .party-ledger-workspace .invoice-list-row{padding:9px 14px;font-size:13px}
+.party-ledger-workspace .invoice-detail-heading{border-top:2px solid var(--studio-accent)}
+.party-ledger-totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin:0 0 12px}
+.party-ledger-totals>div{background:#fff;border:1px solid var(--studio-rule);padding:8px 10px}
+.party-ledger-totals dt{font-size:12px;color:#506476}
+.party-ledger-totals dd{margin:3px 0 0;font-weight:700;font-variant-numeric:tabular-nums}
+.accounts .party-ledger-content :is(th,td){padding:6px 8px;font-size:12px}
+.accounts .party-ledger-content th{border-bottom:2px solid var(--studio-ink)}
+.party-ledger-content :is(th,td):nth-last-child(-n+3){text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+
+.accounts-payroll-heading h1{margin:0}
+.accounts .accounts-payroll-filters :is(label,input){font-size:12px}
+.accounts .accounts-payroll-filters input{padding-block:5px;min-height:30px;box-sizing:border-box}
+.accounts button.accounts-prepare-payroll{border:1px solid #24568a;background:#fff;color:#24568a;padding:4px 8px;font-size:12px}
+.accounts button.accounts-prepare-payroll:not(:disabled):is(:hover,:focus-visible){background:#24568a;color:#fff;box-shadow:none}
+
+.financial-report-heading h1,.financial-report-section-head h2{margin:0}
+.financial-report-toolbar{font-size:12px}
+.financial-report-toolbar p{margin:0}
+.financial-report-section-head,.financial-report-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.financial-report-section-head{justify-content:space-between;margin-top:16px}
+.accounts .financial-reports :is(select,input[type=date],.financial-report-section-head button,.accounts-balance-sheet button){padding:5px 8px;font-size:12px}
+.accounts .financial-reports :is(.financial-report-section-head,.accounts-balance-sheet) button{display:inline-flex;align-items:center;gap:5px;border-color:#24568a;color:#24568a;background:#fff}
+.financial-report-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,145px),1fr));gap:12px;margin-top:14px}
+.accounts .financial-report-metrics button{display:grid;gap:4px;text-align:left;padding:12px;border-top:2px solid var(--studio-accent);font-size:12px}
+.financial-report-metrics strong{font-size:20px;font-variant-numeric:tabular-nums}
+.financial-report-metrics small{color:#24568a}
+.accounts .financial-reports :is(th,td){padding:6px 9px;font-size:12px}
+.financial-reports tr[data-status=report-total] td{background:#e7ede8;font-weight:700}

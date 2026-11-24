@@ -296,7 +296,8 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
   const [headDraft,setHeadDraft]=useState(null),[partyKey,setPartyKey]=useState('');
   const parties=useMemo(()=>partyLedger(page==='Party Ledger'?data?.records||[]:[]),[data,page]);
   const [bank,setBank]=useState('IDFC');
-  const [cashFrom,setCashFrom]=useState(()=>String(Number(today().slice(0,4))-(today().slice(5,7)<'04'?1:0))+'-04-01');
+  const [reportView,setReportView]=useState('Overview');
+  const [showZeroBalances,setShowZeroBalances]=useState(false);
   const printRef=useRef(null), saving=useRef(false);
   const invoiceToOpen=useRef(null);
   const [invoiceClosed,setInvoiceClosed]=useState(false);
@@ -388,12 +389,12 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
   const currentFiscalYear = Number(today().slice(0,4)) - (today().slice(5,7) < '04' ? 1 : 0);
   const fyYears = [currentFiscalYear, currentFiscalYear - 1, currentFiscalYear - 2];
   
-  let reportStartDate = '2000-01-01';
-  let reportEndDate = asOf;
+  let reportStartDate = '';
+  let reportEndDate = today();
   if (reportFY !== 'all') {
     const y = Number(reportFY === 'current' ? currentFiscalYear : reportFY);
     reportStartDate = `${y}-04-01`;
-    reportEndDate = `${y + 1}-03-31`;
+    reportEndDate = [reportEndDate,`${y + 1}-03-31`].sort()[0];
   }
 
   const reportRecords = records.filter(r => r.date >= reportStartDate && r.date <= reportEndDate);
@@ -419,13 +420,26 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
     return classifications[heads.find(([h])=>h===head)?.[1]]||'Unclassified';
   };
 
-  for(const row of records.filter(r=>r.date>=cashFrom&&r.date<=asOf&&r.kind!=='opening')){
-    for(let i=0;i<row.postings.length;i+=2){
-      const [dr,cr]=row.postings.slice(i,i+2);
-      const debitCash=banks.includes(dr.head),creditCash=banks.includes(cr.head);
-      if(debitCash!==creditCash)cashFlows[cashType(debitCash?cr.head:dr.head)]+=debitCash?dr.debit:-cr.credit;
+  const cashMovement=postings=>postings.reduce((net,p)=>banks.includes(p.head)?net+(p.debit||0)-(p.credit||0):net,0);
+  const openingCash=total(records.filter(r=>r.date<reportStartDate).map(r=>({net:cashMovement(r.postings||[])})),'net');
+  const openingJournals=cashMovement(reportRecords.filter(r=>r.kind==='opening').flatMap(r=>r.postings||[]));
+  const cashPostings=reportRecords.filter(r=>r.kind!=='opening').flatMap(r=>r.postings||[]);
+  let cashIn=0,cashOut=0;
+  if(page==='Financial Reports'&&reportView==='Cash Flow'){
+    for(const row of reportRecords.filter(r=>r.kind!=='opening')){
+      const postings=row.postings||[];
+      for(let i=0;i+1<postings.length;i+=2){
+        const [dr,cr]=postings.slice(i,i+2);
+        const debitCash=banks.includes(dr.head),creditCash=banks.includes(cr.head);
+        if(debitCash===creditCash)continue;
+        const net=debitCash?dr.debit:-cr.credit;
+        cashFlows[cashType(debitCash?cr.head:dr.head)]+=net;
+        cashIn+=Math.max(0,net);
+        cashOut+=Math.max(0,-net);
+      }
     }
   }
+  const closingCash=openingCash+cashMovement(report);
 
   const invoiceList=records.filter(r=>['invoice','legacyInvoice'].includes(r.kind)&&(page==='Estimates'?r.documentType==='Proforma Invoice':r.documentType!=='Proforma Invoice'))
     .sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
@@ -686,36 +700,50 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
       })()}
     </>}
 
-    {page==='Party Ledger'&&<div className="invoice-workspace">
+    {page==='Party Ledger'&&(()=>{
+      const sortedParties=[...parties].sort(([,a],[,b])=>a.name.localeCompare(b.name));
+      const activeKey=parties.has(partyKey)?partyKey:sortedParties[0]?.[0];
+      const party=parties.get(activeKey);
+      return <>
+      <StudioHeading title="Party Ledger" department="Accounts"/>
+      <div className="invoice-workspace party-ledger-workspace">
       <aside className="invoice-list" aria-label="Party list">
         <header><h2>Parties</h2></header>
-        {[...parties].sort(([,a],[,b])=>a.name.localeCompare(b.name)).map(([key,party])=>
-          <button type="button" className="invoice-list-row" key={key} aria-current={partyKey===key?'true':undefined} onClick={()=>setPartyKey(key)}>
+        {sortedParties.map(([key,party])=>
+          <button type="button" className="invoice-list-row" key={key} aria-current={activeKey===key?'true':undefined} onClick={()=>setPartyKey(key)}>
             <strong>{party.name}</strong>
           </button>
         )}
         {!parties.size&&<p>No posted transactions have a client or beneficiary yet.</p>}
       </aside>
       <section className="invoice-detail" aria-label="Selected party ledger">
-        {parties.has(partyKey)?(()=>{
-          const party=parties.get(partyKey);
-          return <>
+        {party?<>
             <header className="invoice-detail-heading"><h2>{party.name}</h2></header>
             <div className="party-ledger-content">
-              <p>Total debit <strong>{money(party.debit)}</strong> · Total credit <strong>{money(party.credit)}</strong> · Closing balance <strong>{money(party.debit-party.credit)}</strong></p>
+              <dl className="party-ledger-totals">
+                <div><dt>Total debit</dt><dd>{money(party.debit)}</dd></div>
+                <div><dt>Total credit</dt><dd>{money(party.credit)}</dd></div>
+                <div><dt>Closing balance</dt><dd>{money(party.debit-party.credit)}</dd></div>
+              </dl>
               <Table columns={['Date','Reference','Project','Description','Debit','Credit','Running balance']} rows={party.entries.map(({record,debit,credit,balance})=>({
                 key:record.id,cells:[record.date,record.reference||record.number||'—',record.projectName||'—',record.description||record.documentType||record.kind,debit?money(debit):'—',credit?money(credit):'—',money(balance)]
               }))}/>
             </div>
-          </>;
-        })():<p className="party-ledger-content">Select a party to see its posted transactions.</p>}
+        </>:<p className="party-ledger-content">No party ledgers to display.</p>}
       </section>
-    </div>}
+      </div>
+      </>;
+    })()}
 
     {page==='Payroll'&&<>
-      <div className="accounts-toolbar" role="tablist" aria-label="Payroll sections">{[['payroll','Payroll'],['attendance','Attendance'],['salary-policy','Salary Policy']].map(([id,label])=><button type="button" key={id} role="tab" aria-selected={payrollTab===id} onClick={()=>setPayrollTab(id)} style={{background:payrollTab===id?'#102238':'#fff',color:payrollTab===id?'#fff':'#142238',padding:'10px 18px',border:'1px solid #d2cdc1'}}>{label}</button>)}</div>
+      <nav className="accounts-banking-tabs" aria-label="Payroll sections" data-sheet-tabs>
+        {[['payroll','Payroll'],['attendance','Attendance'],['salary-policy','Salary Policy']].map(([id,label])=>
+          <button type="button" key={id} aria-pressed={payrollTab===id} onClick={()=>setPayrollTab(id)}>{label}</button>
+        )}
+      </nav>
+      <header className="wih-register-head accounts-payroll-heading"><h1 className="studio-page-heading">Payroll</h1></header>
       {payrollTab==='attendance'?<PayrollAttendance employees={employees} request={request} readOnly={readOnly}/>:payrollTab==='salary-policy'?<OfficePolicy salaryOnly/>:<>
-      <div className="accounts-toolbar">
+      <div className="accounts-toolbar accounts-payroll-filters">
         <label>Payroll month <input type="month" value={payMonth} onChange={e=>setPayMonth(e.target.value)}/></label>
         <label>Find employee <input type="search" value={staffQuery} onChange={e=>setStaffQuery(e.target.value)} placeholder="Name or department"/></label>
       </div>
@@ -738,7 +766,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
                 <button onClick={()=>setSelected(run)}>Payslip</button>
                 {!isDisbursed && !readOnly && <button onClick={()=>disburseSalary(run)} style={{color:'#2e7d32',fontWeight:600}}>Disburse</button>}
               </div>
-            ) : !readOnly&&<button disabled={!payMonth} onClick={()=>begin('payroll',{employeeId:e.id,date:payMonth+'-01',gross:lastRun?(lastRun.gross/100).toFixed(2):''})}>Prepare payroll</button>
+            ) : !readOnly&&<button className="accounts-prepare-payroll" disabled={!payMonth} onClick={()=>begin('payroll',{employeeId:e.id,date:payMonth+'-01',gross:lastRun?(lastRun.gross/100).toFixed(2):''})}>Prepare payroll</button>
           ]
         };
       })}/>
@@ -747,57 +775,85 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
       <Table columns={['Employee','Month','Earned','Overtime','Deductions','Advance recovery','Net pay','Action']} rows={records.filter(r=>r.kind==='payroll').slice().reverse().map(r=>({key:r.id,cells:[r.employee,r.date.slice(0,7),money(r.earned),money(r.overtime),money(r.deductions),money(r.advance),money(r.amount),<button onClick={()=>setSelected(r)}>Payslip</button>]}))}/>
     </>}</>}
 
-    {page==='Financial Reports'&&<>
-      <div className="accounts-toolbar" style={{justifyContent:'space-between',marginBottom:16}}>
-        <div style={{display:'flex',gap:12,alignItems:'center',flexWrap:'wrap'}}>
-          <label>Period: <select value={reportFY} onChange={e=>setReportFY(e.target.value)}>
-            <option value="current">Current FY ({currentFiscalYear}-{String(currentFiscalYear+1).slice(2)})</option>
-            <option value={String(currentFiscalYear-1)}>Previous FY ({currentFiscalYear-1}-{String(currentFiscalYear).slice(2)})</option>
-            <option value="all">All Time (Cumulative)</option>
-          </select></label>
-          <label>As of date: <input type="date" value={asOf} onChange={e=>setAsOf(e.target.value)}/></label>
+    {page==='Financial Reports'&&(()=>{
+      const tabs=['Overview','Profit & Loss','Balance Sheet','Cash Flow','Trial Balance'];
+      const trialRows=headRows.filter(row=>showZeroBalances||row.balance!==0);
+      const profitRows=[
+        ['Design revenue',-balance('Revenue')],['Direct costs',balance('Direct expense')],
+        ['Gross profit',margin],['Operating expenses',balance('Expense')],['Net profit',surplus]
+      ];
+      const cashRows=[
+        ['Opening cash',openingCash],
+        ...(openingJournals?[['Opening journal movements',openingJournals]]:[]),
+        ['Cash received',cashIn],['Cash paid',cashOut],['Closing cash',closingCash]
+      ];
+      const cashAccountRows=banks.map(bank=>{
+        const rows=cashPostings.filter(row=>row.head===bank);
+        const debit=total(rows,'debit'),credit=total(rows,'credit');
+        return [bank,debit,credit,debit-credit];
+      });
+      const debitTotal=total(report,'debit'),creditTotal=total(report,'credit');
+      const exportAction=(filename,headers,rows)=><button type="button" onClick={()=>exportCsv(filename,headers,rows)}>
+        <Download size={13} aria-hidden="true"/> Export CSV
+      </button>;
+      const amountRows=rows=>rows.map(([label,value])=>({cells:[label,money(value)],status:['Gross profit','Net profit','Closing cash'].includes(label)?'report-total':undefined}));
+      return <section className="financial-reports">
+        <nav className="accounts-banking-tabs" aria-label="Financial report views" data-sheet-tabs>
+          {tabs.map(tab=><button key={tab} type="button" aria-pressed={reportView===tab} onClick={()=>setReportView(tab)}>{tab}</button>)}
+        </nav>
+        <header className="wih-register-head financial-report-heading"><h1 className="studio-page-heading">Financial Reports</h1></header>
+        <div className="accounts-toolbar financial-report-toolbar">
+          {reportView==='Balance Sheet'?
+            <label>As of <input type="date" value={asOf} onChange={e=>setAsOf(e.target.value)}/></label>:
+            <><label>Period <select value={reportFY} onChange={e=>setReportFY(e.target.value)}>
+              <option value="current">Current FY ({currentFiscalYear}-{String(currentFiscalYear+1).slice(2)})</option>
+              <option value={String(currentFiscalYear-1)}>Previous FY ({currentFiscalYear-1}-{String(currentFiscalYear).slice(2)})</option>
+              <option value="all">All time</option>
+            </select></label><small>{reportStartDate?reportStartDate+' to ': 'Through '}{reportEndDate}</small></>}
         </div>
-        <div style={{display:'flex',gap:8}}>
-          {!readOnly&&<button className="accounts-overview-primary" onClick={()=>begin('opening')}>＋ Add opening journal</button>}
-        </div>
-      </div>
 
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-        <h2>Trial balance ({reportFY==='all'?'Cumulative':`FY ${reportStartDate} to ${reportEndDate}`})</h2>
-        <button type="button" onClick={()=>exportCsv('Trial_Balance.csv',['Head','Type','Closing Debit','Closing Credit'],headRows.map(r=>[r.name,r.type,r.balance>0?r.balance/100:0,r.balance<0?-r.balance/100:0]))}>
-          <Download size={13} style={{marginRight:4}}/> Export CSV
-        </button>
-      </div>
-      <p role="status" style={{fontWeight:600,color:total(report,'debit')===total(report,'credit')?'#2e7d32':'#c62828'}}>
-        {total(report,'debit')===total(report,'credit')?'✓ Balanced':'⚠ Discrepancy detected'} · Debit: {money(total(report,'debit'))} | Credit: {money(total(report,'credit'))}
-      </p>
-      <Table columns={['Head','Type','Closing debit','Closing credit']} rows={headRows.map(r=>({cells:[r.name,r.type,r.balance>0?money(r.balance):'—',r.balance<0?money(-r.balance):'—']}))}/>
+        {reportView==='Overview'&&<div className="financial-report-metrics">
+          {[['Revenue',-balance('Revenue'),'Profit & Loss'],['Expenses',balance('Direct expense')+balance('Expense'),'Profit & Loss'],
+            ['Net profit',surplus,'Profit & Loss'],['Closing cash',closingCash,'Cash Flow']].map(([label,value,tab])=>
+            <button type="button" key={label} onClick={()=>setReportView(tab)}><span>{label}</span><strong>{money(value)}</strong><small>{tab} ↗</small></button>
+          )}
+        </div>}
 
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:24}}>
-        <h2>Profit &amp; Loss ({reportFY==='all'?'Cumulative':`FY ${reportStartDate} to ${reportEndDate}`})</h2>
-        <button type="button" onClick={()=>exportCsv('Profit_and_Loss.csv',['Metric','Amount'],[['Design Revenue',-balance('Revenue')/100],['Direct Costs',balance('Direct expense')/100],['Gross Profit',margin/100],['Operating Expenses',balance('Expense')/100],['Net Profit',surplus/100]])}>
-          <Download size={13} style={{marginRight:4}}/> Export CSV
-        </button>
-      </div>
-      <Table columns={['Measure','Amount']} rows={[[ 'Design revenue',-balance('Revenue')],['Direct costs',balance('Direct expense')],['Gross profit',margin],['Operating expenses',balance('Expense')],['Net profit',surplus]].map(([k,v])=>({cells:[k,money(v)]}))}/>
+        {reportView==='Profit & Loss'&&<>
+          <header className="financial-report-section-head"><h2>Profit &amp; Loss</h2>{exportAction('Profit_and_Loss.csv',['Measure','Amount'],profitRows.map(([label,value])=>[label,value/100]))}</header>
+          <Table columns={['Measure','Amount']} rows={amountRows(profitRows)}/>
+        </>}
 
-      <BalanceSheet asOf={asOf || today()} heads={heads} records={records} money={money} exportCsv={exportCsv}/>
+        {reportView==='Balance Sheet'&&<BalanceSheet asOf={asOf||today()} heads={heads} records={records} money={money} exportCsv={exportCsv}/>}
 
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:24}}>
-        <h2>Cash flow by activity</h2>
-        <button type="button" onClick={()=>exportCsv('Cash_Flow.csv',['Activity','Net Flow'],Object.entries(cashFlows).map(([k,v])=>[k,v/100]))}>
-          <Download size={13} style={{marginRight:4}}/> Export CSV
-        </button>
-      </div>
-      <label>Cash-flow start date: <input type="date" value={cashFrom} max={asOf} onChange={e=>setCashFrom(e.target.value)}/></label>
-      <Table columns={['Activity','Net cash flow']} rows={Object.entries(cashFlows).map(([type,amount])=>({cells:[type,money(amount)]}))}/>
+        {reportView==='Cash Flow'&&<>
+          <header className="financial-report-section-head"><h2>Cash Flow</h2>{exportAction('Cash_Flow.csv',['Measure','Amount'],[...cashRows,...Object.entries(cashFlows)].map(([label,value])=>[label,value/100]))}</header>
+          <Table columns={['Measure','Amount']} rows={amountRows(cashRows)}/>
+          <h2>Cash flow by activity</h2>
+          <Table columns={['Activity','Net cash flow']} rows={amountRows(Object.entries(cashFlows))}/>
+          <h2>Cash movement by account</h2>
+          <Table columns={['Cash / bank','Inflows','Outflows','Net']} rows={cashAccountRows.map(([bank,...values])=>({cells:[bank,...values.map(money)]}))}/>
+        </>}
 
-      <h2>Cash movement by account through {asOf}</h2>
-      <Table columns={['Cash / bank','Inflows','Outflows','Net']} rows={banks.map(b=>{
-        const rows=report.filter(r=>r.head===b), debit=total(rows,'debit'), credit=total(rows,'credit');
-        return {cells:[b,money(debit),money(credit),money(debit-credit)]};
-      })}/>
-    </>}
+        {reportView==='Trial Balance'&&<>
+          <header className="financial-report-section-head"><h2>Trial Balance</h2>
+            <div className="financial-report-actions">
+              {!readOnly&&<button type="button" onClick={()=>begin('opening')}>＋ Add opening journal</button>}
+              {exportAction('Trial_Balance.csv',['Head','Type','Period debit balance','Period credit balance'],trialRows.map(row=>[row.name,row.type,Math.max(0,row.balance)/100,Math.max(0,-row.balance)/100]))}
+            </div>
+          </header>
+          <div className="financial-report-toolbar accounts-toolbar">
+            <p role="status" style={{color:debitTotal===creditTotal?'#2e7d32':'#a52820'}}>
+              {debitTotal===creditTotal?'Balanced':'Discrepancy detected'} · Debit {money(debitTotal)} · Credit {money(creditTotal)}
+            </p>
+            <label><input type="checkbox" checked={showZeroBalances} onChange={e=>setShowZeroBalances(e.target.checked)}/> Show zero balances</label>
+          </div>
+          <Table columns={['Head','Type','Period debit balance','Period credit balance']} empty="No non-zero balances for this period." rows={trialRows.map(row=>({
+            key:row.name,cells:[row.name,row.type,row.balance>0?money(row.balance):'—',row.balance<0?money(-row.balance):'—']
+          }))}/>
+        </>}
+      </section>;
+    })()}
 
     {!['Estimates','Invoices'].includes(page)&&draft?.kind!=='invoice'&&editor}
 
