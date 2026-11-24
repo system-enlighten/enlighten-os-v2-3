@@ -241,11 +241,21 @@
 }
 .accounts-chart-groups summary {
  cursor: pointer;
- padding: 10px 14px;
+ padding: 7px 10px;
  font-weight: 700;
  background: var(--studio-surface, #f4f1e8);
 }
-.accounts-chart-children { padding: 0 12px 4px; }
+.accounts-chart-children { padding: 0 10px 8px; }
+.accounts-chart-children .accounts-scroll{margin:6px 0 0}
+.accounts .accounts-chart-children :is(th,td){padding:4px 8px;font-size:12px;line-height:1.3;vertical-align:middle}
+.accounts-chart-children :is(th,td):first-child{min-width:96px;white-space:nowrap}
+.accounts .accounts-chart-toolbar input[type=search]{box-sizing:border-box;width:min(245px,100%);min-height:30px;font-size:12px;padding:4px 8px}
+.accounts :is(.accounts-chart-toolbar,.accounts-chart-children) button{
+ border:1px solid #24568a;background:#fff;color:#24568a;font-size:12px;line-height:1.3;padding:3px 8px;
+}
+.accounts .accounts-chart-toolbar button{min-height:30px}
+.accounts .accounts-chart-toolbar button:not(:disabled):is(:hover,:focus-visible){background:#24568a;color:#fff;box-shadow:none}
+
 
 .accounts-balance-sheet{margin-top:24px;background:#fff;border:1px solid var(--studio-rule);border-top:3px solid var(--studio-ink)}
 .accounts-balance-sheet header{position:relative;display:grid;justify-items:center;gap:4px;padding:22px 14px;color:var(--studio-ink)}

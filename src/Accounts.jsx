@@ -638,7 +638,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
 
 
     {page==='Chart of Accounts'&&<>
-      <div className="accounts-toolbar">
+      <div className="accounts-toolbar accounts-chart-toolbar">
         <Search size={15} aria-hidden="true"/>
         <input type="search" aria-label="Search accounts" placeholder="Search type, head or sub-head" value={coaQuery} onChange={e=>setCoaQuery(e.target.value)}/>
         {!readOnly&&<button type="button" disabled={busy} onClick={()=>setHeadDraft({head:'',type:'',subhead:''})}>Add Head</button>}
