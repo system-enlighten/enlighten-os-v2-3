@@ -32,6 +32,7 @@ function ProjectBillingRow({project, readOnly, savingId, saveProfile}) {
   }
 
   return <tr>
+    <td>{project.projectNo || '—'}</td>
     <th scope="row">{project.name}</th>
     <td>{project.contractNumber || 'Not recorded'}</td>
     <td>{project.contractAmount == null ? 'Not signed' : money(project.contractAmount)}</td>
@@ -46,7 +47,7 @@ function ProjectBillingRow({project, readOnly, savingId, saveProfile}) {
         onChange: event => setEdits({...edits, [key]: event.target.value})
       };
       return <td key={key}>{readOnly ? value || '—' :
-        type ? <input {...props} type={type}/> : <textarea {...props} rows={2}/>}
+        type ? <input {...props} type={type}/> : <textarea {...props} rows={1}/>}
       </td>;
     })}
     {!readOnly && <td>
@@ -83,17 +84,24 @@ export function ProjectBilling({projects, request, onSaved, readOnly}) {
     }
   }
 
+  const signedProjects = projects.filter(project => project.contractAmount != null);
+  const signedValue = signedProjects.reduce((total, project) => total + Number(project.contractAmount), 0);
+
   return <section>
-    <p>Edit billing details in the table and save the project’s row. Contract values come from Legal &amp; Contracts.</p>
+    <dl className="project-billing-summary">
+      <div><dt>Total projects</dt><dd>{projects.length}</dd></div>
+      <div><dt>Signed contracts</dt><dd>{signedProjects.length}</dd></div>
+      <div><dt>Total signed contract value</dt><dd>{money(signedValue)}</dd></div>
+    </dl>
     <div className="project-billing-scroll" tabIndex={0} role="region" aria-label="Project billing details">
       <table className="project-billing-table">
         <thead><tr>
-          {['Project', 'Signed contract', 'Contract value', ...billingFields.map(([label]) => label), ...(!readOnly ? ['Action'] : [])]
+          {['Project Number', 'Project Name', 'Signed contract', 'Contract value', ...billingFields.map(([label]) => label), ...(!readOnly ? ['Action'] : [])]
             .map(label => <th key={label} scope="col">{label}</th>)}
         </tr></thead>
         <tbody>
           {projects.map(project => <ProjectBillingRow key={project.id} {...{project, readOnly, savingId, saveProfile}}/>)}
-          {!projects.length && <tr><td colSpan={readOnly ? 11 : 12}>No projects found.</td></tr>}
+          {!projects.length && <tr><td colSpan={readOnly ? 12 : 13}>No projects found.</td></tr>}
         </tbody>
       </table>
     </div>

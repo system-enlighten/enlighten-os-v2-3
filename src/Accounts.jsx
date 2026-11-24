@@ -245,7 +245,7 @@ function InvoiceWorkspace({records,invoice,editing,busy,form,onChoose,onNew,onEd
           </button>
 
           <button type="button" disabled={!canPay} onClick={onPayment} style={{fontWeight:600,color:canPay?'#2e7d32':undefined}}>
-            <span aria-hidden="true">₹</span> Record Payment
+            <span className="record-payment-currency" aria-hidden="true">₹</span>Record Payment
           </button>
         </nav>
 

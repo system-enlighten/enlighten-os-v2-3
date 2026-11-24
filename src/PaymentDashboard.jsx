@@ -99,6 +99,7 @@ export default function PaymentDashboard({ projects = [], milestones = [], recei
     const list = Array.from(byProject.values());
     if (!q) return list;
     return list.filter(r =>
+      String(r.projectNo || '').toLowerCase().includes(q) ||
       (r.name && r.name.toLowerCase().includes(q)) ||
       (r.client && r.client.toLowerCase().includes(q))
     );
@@ -120,7 +121,7 @@ export default function PaymentDashboard({ projects = [], milestones = [], recei
     };
   }, [byProject]);
 
-  const headings = ['Project Name', 'Client Name', 'Project Amount', 'Total Received', 'Remaining Balance'];
+  const headings = ['Project Number', 'Project Name', 'Client Name', 'Project Amount', 'Total Received', 'Remaining Balance'];
 
   return (
     <div className="payment-dashboard-wrapper">
@@ -160,8 +161,8 @@ export default function PaymentDashboard({ projects = [], milestones = [], recei
           <Search size={16} color="#888" />
           <input
             type="search"
-            aria-label="Search project or client"
-            placeholder="Search project or client…"
+            aria-label="Search project number, name, or client"
+            placeholder="Search project number, name, or client…"
             value={query}
             onChange={e => setQuery(e.target.value)}
             style={{ width: '100%', maxWidth: 320 }}
@@ -205,6 +206,7 @@ export default function PaymentDashboard({ projects = [], milestones = [], recei
                     background: isSelected ? '#e4ece8' : undefined
                   }}
                 >
+                  <td>{row.projectNo || '—'}</td>
                   <th scope="row" style={{ fontWeight: 600 }}>{row.name}</th>
                   <td>{row.client || '—'}</td>
                   <td>{row.commitment === null ? '—' : money(row.commitment)}</td>
@@ -235,7 +237,7 @@ export default function PaymentDashboard({ projects = [], milestones = [], recei
           </tbody>
           <tfoot>
             <tr className="payment-sheet-totals">
-              <th scope="row" colSpan={2}>
+              <th scope="row" colSpan={3}>
                 Monthly Collections Total
               </th>
               <td>{money(overall.commitment)}</td>
