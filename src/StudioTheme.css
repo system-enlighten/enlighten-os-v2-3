@@ -242,3 +242,14 @@
  .dashboard-mom-dialog :is(input,textarea,select,fieldset,img){box-sizing:border-box;min-width:0;max-width:100%}
  .dashboard-mom-dialog :is(input:not([type=checkbox]):not([type=radio]),textarea,select){font-size:16px!important}
 }
+
+@media (max-width: 760px) {
+ .project-mom-task-row{
+  display:grid!important;
+  grid-template-columns:auto minmax(0,1fr);
+ }
+ .project-mom-task-content,.project-mom-task-actions{min-width:0;overflow-wrap:anywhere}
+ .project-mom-task-actions{grid-column:2}
+ .project-mom-task-actions :is(label,select),
+ [aria-label="MOM task views"] :is(label,select){min-width:0;max-width:100%;box-sizing:border-box}
+}
