@@ -152,23 +152,25 @@ export function BankingOverview({records,today,onNavigate}){
     return {label:iso(from).slice(5),first:sum(values,n=>Math.max(n,0)),second:sum(values,n=>Math.max(-n,0))};
   });
 
-  return <>
+  return <div className="banking-overview">
     <nav className="accounts-overview-tools" aria-label="Banking actions">
-      <button className="accounts-overview-primary" onClick={()=>onNavigate('Banking',bank==='all'?'IDFC':bank)}>Import statement / Reconcile</button>
+      <button className="accounts-overview-primary" onClick={()=>onNavigate('Banking',bank==='all'?'IDFC':bank)}>Import / Reconcile</button>
       <button onClick={()=>onNavigate('Debit / Credit')}>Record Transaction</button>
       <button onClick={()=>onNavigate('Chart of Accounts')}>Chart of Accounts</button>
     </nav>
-    <Card title="Banking Overview" action={<label><CalendarDays size={14}/> <select aria-label="Chart period" value={days} onChange={e=>setDays(Number(e.target.value))}><option value="30">Last 30 days</option><option value="60">Last 60 days</option></select></label>}>
+    <Card title="Balances in books" action={<div className="banking-overview-controls">
       <select aria-label="Bank account" value={bank} onChange={e=>setBank(e.target.value)}><option value="all">All Accounts</option>{bankAccounts.map(key=><option key={key} value={key}>{bankLabel[key]}</option>)}</select>
+      <button type="button" aria-expanded={chart} onClick={()=>setChart(!chart)}><TrendingUp size={15}/> {chart?'Hide Chart':'Show Chart'}</button>
+    </div>}>
       <div className="accounts-bank-totals">
         {accounts.includes('Cash')&&<div><Banknote/><span>Cash in Hand<strong>{amount(balance('Cash'))}</strong></span></div>}
-        {accounts.some(key=>key!=='Cash')&&<div><Landmark/><span>Bank Balance in Books<strong>{amount(sum(accounts.filter(key=>key!=='Cash'),balance))}</strong></span></div>}
+        {accounts.some(key=>key!=='Cash')&&<div><Landmark/><span>Bank balance<strong>{amount(sum(accounts.filter(key=>key!=='Cash'),balance))}</strong></span></div>}
       </div>
-      <button type="button" aria-expanded={chart} onClick={()=>setChart(!chart)}><TrendingUp size={15}/> {chart?'Hide Chart':'Show Chart'}</button>
+      {chart&&<label className="banking-chart-period"><CalendarDays size={14}/> <select aria-label="Chart period" value={days} onChange={e=>setDays(Number(e.target.value))}><option value="30">Last 30 days</option><option value="60">Last 60 days</option></select></label>}
       {chart&&<ActivityChart rows={buckets} labels={['Money in','Money out']}/>}
     </Card>
     <h2>Active Accounts</h2>
-    <div className="accounts-scroll"><table><thead><tr><th>Account details</th><th>Pending statement lines</th><th>Amount in bank</th><th>Amount in Enlighten OS</th><th>Action</th></tr></thead>
+    <div className="accounts-scroll"><table><thead><tr><th>Account details</th><th>Pending statement lines</th><th>Verification</th><th>Amount in Enlighten OS</th><th>Action</th></tr></thead>
       <tbody>{accounts.map(key=><tr key={key}>
         <td>{key==='Cash'?<Banknote size={17}/>:<Landmark size={17}/>} {bankLabel[key]}</td>
         <td>{records.filter(row=>row.kind==='statement'&&row.bank===key&&!statementReconciliation(row,records)).length}</td>
@@ -182,7 +184,7 @@ export function BankingOverview({records,today,onNavigate}){
         </td>
       </tr>)}</tbody>
     </table></div>
-  </>;
+  </div>;
 }
 
 export function GstOverview({records,today,onRecord}){

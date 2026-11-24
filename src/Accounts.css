@@ -311,3 +311,11 @@
 @media(max-width:620px){.accounts-cash-lead{grid-template-columns:minmax(0,1fr)}}
 
 .record-payment-currency{margin-inline-end:.5em;font-size:calc(1em + 1pt);line-height:1}
+
+.accounts .banking-overview :is(button,select){font-size:12px;min-height:30px;padding-block:4px}
+.accounts .banking-overview button{border-color:#24568a;color:#24568a;background:#fff}
+.banking-overview-controls,.banking-chart-period{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.banking-overview .accounts-bank-totals{margin:0;gap:12px 28px;font-size:12px}
+.banking-overview .accounts-bank-totals strong{font-size:18px;font-variant-numeric:tabular-nums}
+.banking-chart-period{margin-top:12px;font-size:12px}
+.accounts .banking-overview :is(th,td){padding:6px 9px;font-size:12px;vertical-align:middle}

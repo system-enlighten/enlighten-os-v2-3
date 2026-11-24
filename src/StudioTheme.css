@@ -228,3 +228,17 @@
 .studio-app-content .attendance-filters :is(input,select){box-sizing:border-box;height:38px;padding:8px 12px;border:1px solid var(--studio-rule);border-radius:0;background:#fff;color:var(--studio-ink);font-family:var(--studio-body-font);font-size:13px;font-weight:400;letter-spacing:normal;text-transform:none;box-shadow:none}
 .studio-app-content .attendance-filters>button{height:38px;padding:8px 12px;border:1px solid var(--studio-blue,#1b4d84);border-radius:0;background:#fff;color:var(--studio-blue,#1b4d84);font:500 11px var(--studio-mono-font,monospace);box-shadow:none}
 @media(max-width:650px){.studio-project-scope-title>div:last-child{flex-wrap:wrap}.studio-drive-actions{gap:8px}}
+
+@media (max-width: 760px) {
+ .dashboard-mom-grid{grid-template-columns:minmax(0,1fr)!important;overflow-wrap:anywhere}
+ .dashboard-mom-grid>*{min-width:0}
+ .dashboard-mom-grid :is(textarea,input,select){max-width:100%;box-sizing:border-box}
+ .dashboard-mom-overlay{padding:8px!important}
+ .dashboard-mom-dialog{
+  box-sizing:border-box;min-width:0;padding:14px!important;
+  max-height:calc(100dvh - 16px)!important;overscroll-behavior:contain;
+  overflow-wrap:anywhere;
+ }
+ .dashboard-mom-dialog :is(input,textarea,select,fieldset,img){box-sizing:border-box;min-width:0;max-width:100%}
+ .dashboard-mom-dialog :is(input:not([type=checkbox]):not([type=radio]),textarea,select){font-size:16px!important}
+}
