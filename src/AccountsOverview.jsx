@@ -85,7 +85,7 @@ export function AccountsDashboard({data,today,onNavigate,loading=false}){
 
   return <div className="accounts-dashboard" aria-busy={loading}>
     <nav className="accounts-overview-tools" aria-label="Dashboard controls">
-      <label>Period <select value={previous?'previous':'current'} onChange={e=>setPrevious(e.target.value==='previous')}><option value="current">This Fiscal Year (FY {currentYear}-{String(currentYear+1).slice(2)})</option><option value="previous">Previous Fiscal Year (FY {currentYear-1}-{String(currentYear).slice(2)})</option></select></label>
+      <label className="accounts-period-control">Period <select value={previous?'previous':'current'} onChange={e=>setPrevious(e.target.value==='previous')}><option value="current">This Fiscal Year (FY {currentYear}-{String(currentYear+1).slice(2)})</option><option value="previous">Previous Fiscal Year (FY {currentYear-1}-{String(currentYear).slice(2)})</option></select></label>
     </nav>
     <div className="accounts-overview-lead">
       <section className="accounts-cash-lead" aria-labelledby="overview-cash-heading">

@@ -12,7 +12,7 @@ import './Accounts.css';
 import PaymentDashboard from './PaymentDashboard.jsx';
 import {AccountsDashboard, BankingOverview, GstOverview, bankAccounts, studioGstin} from './AccountsOverview.jsx';
 import PagesInvoice, {printPagesInvoice} from './PagesInvoice.jsx';
-import { Mail, Share2, Printer, Edit3, DollarSign, Download, Search, CheckCircle, ArrowRight, X } from 'lucide-react';
+import { Mail, Share2, Printer, Edit3, Download, Search, CheckCircle, ArrowRight, X } from 'lucide-react';
 
 export const accountsPages = ['Projects & Clients','Payment Dashboard','Estimates','Invoices','Debit / Credit','Banking','GST','Chart of Accounts','Party Ledger','Payroll','Financial Reports'];
 const banks = bankAccounts;
@@ -210,10 +210,14 @@ function InvoiceWorkspace({records,invoice,editing,busy,form,onChoose,onNew,onEd
 
     <section className="invoice-detail" aria-label="Invoice detail">
       {invoice?<><header className="invoice-detail-heading">
-        <div>
+        {!isEstimate&&!editing?<dl className="invoice-header-summary">
+          <div><dt>Client &amp; project</dt><dd>{invoice.client||'—'}</dd>{invoice.projectName&&<small>{invoice.projectName}</small>}</div>
+          <div><dt>Invoice details</dt><dd>{number||'—'}</dd>{invoice.date&&<small>{invoice.date}</small>}</div>
+          <div><dt>Invoice amount</dt><dd>{money(invoice.amount)}</dd></div>
+        </dl>:<div>
           <small>{invoice.projectName||invoice.client||'Invoice'}</small>
           <h2>{editing?(converted?'Invoice draft':`${invoice.isEdit?'Edit':'New'} ${documentLabel.toLowerCase()}`):number}</h2>
-        </div>
+        </div>}
         {onClose&&<button type="button" onClick={onClose} aria-label={editing?'Cancel invoice draft':'Close invoice'}>×</button>}
       </header>
 
@@ -241,7 +245,7 @@ function InvoiceWorkspace({records,invoice,editing,busy,form,onChoose,onNew,onEd
           </button>
 
           <button type="button" disabled={!canPay} onClick={onPayment} style={{fontWeight:600,color:canPay?'#2e7d32':undefined}}>
-            <DollarSign size={13} style={{marginRight:2}}/> Record Payment
+            <span aria-hidden="true">₹</span> Record Payment
           </button>
         </nav>
 
@@ -568,11 +572,13 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
     </>}
     {page==='GST'&&<GstOverview records={records} today={today()} onRecord={readOnly||busy?null:period=>begin('gstFiling',{period})}/>}
     
-    {page==='Projects & Clients'&&<ProjectBilling projects={projects} request={request} readOnly={readOnly} onSaved={(projectId,billing)=>setData(current=>({
+    {page==='Projects & Clients'&&<>
+      <StudioHeading title="Projects & Clients" department="Accounts"/>
+      <ProjectBilling projects={projects} request={request} readOnly={readOnly} onSaved={(projectId,billing)=>setData(current=>({
       ...current,
       projects:current.projects.map(project=>project.id===projectId?{...project,billing}:project)
-    }))}/>}
-    {page==='Invoices'&&<p>Invoices created from estimates or issued when an estimate payment is recorded appear here with historical invoices.</p>}
+    }))}/>
+    </>}
     {page==='Payment Dashboard'&&<>
       <PaymentDashboard projects={projects} milestones={milestones} receipts={receipts} invoices={records.filter(r=>['invoice','legacyInvoice'].includes(r.kind))} money={money}/>
       <details className="payment-sheet-actions" open>

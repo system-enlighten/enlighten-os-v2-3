@@ -155,7 +155,7 @@ export default function PaymentDashboard({ projects = [], milestones = [], recei
       </div>
 
       {/* Toolbar */}
-      <div className="accounts-toolbar" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
+      <div className="accounts-toolbar payment-dashboard-toolbar" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flex: '1 1 300px' }}>
           <Search size={16} color="#888" />
           <input
@@ -168,7 +168,7 @@ export default function PaymentDashboard({ projects = [], milestones = [], recei
           />
         </div>
 
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+        <div className="accounts-period-control">
           <label htmlFor="payment-period">Period</label>
           <select id="payment-period" value={selectedFY} onChange={e => setSelectedFY(e.target.value)}>
             <option value="all">All Available Months (Chronological)</option>
