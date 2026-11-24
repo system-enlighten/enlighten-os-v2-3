@@ -1,3 +1,4 @@
+import BalanceSheet from './BalanceSheet.jsx';
 import PayrollAttendance from './PayrollAttendance.jsx';
 import OfficePolicy from './OfficePolicy.jsx';
 import {partyLedger} from './party-ledger.mjs';
@@ -556,8 +557,8 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
     
     {page==='Home'&&<AccountsDashboard data={data} today={today()} onNavigate={onNavigate}/>}
     {page==='Banking'&&<>
-      <StudioHeading title="Banking" department="Accounts"/>
-      <nav className="accounts-banking-tabs" aria-label="Banking views" data-sheet-tabs>
+      {!reconciliationBank&&<StudioHeading title="Banking" department="Accounts"/>}
+      <nav className={'accounts-banking-tabs'+(reconciliationBank?' banking-reconciliation-tabs':'')} aria-label="Banking views" data-sheet-tabs>
         <button type="button" aria-pressed={!reconciliationBank} onClick={()=>onNavigate('Banking')}>Overview</button>
         <button type="button" aria-pressed={Boolean(reconciliationBank)} onClick={()=>onNavigate('Banking',bank)}>Reconciliation</button>
       </nav>
@@ -649,32 +650,59 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
           }}>Delete Head</button>}
         </div>
       </form>}
+      {(()=>{
+        const query=coaQuery.trim().toLowerCase();
+        const categories=new Map(['Asset','Liability','Income','Expense','Equity'].map(label=>[label,[]]));
+        for(const row of data.heads){
+          const type=row[1];
+          const category=type==='Revenue'?'Income':type==='Direct expense'?'Expense':type;
+          if(![category,...row].join(' ').toLowerCase().includes(query))continue;
+          if(!categories.has(category))categories.set(category,[]);
+          categories.get(category).push(row);
+        }
+        const visible=[...categories].filter(([,rows])=>!query||rows.length);
+        return visible.length?<div className="accounts-chart-groups" key={query}>{visible.map(([label,rows])=>
+          <details key={label} open={query?true:undefined}>
+            <summary>{label}</summary>
+            <div className="accounts-chart-children">
       <Table columns={['Type','Head','Sub-head',...(!readOnly?['Action']:[])]}
-        rows={data.heads.filter(row=>row.join(' ').toLowerCase().includes(coaQuery.trim().toLowerCase())).map(row=>{
+        rows={rows.map(row=>{
           const [head,type,subhead='']=row;
           return {key:head,cells:[type,<strong>{head}</strong>,subhead||'—',...(!readOnly?[
             <button type="button" disabled={busy} onClick={()=>setHeadDraft({previous:head,expected:[head,type,subhead],head,type,subhead})}>Edit</button>
           ]:[])]};
         })}/>
+            </div>
+          </details>
+        )}</div>:<p>No account heads match your search.</p>;
+      })()}
     </>}
 
-    {page==='Party Ledger'&&<>
-      <div className="accounts-toolbar">
-        <label>Party <select value={partyKey} onChange={e=>setPartyKey(e.target.value)}>
-          <option value="">Select a client or beneficiary</option>
-          {[...parties].sort(([,a],[,b])=>a.name.localeCompare(b.name)).map(([key,party])=><option key={key} value={key}>{party.name}</option>)}
-        </select></label>
-      </div>
-      {parties.has(partyKey)?(()=>{
-        const party=parties.get(partyKey);
-        return <>
-          <p>Total debit <strong>{money(party.debit)}</strong> · Total credit <strong>{money(party.credit)}</strong> · Closing balance <strong>{money(party.debit-party.credit)}</strong></p>
-          <Table columns={['Date','Reference','Project','Description','Debit','Credit','Running balance']} rows={party.entries.map(({record,debit,credit,balance})=>({
-            key:record.id,cells:[record.date,record.reference||record.number||'—',record.projectName||'—',record.description||record.documentType||record.kind,debit?money(debit):'—',credit?money(credit):'—',money(balance)]
-          }))}/>
-        </>;
-      })():<p>{parties.size?'Select a party to see its posted transactions.':'No posted transactions have a client or beneficiary yet.'}</p>}
-    </>}
+    {page==='Party Ledger'&&<div className="invoice-workspace">
+      <aside className="invoice-list" aria-label="Party list">
+        <header><h2>Parties</h2></header>
+        {[...parties].sort(([,a],[,b])=>a.name.localeCompare(b.name)).map(([key,party])=>
+          <button type="button" className="invoice-list-row" key={key} aria-current={partyKey===key?'true':undefined} onClick={()=>setPartyKey(key)}>
+            <strong>{party.name}</strong>
+          </button>
+        )}
+        {!parties.size&&<p>No posted transactions have a client or beneficiary yet.</p>}
+      </aside>
+      <section className="invoice-detail" aria-label="Selected party ledger">
+        {parties.has(partyKey)?(()=>{
+          const party=parties.get(partyKey);
+          return <>
+            <header className="invoice-detail-heading"><h2>{party.name}</h2></header>
+            <div className="party-ledger-content">
+              <p>Total debit <strong>{money(party.debit)}</strong> · Total credit <strong>{money(party.credit)}</strong> · Closing balance <strong>{money(party.debit-party.credit)}</strong></p>
+              <Table columns={['Date','Reference','Project','Description','Debit','Credit','Running balance']} rows={party.entries.map(({record,debit,credit,balance})=>({
+                key:record.id,cells:[record.date,record.reference||record.number||'—',record.projectName||'—',record.description||record.documentType||record.kind,debit?money(debit):'—',credit?money(credit):'—',money(balance)]
+              }))}/>
+            </div>
+          </>;
+        })():<p className="party-ledger-content">Select a party to see its posted transactions.</p>}
+      </section>
+    </div>}
 
     {page==='Payroll'&&<>
       <div className="accounts-toolbar" role="tablist" aria-label="Payroll sections">{[['payroll','Payroll'],['attendance','Attendance'],['salary-policy','Salary Policy']].map(([id,label])=><button type="button" key={id} role="tab" aria-selected={payrollTab===id} onClick={()=>setPayrollTab(id)} style={{background:payrollTab===id?'#102238':'#fff',color:payrollTab===id?'#fff':'#142238',padding:'10px 18px',border:'1px solid #d2cdc1'}}>{label}</button>)}</div>
@@ -745,13 +773,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
       </div>
       <Table columns={['Measure','Amount']} rows={[[ 'Design revenue',-balance('Revenue')],['Direct costs',balance('Direct expense')],['Gross profit',margin],['Operating expenses',balance('Expense')],['Net profit',surplus]].map(([k,v])=>({cells:[k,money(v)]}))}/>
 
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:24}}>
-        <h2>Balance sheet (as of {asOf})</h2>
-        <button type="button" onClick={()=>exportCsv('Balance_Sheet.csv',['Measure','Amount'],[['Assets',balance('Asset')/100],['Liabilities',-balance('Liability')/100],['Equity including earnings',(-balance('Equity')+surplus)/100]])}>
-          <Download size={13} style={{marginRight:4}}/> Export CSV
-        </button>
-      </div>
-      <Table columns={['Measure','Amount']} rows={[[ 'Assets',balance('Asset')],['Liabilities',-balance('Liability')],['Equity including earnings',-balance('Equity')+surplus]].map(([k,v])=>({cells:[k,money(v)]}))}/>
+      <BalanceSheet asOf={asOf || today()} heads={heads} records={records} money={money} exportCsv={exportCsv}/>
 
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:24}}>
         <h2>Cash flow by activity</h2>

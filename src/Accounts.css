@@ -53,6 +53,8 @@
 .invoice-list-row span,.invoice-list-row small{grid-column:1/-1;font-size:12px}
 .accounts button.invoice-list-row[aria-current=true]{background:#e7ede8;box-shadow:inset 3px 0 var(--studio-accent)}
 .invoice-detail{min-width:0;background:var(--studio-surface)}
+.party-ledger-content{padding:12px 14px;overflow:auto}
+.party-ledger-content>p{margin:0 0 12px}
 .invoice-detail-heading,.invoice-toolbar{background:#fff;border-bottom:1px solid var(--studio-rule)}
 .invoice-toolbar{display:flex;flex-wrap:wrap;gap:8px;padding:9px 14px;background:var(--studio-surface)}
 .invoice-workspace :is(.invoice-toolbar a,.invoice-toolbar button,.invoice-next a,.invoice-next button,.invoice-list header button,.invoice-detail-heading button){
@@ -198,3 +200,33 @@
 .accounts-banking-tabs{display:flex;gap:6px;margin:0 0 16px;border-bottom:1px solid var(--studio-rule)}
 .accounts-banking-tabs button[aria-pressed=true]{background:var(--studio-ink);color:#fff}
 @media(max-width:700px){.payment-kpis{grid-template-columns:minmax(0,1fr)}}
+
+.accounts-chart-groups > details {
+ border: 1px solid var(--studio-rule, #ded6c7);
+ background: #fff;
+}
+.accounts-chart-groups > details + details { margin-top: 6px; }
+.accounts-chart-groups summary {
+ cursor: pointer;
+ padding: 10px 14px;
+ font-weight: 700;
+ background: var(--studio-surface, #f4f1e8);
+}
+.accounts-chart-children { padding: 0 0 8px 18px; }
+
+.accounts-balance-sheet{margin-top:24px;background:#fff;border:1px solid var(--studio-rule);border-top:3px solid var(--studio-ink)}
+.accounts-balance-sheet header{position:relative;display:grid;justify-items:center;gap:4px;padding:22px 14px;color:var(--studio-ink)}
+.accounts-balance-sheet header h2{margin:0}
+.accounts-balance-sheet header span{font-size:.85rem}
+.accounts-balance-sheet header button{position:absolute;right:14px;top:14px}
+.accounts-balance-sheet table{min-width:520px}
+.accounts-balance-sheet :is(th,td){font-size:.85rem;padding:7px 14px}
+.accounts-balance-sheet :is(th,td):not(:first-child){text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;width:22%}
+.accounts-balance-sheet tbody .balance-sheet-group th{background:#e7ede8;color:var(--studio-ink);text-align:left}
+.accounts-balance-sheet .balance-sheet-account th{font-weight:400;padding-left:28px;text-align:left}
+.accounts-balance-sheet .balance-sheet-account:nth-child(odd)>*{background:#f8f7f2}
+.accounts-balance-sheet .balance-sheet-account small{display:block;margin-left:12px}
+.accounts-balance-sheet :is(.balance-sheet-subtotal,.balance-sheet-total,.balance-sheet-difference)>*{border-top:1px solid var(--studio-ink);font-weight:700;text-align:left}
+.accounts-balance-sheet .balance-sheet-total>*{background:var(--studio-ink);color:#fff}
+.accounts-balance-sheet .balance-sheet-difference>*{background:#fff3dd;color:#823c17}
+@media(max-width:760px){.accounts-balance-sheet header button{position:static;margin-top:8px}}

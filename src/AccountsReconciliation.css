@@ -25,3 +25,16 @@
 .reconcile-main tr.reconcile-confirmed-match > td {
   background: #e3f1e5;
 }
+
+.accounts .banking-reconciliation-tabs { margin: 0 0 8px; }
+.accounts-reconciliation .reconcile-header { padding: 8px 12px; gap: 8px 16px; }
+.reconcile-header .reconcile-bank-label { display: flex; align-items: center; gap: 8px; }
+.accounts .reconcile-header .reconcile-bank-label select { font-size: 15px; padding-block: 4px; }
+.reconcile-inline-balance { display: flex; align-items: baseline; gap: 8px; }
+.reconcile-inline-balance small { margin: 0; }
+.reconcile-inline-balance strong { font-size: 14px; }
+.accounts-reconciliation .reconcile-views { padding: 4px 8px; }
+.accounts .accounts-reconciliation .reconcile-views button { padding: 6px 10px; font-size: 13px; }
+.accounts-reconciliation .reconcile-list-toolbar { padding: 5px 10px; }
+.accounts .reconcile-header .accounts-actions button,
+.accounts .reconcile-list-toolbar input { padding: 5px 8px; font-size: 13px; }

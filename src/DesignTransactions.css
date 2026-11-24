@@ -43,3 +43,10 @@
   gap: 8px;
   padding-top: 14px;
 }
+
+.transaction-ledger .transaction-head-group th {
+ background: #e7ede7;
+ color: #1d463f;
+ text-align: left;
+ font-weight: 700;
+}
