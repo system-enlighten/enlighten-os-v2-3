@@ -568,7 +568,10 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
     </>}
     {page==='GST'&&<GstOverview records={records} today={today()} onRecord={readOnly||busy?null:period=>begin('gstFiling',{period})}/>}
     
-    {page==='Projects & Clients'&&<ProjectBilling projects={projects} request={request} onSaved={load} readOnly={readOnly}/>}
+    {page==='Projects & Clients'&&<ProjectBilling projects={projects} request={request} readOnly={readOnly} onSaved={(projectId,billing)=>setData(current=>({
+      ...current,
+      projects:current.projects.map(project=>project.id===projectId?{...project,billing}:project)
+    }))}/>}
     {page==='Invoices'&&<p>Invoices created from estimates or issued when an estimate payment is recorded appear here with historical invoices.</p>}
     {page==='Payment Dashboard'&&<>
       <PaymentDashboard projects={projects} milestones={milestones} receipts={receipts} invoices={records.filter(r=>['invoice','legacyInvoice'].includes(r.kind))} money={money}/>
@@ -652,7 +655,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
       </form>}
       {(()=>{
         const query=coaQuery.trim().toLowerCase();
-        const categories=new Map(['Asset','Liability','Income','Expense','Equity'].map(label=>[label,[]]));
+        const categories=new Map(['Income','Expense','Asset','Liability','Equity'].map(label=>[label,[]]));
         for(const row of data.heads){
           const type=row[1];
           const category=type==='Revenue'?'Income':type==='Direct expense'?'Expense':type;
@@ -662,8 +665,8 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
         }
         const visible=[...categories].filter(([,rows])=>!query||rows.length);
         return visible.length?<div className="accounts-chart-groups" key={query}>{visible.map(([label,rows])=>
-          <details key={label} open={query?true:undefined}>
-            <summary>{label}</summary>
+          <details key={label} open className={label==='Equity'?'accounts-chart-equity':undefined}>
+            <summary>{{Asset:'Assets',Liability:'Liabilities',Expense:'Expenses'}[label]||label}</summary>
             <div className="accounts-chart-children">
       <Table columns={['Type','Head','Sub-head',...(!readOnly?['Action']:[])]}
         rows={rows.map(row=>{

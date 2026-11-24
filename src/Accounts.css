@@ -130,18 +130,19 @@
 }
 
 .payment-sheet-scroll{overflow:auto;max-height:72dvh;border:1px solid var(--studio-rule);background:#fff}
-.accounts table.payment-sheet{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0;font:inherit;font-size:13px;color:var(--studio-ink)}
+.accounts table.payment-sheet{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0;font:inherit;font-size:12px;line-height:1.3;color:var(--studio-ink)}
 .payment-sheet col{width:108px}
 .payment-sheet col:first-child{width:235px}
-.payment-sheet col:nth-child(2){width:185px}
-.payment-sheet col:nth-child(n+3):nth-child(-n+5){width:155px}
-.accounts .payment-sheet :is(th,td){padding:9px 12px;border-right:1px solid var(--studio-rule);border-bottom:1px solid var(--studio-rule);font-variant-numeric:tabular-nums;vertical-align:middle;text-align:right;white-space:nowrap}
+.payment-sheet col:nth-child(2){width:160px}
+.payment-sheet col:nth-child(n+3):nth-child(-n+5){width:130px}
+.accounts .payment-sheet :is(th,td){padding:4px 8px;border-right:1px solid var(--studio-rule);border-bottom:1px solid var(--studio-rule);font-variant-numeric:tabular-nums;vertical-align:middle;text-align:right;white-space:nowrap}
 .accounts .payment-sheet thead{position:sticky;top:0;z-index:2}
 .accounts .payment-sheet thead th{background:#d2cdc1;color:var(--studio-ink);border-bottom:2px solid var(--studio-ink)}
 .accounts .payment-sheet-totals :is(th,td){background:#e5ece8;border-top:2px solid var(--studio-accent);font-weight:700}
 .accounts .payment-sheet tr>:first-child,.accounts .payment-sheet tr:not(.payment-sheet-totals)>:nth-child(2){text-align:left}
 .accounts .payment-sheet tbody th{background:inherit;font-weight:600}
 .accounts .payment-sheet tbody tr:hover>*{background:#edf1ee}
+.accounts .payment-sheet tbody tr>:nth-child(-n+2){white-space:normal;overflow-wrap:anywhere}
 .payment-sheet-actions{margin-top:14px}
 .payment-sheet-actions summary{cursor:pointer}
 
@@ -201,18 +202,28 @@
 .accounts-banking-tabs button[aria-pressed=true]{background:var(--studio-ink);color:#fff}
 @media(max-width:700px){.payment-kpis{grid-template-columns:minmax(0,1fr)}}
 
+.accounts-chart-groups {
+ display: grid;
+ grid-template-columns: repeat(2, minmax(0, 1fr));
+ align-items: start;
+ gap: 14px;
+}
 .accounts-chart-groups > details {
+ min-width: 0;
  border: 1px solid var(--studio-rule, #ded6c7);
  background: #fff;
 }
-.accounts-chart-groups > details + details { margin-top: 6px; }
+.accounts-chart-groups > .accounts-chart-equity { grid-column: 1 / -1; }
+@media (max-width: 900px) {
+ .accounts-chart-groups { grid-template-columns: minmax(0, 1fr); }
+}
 .accounts-chart-groups summary {
  cursor: pointer;
  padding: 10px 14px;
  font-weight: 700;
  background: var(--studio-surface, #f4f1e8);
 }
-.accounts-chart-children { padding: 0 0 8px 18px; }
+.accounts-chart-children { padding: 0 12px 4px; }
 
 .accounts-balance-sheet{margin-top:24px;background:#fff;border:1px solid var(--studio-rule);border-top:3px solid var(--studio-ink)}
 .accounts-balance-sheet header{position:relative;display:grid;justify-items:center;gap:4px;padding:22px 14px;color:var(--studio-ink)}
@@ -230,3 +241,42 @@
 .accounts-balance-sheet .balance-sheet-total>*{background:var(--studio-ink);color:#fff}
 .accounts-balance-sheet .balance-sheet-difference>*{background:#fff3dd;color:#823c17}
 @media(max-width:760px){.accounts-balance-sheet header button{position:static;margin-top:8px}}
+
+.project-billing-scroll{overflow:auto;max-height:72dvh;border:1px solid var(--studio-rule)}
+.accounts .project-billing-table{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0;font-size:12px;line-height:1.3}
+.accounts .project-billing-table :is(th,td){padding:5px 7px;vertical-align:middle;border-right:1px solid var(--studio-rule)}
+.project-billing-table thead th{position:sticky;top:0;z-index:2}
+.project-billing-table tr>:first-child{position:sticky;left:0;z-index:1;width:190px;min-width:150px;max-width:220px;overflow-wrap:anywhere}
+.project-billing-table thead tr>:first-child{z-index:3}
+.accounts .project-billing-table tbody th{background:var(--studio-surface)}
+.accounts .project-billing-table :is(input,textarea){width:105px;box-sizing:border-box;padding:4px 6px}
+.accounts .project-billing-table td:nth-child(4) input,.accounts .project-billing-table td:nth-child(10) input{width:155px}
+.accounts .project-billing-table td:nth-child(7) input{width:65px}
+.accounts .project-billing-table textarea{width:180px;resize:vertical}
+.project-billing-table .accounts-error{max-width:160px;margin-top:4px}
+
+.accounts-overview-lead{display:grid;grid-template-columns:minmax(0,2fr) minmax(290px,1fr);gap:16px;margin-bottom:16px;align-items:start}
+.accounts-cash-lead{display:grid;grid-template-columns:minmax(165px,.7fr) minmax(0,1.8fr);background:#fff;border:1px solid var(--studio-rule);min-width:0}
+.accounts-cash-position{background:var(--studio-ink);color:#fff;padding:16px}
+.accounts-cash-lead h2{margin:0 0 8px}
+.accounts-cash-position>strong{display:block;font-size:clamp(20px,2.25vw,34px);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.accounts-cash-position small,.accounts-cash-position dt{color:#cedce7}
+.accounts-cash-position dl{border-top:1px solid #648093;margin:14px 0 0;padding-top:10px}
+.accounts-cash-position dl div+div{margin-top:8px}
+.accounts-cash-position dd,.accounts-month-summary dd{margin:0;font-weight:600}
+.accounts-monthly-flow{padding:12px;min-width:0}
+.accounts-monthly-flow .accounts-chart{overflow-x:auto;grid-auto-rows:auto;gap:2px}
+.accounts-monthly-flow .accounts-chart>div{min-width:0}
+.accounts .accounts-month-bar{padding:0;width:100%;display:block;border-color:transparent}
+.accounts .accounts-month-bar[aria-pressed=true]{background:#e6f0eb;border-color:var(--studio-accent)}
+.accounts-month-bar .accounts-chart-bars{height:70px}
+.accounts-month-bar small{min-height:26px;display:grid;align-content:center}
+.accounts-month-summary{margin-top:8px;padding-top:8px;border-top:1px solid var(--studio-rule);font-size:12px}
+.accounts-month-summary dl{display:flex;flex-wrap:wrap;gap:5px 16px;margin:4px 0 0}
+.accounts-attention-list{list-style:none;padding:0;margin:0}
+.accounts .accounts-attention-list button{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;width:100%;background:#fff;text-align:left;border:0;border-bottom:1px solid var(--studio-rule);padding:10px 0;font-size:13px}
+.accounts .accounts-attention-list li:last-child button{border-bottom:0}
+.accounts-attention-list small{display:block;color:#506476}
+.accounts-attention-list [data-alert=true]{color:#9a451b}
+@media(max-width:1150px){.accounts-overview-lead{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:620px){.accounts-cash-lead{grid-template-columns:minmax(0,1fr)}}

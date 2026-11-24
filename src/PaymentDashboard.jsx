@@ -227,7 +227,7 @@ export default function PaymentDashboard({ projects = [], milestones = [], recei
             })}
             {!visibleRows.length && (
               <tr>
-                <td colSpan={headings.length + visibleMonths.length} style={{ textAlign: 'center', padding: 24 }}>
+                <td colSpan={headings.length + visibleMonths.length} style={{ textAlign: 'center' }}>
                   No projects matching your search.
                 </td>
               </tr>
