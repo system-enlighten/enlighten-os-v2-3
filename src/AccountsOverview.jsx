@@ -153,11 +153,14 @@ export function BankingOverview({records,today,onNavigate}){
   });
 
   return <div className="banking-overview">
-    <nav className="accounts-overview-tools" aria-label="Banking actions">
+    <header className="wih-register-head studio-project-scope-title banking-overview-heading">
+      <h1 className="studio-page-heading">Banking</h1>
+      <nav className="banking-heading-actions" aria-label="Banking actions">
       <button className="accounts-overview-primary" onClick={()=>onNavigate('Banking',bank==='all'?'IDFC':bank)}>Import / Reconcile</button>
       <button onClick={()=>onNavigate('Debit / Credit')}>Record Transaction</button>
       <button onClick={()=>onNavigate('Chart of Accounts')}>Chart of Accounts</button>
-    </nav>
+      </nav>
+    </header>
     <Card title="Balances in books" action={<div className="banking-overview-controls">
       <select aria-label="Bank account" value={bank} onChange={e=>setBank(e.target.value)}><option value="all">All Accounts</option>{bankAccounts.map(key=><option key={key} value={key}>{bankLabel[key]}</option>)}</select>
       <button type="button" aria-expanded={chart} onClick={()=>setChart(!chart)}><TrendingUp size={15}/> {chart?'Hide Chart':'Show Chart'}</button>

@@ -220,8 +220,13 @@
 .accounts-dashboard .accounts-overview-card h2{font-size:18px}
 .accounts-dashboard .accounts-overview-body>small{display:block;color:var(--studio-muted,#46596b)}
 .accounts-dashboard[aria-busy=true] .accounts-chart-bars{opacity:.45}
-.accounts-banking-tabs{display:flex;gap:6px;margin:0 0 16px;border-bottom:1px solid var(--studio-rule)}
-.accounts-banking-tabs button[aria-pressed=true]{background:var(--studio-ink);color:#fff}
+.accounts-banking-tabs{display:flex;overflow-x:auto;margin:0 0 16px;border-bottom:1px solid var(--studio-rule);background:#fff}
+.accounts .accounts-banking-tabs button{flex:none;padding:10px 16px;border:0;border-bottom:3px solid transparent;border-radius:0;font-size:12px;font-weight:600}
+.accounts .accounts-banking-tabs button[aria-pressed=true]{background:var(--studio-ink);color:#fff;border-bottom-color:#8fd6e8}
+.studio-app-content .studio-project-scope-title.banking-overview-heading{align-items:center;padding:10px 0 14px;margin:0;width:100%}
+.banking-overview-heading h1{margin:0}
+.banking-heading-actions{display:flex;flex-wrap:wrap;gap:8px}
+.banking-overview>h2{margin-top:16px}
 @media(max-width:700px){.payment-kpis{grid-template-columns:minmax(0,1fr)}}
 
 .accounts-chart-groups {

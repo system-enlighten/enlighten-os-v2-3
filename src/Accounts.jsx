@@ -561,7 +561,6 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
     
     {page==='Home'&&<AccountsDashboard data={data} today={today()} onNavigate={onNavigate}/>}
     {page==='Banking'&&<>
-      {!reconciliationBank&&<StudioHeading title="Banking" department="Accounts"/>}
       <nav className={'accounts-banking-tabs'+(reconciliationBank?' banking-reconciliation-tabs':'')} aria-label="Banking views" data-sheet-tabs>
         <button type="button" aria-pressed={!reconciliationBank} onClick={()=>onNavigate('Banking')}>Overview</button>
         <button type="button" aria-pressed={Boolean(reconciliationBank)} onClick={()=>onNavigate('Banking',bank)}>Reconciliation</button>
