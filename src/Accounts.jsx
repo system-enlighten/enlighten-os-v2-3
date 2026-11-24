@@ -17,7 +17,7 @@ import { Mail, Share2, Printer, Edit3, Download, Search, CheckCircle, ArrowRight
 export const accountsPages = ['Projects & Clients','Payment Dashboard','Estimates','Invoices','Debit / Credit','Banking','GST','Chart of Accounts','Party Ledger','Payroll','Financial Reports'];
 const banks = bankAccounts;
 const today = () => new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Kolkata'});
-const money = n => new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR'}).format((n||0)/100);
+const formatMoney = n => new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR'}).format((n||0)/100);
 const total = (rows,key) => rows.reduce((sum,row)=>sum+(Number(row[key])||0),0);
 const freshItem = () => ({description:'',sac:'99839',unit:'LS',quantity:1,rate:''});
 
@@ -32,10 +32,14 @@ const makeDraft = kind => ({
   ...(kind==='payroll'?{method:'Working days',multiplier:1}:{})
 });
 
+const AccountsDataReady = React.createContext(true);
+const emptyAccounts = {records:[],projects:[],employees:[],heads:[]};
+
 function Table({columns,rows,empty='No records yet.'}){
+  const ready = React.useContext(AccountsDataReady);
   return <div className="accounts-scroll"><table><thead><tr>{columns.map(x=><th key={x} scope="col">{x}</th>)}</tr></thead>
     <tbody>{rows.length?rows.map((row,i)=><tr key={row.key||i} data-status={row.status} style={row.style}>{row.cells.map((x,j)=><td key={j}>{x}</td>)}</tr>):
-      <tr><td colSpan={columns.length}>{empty}</td></tr>}</tbody></table></div>;
+      <tr><td colSpan={columns.length}>{ready?empty:undefined}</td></tr>}</tbody></table></div>;
 }
 
 // In-page iframe print helper that bypasses browser pop-up blockers completely
@@ -129,7 +133,7 @@ function InvoiceDocument({invoice,documentRef}){
   return <>
     {(numberDiff||amountDiff||displayed.sourceWarning)&&<div className="invoice-source-notice" role="note">
       {numberDiff&&<p>PDF invoice number {displayed.number} · Register number {displayed.registerNumber}</p>}
-      {amountDiff&&<p>PDF total {money(displayed.amount)} · Register total {money(displayed.registerAmount)}</p>}
+      {amountDiff&&<p>PDF total {formatMoney(displayed.amount)} · Register total {formatMoney(displayed.registerAmount)}</p>}
       {displayed.sourceWarning&&<p>{displayed.sourceWarning}</p>}
       {displayed.sourceUrl&&<a href={displayed.sourceUrl} target="_blank" rel="noreferrer">View source PDF</a>}
     </div>}
@@ -147,14 +151,14 @@ function InvoiceWorkspace({records,invoice,editing,busy,form,onChoose,onNew,onEd
   const number=invoice?invoiceForDisplay(invoice).number:undefined;
   useEffect(()=>{setMessage('');setSendOpen(false);},[invoice?.id]);
   const original=invoice?.kind==='legacyInvoice'?originalInvoice(invoiceForDisplay(invoice).sourceUrl||invoice.attachment):{};
-  const summary=invoice?[number,invoice.client,invoice.projectName,money(invoice.amount)].filter(Boolean).join(' · '):'';
+  const summary=invoice?[number,invoice.client,invoice.projectName,formatMoney(invoice.amount)].filter(Boolean).join(' · '):'';
 
   const shareText = useMemo(() => {
     if (!invoice) return '';
     return `*${documentLabel} ${number} from Enlighten Designs*\n` +
       `Client: ${invoice.client || '—'}\n` +
       `Project: ${invoice.projectName || '—'}\n` +
-      `Amount Due: ${money(invoice.amount)}\n` +
+      `Amount Due: ${formatMoney(invoice.amount)}\n` +
       `Date: ${invoice.date || '—'}\n\n` +
       `*Bank Remittance Details:*\n` +
       `Account: Enlighten Designs\n` +
@@ -193,6 +197,7 @@ function InvoiceWorkspace({records,invoice,editing,busy,form,onChoose,onNew,onEd
   const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(recipientEmail)}&su=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(shareText)}`;
   const mailtoUrl = `mailto:${encodeURIComponent(recipientEmail)}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(shareText)}`;
 
+  const ready=React.useContext(AccountsDataReady);
   const search=query.trim().toLowerCase();
   const visible=records.filter(record=>[record.number,record.sourceNumber,record.client,record.projectName].some(value=>String(value||'').toLowerCase().includes(search)));
 
@@ -201,11 +206,11 @@ function InvoiceWorkspace({records,invoice,editing,busy,form,onChoose,onNew,onEd
       <header><h2>{isEstimate?"Estimates":"Invoices"}</h2>{onNew&&<button type="button" disabled={editing} onClick={onNew}>＋ Add New Estimate</button>}</header>
       <input type="search" className="invoice-search" aria-label={`Search ${documentLabel.toLowerCase()}s`} placeholder="Search by client, project, or number…" value={query} onChange={e=>setQuery(e.target.value)}/>
       {visible.map(record=><button className="invoice-list-row" type="button" key={record.id} disabled={editing||busy} aria-current={invoice?.id===record.id?'true':undefined} onClick={()=>onChoose(record)}>
-        <strong>{record.client||record.projectName||record.number}</strong><strong>{money(record.amount)}</strong>
+        <strong>{record.client||record.projectName||record.number}</strong><strong>{formatMoney(record.amount)}</strong>
         <span>{[record.sourceNumber||record.number,record.date].filter(Boolean).join(' · ')}</span>
         <small>{record.kind==='legacyInvoice'?'Imported':record.documentType}</small>
       </button>)}
-      {!visible.length&&<p>{search?`No matching ${documentLabel.toLowerCase()}s.`:`No ${documentLabel.toLowerCase()}s yet.`}</p>}
+      {!visible.length&&ready&&<p>{search?`No matching ${documentLabel.toLowerCase()}s.`:`No ${documentLabel.toLowerCase()}s yet.`}</p>}
     </aside>
 
     <section className="invoice-detail" aria-label="Invoice detail">
@@ -213,7 +218,7 @@ function InvoiceWorkspace({records,invoice,editing,busy,form,onChoose,onNew,onEd
         {!isEstimate&&!editing?<dl className="invoice-header-summary">
           <div><dt>Client &amp; project</dt><dd>{invoice.client||'—'}</dd>{invoice.projectName&&<small>{invoice.projectName}</small>}</div>
           <div><dt>Invoice details</dt><dd>{number||'—'}</dd>{invoice.date&&<small>{invoice.date}</small>}</div>
-          <div><dt>Invoice amount</dt><dd>{money(invoice.amount)}</dd></div>
+          <div><dt>Invoice amount</dt><dd>{formatMoney(invoice.amount)}</dd></div>
         </dl>:<div>
           <small>{invoice.projectName||invoice.client||'Invoice'}</small>
           <h2>{editing?(converted?'Invoice draft':`${invoice.isEdit?'Edit':'New'} ${documentLabel.toLowerCase()}`):number}</h2>
@@ -294,6 +299,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
   const [payMonth,setPayMonth]=useState(()=>today().slice(0,7)),[staffQuery,setStaffQuery]=useState('');
   const [coaQuery,setCoaQuery]=useState('');
   const [headDraft,setHeadDraft]=useState(null),[partyKey,setPartyKey]=useState('');
+  const [partyQuery,setPartyQuery]=useState('');
   const parties=useMemo(()=>partyLedger(page==='Party Ledger'?data?.records||[]:[]),[data,page]);
   const [bank,setBank]=useState('IDFC');
   const [reportView,setReportView]=useState('Overview');
@@ -302,7 +308,8 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
   const invoiceToOpen=useRef(null);
   const [invoiceClosed,setInvoiceClosed]=useState(false);
 
-  const readOnly=/^viewer$/i.test(user.appAccess);
+  const readOnly=!data||/^viewer$/i.test(user.appAccess);
+  const money=value=>data?formatMoney(value):"—";
 
   const load=async()=>{
     setError('');
@@ -359,11 +366,9 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
     catch(e){setError(e.message);}
   };
 
-  if(!data&&page==='Home')return <section className="accounts">{error&&<p role="alert" className="accounts-error">{error} <button onClick={load}>Retry</button></p>}<AccountsDashboard data={{records:[],heads:[],projects:[]}} today={today()} onNavigate={onNavigate} loading/></section>;
-  if(!data)return <>{error?<><p role="alert">{error}</p><button onClick={load}>Retry</button></>:<p role="status">Loading Accounts…</p>}</>;
-
-  const {records,projects,employees}=data;
-  const heads=data.heads.filter(([head])=>head!=='Kotak');
+  const accountData=data||emptyAccounts;
+  const {records,projects,employees}=accountData;
+  const heads=accountData.heads.filter(([head])=>head!=='Kotak');
   const invoices=records.filter(r=>['invoice','legacyInvoice'].includes(r.kind)&&r.documentType!=='Proforma Invoice');
   const receipts=records.filter(r=>r.kind==='receipt');
   const paid=id=>total(receipts.filter(r=>r.invoiceId===id||r.proformaId===id),'amount');
@@ -490,6 +495,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
 
   // Export report to CSV
   const exportCsv=(filename, headers, rows)=>{
+    if(!data)return;
     const content = [headers.join(','), ...rows.map(r=>r.join(','))].join('\n');
     const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -569,31 +575,31 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
       <div className="accounts-actions"><button type="submit">{busy?'Saving…':draft.kind==='invoice'?(draft.documentType==='Proforma Invoice'?(draft.isEdit?'Update estimate':'Save estimate'):(draft.isEdit?'Update invoice':'Save invoice')):'Save'}</button><button type="button" onClick={()=>setDraft(null)}>Cancel</button></div></fieldset>
     </form>;
 
-  return <section className="accounts">
-    {data.warnings?.length>0&&<div role="alert" className="accounts-error">{data.warnings.map((warning,i)=><p key={i}>{warning}</p>)}</div>}
-    {error&&<p role="alert" className="accounts-error">{error}</p>}{notice&&<p role="status" style={{background:'#e8f5e9',padding:8,borderRadius:3,color:'#1b5e20'}}>{notice}</p>}
+  return <AccountsDataReady.Provider value={Boolean(data)}><section className="accounts" aria-busy={!data&&!error}>
+    {data?.warnings?.length>0&&<div role="alert" className="accounts-error">{data.warnings.map((warning,i)=><p key={i}>{warning}</p>)}</div>}
+    {error&&<p role="alert" className="accounts-error">{error} {!data&&<button type="button" onClick={load}>Retry</button>}</p>}{notice&&<p role="status" style={{background:'#e8f5e9',padding:8,borderRadius:3,color:'#1b5e20'}}>{notice}</p>}
     
-    {page==='Home'&&<AccountsDashboard data={data} today={today()} onNavigate={onNavigate}/>}
+    {page==='Home'&&<AccountsDashboard data={accountData} loading={!data} today={today()} onNavigate={onNavigate}/>}
     {page==='Banking'&&<>
       <nav className={'accounts-banking-tabs'+(reconciliationBank?' banking-reconciliation-tabs':'')} aria-label="Banking views" data-sheet-tabs>
         <button type="button" aria-pressed={!reconciliationBank} onClick={()=>onNavigate('Banking')}>Overview</button>
         <button type="button" aria-pressed={Boolean(reconciliationBank)} onClick={()=>onNavigate('Banking',bank)}>Reconciliation</button>
       </nav>
       {reconciliationBank
-        ? <AccountsReconciliation records={records} projects={projects} heads={heads} bank={bank} setBank={setBank} request={request} onSaved={load} readOnly={readOnly} onNavigate={onNavigate}/>
-        : <BankingOverview records={records} today={today()} onNavigate={onNavigate}/>}
+        ? <AccountsReconciliation loading={!data} records={records} projects={projects} heads={heads} bank={bank} setBank={setBank} request={request} onSaved={load} readOnly={readOnly} onNavigate={onNavigate}/>
+        : <BankingOverview loading={!data} records={records} today={today()} onNavigate={onNavigate}/>}
     </>}
-    {page==='GST'&&<GstOverview records={records} today={today()} onRecord={readOnly||busy?null:period=>begin('gstFiling',{period})}/>}
+    {page==='GST'&&<GstOverview loading={!data} records={records} today={today()} onRecord={readOnly||busy?null:period=>begin('gstFiling',{period})}/>}
     
     {page==='Projects & Clients'&&<>
       <StudioHeading title="Projects & Clients" department="Accounts"/>
-      <ProjectBilling projects={projects} request={request} readOnly={readOnly} onSaved={(projectId,billing)=>setData(current=>({
+      <ProjectBilling loading={!data} projects={projects} request={request} readOnly={readOnly} onSaved={(projectId,billing)=>setData(current=>({
       ...current,
       projects:current.projects.map(project=>project.id===projectId?{...project,billing}:project)
     }))}/>
     </>}
     {page==='Payment Dashboard'&&<>
-      <PaymentDashboard projects={projects} milestones={milestones} receipts={receipts} invoices={records.filter(r=>['invoice','legacyInvoice'].includes(r.kind))} money={money}/>
+      <PaymentDashboard loading={!data} projects={projects} milestones={milestones} receipts={receipts} invoices={records.filter(r=>['invoice','legacyInvoice'].includes(r.kind))} money={money}/>
       <details className="payment-sheet-actions" open>
         <summary>Billing &amp; Payment Action Center</summary>
         <div style={{display:'flex',gap:10,margin:'12px 0'}}>
@@ -675,7 +681,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
       {(()=>{
         const query=coaQuery.trim().toLowerCase();
         const categories=new Map(['Income','Expense','Asset','Liability','Equity'].map(label=>[label,[]]));
-        for(const row of data.heads){
+        for(const row of accountData.heads){
           const type=row[1];
           const category=type==='Revenue'?'Income':type==='Direct expense'?'Expense':type;
           if(![category,...row].join(' ').toLowerCase().includes(query))continue;
@@ -702,23 +708,32 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
 
     {page==='Party Ledger'&&(()=>{
       const sortedParties=[...parties].sort(([,a],[,b])=>a.name.localeCompare(b.name));
-      const activeKey=parties.has(partyKey)?partyKey:sortedParties[0]?.[0];
+      const query=partyQuery.trim().toLowerCase();
+      const visibleParties=sortedParties.filter(([,party])=>party.name.toLowerCase().includes(query));
+      const activeKey=visibleParties.some(([key])=>key===partyKey)?partyKey:visibleParties[0]?.[0];
       const party=parties.get(activeKey);
       return <>
       <StudioHeading title="Party Ledger" department="Accounts"/>
       <div className="invoice-workspace party-ledger-workspace">
       <aside className="invoice-list" aria-label="Party list">
         <header><h2>Parties</h2></header>
-        {sortedParties.map(([key,party])=>
+        <input type="search" className="invoice-search" aria-label="Search parties" placeholder="Search by party name…" value={partyQuery} onChange={event=>setPartyQuery(event.target.value)}/>
+        {visibleParties.map(([key,party])=>
           <button type="button" className="invoice-list-row" key={key} aria-current={activeKey===key?'true':undefined} onClick={()=>setPartyKey(key)}>
             <strong>{party.name}</strong>
           </button>
         )}
-        {!parties.size&&<p>No posted transactions have a client or beneficiary yet.</p>}
+        {data&&!visibleParties.length&&<p className="party-ledger-content">{parties.size?"No parties match your search.":"No posted transactions have a client or beneficiary yet."}</p>}
       </aside>
       <section className="invoice-detail" aria-label="Selected party ledger">
         {party?<>
-            <header className="invoice-detail-heading"><h2>{party.name}</h2></header>
+            <header className="invoice-detail-heading"><div>
+              <h2>{party.name}</h2>
+              <p className="party-ledger-subtitle">
+                {party.entries.length} {party.entries.length===1?'ledger entry':'ledger entries'}
+                {party.entries.at(-1)?.record.date&&<> · Last activity <time dateTime={party.entries.at(-1).record.date}>{party.entries.at(-1).record.date}</time></>}
+              </p>
+            </div></header>
             <div className="party-ledger-content">
               <dl className="party-ledger-totals">
                 <div><dt>Total debit</dt><dd>{money(party.debit)}</dd></div>
@@ -729,7 +744,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
                 key:record.id,cells:[record.date,record.reference||record.number||'—',record.projectName||'—',record.description||record.documentType||record.kind,debit?money(debit):'—',credit?money(credit):'—',money(balance)]
               }))}/>
             </div>
-        </>:<p className="party-ledger-content">No party ledgers to display.</p>}
+        </>:data&&<p className="party-ledger-content">{parties.size?"Try a different party name.":"No party ledgers to display."}</p>}
       </section>
       </div>
       </>;
@@ -793,7 +808,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
         return [bank,debit,credit,debit-credit];
       });
       const debitTotal=total(report,'debit'),creditTotal=total(report,'credit');
-      const exportAction=(filename,headers,rows)=><button type="button" onClick={()=>exportCsv(filename,headers,rows)}>
+      const exportAction=(filename,headers,rows)=><button type="button" disabled={!data} onClick={()=>exportCsv(filename,headers,rows)}>
         <Download size={13} aria-hidden="true"/> Export CSV
       </button>;
       const amountRows=rows=>rows.map(([label,value])=>({cells:[label,money(value)],status:['Gross profit','Net profit','Closing cash'].includes(label)?'report-total':undefined}));
@@ -824,7 +839,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
           <Table columns={['Measure','Amount']} rows={amountRows(profitRows)}/>
         </>}
 
-        {reportView==='Balance Sheet'&&<BalanceSheet asOf={asOf||today()} heads={heads} records={records} money={money} exportCsv={exportCsv}/>}
+        {reportView==='Balance Sheet'&&<BalanceSheet asOf={asOf||today()} heads={heads} records={records} money={money} exportCsv={exportCsv} loading={!data}/>}
 
         {reportView==='Cash Flow'&&<>
           <header className="financial-report-section-head"><h2>Cash Flow</h2>{exportAction('Cash_Flow.csv',['Measure','Amount'],[...cashRows,...Object.entries(cashFlows)].map(([label,value])=>[label,value/100]))}</header>
@@ -844,7 +859,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
           </header>
           <div className="financial-report-toolbar accounts-toolbar">
             <p role="status" style={{color:debitTotal===creditTotal?'#2e7d32':'#a52820'}}>
-              {debitTotal===creditTotal?'Balanced':'Discrepancy detected'} · Debit {money(debitTotal)} · Credit {money(creditTotal)}
+              {!data?'—':debitTotal===creditTotal?'Balanced':'Discrepancy detected'} · Debit {money(debitTotal)} · Credit {money(creditTotal)}
             </p>
             <label><input type="checkbox" checked={showZeroBalances} onChange={e=>setShowZeroBalances(e.target.checked)}/> Show zero balances</label>
           </div>
@@ -901,5 +916,5 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
         </div>
       </article>
     </section>}
-  </section>;
+  </section></AccountsDataReady.Provider>;
 }

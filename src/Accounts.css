@@ -355,6 +355,7 @@
 
 .accounts .party-ledger-workspace .invoice-list-row{padding:9px 14px;font-size:13px}
 .party-ledger-workspace .invoice-detail-heading{border-top:2px solid var(--studio-accent)}
+.party-ledger-subtitle{margin:4px 0 0;color:#506476;font-size:12px}
 .party-ledger-totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin:0 0 12px}
 .party-ledger-totals>div{background:#fff;border:1px solid var(--studio-rule);padding:8px 10px}
 .party-ledger-totals dt{font-size:12px;color:#506476}

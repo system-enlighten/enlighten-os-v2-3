@@ -1,7 +1,7 @@
 import React from 'react';
 import {Download} from 'lucide-react';
 
-export default function BalanceSheet({asOf, heads, records, money, exportCsv}) {
+export default function BalanceSheet({asOf, heads, records, money, exportCsv, loading=false}) {
   const [year, month, day] = asOf.split('-').map(Number);
   const previousMonthEnd = new Date(Date.UTC(year - 1, month, 0)).getUTCDate();
   const comparison = [year - 1, String(month).padStart(2, '0'), String(Math.min(day, previousMonthEnd)).padStart(2, '0')].join('-');
@@ -58,7 +58,7 @@ export default function BalanceSheet({asOf, heads, records, money, exportCsv}) {
       <span>Enlighten Design Co.</span>
       <h2 id="accounts-balance-heading">Balance Sheet</h2>
       <span>Amounts in INR</span>
-      <button type="button" onClick={download}><Download size={13} aria-hidden="true"/> Export CSV</button>
+      <button type="button" onClick={download} disabled={loading}><Download size={13} aria-hidden="true"/> Export CSV</button>
     </header>
     <div className="accounts-scroll">
       <table>

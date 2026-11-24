@@ -61,7 +61,7 @@ function ProjectBillingRow({project, readOnly, savingId, saveProfile}) {
   </tr>;
 }
 
-export function ProjectBilling({projects, request, onSaved, readOnly}) {
+export function ProjectBilling({loading=false,projects, request, onSaved, readOnly}) {
   const saving = useRef(false);
   const [savingId, setSavingId] = useState('');
   const [message, setMessage] = useState('');
@@ -89,9 +89,9 @@ export function ProjectBilling({projects, request, onSaved, readOnly}) {
 
   return <section>
     <dl className="project-billing-summary">
-      <div><dt>Total projects</dt><dd>{projects.length}</dd></div>
-      <div><dt>Signed contracts</dt><dd>{signedProjects.length}</dd></div>
-      <div><dt>Total signed contract value</dt><dd>{money(signedValue)}</dd></div>
+      <div><dt>Total projects</dt><dd>{loading?'—':projects.length}</dd></div>
+      <div><dt>Signed contracts</dt><dd>{loading?'—':signedProjects.length}</dd></div>
+      <div><dt>Total signed contract value</dt><dd>{loading?'—':money(signedValue)}</dd></div>
     </dl>
     <div className="project-billing-scroll" tabIndex={0} role="region" aria-label="Project billing details">
       <table className="project-billing-table">
@@ -101,7 +101,7 @@ export function ProjectBilling({projects, request, onSaved, readOnly}) {
         </tr></thead>
         <tbody>
           {projects.map(project => <ProjectBillingRow key={project.id} {...{project, readOnly, savingId, saveProfile}}/>)}
-          {!projects.length && <tr><td colSpan={readOnly ? 12 : 13}>No projects found.</td></tr>}
+          {!loading && !projects.length && <tr><td colSpan={readOnly ? 12 : 13}>No projects found.</td></tr>}
         </tbody>
       </table>
     </div>

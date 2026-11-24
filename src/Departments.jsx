@@ -46,7 +46,7 @@ export function DepartmentWorkspace({id,name=departments[id][0],user,request:api
  const [page,setPage]=useState('Home'),[log,setLog]=useState(null),[team,setTeam]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(false);
  const isAccounts=id==='accounts';
  const activityPage=isAccounts?'accounts:'+page:undefined;
- const request=useCallback((action,payload,method,timeout)=>apiRequest(action,payload,method,timeout,activityPage),[apiRequest,activityPage]);
+ const request=useCallback((action,payload,method,timeout)=>apiRequest(action,payload,method,timeout,action==='getAccounts'&&isAccounts?'accounts:shared':activityPage),[apiRequest,activityPage,isAccounts]);
  const load=async(action)=>{setBusy(true);setError('');try{const result=await request(action?'saveStudioDay':'getStudioDay',action?{action}:{},'POST');setLog(action?{...result,missedDay:log?.missedDay}:result);if(action)window.dispatchEvent(new Event('enlighten-attendance-change'));}catch(e){setError(e.message);}finally{setBusy(false);}};
  useEffect(()=>{if(page==='Home')load();},[id,page]);
  useEffect(()=>{if(page==='Team & Tasks'||page==='Home'&&assigned){let live=true;setTeamBusy(true);request('departmentTeam',{department:id},'POST').then(result=>{if(live)setTeam(result);}).catch(e=>{if(live)setError(e.message);}).finally(()=>{if(live)setTeamBusy(false);});return()=>{live=false;};}},[page,id,assigned,request]);
@@ -59,7 +59,7 @@ export function DepartmentWorkspace({id,name=departments[id][0],user,request:api
    <header className="studio-home-intro">
      <StudioHeadingText title="Accounts overview" department="Accounts"/>
      <div className="studio-home-attendance-stack"><section aria-label="Attendance" className="studio-home-attendance">
-   <div><p className="studio-home-kicker">Attendance</p><strong>{!log?'Attendance unavailable':log.checkOut?'Checked out':log.breakStart?'On break':log.checkIn?'Checked in':'Ready to check in'}</strong>{log?.checkIn&&<small>{fmt(log.checkIn)}{log.checkOut?' – '+fmt(log.checkOut):' · IST'}</small>}</div>
+   <div><p className="studio-home-kicker">Attendance</p><strong>{!log?'—':log.checkOut?'Checked out':log.breakStart?'On break':log.checkIn?'Checked in':'Ready to check in'}</strong>{log?.checkIn&&<small>{fmt(log.checkIn)}{log.checkOut?' – '+fmt(log.checkOut):' · IST'}</small>}</div>
    <div style={{display:'grid',gap:6}}>
      {log?.checkIn&&!log.checkOut&&<button type="button" style={buttonStyle} disabled={busy} onClick={()=>load(log.breakStart?'resume':'break')}>{log.breakStart?'Resume work':'Pause for break'}</button>}
      <button type="button" className="studio-home-check" disabled={!log||busy||!!log.checkOut} onClick={()=>load(log.checkIn?'out':'in')}>{busy?'Saving…':log?.checkOut?'Day closed':log?.checkIn?'Check out':'Check in'}</button>
@@ -75,7 +75,7 @@ export function DepartmentWorkspace({id,name=departments[id][0],user,request:api
    </header>
    {assigned&&<section id="accounts-assigned-requests" className="studio-home-card">
      <h2>Assigned requests</h2>
-     {teamBusy?<p role="status">Loading assigned requests…</p>:team?.tasks?.length?team.tasks.map((task,index)=><div key={task.id||index} className="studio-home-task-row"><div><strong>{task.title}</strong><p>{[task.assigneeName,task.status].filter(Boolean).join(' · ')}</p></div></div>):<p>No assigned requests to show.</p>}
+     {team?.tasks?.length?team.tasks.map((task,index)=><div key={task.id||index} className="studio-home-task-row"><div><strong>{task.title}</strong><p>{[task.assigneeName,task.status].filter(Boolean).join(' · ')}</p></div></div>):team&&!teamBusy&&<p>No assigned requests to show.</p>}
    </section>}
  </div>}
  {page==='Home'&&!isAccounts&&<section className="studio-home-attendance"><div><strong>Attendance</strong><p>{!log?'Loading attendance…':log.checkOut?'Checked out':log.breakStart?'On break':log.checkIn?'Checked in':'Ready to check in'}</p>{log?.checkIn&&<p>{fmt(log.checkIn)}{log.checkOut?' – '+fmt(log.checkOut):''} · IST</p>}</div><div>{log?.checkIn&&!log.checkOut&&<button style={buttonStyle} disabled={busy} onClick={()=>load(log.breakStart?'resume':'break')}>{log.breakStart?'Resume work':'Pause for break'}</button>} <button style={buttonStyle} disabled={!log||busy||!!log.checkOut} onClick={()=>load(log.checkIn?'out':'in')}>{log?.checkOut?'Day closed':log?.checkIn?'Check out':'Check in'}</button></div></section>}
@@ -109,12 +109,11 @@ export function DepartmentWorkspace({id,name=departments[id][0],user,request:api
   </section>
  ))}
  {page==='Team & Tasks'&&<section className="studio-home-card">
-  {!team&&!error&&<p>Loading department team…</p>}
-  {team&&<>
+
     <h2>{isAccounts?'Accounts Team Members':'People'}</h2>
-    {team.people.length?team.people.map(p=><p key={p.id}><strong>{p.name}</strong> · {p.role||'Team member'}</p>):<p>No employees assigned to this department.</p>}
+    {team?.people.length?team.people.map(p=><p key={p.id}><strong>{p.name}</strong> · {p.role||'Team member'}</p>):team&&<p>No employees assigned to this department.</p>}
     <h2 style={{marginTop:20}}>{isAccounts?'Department Recurring Responsibilities':'Tasks'}</h2>
-    {team.tasks.length?team.tasks.map(t=><p key={t.id}>{t.title} · {t.status}</p>):(
+    {team?.tasks.length?team.tasks.map(t=><p key={t.id}>{t.title} · {t.status}</p>):(
       isAccounts ? (
         <div style={{fontSize:13,lineHeight:1.8}}>
           <p>✓ <strong>Client Billing:</strong> Issue tax invoices on milestone achievements &amp; track payment collections.</p>
@@ -122,9 +121,8 @@ export function DepartmentWorkspace({id,name=departments[id][0],user,request:api
           <p>✓ <strong>Monthly Payroll:</strong> Load attendance, compute allowances/deductions &amp; disburse salaries.</p>
           <p>✓ <strong>GST Compliance:</strong> Calculate quarterly CMP-08 composition tax &amp; file annual GSTR-4.</p>
         </div>
-      ) : <p>No tasks to show.</p>
+      ) : team&&<p>No tasks to show.</p>
     )}
-  </>}
  </section>}
  {id==='legal'&&page==='Contracts'&&<LegalContracts request={request} user={user}/>}
  {!['Home','Performance','Timeline','Team & Tasks'].includes(page)&&id!=='accounts'&&!(id==='legal'&&page==='Contracts')&&<p>This section is reserved for the department’s next workflow update.</p>}

@@ -4,7 +4,7 @@ import StudioHeading from './StudioHeading.jsx';
 
 const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-export default function PaymentDashboard({ projects = [], milestones = [], receipts = [], invoices = [], money }){
+export default function PaymentDashboard({ projects = [], milestones = [], receipts = [], invoices = [], loading = false, money }){
   const [query, setQuery] = useState('');
   const [selectedFY, setSelectedFY] = useState('all');
   const [activeProjectId, setActiveProjectId] = useState(null);
@@ -133,7 +133,7 @@ export default function PaymentDashboard({ projects = [], milestones = [], recei
           <strong className="accounts-balance" style={{ margin: '4px 0', fontSize: 20 }}>
             {money(overall.commitment)}
           </strong>
-          <span style={{ fontSize: 12, color: '#486073' }}>Across {overall.count} projects</span>
+          <span style={{ fontSize: 12, color: '#486073' }}>{!loading&&`Across ${overall.count} projects`}</span>
         </div>
 
         <div className="accounts-overview-card payment-kpi">
@@ -227,7 +227,7 @@ export default function PaymentDashboard({ projects = [], milestones = [], recei
                 </tr>
               );
             })}
-            {!visibleRows.length && (
+            {!loading && !visibleRows.length && (
               <tr>
                 <td colSpan={headings.length + visibleMonths.length} style={{ textAlign: 'center' }}>
                   No projects matching your search.

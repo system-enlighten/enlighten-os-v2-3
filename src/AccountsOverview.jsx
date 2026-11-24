@@ -130,16 +130,17 @@ export function AccountsDashboard({data,today,onNavigate,loading=false}){
         <ActivityChart loading={loading} rows={income} labels={['Income','Expenses']}/>
       </Card>
       <Card title="Top Expenses">
-        {expenses.length?<ul className="accounts-overview-list">{expenses.map(row=><li key={row.head}><span>{row.head}</span><strong>{display(row.value)}</strong></li>)}</ul>:<p>{loading?'Loading expenses…':'No expenses recorded for this fiscal year.'}</p>}
+        {expenses.length?<ul className="accounts-overview-list">{expenses.map(row=><li key={row.head}><span>{row.head}</span><strong>{display(row.value)}</strong></li>)}</ul>:<p>{loading?'—':'No expenses recorded for this fiscal year.'}</p>}
       </Card>
       <Card title="Projects" action={<button onClick={()=>onNavigate('Payment Dashboard')}>Project balances <ArrowUpRight size={13}/></button>}>
-        {activeProjects.length?<ul className="accounts-overview-list">{activeProjects.slice(0,6).map(project=><li key={project.id}><span>{project.name}</span><strong>{display(sum(invoices.filter(r=>r.projectId===project.id),outstanding))}</strong></li>)}</ul>:<p>{loading?'Loading project balances…':'No projects with posted activity this fiscal year.'}</p>}
+        {activeProjects.length?<ul className="accounts-overview-list">{activeProjects.slice(0,6).map(project=><li key={project.id}><span>{project.name}</span><strong>{display(sum(invoices.filter(r=>r.projectId===project.id),outstanding))}</strong></li>)}</ul>:<p>{loading?'—':'No projects with posted activity this fiscal year.'}</p>}
       </Card>
     </div>
   </div>;
 }
 
-export function BankingOverview({records,today,onNavigate}){
+export function BankingOverview({records,today,onNavigate,loading=false}){
+  const display=value=>loading?'—':amount(value);
   const [bank,setBank]=useState('all'),[days,setDays]=useState(30),[chart,setChart]=useState(false);
   const accounts=bank==='all'?bankAccounts:[bank];
   const posted=records.filter(r=>r.date<=today);
@@ -166,19 +167,19 @@ export function BankingOverview({records,today,onNavigate}){
       <button type="button" aria-expanded={chart} onClick={()=>setChart(!chart)}><TrendingUp size={15}/> {chart?'Hide Chart':'Show Chart'}</button>
     </div>}>
       <div className="accounts-bank-totals">
-        {accounts.includes('Cash')&&<div><Banknote/><span>Cash in Hand<strong>{amount(balance('Cash'))}</strong></span></div>}
-        {accounts.some(key=>key!=='Cash')&&<div><Landmark/><span>Bank balance<strong>{amount(sum(accounts.filter(key=>key!=='Cash'),balance))}</strong></span></div>}
+        {accounts.includes('Cash')&&<div><Banknote/><span>Cash in Hand<strong>{display(balance('Cash'))}</strong></span></div>}
+        {accounts.some(key=>key!=='Cash')&&<div><Landmark/><span>Bank balance<strong>{display(sum(accounts.filter(key=>key!=='Cash'),balance))}</strong></span></div>}
       </div>
       {chart&&<label className="banking-chart-period"><CalendarDays size={14}/> <select aria-label="Chart period" value={days} onChange={e=>setDays(Number(e.target.value))}><option value="30">Last 30 days</option><option value="60">Last 60 days</option></select></label>}
-      {chart&&<ActivityChart rows={buckets} labels={['Money in','Money out']}/>}
+      {chart&&<ActivityChart loading={loading} rows={buckets} labels={['Money in','Money out']}/>}
     </Card>
     <h2>Active Accounts</h2>
     <div className="accounts-scroll"><table><thead><tr><th>Account details</th><th>Pending statement lines</th><th>Verification</th><th>Amount in Enlighten OS</th><th>Action</th></tr></thead>
       <tbody>{accounts.map(key=><tr key={key}>
         <td>{key==='Cash'?<Banknote size={17}/>:<Landmark size={17}/>} {bankLabel[key]}</td>
-        <td>{records.filter(row=>row.kind==='statement'&&row.bank===key&&!statementReconciliation(row,records)).length}</td>
+        <td>{loading?'—':records.filter(row=>row.kind==='statement'&&row.bank===key&&!statementReconciliation(row,records)).length}</td>
         <td>{key==='Cash'?'Physical cash count':'Statement reconciliation'}</td>
-        <td><strong>{amount(balance(key))}</strong></td>
+        <td><strong>{display(balance(key))}</strong></td>
         <td>
           {key==='Cash'?
             <button onClick={()=>onNavigate('Debit / Credit')}>Cash Book</button>:
@@ -190,7 +191,8 @@ export function BankingOverview({records,today,onNavigate}){
   </div>;
 }
 
-export function GstOverview({records,today,onRecord}){
+export function GstOverview({records,today,onRecord,loading=false}){
+  const display=value=>loading?'—':amount(value);
   const [period,setPeriod]=useState(today.slice(0,7)),[history,setHistory]=useState(false);
   const entries=records.filter(r=>r.kind==='gstFiling').sort((a,b)=>b.period.localeCompare(a.period));
   const rows=history?entries:entries.filter(r=>r.period===period);
@@ -223,7 +225,7 @@ export function GstOverview({records,today,onRecord}){
             <div key={form} style={{borderColor:isDone?'#2e7d32':undefined}}>
               <strong>{form}</strong>
               <small style={{color:isDone?'#2e7d32':'#c62828',fontWeight:500}}>
-                {isDone?'✓ Recorded for period':'Pending / No record'}
+                {loading?'—':isDone?'✓ Recorded for period':'Pending / No record'}
               </small>
             </div>
           );
@@ -244,27 +246,27 @@ export function GstOverview({records,today,onRecord}){
 
       <h3>{history?'Filing history':monthLabel(period)+' · Period records'}</h3>
       <div className="accounts-scroll"><table><thead><tr><th>Period</th><th>Form</th><th>Recorded date</th><th>Reference</th></tr></thead>
-        <tbody>{rows.length?rows.map(row=><tr key={row.id}><td>{row.period}</td><td>{row.returnType}</td><td>{row.date}</td><td>{row.reference}</td></tr>):<tr><td colSpan={4}>No filing records yet for this period.</td></tr>}</tbody>
+        <tbody>{rows.length?rows.map(row=><tr key={row.id}><td>{row.period}</td><td>{row.returnType}</td><td>{row.date}</td><td>{row.reference}</td></tr>):<tr><td colSpan={4}>{!loading&&'No filing records yet for this period.'}</td></tr>}</tbody>
       </table></div>
     </Card>
 
     <Card title="Period Turnover &amp; CMP-08 Estimate">
-      <p><ChartNoAxesCombined size={17}/> Posted Tax Invoices: <strong>{entriesForPeriod.length}</strong></p>
-      <p>Gross Period Turnover: <strong>{amount(periodTotal)}</strong></p>
+      <p><ChartNoAxesCombined size={17}/> Posted Tax Invoices: <strong>{loading?'—':entriesForPeriod.length}</strong></p>
+      <p>Gross Period Turnover: <strong>{display(periodTotal)}</strong></p>
       
       <div style={{background:'#fafafa',border:'1px solid #ddd',padding:12,margin:'12px 0',borderRadius:4}}>
         <strong style={{fontSize:13,display:'block',marginBottom:6}}>Estimated CMP-08 Tax (6%):</strong>
         <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:4}}>
           <span>CGST (3%):</span>
-          <strong>{amount(estCgst)}</strong>
+          <strong>{display(estCgst)}</strong>
         </div>
         <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:4}}>
           <span>SGST (3%):</span>
-          <strong>{amount(estSgst)}</strong>
+          <strong>{display(estSgst)}</strong>
         </div>
         <div style={{display:'flex',justifyContent:'space-between',fontSize:13,paddingTop:4,borderTop:'1px dashed #ccc'}}>
           <span>Total Payable:</span>
-          <strong style={{color:'#c62828'}}>{amount(estTax)}</strong>
+          <strong style={{color:'#c62828'}}>{display(estTax)}</strong>
         </div>
       </div>
 

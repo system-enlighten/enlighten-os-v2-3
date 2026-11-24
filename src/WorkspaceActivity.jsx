@@ -72,7 +72,7 @@ const labels = {
 
 export default function WorkspaceActivity({page}) {
   const {operations = [], recent} = useSyncExternalStore(subscribe, () => snapshot);
-  const pageOperations = operations.filter(item => item.page === page);
+  const pageOperations = operations.filter(item => item.page === page || (page?.startsWith('accounts:') && item.kind === 'load' && item.page === 'accounts:shared'));
   const write = pageOperations.find(item => item.kind === 'upload')
     || pageOperations.find(item => item.kind === 'save');
   const loading = pageOperations.some(item => item.kind === 'load');
