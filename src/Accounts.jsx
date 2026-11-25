@@ -300,6 +300,9 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
   const [coaQuery,setCoaQuery]=useState('');
   const [headDraft,setHeadDraft]=useState(null),[partyKey,setPartyKey]=useState('');
   const [partyQuery,setPartyQuery]=useState('');
+  const [ledgerFrom,setLedgerFrom]=useState(''),[ledgerTo,setLedgerTo]=useState('');
+  const [ledgerPeriod,setLedgerPeriod]=useState('all');
+  const ledgerPrintRef=useRef(null);
   const parties=useMemo(()=>partyLedger(page==='Party Ledger'?data?.records||[]:[]),[data,page]);
   const [bank,setBank]=useState('IDFC');
   const [reportView,setReportView]=useState('Overview');
@@ -712,6 +715,33 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
       const visibleParties=sortedParties.filter(([,party])=>party.name.toLowerCase().includes(query));
       const activeKey=visibleParties.some(([key])=>key===partyKey)?partyKey:visibleParties[0]?.[0];
       const party=parties.get(activeKey);
+      const matches=party?projects.filter(p=>String(p.billing?.client||p.client||'').trim().replace(/\s+/g,' ').toLowerCase()===activeKey):[];
+      const profiles=matches.map(p=>p.billing).filter(Boolean);
+      const profile=profiles.length&&profiles.every(p=>['address','gstin','contact','phone','contactEmail'].every(k=>(p[k]||'')===(profiles[0][k]||'')))?profiles[0]:{};
+      const entries=party?.entries.filter(({record})=>(!ledgerFrom||record.date>=ledgerFrom)&&(!ledgerTo||record.date<=ledgerTo))||[];
+      const opening=ledgerFrom?(party?.entries.filter(({record})=>record.date<ledgerFrom).at(-1)?.balance||0):0;
+      const ledger={party,profile,from:ledgerFrom,to:ledgerTo,entries,opening};
+      const fiscalYear=Number(today().slice(0,4))-(today().slice(5,7)<'04'?1:0);
+      const firstYear=party?.entries[0]?.record.date;
+      const earliest=firstYear?Number(firstYear.slice(0,4))-(firstYear.slice(5,7)<'04'?1:0):fiscalYear;
+      const years=Array.from({length:Math.max(1,fiscalYear-earliest+1)},(_,i)=>fiscalYear-i);
+      const choosePeriod=value=>{
+        setLedgerPeriod(value);
+        if(value==='custom')return;
+        setLedgerFrom(value==='all'?'':value+'-04-01');
+        setLedgerTo(value==='all'?'':(Number(value)+1)+'-03-31');
+      };
+      const exportLedger=()=>{
+        const dr=entries.reduce((n,r)=>n+r.debit,0),cr=entries.reduce((n,r)=>n+r.credit,0);
+        const balance=opening+dr-cr;
+        exportCsv(party.name.replace(/[^a-z0-9]+/gi,'_')+'_Ledger.csv',['Date','Particulars','Voucher type','Voucher no.','Debit (INR)','Credit (INR)','Closing balance (INR)'],[
+          [ledgerFrom,'Opening balance','','',Math.max(opening,0)/100,Math.max(-opening,0)/100,opening/100],
+          ...entries.map(({record,debit,credit,balance})=>[record.date,[record.head,record.description,record.projectName].filter(Boolean).join(' · '),record.documentType||record.kind,record.reference||record.number||'',debit/100,credit/100,balance/100]),
+          ['','Period subtotal','','',dr/100,cr/100,(dr-cr)/100],
+          ['','Total including opening','','',(dr+Math.max(opening,0))/100,(cr+Math.max(-opening,0))/100,balance/100],
+          [ledgerTo,'Closing balance','','','','',balance/100]
+        ]);
+      };
       return <>
       <StudioHeading title="Party Ledger" department="Accounts"/>
       <div className="invoice-workspace party-ledger-workspace">
@@ -734,15 +764,17 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
                 {party.entries.at(-1)?.record.date&&<> · Last activity <time dateTime={party.entries.at(-1).record.date}>{party.entries.at(-1).record.date}</time></>}
               </p>
             </div></header>
+            <div className="invoice-toolbar party-ledger-controls">
+              <label>Period <select value={ledgerPeriod} onChange={e=>choosePeriod(e.target.value)}>
+                <option value="all">All dates</option>{years.map(y=><option key={y} value={y}>FY {y}–{String(y+1).slice(-2)}</option>)}<option value="custom">Custom dates</option>
+              </select></label>
+              <label>From <input type="date" value={ledgerFrom} max={ledgerTo||undefined} onChange={e=>{setLedgerPeriod('custom');setLedgerFrom(e.target.value);}}/></label>
+              <label>To <input type="date" value={ledgerTo} min={ledgerFrom||undefined} onChange={e=>{setLedgerPeriod('custom');setLedgerTo(e.target.value);}}/></label>
+              <button type="button" disabled={ledgerFrom&&ledgerTo&&ledgerFrom>ledgerTo} onClick={exportLedger}><Download size={13}/> Export CSV</button>
+              <button type="button" disabled={ledgerFrom&&ledgerTo&&ledgerFrom>ledgerTo} onClick={()=>printMarkup(ledgerPrintRef.current,party.name+' - Ledger')}><Printer size={13}/> Print / Save PDF</button>
+            </div>
             <div className="party-ledger-content">
-              <dl className="party-ledger-totals">
-                <div><dt>Total debit</dt><dd>{money(party.debit)}</dd></div>
-                <div><dt>Total credit</dt><dd>{money(party.credit)}</dd></div>
-                <div><dt>Closing balance</dt><dd>{money(party.debit-party.credit)}</dd></div>
-              </dl>
-              <Table columns={['Date','Reference','Project','Description','Debit','Credit','Running balance']} rows={party.entries.map(({record,debit,credit,balance})=>({
-                key:record.id,cells:[record.date,record.reference||record.number||'—',record.projectName||'—',record.description||record.documentType||record.kind,debit?money(debit):'—',credit?money(credit):'—',money(balance)]
-              }))}/>
+              {ledgerFrom&&ledgerTo&&ledgerFrom>ledgerTo?<p role="alert">Choose an end date on or after the start date.</p>:<PagesInvoice invoice={{}} ledger={ledger} printRef={ledgerPrintRef}/>}
             </div>
         </>:data&&<p className="party-ledger-content">{parties.size?"Try a different party name.":"No party ledgers to display."}</p>}
       </section>

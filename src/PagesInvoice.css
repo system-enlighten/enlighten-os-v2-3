@@ -28,3 +28,18 @@ footer{margin-left:-4pt;margin-top:22pt;font:10pt/12pt PagesLight;break-inside:a
 @media print{.pages-paper{transform:none!important;width:595.28pt;min-height:841.89pt}thead{display:table-header-group}.service,.sum{break-inside:avoid}}
 
 .service td:nth-child(3),.service td:nth-child(6),.service td:nth-child(7){text-align:right;padding-right:4pt}
+
+.ledger-paper{padding:28pt 22pt 32pt;overflow:visible}
+.ledger-paper .brand{position:static;width:285pt;height:64pt;margin:auto}
+.ledger-paper .brand-rule{position:static;margin:3pt 0 8pt}
+.ledger-paper .issuer{position:static;margin:0 auto 20pt}
+.ledger-paper h1{position:static;margin:0 0 16pt}
+.ledger-party-details{display:grid;grid-template-columns:1fr 1fr;gap:12pt;margin-bottom:14pt;font:9pt/12pt PagesRegular;overflow-wrap:anywhere}
+.ledger-main{margin:0}
+.ledger-main table{width:100%;font:8pt/10pt PagesRegular}
+.ledger-main th{height:auto;font:8pt/10pt PagesBold;padding:5pt 3pt}
+.ledger-main td{padding:5pt 3pt}
+.ledger-main :is(td,th):nth-last-child(-n+3){text-align:right;font-variant-numeric:tabular-nums}
+.ledger-total td{font-family:PagesBold;background:#eee}
+.ledger-main tr{break-inside:avoid}
+@media print{.ledger-paper{min-height:0}}

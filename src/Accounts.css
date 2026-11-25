@@ -383,3 +383,5 @@
 .financial-report-metrics small{color:#24568a}
 .accounts .financial-reports :is(th,td){padding:6px 9px;font-size:12px}
 .financial-reports tr[data-status=report-total] td{background:#e7ede8;font-weight:700}
+.accounts .party-ledger-controls{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px}
+.accounts .party-ledger-controls input{font-size:12px;padding:4px 6px}
