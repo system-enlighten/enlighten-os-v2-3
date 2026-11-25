@@ -1,3 +1,4 @@
+import {recordingEnabled,recordProject} from '../server/project-recording.js';
 import {runPreviewProject, previewActions} from '../server/supabase-project-preview.js';
 import {readPaymentReceipt} from '../server/payment-receipts.js';
 import {draftProductFromSheet} from '../server/product-ai.js';
@@ -288,6 +289,10 @@ export default async function handler(req,res) {
     if(response.ok&&result.ok&&method==='GET'&&CACHEABLE_SERVER_READS.has(action)){
       if(SERVER_CACHE.size>=100)SERVER_CACHE.delete(SERVER_CACHE.keys().next().value);
       SERVER_CACHE.set(serverCacheKey,{time:Date.now(),result});
+    }
+    if(response.ok&&result.ok&&recordingEnabled(action,method)){
+      try{await recordProject(action,result.data);res.setHeader('X-Enlighten-Project-Recording','supabase-saved');}
+      catch(e){console.error('Supabase project recording failed',e.code||e.name);res.setHeader('X-Enlighten-Project-Recording','failed');result.recordingWarning='Project saved in Google Sheets but Supabase recording failed. Do not repeat creation; contact administrator.';}
     }
     return send(response.ok?200:502,result);
   }catch(_){return send(502,{ok:false,error:{message:'The backend request failed. Check the deployment configuration.'}});}
