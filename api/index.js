@@ -1,3 +1,4 @@
+import {Pool as MigrationPool} from 'pg';
 import {recordingEnabled,recordProject} from '../server/project-recording.js';
 import {runPreviewProject, previewActions} from '../server/supabase-project-preview.js';
 import {readPaymentReceipt} from '../server/payment-receipts.js';
@@ -103,6 +104,25 @@ function sameOrigin(req){
   if(!origin)return true; // Non-browser bearer clients; browser mutations include Origin.
   try{const u=new URL(origin);return u.host.toLowerCase()===requestHost(req)&&(u.protocol==='https:'||(u.protocol==='http:'&&localHost(u.host)));}catch{return false;}
 }
+// Preview-only direct read of imported project snapshot. Never enabled in production.
+let migrationPool;
+async function readImportedProjects(payload){
+  if(!migrationPool){
+    const u=new URL(process.env.SUPABASE_DATABASE_URL);
+    if(!['postgres:','postgresql:'].includes(u.protocol))throw Error('Invalid database URL');
+    for(const k of ['sslmode','sslcert','sslkey','sslrootcert'])u.searchParams.delete(k);
+    migrationPool=new MigrationPool({connectionString:u.toString(),ssl:{ca:process.env.SUPABASE_DB_CA.replace(/\\n/g,'\n').trim(),rejectUnauthorized:true},max:2,connectionTimeoutMillis:5000,statement_timeout:5000});
+    migrationPool.on('error',()=>console.error('Imported projects pool error'));
+  }
+  const {rows}=await migrationPool.query('SELECT cells FROM enlighten_import.projects ORDER BY source_row_number,import_id');
+  const data=rows.map(r=>r.cells);
+  const ids=new Set();
+  for(const r of data){if(!r||typeof r.projectId!=='string'||!r.projectId.trim()||ids.has(r.projectId))throw Error('Invalid or duplicate imported project ID');ids.add(r.projectId);}
+  if(!data.length)throw Error('Imported projects empty');
+  const activeOnly=payload.activeOnly===true||String(payload.activeOnly||'').toLowerCase()==='true';
+  return activeOnly?data.filter(r=>!['true','yes','1','y'].includes(String(r.completed??'').trim().toLowerCase())&&String(r.projectStatus||'').toLowerCase()!=='completed'):data;
+}
+
 export default async function handler(req,res) {
   res.setHeader('Cache-Control','no-store, max-age=0');
   const send=(status,data)=>res.status(status).json(data);
@@ -155,6 +175,12 @@ export default async function handler(req,res) {
     if(method==='POST'&&CACHE_CLEARING_MUTATIONS.has(action))SERVER_CACHE.clear();
     const payload=method==='GET'?Object.fromEntries(Object.entries(query).filter(([k])=>k!=='action')):body.payload||{};
     if(!payload||Array.isArray(payload)||typeof payload!=='object')return send(400,{ok:false,error:{message:'Invalid payload'}});
+    if(action==='listProjects'&&process.env.VERCEL_ENV==='preview'&&process.env.SUPABASE_IMPORTED_PROJECT_READS==='1'&&identity.email.toLowerCase()===String(process.env.MIGRATION_ADMIN_EMAIL||'').trim().toLowerCase()){
+      const auth=await fetchAppsScript(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(signRequest('getCurrentUser',{},identity,secret)),signal:AbortSignal.timeout(15000)});
+      const current=await auth.json();
+      if(!auth.ok||!current.ok||current.data?.authorized!==true||String(current.data.appAccess).toLowerCase()!=='admin')return send(403,{ok:false,error:{message:'Active system administrator required.'}});
+      try{const data=await readImportedProjects(payload);res.setHeader('X-Enlighten-Data-Source','supabase-import-snapshot');return send(200,{ok:true,data});}catch(e){console.error('Imported project read failed',e.code||e.name);return send(502,{ok:false,error:{message:'Supabase imported project read failed.'}});}
+    }
     if(previewActions.has(action)){
       if(process.env.VERCEL_ENV!=='preview'||process.env.SUPABASE_PROJECT_PREVIEW!=='1'||identity.email.toLowerCase()!==String(process.env.MIGRATION_ADMIN_EMAIL||'').trim().toLowerCase())return send(403,{ok:false,error:{message:'Migration administrator preview only.'}});
       const auth=await fetchAppsScript(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(signRequest('getCurrentUser',{},identity,secret)),signal:AbortSignal.timeout(15000)});
