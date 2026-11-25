@@ -1,3 +1,4 @@
+import {migratedActions,compareRead} from '../server/supabase-reads.js';
 import {readPaymentReceipt} from '../server/payment-receipts.js';
 import {draftProductFromSheet} from '../server/product-ai.js';
 import {runCadAction} from '../server/cad.js';
@@ -276,6 +277,19 @@ export default async function handler(req,res) {
       const ticket=createUploadTicket({sub:identity.sub,host:requestHost(req),metadata,sessionUrl:result.data?.sessionUrl},secret);
       if(!verifyUploadTicket(ticket,secret,identity,requestHost(req)))return send(502,{ok:false,error:{message:'Google Drive returned an invalid upload session.'}});
       result.data={uploadTicket:ticket,sessionUrl:result.data.sessionUrl,chunkBytes:UPLOAD_CHUNK_BYTES};
+    }
+    // Preview only: preserve live authorization and return Supabase data only on exact parity.
+    if(process.env.VERCEL_ENV==='preview' && process.env.SUPABASE_PARITY_READS==='1' && migratedActions.has(action) && response.ok && result.ok && Array.isArray(result.data) && identity.email.toLowerCase()===String(process.env.MIGRATION_ADMIN_EMAIL||'').trim().toLowerCase()){
+      try{
+        const auth=await fetchAppsScript(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(signRequest('getCurrentUser',{},identity,secret)),signal:AbortSignal.timeout(10000)});
+        const current=await auth.json();
+        if(auth.ok&&current.ok&&current.data?.authorized===true&&String(current.data.appAccess).toLowerCase()==='admin'){
+          const checked=await compareRead(action,payload,result.data);
+          res.setHeader('X-Enlighten-Data-Source',checked.match?'supabase-parity':'google-sheets-mismatch');
+          console.info('Supabase parity',{action,match:checked.match,count:checked.count});
+          if(checked.match)result.data=checked.data;
+        }
+      }catch(e){res.setHeader('X-Enlighten-Data-Source','google-sheets-check-failed');console.warn('Supabase parity check failed',{action,code:e.code||'CHECK'});}
     }
     if(response.ok&&result.ok&&method==='GET'&&CACHEABLE_SERVER_READS.has(action)){
       if(SERVER_CACHE.size>=100)SERVER_CACHE.delete(SERVER_CACHE.keys().next().value);
