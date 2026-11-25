@@ -1,3 +1,14 @@
+// Supabase migration session compatibility
+export { cookieValue };
+
+export function readAppSession(req, secret, audience) {
+  return verifyAppSession(
+    cookieValue(req),
+    secret,
+    audience,
+    requestHost(req)
+  );
+}
 import {readPaymentReceipt} from '../server/payment-receipts.js';
 import {draftProductFromSheet} from '../server/product-ai.js';
 import {runCadAction} from '../server/cad.js';
