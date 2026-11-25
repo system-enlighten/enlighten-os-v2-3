@@ -1,4 +1,4 @@
-import {migratedActions,compareRead} from '../server/supabase-reads.js';
+import {runPreviewProject, previewActions} from '../server/supabase-project-preview.js';
 import {readPaymentReceipt} from '../server/payment-receipts.js';
 import {draftProductFromSheet} from '../server/product-ai.js';
 import {runCadAction} from '../server/cad.js';
@@ -9,7 +9,7 @@ const SERVER_CACHE = new Map();
 const SERVER_CACHE_TTL_MS = 45 * 1000;
 const CACHEABLE_SERVER_READS = new Set(['listDepartments','listDesignations','listDrawingTaskMaster','getWorkflowCapabilities']);
 const CACHE_CLEARING_MUTATIONS = new Set(['deleteTechnicalFitting','saveTechnicalFitting','saveDepartment','deleteDepartment','saveDesignation','deleteDesignation','saveDrawingTaskMaster','saveMasterItem']);
-const READ_ACTIONS = new Set(['getProjectCloseout','getWorkflowWorkspace','getWorkflowDelegation','listEmailDrawingIntakes','getProjectOnboarding','getTechnicalWorkbook','listTechnicalTables','getTechnicalTable','listTechnicalFittings','cadStatus','cadViewerToken','getIssueDrawingContext','getDrawingPortal','getPortalDrawingChunk','getDirectoryDrawingAccess','listRecentDrawingRegister','getDriveLibraryConfig','listProjectDrive','listMomTasks','listExecutionVisits','authSession','getProjectWorkspace','listDrawingRegister','getProjectWorkflowTasks','listProjectRoles','listProjectPeople','listSitePunchIns','health','getCurrentUser','bootstrap','listProjects','listProjectContacts','listLineOfWork','getWorkflowCapabilities','listFloorZones','listTeamMembers','listDepartments','listDesignations','listDrawingTaskMaster','getDesignDashboard','getWIH']);
+const READ_ACTIONS = new Set(['supabaseProjectStatus','getProjectCloseout','getWorkflowWorkspace','getWorkflowDelegation','listEmailDrawingIntakes','getProjectOnboarding','getTechnicalWorkbook','listTechnicalTables','getTechnicalTable','listTechnicalFittings','cadStatus','cadViewerToken','getIssueDrawingContext','getDrawingPortal','getPortalDrawingChunk','getDirectoryDrawingAccess','listRecentDrawingRegister','getDriveLibraryConfig','listProjectDrive','listMomTasks','listExecutionVisits','authSession','getProjectWorkspace','listDrawingRegister','getProjectWorkflowTasks','listProjectRoles','listProjectPeople','listSitePunchIns','health','getCurrentUser','bootstrap','listProjects','listProjectContacts','listLineOfWork','getWorkflowCapabilities','listFloorZones','listTeamMembers','listDepartments','listDesignations','listDrawingTaskMaster','getDesignDashboard','getWIH']);
 export async function verifyGoogleIdentity(token, audience) {
   const ticket=await google.verifyIdToken({idToken:token,audience});
   const claims=ticket.getPayload();
@@ -154,6 +154,13 @@ export default async function handler(req,res) {
     if(method==='POST'&&CACHE_CLEARING_MUTATIONS.has(action))SERVER_CACHE.clear();
     const payload=method==='GET'?Object.fromEntries(Object.entries(query).filter(([k])=>k!=='action')):body.payload||{};
     if(!payload||Array.isArray(payload)||typeof payload!=='object')return send(400,{ok:false,error:{message:'Invalid payload'}});
+    if(previewActions.has(action)){
+      if(process.env.VERCEL_ENV!=='preview'||process.env.SUPABASE_PROJECT_PREVIEW!=='1'||identity.email.toLowerCase()!==String(process.env.MIGRATION_ADMIN_EMAIL||'').trim().toLowerCase())return send(403,{ok:false,error:{message:'Migration administrator preview only.'}});
+      const auth=await fetchAppsScript(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(signRequest('getCurrentUser',{},identity,secret)),signal:AbortSignal.timeout(15000)});
+      const current=await auth.json();
+      if(!auth.ok||!current.ok||current.data?.authorized!==true||String(current.data.appAccess).toLowerCase()!=='admin')return send(403,{ok:false,error:{message:'Active system administrator required.'}});
+      try{const data=await runPreviewProject(action,payload,current.data);res.setHeader('X-Enlighten-Data-Source','supabase-isolated');return send(200,{ok:true,data});}catch(e){return send(e.status||502,{ok:false,error:{message:e.status?e.message:'Supabase preview operation failed.'}});}
+    }
     if(action==='getCadSourceTransfer')return send(403,{ok:false,error:{message:'Internal CAD transfer action is unavailable to browser callers.'}});
     if(['cadPrepare','cadStatus','cadViewerToken'].includes(action)){
       if(action==='cadPrepare'&&method!=='POST')return send(405,{ok:false,error:{message:'Preparing CAD requires POST.'}});
@@ -277,19 +284,6 @@ export default async function handler(req,res) {
       const ticket=createUploadTicket({sub:identity.sub,host:requestHost(req),metadata,sessionUrl:result.data?.sessionUrl},secret);
       if(!verifyUploadTicket(ticket,secret,identity,requestHost(req)))return send(502,{ok:false,error:{message:'Google Drive returned an invalid upload session.'}});
       result.data={uploadTicket:ticket,sessionUrl:result.data.sessionUrl,chunkBytes:UPLOAD_CHUNK_BYTES};
-    }
-    // Preview only: preserve live authorization and return Supabase data only on exact parity.
-    if(process.env.VERCEL_ENV==='preview' && process.env.SUPABASE_PARITY_READS==='1' && migratedActions.has(action) && response.ok && result.ok && Array.isArray(result.data) && identity.email.toLowerCase()===String(process.env.MIGRATION_ADMIN_EMAIL||'').trim().toLowerCase()){
-      try{
-        const auth=await fetchAppsScript(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(signRequest('getCurrentUser',{},identity,secret)),signal:AbortSignal.timeout(10000)});
-        const current=await auth.json();
-        if(auth.ok&&current.ok&&current.data?.authorized===true&&String(current.data.appAccess).toLowerCase()==='admin'){
-          const checked=await compareRead(action,payload,result.data);
-          res.setHeader('X-Enlighten-Data-Source',checked.match?'supabase-parity':'google-sheets-mismatch');
-          console.info('Supabase parity',{action,match:checked.match,count:checked.count});
-          if(checked.match)result.data=checked.data;
-        }
-      }catch(e){res.setHeader('X-Enlighten-Data-Source','google-sheets-check-failed');console.warn('Supabase parity check failed',{action,code:e.code||'CHECK'});}
     }
     if(response.ok&&result.ok&&method==='GET'&&CACHEABLE_SERVER_READS.has(action)){
       if(SERVER_CACHE.size>=100)SERVER_CACHE.delete(SERVER_CACHE.keys().next().value);
