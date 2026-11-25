@@ -1,3 +1,4 @@
+import SalesCRM, {salesNavigation} from './SalesCRM.jsx';
 import Marketing, {marketingNavigation} from './Marketing.jsx';
 import {LegalContracts} from './ProjectBilling.jsx';
 import OfficePolicy from './OfficePolicy.jsx';
@@ -11,7 +12,7 @@ import {BookOpen, ChartNoAxesColumnIncreasing, ClipboardList, FileText, Landmark
 import PerformanceAttendance,{MissedCheckoutNotice} from './PerformanceAttendance.jsx';
 export const departments={
  studio:['Studio · Operations',[]],
- sales:['Business Development & Sales',['CRM','Design Sales']],
+ sales:['Business Development & Sales',salesNavigation.map(item=>item.id)],
  marketing:['Marketing',marketingNavigation.map(item=>item.id)],
  accounts:['Accounts',accountsPages],
  legal:['Legal & Contracts',['Contracts','Policies','Renewals']],
@@ -49,10 +50,15 @@ export function DepartmentWorkspace({id,name=departments[id][0],user,request:api
  const activityPage=isAccounts?'accounts:'+page:undefined;
  const request=useCallback((action,payload,method,timeout)=>apiRequest(action,payload,method,timeout,action==='getAccounts'&&isAccounts?'accounts:shared':activityPage),[apiRequest,activityPage,isAccounts]);
  const load=async(action)=>{setBusy(true);setError('');try{const result=await request(action?'saveStudioDay':'getStudioDay',action?{action}:{},'POST');setLog(action?{...result,missedDay:log?.missedDay}:result);if(action)window.dispatchEvent(new Event('enlighten-attendance-change'));}catch(e){setError(e.message);}finally{setBusy(false);}};
- useEffect(()=>{if(page==='Home'&&id!=='marketing')load();},[id,page]);
+ useEffect(()=>{if(page==='Home'&&!['marketing','sales'].includes(id))load();},[id,page]);
  useEffect(()=>{if(page==='Team & Tasks'||page==='Home'&&assigned){let live=true;setTeamBusy(true);request('departmentTeam',{department:id},'POST').then(result=>{if(live)setTeam(result);}).catch(e=>{if(live)setError(e.message);}).finally(()=>{if(live)setTeamBusy(false);});return()=>{live=false;};}},[page,id,assigned,request]);
  const go=(next,bank)=>{setError('');setAttendanceDay('');setReconciliationBank(bank);setPage(next);};
  const fmt=s=>new Date(s).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit'});
+ if(id==='sales')return <WorkspaceShell name={name} switchDepartment={switchDepartment} currentUser={user}
+   view={page==='Home'?'home':page} viewLabel={page} items={salesNavigation}
+   onChange={next=>go(next==='home'?'Home':next)}>
+   <SalesCRM page={page} onNavigate={go} request={request} user={user}/>
+ </WorkspaceShell>;
  if(id==='marketing')return <WorkspaceShell name={name} switchDepartment={switchDepartment} currentUser={user}
    view={page==='Home'?'home':page} viewLabel={page} items={marketingNavigation}
    onChange={next=>go(next==='home'?'Home':next)}>
