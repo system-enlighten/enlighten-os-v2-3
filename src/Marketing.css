@@ -1,0 +1,12 @@
+.marketing-heading,.marketing-reminder,.marketing-row-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.marketing-heading,.marketing-reminder{justify-content:space-between}
+.marketing-heading h1{margin:0}
+.marketing-overview{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:12px;margin:14px 0}
+.accounts .marketing-overview>button{display:grid;gap:4px;text-align:left;padding:12px;border-top:2px solid var(--studio-accent)}
+.marketing-overview>button strong{font-size:23px}
+.marketing-reminder{padding:5px 0;border-bottom:1px solid var(--studio-rule)}
+.accounts.marketing-workspace input[type=search],.marketing-workspace .accounts-toolbar input{font-size:12px}
+.accounts.marketing-workspace :is(.marketing-heading,.marketing-row-actions) button{color:#24568a;border-color:#24568a;background:#fff;font-size:12px}
+.accounts.marketing-workspace tbody th{background:#fff}
+.marketing-workspace td{overflow-wrap:anywhere}
+.marketing-workspace details p{white-space:pre-wrap}
