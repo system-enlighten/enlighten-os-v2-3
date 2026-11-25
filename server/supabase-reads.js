@@ -1,0 +1,15 @@
+import {Pool} from 'pg';
+export const migratedActions=new Set(['listProjects','listFloorZones','listProjectContacts']);
+const norm=v=>String(v||'').trim().toLowerCase();
+export function bool(v){if(typeof v==='boolean')return v;const s=norm(v);if(['true','yes','1','y'].includes(s))return true;if(['false','no','0','n',''].includes(s))return false;return Boolean(v);}
+export function shape(action,rows,p,people=[]){
+ if(action==='listProjects')return rows.filter(r=>!(p.activeOnly===true||String(p.activeOnly||'').toLowerCase()==='true')||(!bool(r.completed)&&String(r.projectStatus||'').toLowerCase()!=='completed'));
+ const id=String(p.projectId||'').trim();const filtered=rows.filter(r=>(!id||String(r.projectId||'')===id)&&bool(r.active));
+ if(action==='listFloorZones')return filtered.sort((a,b)=>Number(a.seq||0)-Number(b.seq||0));
+ return filtered.map(r=>{let matches=[];if(['principal lighting designer','lighting designer','lighting engineer','process coordinator'].includes(norm(r.role))){const staff=people.filter(x=>x.userId&&bool(x.active)&&/^(admin|user|viewer)$/i.test(String(x.appAccess||'User').trim()));const email=norm(r.email),id=String(r.staffUserId||'');matches=staff.filter(x=>email?norm(x.email)===email:id?String(x.userId)===id:norm(x.name)===norm(r.name));}return {...r,staffUserId:matches.length===1?matches[0].userId:''};});
+}
+const canonical=v=>Array.isArray(v)?v.map(canonical):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,canonical(v[k])])):v;
+export const equal=(a,b)=>JSON.stringify(canonical(a))===JSON.stringify(canonical(b));
+let pool;
+function connection(){if(pool)return pool;const u=new URL(process.env.SUPABASE_DATABASE_URL);if(!['postgres:','postgresql:'].includes(u.protocol))throw Error('Invalid database URL');for(const k of ['sslmode','sslcert','sslkey','sslrootcert'])u.searchParams.delete(k);const ca=process.env.SUPABASE_DB_CA.replace(/\\n/g,'\n').trim();pool=new Pool({connectionString:u.toString(),ssl:{ca,rejectUnauthorized:true},max:2,connectionTimeoutMillis:5000});pool.on('error',()=>console.error('Supabase idle connection error'));return pool;}
+export async function compareRead(action,p,live){const table={listProjects:'projects',listFloorZones:'floor_zones',listProjectContacts:'project_contacts'}[action];if(!table)throw Error('Unsupported action');const client=await connection().connect();try{await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');await client.query("SET LOCAL statement_timeout='5000ms'");const rows=(await client.query(`SELECT cells FROM enlighten_import.${table} ORDER BY source_row_number,import_id`)).rows.map(x=>x.cells);const people=action==='listProjectContacts'?(await client.query('SELECT cells FROM enlighten_import.people ORDER BY source_row_number,import_id')).rows.map(x=>x.cells):[];const data=shape(action,rows,p,people);await client.query('COMMIT');return {match:equal(data,live),data,count:data.length};}finally{await client.query('ROLLBACK').catch(()=>{});client.release();}}
