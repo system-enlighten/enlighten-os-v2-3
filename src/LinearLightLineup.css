@@ -143,3 +143,6 @@
 .linear-lineup .linear-application-cell { position:relative; }
 .linear-lineup .linear-row-delete { position:absolute; left:14px; top:50%; transform:translateY(-50%); }
 .linear-lineup .linear-row-delete .linear-row-action { width:auto; height:auto; padding:3px 8px; margin:0; border:1px solid #174a85; background:#fff; color:#174a85; }
+.linear-lineup .linear-row-delete { display:flex;gap:10px;align-items:center; }
+.linear-lineup .linear-row-delete .linear-drag-handle { width:auto;height:auto;font-size:21px;color:#8b877e;cursor:grab;padding:0 4px; }
+.linear-lineup .linear-drop-target td { box-shadow:inset 0 3px #79c9d3; }
