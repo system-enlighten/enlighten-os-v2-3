@@ -1,4 +1,18 @@
 export const normalizeLinearCode=value=>String(value||'').trim().toUpperCase().replace(/\s+/g,'');
+export const COLOUR_VARIANT_LABELS=['Static Colour','Tunable White','Dim to Warm','RGBW'];
+export const imageIdentity=url=>{const match=String(url||'').match(/(?:catalogue-)?([a-f0-9]{16})(?:[a-f0-9]{4})?\.png$/i);return match?match[1]:url;};
+export function resolveIconsFor({app,variantIcons,layoutVariantIcons,primarySlot=1}){
+ const icons=new Map(variantIcons?.get(app.id)||[[primarySlot,app.url]]);
+ for(const [slot,url] of Object.entries(layoutVariantIcons?.[app.id]||{}))icons.set(Number(slot),url);
+ return [...icons].filter(([,url])=>url).sort((a,b)=>b[0]-a[0]).filter((entry,i,all)=>all.findIndex(x=>imageIdentity(x[1])===imageIdentity(entry[1]))===i);
+}
+export function resolveIconCode({app,slot,primarySlot=1,familyNumber='',groupCode='',codes={},variantCodes={},catalogueFamilyCodes}){
+ const savedVariantCode=variantCodes?.[app.id]?.[slot];
+ if(savedVariantCode)return savedVariantCode;
+ const catalogueCode=familyNumber?catalogueFamilyCodes?.get(familyNumber)?.get(Number(slot)):'';
+ if(Number(slot)===Number(primarySlot))return codes[app.id]||app.code||catalogueCode||familyNumber||groupCode||'';
+ return catalogueCode||'';
+}
 export function linearCatalogue(groups,database){
  const codes=new Map(database.map(f=>[normalizeLinearCode(f.fittingType),f]));
  return groups.map(g=>({...g,products:g.products.map(p=>({...p,fitting:codes.get(normalizeLinearCode(p.code))||null}))}));
