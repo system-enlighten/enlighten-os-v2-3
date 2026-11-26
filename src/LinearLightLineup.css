@@ -91,3 +91,52 @@
 .linear-row-action { font:inherit; font-size:11px; padding:3px 8px; margin-left:8px; background:white; color:#174a85; border:1px solid #174a85; cursor:pointer; }
 .linear-row-controls { display:flex; align-items:center; gap:5px; float:left; padding:8px; }
 .linear-caption-overlay form button { margin:4px; }
+/* Balance space above the icon with the caption below its midpoint. */
+.linear-lineup .linear-application-stack { display:grid; grid-template-columns:auto 112px; align-items:center; gap:12px; margin-left:auto; width:max-content; }
+.linear-lineup .linear-application-icon { grid-column:2; display:grid; grid-template-rows: minmax(54px,1fr) 72px minmax(54px,1fr); width:112px; height:auto; min-height:180px; padding:0; text-align:center; color:inherit; }
+.linear-application-icon::before { content:""; grid-row:1; }
+.linear-application-image { grid-row:2; display:flex; align-items:center; justify-content:center; }
+.linear-lineup .linear-application-image img { width:100%; height:72px; object-fit:contain; }
+.linear-application-caption { grid-row:3; align-self:start; padding-top:5px; overflow-wrap:anywhere; }
+.linear-application-caption strong,.linear-application-caption small { display:block; }
+.linear-application-caption small { margin-top:3px; color:#516174; }
+.linear-lineup .linear-row-controls { grid-column:1; grid-row:1; float:none; display:flex; align-items:center; gap:8px; padding:0; }
+.linear-lineup .linear-row-controls input { margin:0; }
+.linear-lineup .linear-row-controls .linear-row-action { width:auto; height:auto; padding:3px 8px; margin:0; border:1px solid #174a85; background:#fff; color:#174a85; }
+
+.linear-caption-overlay .linear-manufacturer-dialog {
+  background:var(--studio-paper,#f4f1e8);
+  color:var(--studio-ink,#132237);
+  font:12px/1.4 var(--studio-body-font,Inter,system-ui,sans-serif);
+  width:min(520px,100%);
+  max-width:520px;
+  box-sizing:border-box;
+  padding:0;
+  border:1px solid var(--studio-rule,#ded8ca);
+  border-top:3px solid var(--studio-ink,#132237);
+  box-shadow:0 16px 44px #08192d40;
+}
+.linear-manufacturer-dialog .linear-dialog-header {
+  display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding:12px 16px; border-bottom:1px solid var(--studio-rule,#ded8ca);
+}
+.linear-manufacturer-dialog .linear-dialog-header h3 { margin:0; font-family:var(--studio-heading-font,Inter,system-ui,sans-serif); }
+.linear-manufacturer-dialog .linear-dialog-body { padding:12px 16px; }
+.linear-caption-overlay .linear-manufacturer-dialog label { font-size:12px; gap:5px; margin:0 0 10px; font-weight:500; }
+.linear-manufacturer-dialog :is(select,input:not([type=checkbox])) {
+  box-sizing:border-box; width:100%; min-height:34px; padding:7px 9px;
+  border:1px solid var(--studio-rule,#ded8ca); background-color:#fff;
+  color:var(--studio-ink,#132237); font:inherit;
+}
+.linear-manufacturer-dialog .linear-linked-applications { margin:12px 0; padding:0; border:0; font:inherit; }
+.linear-manufacturer-dialog .linear-linked-applications legend { font-weight:600; margin-bottom:7px; }
+.linear-manufacturer-dialog .linear-linked-list { border:1px solid var(--studio-rule,#ded8ca); border-top:0; max-height:190px; }
+.linear-manufacturer-dialog .linear-linked-list label { margin:0; padding:6px 9px; font-weight:400; gap:8px; }
+.linear-manufacturer-dialog .linear-linked-list label:has(input:checked) { background:#e5ecea; }
+.linear-manufacturer-dialog .linear-linked-list input { margin:0; accent-color:var(--studio-accent,#356c63); }
+.linear-caption-overlay .linear-manufacturer-dialog button { margin:0; padding:6px 10px; font:inherit; color:#174a85; border:1px solid #174a85; background:#fff; }
+.linear-caption-overlay .linear-manufacturer-dialog .linear-dialog-primary { background:var(--studio-ink,#132237); color:#fff; border-color:var(--studio-ink,#132237); font-weight:600; }
+.linear-caption-overlay .linear-manufacturer-dialog button:disabled { opacity:.5; cursor:default; }
+.linear-manufacturer-dialog .linear-dialog-actions { display:flex; justify-content:flex-end; }
+.linear-manufacturer-dialog .linear-dialog-new { border-top:1px solid var(--studio-rule,#ded8ca); margin-top:14px; padding-top:12px; }
+.linear-manufacturer-dialog .linear-dialog-footer { display:flex; justify-content:flex-end; padding:10px 16px; border-top:1px solid var(--studio-rule,#ded8ca); background:var(--studio-surface,#faf8f2); }
