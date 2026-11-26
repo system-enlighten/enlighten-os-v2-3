@@ -156,3 +156,7 @@
 .linear-lineup .linear-application-stack:has(.linear-row-controls) .linear-variant-add { grid-column:1;grid-row:1; }
 .linear-lineup .linear-application-stack:has(.linear-row-controls) .linear-row-controls { grid-column:2;grid-row:1; }
 .linear-lineup .linear-application-stack:has(.linear-row-controls) .linear-application-icon { grid-column:3;grid-row:1; }
+.linear-lineup .linear-application-stack .linear-variant-add {
+  width:132px; height:104px; min-height:104px;
+  box-sizing:border-box; padding:6px; font-size:30px;
+}

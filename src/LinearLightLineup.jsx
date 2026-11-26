@@ -28,37 +28,59 @@ export default function LinearLightLineup({database,catalogue,onAddProduct,onSav
  const allProducts=database.flatMap(fitting=>(fitting.products||[]).map(product=>({fitting,product})));
  const groupCode=g=>{const original=groups.find(row=>row.id===g.id)||g;const codes=[...new Set(original.products.map(p=>p.code))];return codes.length===1&&groups.filter(row=>row.products.some(p=>p.code===codes[0])).length===1?codes[0]:g.id.toUpperCase()};
  const allApplications=useMemo(()=>[...linearApplications(groups.map(g=>g.applications.length?g:{...g,applications:[{column:0,url:""}]}),captions),...(layout?.customApplications||[]).map(a=>({...a,caption:captions[a.id]??a.caption}))],[groups,captions,layout?.customApplications]);
- const iconOwners=new Map(),canonicalIds=new Map(),variantFamilies=new Map(),variantIcons=new Map();
- const variantInfo=a=>{
-  const group=groups.find(g=>g.id===a.groupId);
-  const code=group?.products.length===1?group.products[0].code:'';
-  const match=/^L([1-4])([^|]+)\|(\d{3}[A-Z]?)$/i.exec(code);
-  return match?{key:match[2].toUpperCase()+'|'+match[3].toUpperCase(),number:match[3],slot:Number(match[1])}:null;
- };
- const familyCounts=new Map();
- for(const a of allApplications){const v=variantInfo(a);if(v&&!layout?.deleted.includes(a.id)){if(!familyCounts.has(v.key))familyCounts.set(v.key,new Set());familyCounts.get(v.key).add(v.slot);}}
+ const imageIdentity=url=>{const match=String(url||"").match(/(?:catalogue-)?([a-f0-9]{16})(?:[a-f0-9]{4})?\.png$/i);return match?match[1]:url;};
+ const iconOwners=new Map(),canonicalIds=new Map(),variantIcons=new Map();
+ // Explicit families from the source catalogue, including differing optics suffixes.
+ const colourFamilies=[
+  {number:'001',cells:['80-1','80-2']},
+  {number:'023',cells:['42-1','42-2','42-3','42-4']},
+  {number:'034',cells:['45-1','45-2','47-1','47-2'],slots:[1,2,1,2]},
+  {number:'036',cells:['69-1','69-2','69-3','69-4']},
+  {number:'037',cells:['69-5','69-6','69-7','69-8']},
+  {number:'039',cells:['69-9','69-10','69-11','69-12']},
+  {number:'040',cells:['69-13','69-14','69-15','69-16']},
+  {number:'042',cells:['72-1','72-2','72-3','72-4']},
+  {number:'043',cells:['72-5','72-6','72-7','72-8']},
+  {number:'044',cells:['72-9','72-10','72-11','72-12']},
+  {number:'045',cells:['72-13','72-14','72-15','72-16']},
+ ];
+ const familyByImage=new Map(),familyByCell=new Map(),catalogueFamilyIcons=new Map();
+ for(const family of colourFamilies){
+  family.cells.forEach((cell,index)=>{
+   const [row,col]=cell.split('-').map(Number);
+   const section=catalogue?.sections?.find(s=>s.codeRow===row);
+   const url=section&&catalogue.rows[section.iconRow]?.[col]?.image;
+   const info={number:family.number,slot:family.slots?.[index]||index+1};
+   familyByCell.set('catalogue-'+cell,info);
+   if(url){if(!catalogueFamilyIcons.has(family.number))catalogueFamilyIcons.set(family.number,new Map());catalogueFamilyIcons.get(family.number).set(info.slot,url);}
+   if(url&&!familyByImage.has(imageIdentity(url)))familyByImage.set(imageIdentity(url),info);
+  });
+ }
+ const familyOwners=new Map(),familyNumbers=new Map();
+ const variantInfo=a=>familyByCell.get(a.groupId)||familyByImage.get(imageIdentity(a.url));
  const applications=allApplications.filter(a=>{
   if(layout?.deleted.includes(a.id))return false;
-  const info=variantInfo(a),family=info&&familyCounts.get(info.key)?.size>1?info.key:null;
-  if(family){
-   const owner=variantFamilies.get(family);
-   if(owner){canonicalIds.set(a.id,owner);if(a.url&&!variantIcons.get(owner).has(info.slot))variantIcons.get(owner).set(info.slot,a.url);return false;}
-   variantFamilies.set(family,a.id);variantIcons.set(a.id,new Map([[info.slot,a.url]]));
-   if(a.url&&!iconOwners.has(a.url))iconOwners.set(a.url,a.id);
-   return true;
+  const info=variantInfo(a),image=imageIdentity(a.url);
+  if(info){
+   const owner=familyOwners.get(info.number)||iconOwners.get(image);
+   if(owner){canonicalIds.set(a.id,owner);if(!variantIcons.has(owner))variantIcons.set(owner,new Map());if(a.url&&!variantIcons.get(owner).has(info.slot))variantIcons.get(owner).set(info.slot,a.url);familyOwners.set(info.number,owner);familyNumbers.set(owner,info.number);return false;}
+   familyOwners.set(info.number,a.id);familyNumbers.set(a.id,info.number);variantIcons.set(a.id,new Map([[info.slot,a.url]]));
+   if(a.url)iconOwners.set(image,a.id);return true;
   }
-  if(a.url&&iconOwners.has(a.url)){canonicalIds.set(a.id,iconOwners.get(a.url));return false;}
-  if(a.url)iconOwners.set(a.url,a.id);
-  return true;
+  if(a.url&&iconOwners.has(image)){canonicalIds.set(a.id,iconOwners.get(image));return false;}
+  if(a.url)iconOwners.set(image,a.id);return true;
  });
+ // Reserve every variant illustration globally, so aliases never get another row.
+ for(const a of allApplications){const info=variantInfo(a);if(info&&familyOwners.has(info.number)&&!layout?.deleted.includes(a.id)){const owner=familyOwners.get(info.number);if(a.id!==owner)canonicalIds.set(a.id,owner);}}
+ for(const [number,owner] of familyOwners){const icons=variantIcons.get(owner);for(const [slot,url] of catalogueFamilyIcons.get(number)||[])if(!icons.get(slot))icons.set(slot,url);}
  const iconsFor=a=>{
   const icons=new Map(variantIcons.get(a.id)||[[variantInfo(a)?.slot||1,a.url]]);
   for(const [slot,url] of Object.entries(layout?.variantIcons?.[a.id]||{}))icons.set(Number(slot),url);
-  return [...icons].filter(([,url])=>url).sort((a,b)=>b[0]-a[0]).filter((entry,i,all)=>all.findIndex(x=>x[1]===entry[1])===i);
+  return [...icons].filter(([,url])=>url).sort((a,b)=>b[0]-a[0]).filter((entry,i,all)=>all.findIndex(x=>imageIdentity(x[1])===imageIdentity(entry[1]))===i);
  };
  const orderIndex=new Map((layout?.order||[]).map((id,i)=>[id,i]));
  applications.sort((a,b)=>(orderIndex.get(a.id)??Infinity)-(orderIndex.get(b.id)??Infinity));
- const applicationCode=a=>codes[a.id]||a.code||(variantIcons.has(a.id)?variantInfo(a).number:null)||groupCode(groups.find(g=>g.id===a.groupId));
+ const applicationCode=a=>codes[a.id]||a.code||familyNumbers.get(a.id)||groupCode(groups.find(g=>g.id===a.groupId));
  const choices=applications.map(a=>({id:a.id,label:a.caption||groups.find(g=>g.id===a.groupId)?.label||'Application',code:applicationCode(a),url:a.url}));
  const expandIds=ids=>[...new Set(ids.flatMap(id=>id.includes(':')?[id]:allApplications.filter(a=>a.groupId===id).map(a=>a.id)))];
  const memberships=item=>expandIds(item.product.linearApplicationIds??groups.filter(g=>g.products.some(p=>p.fitting?.id===item.fitting.id)||links.some(l=>l.applicationId===g.id&&l.fittingId===item.fitting.id&&l.productId===item.product.id)).map(g=>g.id).concat(links.filter(l=>l.fittingId===item.fitting.id&&l.productId===item.product.id).map(l=>l.applicationId))).map(id=>canonicalIds.get(id)||id).filter((id,i,ids)=>!layout?.deleted.includes(id)&&ids.indexOf(id)===i);
@@ -67,11 +89,12 @@ export default function LinearLightLineup({database,catalogue,onAddProduct,onSav
   const candidates=references.filter(p=>(p.ids.includes(a.id)||(Object.prototype.hasOwnProperty.call(layout?.references||{},p.key)&&p.ids.some(id=>canonicalIds.get(id)===a.id)))&&(p.image||p.fitting?.thumbnailUrl));
   const explicit=candidates.filter(p=>Object.prototype.hasOwnProperty.call(layout?.references||{},p.key));
   const defaults=candidates.filter(p=>!Object.prototype.hasOwnProperty.call(layout?.references||{},p.key));
-  const products=[...defaults.slice(0,1),...explicit].filter((p,i,all)=>all.findIndex(x=>(x.image||x.fitting?.thumbnailUrl)===(p.image||p.fitting?.thumbnailUrl))===i);
+  const fallback=familyNumbers.has(a.id)?references.find(p=>!Object.prototype.hasOwnProperty.call(layout?.references||{},p.key)&&p.ids.some(id=>canonicalIds.get(id)===a.id)&&(p.image||p.fitting?.thumbnailUrl)):null;
+  const products=[...(defaults.length?defaults.slice(0,1):fallback?[fallback]:[]),...explicit].filter((p,i,all)=>all.findIndex(x=>imageIdentity(x.image||x.fitting?.thumbnailUrl)===imageIdentity(p.image||p.fitting?.thumbnailUrl))===i);
   return {...groups.find(g=>g.id===a.groupId),label:a.caption||groups.find(g=>g.id===a.groupId)?.label||"Application",id:a.id,app:a,products};
  });
- const usedImages=new Set(rows.flatMap(g=>g.products.map(p=>p.image||p.fitting?.thumbnailUrl)));
- const unassigned=references.filter(p=>{const image=p.image||p.fitting?.thumbnailUrl;return image&&!usedImages.has(image);}).filter((p,i,all)=>all.findIndex(x=>(x.image||x.fitting?.thumbnailUrl)===(p.image||p.fitting?.thumbnailUrl))===i);
+ const usedImages=new Set(rows.flatMap(g=>g.products.map(p=>imageIdentity(p.image||p.fitting?.thumbnailUrl))));
+ const unassigned=references.filter(p=>{const image=p.image||p.fitting?.thumbnailUrl;return image&&!usedImages.has(imageIdentity(image));}).filter((p,i,all)=>all.findIndex(x=>imageIdentity(x.image||x.fitting?.thumbnailUrl)===imageIdentity(p.image||p.fitting?.thumbnailUrl))===i);
 
  const openLink=(g,ref="",item=null)=>{setAddGroup(g);setReferenceKey(ref);setReferenceLinked(Boolean(ref&&item));setExisting(item?String(allProducts.findIndex(x=>x.fitting.id===item.fitting.id&&x.product.id===item.product.id)):"");setLinkedIds(item?[...new Set([...memberships(item),g.id])]:[g.id]);setLinkError("");setTarget((g.products.find(p=>p.fitting)||groups.find(row=>row.id===g.app?.groupId)?.products.find(p=>p.fitting))?.fitting.id||"");};
  const selected=applications.find(a=>a.id===application);
@@ -158,7 +181,7 @@ export default function LinearLightLineup({database,catalogue,onAddProduct,onSav
     <span className="linear-application-image linear-variant-icons">{iconsFor(g.app).map(([slot,url])=><img key={slot} src={url} loading="lazy" alt=""/>)}</span>
     <span className="linear-application-caption"><strong>{g.app.caption||g.label||'Application'}</strong><small>{applicationCode(g.app)}</small></span>
    </button>
-   {admin&&<button className="linear-variant-add" type="button" aria-label="Add application icon" disabled={saving} onClick={()=>setVariantEdit({app:g.app,slot:'',file:null})}>+</button>}
+   {admin&&editRows&&<button className="linear-variant-add" type="button" aria-label="Add application icon" disabled={saving} onClick={()=>setVariantEdit({app:g.app,slot:'',file:null})}>+</button>}
   </div>
  </td>
  <td><div className="linear-products">{g.products.map((p,j)=>{
