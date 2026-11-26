@@ -140,3 +140,6 @@
 .linear-manufacturer-dialog .linear-dialog-actions { display:flex; justify-content:flex-end; }
 .linear-manufacturer-dialog .linear-dialog-new { border-top:1px solid var(--studio-rule,#ded8ca); margin-top:14px; padding-top:12px; }
 .linear-manufacturer-dialog .linear-dialog-footer { display:flex; justify-content:flex-end; padding:10px 16px; border-top:1px solid var(--studio-rule,#ded8ca); background:var(--studio-surface,#faf8f2); }
+.linear-lineup .linear-application-cell { position:relative; }
+.linear-lineup .linear-row-delete { position:absolute; left:14px; top:50%; transform:translateY(-50%); }
+.linear-lineup .linear-row-delete .linear-row-action { width:auto; height:auto; padding:3px 8px; margin:0; border:1px solid #174a85; background:#fff; color:#174a85; }
