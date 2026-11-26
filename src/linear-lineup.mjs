@@ -37,6 +37,31 @@ export function filterUnassignedReferences({references,rows,canonicalIds,extraUs
   return !usedImages.has(id)&&!suppressedImages.has(id);
  }).filter((p,i,all)=>all.findIndex(x=>imageIdentity(x.image||x.fitting?.thumbnailUrl)===imageIdentity(p.image||p.fitting?.thumbnailUrl))===i);
 }
+export function targetFittingOptionsForRow({row,groupProducts=[],database=[],iconCodes=[],isCustom=false}){
+ const activeFittings=database.filter(f=>!f.deleted);
+ const fittingsByCode=new Map(activeFittings.map(f=>[normalizeLinearCode(f.fittingType),f]));
+ const fallbackFitting=(row?.products?.find(p=>p.fitting)||groupProducts.find(p=>p.fitting))?.fitting||null;
+ const options=new Map();
+ for(const code of iconCodes){
+  if(!code)continue;
+  const matched=fittingsByCode.get(normalizeLinearCode(code))||fallbackFitting;
+  if(matched&&!options.has(matched.id))options.set(matched.id,{fitting:matched,code});
+ }
+ const rowProducts=[...(row?.products||[]),...groupProducts].filter(p=>p.fitting);
+ if(!(groupProducts.length<=1&&options.size>0)){
+  const primaryReplaced=Boolean(iconCodes[0]&&groupProducts[0]?.fitting&&normalizeLinearCode(iconCodes[0])!==normalizeLinearCode(groupProducts[0].code)&&fittingsByCode.has(normalizeLinearCode(iconCodes[0])));
+  for(const p of rowProducts){
+   if(primaryReplaced&&p.fitting.id===groupProducts[0].fitting.id)continue;
+   if(!options.has(p.fitting.id))options.set(p.fitting.id,{fitting:p.fitting,code:p.code});
+  }
+ }
+ if(isCustom){
+  for(const fitting of activeFittings){
+   if(!options.has(fitting.id))options.set(fitting.id,{fitting,code:fitting.fittingType});
+  }
+ }
+ return [...options.values()];
+}
 export function linearCatalogue(groups,database){
  const codes=new Map(database.map(f=>[normalizeLinearCode(f.fittingType),f]));
  return groups.map(g=>({...g,products:g.products.map(p=>({...p,fitting:codes.get(normalizeLinearCode(p.code))||null}))}));
