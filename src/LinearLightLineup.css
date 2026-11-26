@@ -35,3 +35,41 @@
 .linear-lineup .linear-application-cell:first-child { width: 44%; }
 .linear-lineup .linear-application-options button { height: auto; }
 .linear-lineup .linear-add-product { width: 30px; }
+
+.linear-lineup .linear-application-options {
+  justify-content: flex-end;
+  align-items: center;
+}
+.linear-lineup .linear-application-options > * { text-align: center; }
+.linear-lineup .linear-application-options small {
+  display: block;
+  margin-top: 3px;
+  color: #516174;
+  overflow-wrap: anywhere;
+}
+.linear-lineup .linear-manufacturer-options {
+  justify-content: flex-start;
+  align-items: center;
+}
+.linear-lineup .linear-products .linear-product-tile,
+.linear-lineup .linear-products .linear-add-product {
+  flex: 0 0 132px;
+  width: 132px;
+  min-width: 0;
+  min-height: 104px;
+  padding: 6px;
+  box-sizing: border-box;
+  text-align: center;
+}
+.linear-lineup .linear-product-tile img {
+  display: block;
+  width: 100%;
+  height: 90px;
+  object-fit: contain;
+}
+.linear-lineup .linear-products .linear-add-product {
+  border: 1px solid #ded9ce;
+  background: #f4f1eb;
+  color: #77736b;
+  font-size: 30px;
+}
