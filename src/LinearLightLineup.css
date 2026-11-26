@@ -73,3 +73,18 @@
   color: #77736b;
   font-size: 30px;
 }
+.linear-lineup .linear-application-cell:first-child { background: #fff; }
+.linear-application-stack { display:flex; flex-direction:column; align-items:center; width:fit-content; margin-left:auto; }
+.linear-application-stack > small { text-align:center; color:#516174; margin-top:6px; }
+.linear-lineup .linear-products .linear-reference-link { font-size:10px; color:#516174; margin-top:6px; text-decoration:underline; }
+.linear-application-stack { max-width:100%; }
+.linear-lineup .linear-application-stack .linear-application-options { width:auto; flex-wrap:nowrap; }
+.linear-lineup .linear-application-stack .linear-application-options > button { width:112px; flex:0 1 112px; }
+.linear-linked-applications { border:1px solid #d5cfc3; padding:10px; margin:12px 0; font-size:13px; color:#142238; }
+.linear-linked-applications > input { width:100%; box-sizing:border-box; padding:8px; border:1px solid #d5cfc3; }
+.linear-linked-list { max-height:180px; overflow:auto; background:white; }
+.linear-linked-applications .linear-linked-list label { display:flex; align-items:center; gap:8px; margin:0; padding:6px; border-bottom:1px solid #e4dfd6; cursor:pointer; }
+.linear-linked-list img { width:40px; height:32px; object-fit:contain; }
+.linear-linked-list small { display:block; color:#516174; }
+.linear-caption-overlay form { max-height:90vh; overflow:auto; }
+.linear-application-options button small { text-align:center; font-weight:400; }
