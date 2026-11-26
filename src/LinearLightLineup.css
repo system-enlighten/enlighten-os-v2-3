@@ -166,3 +166,16 @@
   width:132px; height:104px; min-height:104px;
   box-sizing:border-box; padding:6px; font-size:30px;
 }
+
+/* Hierarchical variant selection styles */
+.linear-linked-applications .linear-linked-group { border-bottom: 1px solid #e4dfd6; }
+.linear-linked-applications .linear-linked-parent { border-bottom: 0 !important; font-weight: 600; }
+.linear-linked-variant-list { display: flex; flex-direction: column; padding: 2px 0 6px 36px; background: #faf8f5; border-top: 1px dashed #ded8ca; }
+.linear-linked-applications .linear-linked-variant-item { display: flex; align-items: center; gap: 8px; margin: 0; padding: 4px 8px; font-size: 12px; cursor: pointer; border-bottom: 0 !important; }
+.linear-linked-applications .linear-linked-variant-item:hover { background: #f1ede4; }
+.linear-linked-applications .linear-linked-variant-item:has(input:checked) { background: #e5ecea; }
+.linear-linked-variant-item img { width: 32px; height: 26px; object-fit: contain; }
+.linear-linked-variant-item .linear-variant-info { display: flex; align-items: center; gap: 4px; overflow-wrap: anywhere; }
+.linear-linked-variant-item .linear-variant-code { font-weight: 600; color: #142238; }
+.linear-linked-variant-item .linear-variant-label { color: #516174; }
+.linear-product-variant-tag { display: inline-block; font-size: 10px; line-height: 1.2; color: #174a85; background: #edf3fa; border-radius: 3px; padding: 1px 4px; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
