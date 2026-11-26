@@ -19,7 +19,7 @@ const extracted={
 };
 
 export function invoiceForDisplay(record){
-  if(record.kind!=='legacyInvoice')return record;
+  if(record.kind!=='legacyInvoice'||record.editedHistory)return record;
   const key=String(record.sourceNumber||record.number||'').replace(/\s/g,'');
   const source=pdfHistory[key]||extracted[key];
   if(source){

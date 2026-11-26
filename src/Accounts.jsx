@@ -337,9 +337,16 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
       if(draft.convertedFromEstimateId){
         invoiceToOpen.current=record;
         onNavigate('Invoices');
-      }else if(['invoice','payroll'].includes(record.kind))setSelected(record);
+      }else if(['invoice','legacyInvoice','payroll'].includes(record.kind))setSelected(record);
     }catch(e){setError(e.message);}
     finally{saving.current=false;setBusy(false);}
+  };
+
+  const deleteInvoice=async()=>{
+    if(!draft?.isEdit||saving.current||readOnly||!window.confirm('Delete this document from Accounts? Its original record will be retained for audit.'))return;
+    saving.current=true;setBusy(true);setError('');setNotice('');
+    try{await request('deleteAccountsInvoice',{id:draft.id},'POST');setData(d=>({...d,records:d.records.filter(r=>r.id!==draft.id)}));setDraft(null);setSelected(null);setInvoiceClosed(false);setNotice('Document deleted.');}
+    catch(e){setError(e.message);}finally{saving.current=false;setBusy(false);}
   };
 
   const saveHead=async(remove=false)=>{
@@ -530,7 +537,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
 
       <fieldset disabled={busy}><div className="accounts-fields">
       {field(draft.kind==='milestone'?'Scheduled date':'Date','date','date',true)}
-      {['milestone','invoice','transaction','reconciliation'].includes(draft.kind)&&options('Project','projectId',projectOptions,['milestone','invoice'].includes(draft.kind),id=>{
+      {['milestone','invoice','transaction','reconciliation'].includes(draft.kind)&&options('Project','projectId',projectOptions,(draft.kind==='milestone'||draft.kind==='invoice'&&!draft.legacyEdit),id=>{
         if(draft.kind==='invoice'){
           const proj = projects.find(p=>p.id===id);
           update('client',proj?.client||'');
@@ -558,7 +565,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
         {options('Document type','documentType',(page==='Estimates'&&!draft.convertedFromEstimateId?['Proforma Invoice']:['Invoice','Bill of Supply']),true)}
         {options('Milestone','milestoneId',milestones.filter(m=>m.projectId===draft.projectId&&!invoices.some(r=>r.milestoneId===m.id)).map(m=>[m.id,m.description]),false,id=>{const m=milestones.find(r=>r.id===id);if(m)update('items',[{...freshItem(),description:m.description,rate:m.amount/100}]);})}
         {field('Due date','dueDate','date')}{field('Client','client','text',true)}
-        <label>Billing address<textarea required value={draft.address||''} onChange={e=>update('address',e.target.value)}/></label>
+        <label>Billing address<textarea required={!draft.legacyEdit} value={draft.address||''} onChange={e=>update('address',e.target.value)}/></label>
         {field('State','state')}{field('State code','stateCode')}{field('Client GSTIN','gstin')}{field('PO / Reference','po')}{field('Contract / order date','orderDate','date')}{field('Contact person','contact')}{field('Contact email','contactEmail','email')}{field('Contact number','phone','tel')}
       </>}
       {draft.kind==='payroll'&&<>
@@ -575,7 +582,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
         {[['Description','description','text'],['SAC','sac','text'],['Unit','unit','text'],['Quantity','quantity','number'],['Unit rate (INR)','rate','number']].map(([label,key,type])=><label key={key}>{label}<input required type={type} min={type==='number'?(key==='rate'?.01:1):undefined} step={key==='rate'?.01:undefined} value={line[key]} onChange={e=>update('items',draft.items.map((other,j)=>j===i?{...other,[key]:e.target.value}:other))}/></label>)}
         <button type="button" disabled={draft.items.length===1} onClick={()=>update('items',draft.items.filter((_,j)=>i!==j))}>Remove line</button></div>)}
       <button type="button" disabled={draft.items.length>=25} onClick={()=>update('items',[...draft.items,freshItem()])}>Add line</button></>}
-      <div className="accounts-actions"><button type="submit">{busy?'Saving…':draft.kind==='invoice'?(draft.documentType==='Proforma Invoice'?(draft.isEdit?'Update estimate':'Save estimate'):(draft.isEdit?'Update invoice':'Save invoice')):'Save'}</button><button type="button" onClick={()=>setDraft(null)}>Cancel</button></div></fieldset>
+      <div className="accounts-actions"><button type="submit">{busy?'Saving…':draft.kind==='invoice'?(draft.documentType==='Proforma Invoice'?(draft.isEdit?'Update estimate':'Save estimate'):(draft.isEdit?'Update invoice':'Save invoice')):'Save'}</button><button type="button" onClick={()=>setDraft(null)}>Cancel</button>{draft.kind==='invoice'&&draft.isEdit&&page==='Invoices'&&<button type="button" style={{color:'#a23424',marginLeft:'auto'}} disabled={busy||readOnly} onClick={deleteInvoice}>Delete invoice</button>}</div></fieldset>
     </form>;
 
   return <AccountsDataReady.Provider value={Boolean(data)}><section className="accounts" aria-busy={!data&&!error}>
@@ -633,10 +640,13 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
       onChoose={record=>{setSelected(record);setInvoiceClosed(false);setDraft(null);}}
       onNew={readOnly||busy||page!=='Estimates'?undefined:()=>begin('invoice',{documentType:'Proforma Invoice'})}
       onEdit={readOnly||!!draft||activeInvoice?.generatedFromReceiptId||paid(activeInvoice?.id)>0?undefined:invoice=>{
+        const display=invoiceForDisplay(invoice);
+        const items=display.items?.length?display.items:[{...freshItem(),description:display.description||'Lighting design & consultancy services',quantity:1,rate:display.amount}];
         begin('invoice',{
-          ...invoice,
-          isEdit: true,
-          items: invoice.items.map(i=>({...i, rate: (i.rate/100).toFixed(2)}))
+          ...display,kind:'invoice',legacyEdit:invoice.kind==='legacyInvoice',
+          isEdit:true,documentType:['Invoice','Bill of Supply','Proforma Invoice'].includes(display.documentType)?display.documentType:'Invoice',
+          projectId:invoice.projectId||'',dueDate:display.dueDate||display.date,
+          items:items.map(i=>({...i,quantity:Number(i.quantity)||1,rate:(Number(i.rate??i.amount)/100).toFixed(2)}))
         });
       }}
       onClose={busy?undefined:()=>{if(draft)setDraft(null);else{setSelected(null);setInvoiceClosed(true);}}}
