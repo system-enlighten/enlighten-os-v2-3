@@ -1,7 +1,7 @@
 import React, {useState} from 'react';
 
 const columns = [
-  ['fittingType', 'Fitting type'], ['profile', 'Profile no.'], ['suffix', 'Variant'],
+  ['fittingType', 'Fitting type'], ['profile', 'Application no.'], ['suffix', 'Variant'],
   ['iconUrl', 'Icon'], ['brand', 'Brand / IP / Article'], ['thumbnailUrl', 'Thumbnail'], ['x', 'X'],
   ['pcbWidth', 'PCB width'], ['standardLengths', 'Standard lengths'], ['wattage', 'Wattage'],
   ['category', 'Category'],
@@ -40,9 +40,9 @@ export default function ProductDatabaseTable({database, onOpen, renderImage, inp
   const cell = {padding:'5px 8px',border:'1px solid #d7d0c3',verticalAlign:'middle'};
   return <section style={{fontSize:12}}>
     <div style={{display:'flex',flexWrap:'wrap',gap:12,alignItems:'center',marginBottom:10}}>
-      <input aria-label="Search product database" placeholder="Search code, profile or category…" value={search} onChange={event=>setSearch(event.target.value)} style={{...inputStyle,fontSize:12,width:'min(260px, 100%)'}}/>
+      <input aria-label="Search product database" placeholder="Search code, application or category…" value={search} onChange={event=>setSearch(event.target.value)} style={{...inputStyle,fontSize:12,width:'min(260px, 100%)'}}/>
       <label><input type="checkbox" checked={linear} onChange={event=>setLinear(event.target.checked)}/> Linear only</label>
-      {highest && <span>Highest profile no. <strong>{highest}</strong></span>}
+      {highest && <span>Highest application no. <strong>{highest}</strong></span>}
       <span>{visible.length} fitting types</span>
     </div>
     <div style={{overflow:'auto',maxHeight:'70vh'}}>
