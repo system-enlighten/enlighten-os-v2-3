@@ -1,6 +1,7 @@
 export const normalizeLinearCode=value=>String(value||'').trim().toUpperCase().replace(/\s+/g,'');
 export const COLOUR_VARIANT_LABELS=['Static Colour','Tunable White','Dim to Warm','RGBW'];
 export const imageIdentity=url=>{const match=String(url||'').match(/(?:catalogue-)?([a-f0-9]{16})(?:[a-f0-9]{4})?\.png$/i);return match?match[1]:url;};
+export const linearCodeNumber=code=>{const match=String(code||'').trim().toUpperCase().match(/\|([A-Z0-9]+)$/);return match?match[1]:'';};
 export function resolveIconsFor({app,variantIcons,layoutVariantIcons,primarySlot=1}){
  const icons=new Map(variantIcons?.get(app.id)||[[primarySlot,app.url]]);
  for(const [slot,url] of Object.entries(layoutVariantIcons?.[app.id]||{}))icons.set(Number(slot),url);
@@ -12,6 +13,29 @@ export function resolveIconCode({app,slot,primarySlot=1,familyNumber='',groupCod
  const catalogueCode=familyNumber?catalogueFamilyCodes?.get(familyNumber)?.get(Number(slot)):'';
  if(Number(slot)===Number(primarySlot))return codes[app.id]||app.code||catalogueCode||familyNumber||groupCode||'';
  return catalogueCode||'';
+}
+export function filterUnassignedReferences({references,rows,canonicalIds,extraUsedImages=[]}){
+ const usedImages=new Set([
+  ...rows.flatMap(g=>g.products.map(p=>imageIdentity(p.image||p.fitting?.thumbnailUrl))),
+  ...extraUsedImages.map(imageIdentity),
+ ].filter(Boolean));
+ const usedRowNumbers=new Set(rows.flatMap(g=>g.products.map(p=>{const num=linearCodeNumber(p.code);return num?`${g.id}:${num}`:'';}).filter(Boolean)));
+ const lineupRowNumbers=new Set(references.filter(p=>!String(p.sourceGroup||'').startsWith('catalogue-')).flatMap(p=>{const num=linearCodeNumber(p.code);return num?p.ids.map(id=>`${canonicalIds?.get(id)||id}:${num}`):[];}));
+ const suppressedImages=new Set();
+ for(const p of references){
+  const image=p.image||p.fitting?.thumbnailUrl;
+  if(!image||!String(p.sourceGroup||'').startsWith('catalogue-'))continue;
+  const num=linearCodeNumber(p.code);
+  if(num&&p.ids.some(id=>{const canonical=canonicalIds?.get(id)||id;return usedRowNumbers.has(`${canonical}:${num}`)||lineupRowNumbers.has(`${canonical}:${num}`);})){
+   suppressedImages.add(imageIdentity(image));
+  }
+ }
+ return references.filter(p=>{
+  const image=p.image||p.fitting?.thumbnailUrl;
+  if(!image)return false;
+  const id=imageIdentity(image);
+  return !usedImages.has(id)&&!suppressedImages.has(id);
+ }).filter((p,i,all)=>all.findIndex(x=>imageIdentity(x.image||x.fitting?.thumbnailUrl)===imageIdentity(p.image||p.fitting?.thumbnailUrl))===i);
 }
 export function linearCatalogue(groups,database){
  const codes=new Map(database.map(f=>[normalizeLinearCode(f.fittingType),f]));

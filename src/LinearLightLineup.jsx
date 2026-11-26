@@ -1,5 +1,5 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
-import {linearCatalogue,linearApplications,catalogueLinearGroups,COLOUR_VARIANT_LABELS,imageIdentity,resolveIconsFor,resolveIconCode} from './linear-lineup.mjs';
+import {linearCatalogue,linearApplications,catalogueLinearGroups,COLOUR_VARIANT_LABELS,imageIdentity,resolveIconsFor,resolveIconCode,filterUnassignedReferences} from './linear-lineup.mjs';
 import './LinearLightLineup.css';
 import LinearApplicationPicker from './LinearApplicationPicker.jsx';
 import ProductSpecSheet from './ProductSpecSheet.jsx';
@@ -95,8 +95,9 @@ export default function LinearLightLineup({database,catalogue,onAddProduct,onSav
   const products=[...(defaults.length?defaults.slice(0,1):fallback?[fallback]:[]),...explicit].filter((p,i,all)=>all.findIndex(x=>imageIdentity(x.image||x.fitting?.thumbnailUrl)===imageIdentity(p.image||p.fitting?.thumbnailUrl))===i);
   return {...groups.find(g=>g.id===a.groupId),label:a.caption||groups.find(g=>g.id===a.groupId)?.label||"Application",id:a.id,app:a,products};
  });
- const usedImages=new Set(rows.flatMap(g=>g.products.map(p=>imageIdentity(p.image||p.fitting?.thumbnailUrl))));
- const unassigned=references.filter(p=>{const image=p.image||p.fitting?.thumbnailUrl;return image&&!usedImages.has(imageIdentity(image));}).filter((p,i,all)=>all.findIndex(x=>imageIdentity(x.image||x.fitting?.thumbnailUrl)===imageIdentity(p.image||p.fitting?.thumbnailUrl))===i);
+ const rowIds=new Set(rows.map(g=>g.id));
+ const extraUsedImages=allProducts.filter(item=>memberships(item).some(id=>rowIds.has(id))).map(item=>item.product.imageUrl).filter(Boolean);
+ const unassigned=filterUnassignedReferences({references,rows,canonicalIds,extraUsedImages});
 
  const openLink=(g,ref="",item=null)=>{setAddGroup(g);setReferenceKey(ref);setReferenceLinked(Boolean(ref&&item));setExisting(item?String(allProducts.findIndex(x=>x.fitting.id===item.fitting.id&&x.product.id===item.product.id)):"");setLinkedIds(item?[...new Set([...memberships(item),g.id])]:[g.id]);setLinkError("");setTarget((g.products.find(p=>p.fitting)||groups.find(row=>row.id===g.app?.groupId)?.products.find(p=>p.fitting))?.fitting.id||"");};
  const selected=applications.find(a=>a.id===application);
@@ -198,7 +199,7 @@ export default function LinearLightLineup({database,catalogue,onAddProduct,onSav
    }
    const savedLayout=await request('saveLinearApplicationLayout',{...layout,variantIcons:nextVariantIcons,variantCodes:nextVariantCodes,expectedVersion:layout.version},'POST',90000);
    setLayout(savedLayout);
-   setEditing(a=>a?{...a,url:uploadedUrl||a.url,file:null,previewUrl:'',originalCode:!isPrimary?draft.code:a.originalCode}:null);
+   setEditing(a=>{if(a?.previewUrl)URL.revokeObjectURL(a.previewUrl);return a?{...a,url:uploadedUrl||a.url,file:null,previewUrl:'',originalCode:!isPrimary?draft.code:a.originalCode}:null;});
    if(needsCaptionSave){
     const result=await request('saveLinearApplicationCaption',{applicationId:id,caption:draft.caption,expectedCaption:previousCaption??'',...(isPrimary?{code:draft.code,expectedCode:previousCode??''}:{})},'POST',90000);
     setCaptions(old=>({...old,[id]:result.caption}));
