@@ -57,8 +57,30 @@ export function createDatabase({env = process.env, PoolClass = Pool} = {}) {
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > 5000 || !Number.isSafeInteger(offset) || offset < 0) throw new Error('Invalid pagination');
     return rows(`SELECT import_id, source_row_number, cells FROM enlighten_import."${table}" WHERE export_id = $1 ORDER BY source_row_number, import_id LIMIT $2 OFFSET $3`, [exportId,limit,offset]);
   }
+  // Operational access is opt-in and Preview-only until final cutover.
+  const operationalTables = new Set(['readme', 'home_agenda_sessions', 'studio_briefings', 'assistant_profiles', 'studio_attendance_corrections', 'line_of_work_comments', 'internal_work_areas', 'assigned_work_acceptance', 'assigned_work_comments', 'studio_attendance', 'active_time', 'app_feedback', 'feedback_attachments', 'diary_entries', 'studio_journal', 'site_execution_items', 'wih_plans', 'application_images', 'studio_threads', 'studio_thread_comments', 'project_books', 'project_closeout', 'workflow_delegations', 'email_drawing_intakes', 'email_intake_messages', 'project_onboarding', 'technical_workbooks', 'technical_tables', 'technical_table_chunks', 'technical_fittings', 'duplicate_drawing_cleanup', 'drawing_portal_access', 'issued_drawings', 'mom_tasks', 'execution_visits', 'project_meetings', 'site_punch_ins', 'project_roles', 'drawing_task_master', 'designations', 'departments', 'projects', 'project_contacts', 'line_of_work', 'floor_zones', 'people', 'contacts', 'drawing_register', 'design_dashboard', 'design_tasks', 'wih', 'work_log', 'execution', 'meetings', 'mom', 'site_visits', 'files', 'activity_log', 'lookups', 'accounts_journal']);
+  function operationalTable(table) {
+    if (env.VERCEL_ENV !== 'preview' || env.SUPABASE_OPERATIONAL_ACCESS !== '1') throw new Error('Operational access disabled');
+    if (!operationalTables.has(table)) throw new Error('Unknown operational table');
+    return `enlighten_operational."${table}"`;
+  }
+  // Trusted server callers must authorize the user and validate business fields first.
+  async function readOperationalRows(table, {limit=1000, offset=0, projectId}={}) {
+    const name=operationalTable(table);
+    if (!Number.isSafeInteger(limit) || limit<1 || limit>5000 || !Number.isSafeInteger(offset) || offset<0) throw new Error('Invalid pagination');
+    if (projectId !== undefined && (typeof projectId !== 'string' || !projectId.trim())) throw new Error('Invalid project ID');
+    return rows(`SELECT record_id, source_export_id, source_row_number, cells, updated_at::text AS updated_at FROM ${name} ${projectId===undefined?'':"WHERE cells->>'projectId'=$3"} ORDER BY source_row_number NULLS LAST, record_id LIMIT $1 OFFSET $2`, projectId===undefined?[limit,offset]:[limit,offset,projectId]);
+  }
+  // Optimistic concurrency: reject stale edits. Use only after module-level authorization.
+  async function updateOperationalRecord(table, {recordId, expectedUpdatedAt, cells}, executor={query}) {
+    const name=operationalTable(table);
+    if (!/^[1-9][0-9]*$/.test(String(recordId)) || !expectedUpdatedAt || !cells || typeof cells!=='object' || Array.isArray(cells)) throw new Error('Invalid record update');
+    const result=await executor.query(`UPDATE ${name} SET cells=$1::jsonb, updated_at=GREATEST(clock_timestamp(),updated_at+interval '1 millisecond') WHERE record_id=$2::bigint AND updated_at=$3::timestamptz RETURNING record_id,cells,updated_at::text AS updated_at`,[JSON.stringify(cells),String(recordId),expectedUpdatedAt]);
+    if(result.rowCount!==1) throw new Error('Record missing or changed; reload before editing');
+    return result.rows[0];
+  }
   async function close() { if (pool) { const old = pool; pool = undefined; await old.end(); } }
-  return Object.freeze({query,rows,one,transaction,readImportedRows,close});
+  return Object.freeze({query,rows,one,transaction,readImportedRows,readOperationalRows,updateOperationalRecord,close});
 }
 export const db = createDatabase();
 export default db;

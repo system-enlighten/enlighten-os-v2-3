@@ -66,3 +66,23 @@ export async function loadPreviewUser(identity, {exportId, database=db} = {}) {
   }, {readOnly:true});
 }
 // No generic action authorization: unmigrated actions must retain existing authorization.
+
+// Operational authorization remains administrator-only during migration.
+// liveUser must be obtained server-side from the existing getCurrentUser action.
+// Never accept identity or liveUser from request payloads.
+export async function loadOperationalUser(identity, {liveUser, database=db} = {}) {
+  if (process.env.VERCEL_ENV !== 'preview' || process.env.SUPABASE_OPERATIONAL_ACCESS !== '1') throw deny('Operational access disabled.');
+  const address = email(identity?.email);
+  if (!address || !identity?.sub || address !== email(process.env.MIGRATION_ADMIN_EMAIL)) throw deny('Migration administrator required.');
+  requireSystemAdmin(liveUser);
+  if (email(liveUser.email) !== address || !liveUser.userId) throw deny('Live identity mismatch.');
+  return database.transaction(async tx => {
+    const members = await tx.rows(`SELECT cells FROM enlighten_operational.people WHERE lower(btrim(cells->>'email'))=$1 LIMIT 2`, [address]);
+    if (members.length !== 1) throw deny('Operational account not uniquely registered.');
+    const m = members[0].cells;
+    if (!active(m.active) || !m.userId || String(m.userId) !== String(liveUser.userId) || !m.googleSubject || String(m.googleSubject) !== String(identity.sub) || email(m.appAccess) !== 'admin') throw deny('Operational identity or access mismatch.');
+    const roles = await tx.rows(`SELECT cells FROM enlighten_operational.project_roles WHERE cells->>'userId'=$1`, [String(m.userId)]);
+    const user = {authenticated:true,authorized:true,active:true,email:address,googleSubject:String(identity.sub),userId:String(m.userId),name:String(m.name||''),role:String(m.role||''),department:String(m.department||''),appAccess:'Admin',projectRoles:projectRoleMap(roles.map(r=>r.cells),String(m.userId)),permissions:{projects:'edit',wih:'all'}};
+    return requireSystemAdmin(user);
+  }, {readOnly:true});
+}
