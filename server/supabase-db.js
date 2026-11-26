@@ -73,14 +73,32 @@ export function createDatabase({env = process.env, PoolClass = Pool} = {}) {
   }
   // Optimistic concurrency: reject stale edits. Use only after module-level authorization.
   async function updateOperationalRecord(table, {recordId, expectedUpdatedAt, cells}, executor={query}) {
-    const name=operationalTable(table);
+    const name=writeTable(table);
     if (!/^[1-9][0-9]*$/.test(String(recordId)) || !expectedUpdatedAt || !cells || typeof cells!=='object' || Array.isArray(cells)) throw new Error('Invalid record update');
     const result=await executor.query(`UPDATE ${name} SET cells=$1::jsonb, updated_at=GREATEST(clock_timestamp(),updated_at+interval '1 millisecond') WHERE record_id=$2::bigint AND updated_at=$3::timestamptz RETURNING record_id,cells,updated_at::text AS updated_at`,[JSON.stringify(cells),String(recordId),expectedUpdatedAt]);
     if(result.rowCount!==1) throw new Error('Record missing or changed; reload before editing');
     return result.rows[0];
   }
+  // Internal primitives only. No browser-facing generic CRUD endpoint.
+  function writeTable(table) {
+    if (env.SUPABASE_DIRECT_OPERATIONAL_WRITES !== '1') throw new Error('Operational writes disabled');
+    return operationalTable(table);
+  }
+  async function insertOperationalRecord(table, {cells}, executor={query}) {
+    const name=writeTable(table);
+    if (!cells || typeof cells !== 'object' || Array.isArray(cells)) throw new Error('Invalid record');
+    const result=await executor.query(`INSERT INTO ${name} (cells) VALUES ($1::jsonb) RETURNING record_id,cells,updated_at::text AS updated_at`,[JSON.stringify(cells)]);
+    return result.rows[0];
+  }
+  async function deleteOperationalRecord(table, {recordId,expectedUpdatedAt}, executor={query}) {
+    const name=writeTable(table);
+    if (!/^[1-9][0-9]*$/.test(String(recordId)) || typeof expectedUpdatedAt !== 'string' || !expectedUpdatedAt) throw new Error('Invalid record deletion');
+    const result=await executor.query(`DELETE FROM ${name} WHERE record_id=$1::bigint AND updated_at=$2::timestamptz RETURNING record_id`,[String(recordId),expectedUpdatedAt]);
+    if(result.rowCount!==1) throw new Error('Record missing or changed; reload before deleting');
+    return result.rows[0];
+  }
   async function close() { if (pool) { const old = pool; pool = undefined; await old.end(); } }
-  return Object.freeze({query,rows,one,transaction,readImportedRows,readOperationalRows,updateOperationalRecord,close});
+  return Object.freeze({query,rows,one,transaction,readImportedRows,readOperationalRows,updateOperationalRecord,insertOperationalRecord,deleteOperationalRecord,close});
 }
 export const db = createDatabase();
 export default db;
