@@ -74,3 +74,5 @@
 .accounts .transaction-filters>label input[type=date]{width:112px}
 .transaction-filters>small{white-space:nowrap}
 .transaction-filter-options{inset-inline-start:auto;inset-inline-end:0}
+.design-transactions .transaction-actions button:not(.transaction-delete) { border:1px solid #174a85; color:#174a85; background:#fff; }
+.design-transactions .transaction-actions { white-space:normal; }
