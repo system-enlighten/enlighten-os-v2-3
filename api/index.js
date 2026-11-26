@@ -1,3 +1,11 @@
+import {loadPreviewUser, requireSystemAdmin} from '../server/permissions.js';
+import {getBootstrap, getProjectWorkspace} from '../server/bootstrap.js';
+import {listProjects as snapshotProjects} from '../server/projects.js';
+import {listProjectContacts} from '../server/directory.js';
+import {listFloorZones} from '../server/floor-zones.js';
+import {listDrawingRegister} from '../server/drawings.js';
+import {readWorkflowSnapshot} from '../server/workflow.js';
+import {readDiarySnapshot} from '../server/diary.js';
 import {Pool as MigrationPool} from 'pg';
 import {recordingEnabled,recordProject} from '../server/project-recording.js';
 import {runPreviewProject, previewActions} from '../server/supabase-project-preview.js';
@@ -175,6 +183,39 @@ export default async function handler(req,res) {
     if(method==='POST'&&CACHE_CLEARING_MUTATIONS.has(action))SERVER_CACHE.clear();
     const payload=method==='GET'?Object.fromEntries(Object.entries(query).filter(([k])=>k!=='action')):body.payload||{};
     if(!payload||Array.isArray(payload)||typeof payload!=='object')return send(400,{ok:false,error:{message:'Invalid payload'}});
+    // Isolated read-only integration; never substitute snapshots for operational routes.
+    if(action==='supabaseSnapshotInspect'){
+      const email=String(identity.email||'').trim().toLowerCase();
+      if(method!=='POST'||process.env.VERCEL_ENV!=='preview'||process.env.SUPABASE_SNAPSHOT_INSPECTION!=='1'||process.env.SUPABASE_IMPORTED_PROJECT_READS!=='1'||email!==String(process.env.MIGRATION_ADMIN_EMAIL||'').trim().toLowerCase()||email!=='system.enlighten@gmail.com')return send(403,{ok:false,error:{message:'Snapshot inspection disabled or unauthorized.'}});
+      const exportId=String(process.env.SUPABASE_IMPORT_EXPORT_ID||'').trim();
+      if(!exportId)return send(503,{ok:false,error:{message:'Server snapshot export ID not configured.'}});
+      const auth=await fetchAppsScript(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(signRequest('getCurrentUser',{},identity,secret)),signal:AbortSignal.timeout(15000)});
+      const current=await auth.json();
+      if(!auth.ok||!current.ok||current.data?.authorized!==true||String(current.data.appAccess).toLowerCase()!=='admin')return send(403,{ok:false,error:{message:'Current live administrator authorization required.'}});
+      try{
+        const user=await loadPreviewUser(identity,{exportId});
+        requireSystemAdmin(user);
+        const context={user,exportId};
+        const input={projectId:typeof payload.projectId==='string'?payload.projectId:'',activeOnly:payload.activeOnly===true,includeMaster:payload.includeMaster===true};
+        const routes=new Map([
+          ['bootstrap',()=>getBootstrap(input,context)],
+          ['workspace',()=>getProjectWorkspace(context)],
+          ['projects',()=>snapshotProjects(input,context)],
+          ['directory',()=>listProjectContacts(input,context)],
+          ['floorZones',()=>listFloorZones(input,context)],
+          ['drawings',()=>listDrawingRegister(input,context)],
+          ['workflow',()=>readWorkflowSnapshot(input,context)],
+          ['diary',()=>readDiarySnapshot(input,context)]
+        ]);
+        const run=routes.get(payload.module);
+        if(!run)return send(400,{ok:false,error:{message:'Unknown snapshot module.'}});
+        const data=await run();
+        // Return counts only, not raw imported personal or project data.
+        const counts=Array.isArray(data)?{records:data.length}:Object.fromEntries(Object.entries(data).filter(([,v])=>Array.isArray(v)).map(([k,v])=>[k,v.length]));
+        res.setHeader('X-Enlighten-Data-Source','supabase-import-snapshot-inspection');
+        return send(200,{ok:true,data:{module:payload.module,readOnly:true,counts}});
+      }catch(e){console.error('Snapshot inspection failed',e.code||e.name);return send(e.statusCode===403?403:502,{ok:false,error:{message:'Snapshot inspection failed.'}});}
+    }
     if(action==='listProjects'&&process.env.VERCEL_ENV==='preview'&&process.env.SUPABASE_IMPORTED_PROJECT_READS==='1'&&identity.email.toLowerCase()===String(process.env.MIGRATION_ADMIN_EMAIL||'').trim().toLowerCase()){
       const auth=await fetchAppsScript(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(signRequest('getCurrentUser',{},identity,secret)),signal:AbortSignal.timeout(15000)});
       const current=await auth.json();
