@@ -155,5 +155,7 @@ export function DepartmentWorkspace({id,name=departments[id][0],user,request:api
 }
 
 export function DepartmentHeading({name,onChoose}){
- return onChoose?<button type="button" onClick={onChoose} aria-label={name+' — choose a department'} style={{border:0,padding:0,background:'transparent',color:'inherit',font:'inherit',fontWeight:650,textAlign:'left',cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6}}>{name}</button>:<strong>{name}</strong>;
+ const shortNames={studio:'Studio',sales:'Sales',marketing:'Marketing',accounts:'Accounts',legal:'Legal',hr:'Human Resources'};
+ const heading=shortNames[departmentFor(name)];
+ return onChoose?<button type="button" onClick={onChoose} aria-label={name+' — choose a department'} style={{border:0,padding:0,background:'transparent',color:'inherit',font:'inherit',fontWeight:650,textAlign:'left',cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6}}>{heading}</button>:<strong>{heading}</strong>;
 }
