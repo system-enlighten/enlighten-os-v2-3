@@ -1,3 +1,14 @@
+import {loadOperationalUser} from '../server/permissions.js';
+import {getBootstrap as op_getBootstrap} from '../server/bootstrap-operational.js';
+import {getProjectWorkspace as op_getProjectWorkspace} from '../server/bootstrap-operational.js';
+import {listProjects as op_listProjects} from '../server/projects-operational.js';
+import {listProjectContacts as op_listProjectContacts} from '../server/directory-operational.js';
+import {listFloorZones as op_listFloorZones} from '../server/floor-zones-operational.js';
+import {listDrawingRegister as op_listDrawingRegister} from '../server/drawings-operational.js';
+import {readWorkflowSnapshot as op_readWorkflowSnapshot} from '../server/workflow-operational.js';
+import {readDiarySnapshot as op_readDiarySnapshot} from '../server/diary-operational.js';
+import {readAccountsJournal as op_readAccountsJournal} from '../server/accounts-operational.js';
+import {readAttendanceSnapshot as op_readAttendanceSnapshot} from '../server/attendance-operational.js';
 import {loadPreviewUser, requireSystemAdmin} from '../server/permissions.js';
 import {getBootstrap, getProjectWorkspace} from '../server/bootstrap.js';
 import {listProjects as snapshotProjects} from '../server/projects.js';
@@ -183,7 +194,60 @@ export default async function handler(req,res) {
     if(method==='POST'&&CACHE_CLEARING_MUTATIONS.has(action))SERVER_CACHE.clear();
     const payload=method==='GET'?Object.fromEntries(Object.entries(query).filter(([k])=>k!=='action')):body.payload||{};
     if(!payload||Array.isArray(payload)||typeof payload!=='object')return send(400,{ok:false,error:{message:'Invalid payload'}});
+    // Normal application read routes, explicitly enabled for migration administrator only.
+    const directRoutes = new Map([
+      ['bootstrap',(p,c)=>op_getBootstrap(p,c)],
+      ['getProjectWorkspace',(p,c)=>op_getProjectWorkspace(c)],
+      ['listProjects',(p,c)=>op_listProjects(p,c)],
+      ['listProjectContacts',(p,c)=>op_listProjectContacts(p,c)],
+      ['listFloorZones',(p,c)=>op_listFloorZones(p,c)],
+      ['listDrawingRegister',(p,c)=>op_listDrawingRegister(p,c)]
+    ]);
+    if(process.env.VERCEL_ENV==='preview' && process.env.SUPABASE_OPERATIONAL_ACCESS==='1' && process.env.SUPABASE_DIRECT_OPERATIONAL_READS==='1' && directRoutes.has(action) && String(identity.email||'').trim().toLowerCase()===String(process.env.MIGRATION_ADMIN_EMAIL||'').trim().toLowerCase()){
+      try {
+        const auth=await fetchAppsScript(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(signRequest('getCurrentUser',{},identity,secret)),signal:AbortSignal.timeout(15000)});
+        const current=await auth.json();
+        if(!auth.ok||!current.ok)return send(403,{ok:false,error:{message:'Live authorization required.'}});
+        const user=await loadOperationalUser(identity,{liveUser:current.data});
+        const data=await directRoutes.get(action)(payload,{user,exportId:'operational'});
+        res.setHeader('X-Enlighten-Data-Source','supabase-operational');
+        return send(200,{ok:true,data});
+      } catch(e) {
+        console.error('Direct operational read failed',e.code||e.name);
+        return send(e.statusCode===403?403:502,{ok:false,error:{message:'Direct operational read failed; no Sheets fallback.'}});
+      }
+    }
     // Isolated read-only integration; never substitute snapshots for operational routes.
+    if(action==='supabaseOperationalInspect'){
+      if(method!=='POST'||process.env.VERCEL_ENV!=='preview'||process.env.SUPABASE_OPERATIONAL_ACCESS!=='1')return send(403,{ok:false,error:{message:'Operational inspection disabled.'}});
+      if(identity.email.toLowerCase()!==String(process.env.MIGRATION_ADMIN_EMAIL||'').trim().toLowerCase())return send(403,{ok:false,error:{message:'Administrator required.'}});
+      try {
+        const auth=await fetchAppsScript(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(signRequest('getCurrentUser',{},identity,secret)),signal:AbortSignal.timeout(15000)});
+        const current=await auth.json();
+        if(!auth.ok||!current.ok)return send(403,{ok:false,error:{message:'Live authorization required.'}});
+        const user=await loadOperationalUser(identity,{liveUser:current.data});
+        const context={user,exportId:'operational'};
+        const input={projectId:typeof payload.projectId==='string'?payload.projectId:'',userId:typeof payload.userId==='string'?payload.userId:'',activeOnly:payload.activeOnly===true,includeMaster:payload.includeMaster===true};
+        const routes=new Map([
+          ['bootstrap',()=>op_getBootstrap(input,context)],
+          ['workspace',()=>op_getProjectWorkspace(context)],
+          ['projects',()=>op_listProjects(input,context)],
+          ['directory',()=>op_listProjectContacts(input,context)],
+          ['floor-zones',()=>op_listFloorZones(input,context)],
+          ['drawings',()=>op_listDrawingRegister(input,context)],
+          ['workflow',()=>op_readWorkflowSnapshot(input,context)],
+          ['diary',()=>op_readDiarySnapshot(input,context)],
+          ['accounts',()=>op_readAccountsJournal(context)],
+          ['attendance',()=>op_readAttendanceSnapshot({...context,userId:input.userId})]
+        ]);
+        const run=routes.get(payload.module);
+        if(!run)return send(400,{ok:false,error:{message:'Unknown operational module.'}});
+        const data=await run();
+        const counts=Array.isArray(data)?{records:data.length}:Object.fromEntries(Object.entries(data).filter(([,v])=>Array.isArray(v)).map(([k,v])=>[k,v.length]));
+        res.setHeader('X-Enlighten-Data-Source','supabase-operational-inspection');
+        return send(200,{ok:true,data:{module:payload.module,readOnly:true,counts}});
+      }catch(e){console.error('Operational inspection failed',e.code||e.name);return send(e.statusCode===403?403:502,{ok:false,error:{message:'Operational inspection failed.'}});}
+    }
     if(action==='supabaseSnapshotInspect'){
       const email=String(identity.email||'').trim().toLowerCase();
       if(method!=='POST'||process.env.VERCEL_ENV!=='preview'||process.env.SUPABASE_SNAPSHOT_INSPECTION!=='1'||process.env.SUPABASE_IMPORTED_PROJECT_READS!=='1'||email!==String(process.env.MIGRATION_ADMIN_EMAIL||'').trim().toLowerCase()||email!=='system.enlighten@gmail.com')return send(403,{ok:false,error:{message:'Snapshot inspection disabled or unauthorized.'}});
