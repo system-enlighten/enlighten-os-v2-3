@@ -1,24 +1,30 @@
 import React,{useEffect,useState} from 'react';
 import {dashboardReceivedPlan,completeDashboardReceivedUpload} from './dashboard-received-upload.js';
-export default function DashboardReceivedUpload({projectId,selections,files,zones,generation,getGeneration,onClear,onSaved,services,today,buttonStyle,inputStyle,font}){
+export default function DashboardReceivedUpload({projectId,selections,files,onFiles,zones,generation,getGeneration,onClear,onSaved,services,today,buttonStyle,inputStyle,font,onNoCeiling}){
  const options=[...new Map(zones.map(z=>[JSON.stringify([z.floor,z.area||z.room]),{floor:z.floor,area:z.area||z.room,drawingType:selections[0].drawingType}])).values()];
  const [tags,setTags]=useState(()=>files.map(()=>selections));
+ const [noCeiling,setNoCeiling]=useState([]),[savingCeiling,setSavingCeiling]=useState(false);
+ const isCeiling=selections[0].drawingType==='False Ceiling';
  const [date,setDate]=useState(today),[error,setError]=useState('');
- const submit=()=>{
+ const submit=async()=>{
   try{
-   const jobs=files.map((file,i)=>({file,entry:{id:'DRW-UPL-'+crypto.randomUUID(),plan:dashboardReceivedPlan(projectId,tags[i],file,date)},generation,getGeneration,services:Object.fromEntries(Object.entries(services).map(([k,fn])=>[k,(...args)=>{if(getGeneration()!==generation)throw Error("Sign-in changed.");return fn(...args);} ])),onSaved}));
-   enqueue(jobs);onClear();
-  }catch(e){setError(e.message);}
+   if(savingCeiling)return;setSavingCeiling(true);
+   const jobs=files.map((file,i)=>({file,i})).filter(({i})=>tags[i].length).map(({file,i})=>({file,entry:{id:'DRW-UPL-'+crypto.randomUUID(),plan:dashboardReceivedPlan(projectId,tags[i],file,date)},generation,getGeneration,services:Object.fromEntries(Object.entries(services).map(([k,fn])=>[k,(...args)=>{if(getGeneration()!==generation)throw Error("Sign-in changed.");return fn(...args);} ])),onSaved}));
+   if(noCeiling.length)await onNoCeiling(noCeiling);
+   if(jobs.length)enqueue(jobs);else await onSaved();onClear();
+  }catch(e){setError(e.message);}finally{setSavingCeiling(false)}
  };
  return <div style={{position:'fixed',inset:0,zIndex:15000,background:'rgba(8,25,45,.45)',display:'grid',placeItems:'center',padding:16}}><section role="dialog" aria-modal="true" aria-label="Upload received drawings" style={{width:'min(680px,100%)',maxHeight:'90vh',overflow:'auto',background:'#FAF9F5',padding:18,fontFamily:font,fontSize:13,boxSizing:'border-box'}}>
  <h3>Upload received drawings · {selections[0].drawingType}</h3>
+ <label style={{display:'block',marginBottom:8}}>Drawing file <input type="file" multiple disabled={savingCeiling} onChange={e=>{const next=Array.from(e.target.files||[]);onFiles(next);setTags(next.map(()=>selections.filter(z=>!noCeiling.some(n=>n.floor===z.floor&&n.area===z.area))));}}/></label>
  <label>Received date <input type="date" value={date} max={today}  onChange={e=>setDate(e.target.value)} style={{...inputStyle,width:150}}/></label>
  {files.map((file,i)=><fieldset key={i} style={{margin:'12px 0',minWidth:0,overflowWrap:'anywhere'}}><legend>{file.name}</legend><div style={{maxHeight:150,overflow:'auto'}}>{options.map(z=>{
   const matches=v=>v.floor===z.floor&&v.area===z.area;
-  return <label key={JSON.stringify(z)} style={{display:'block',padding:4}}><input type="checkbox" checked={tags[i].some(matches)} onChange={e=>{const checked=e.target.checked;setTags(list=>list.map((row,n)=>n!==i?row:checked?[...row,z]:row.filter(v=>!matches(v))));}}/> {z.floor} · {z.area}</label>;
+  return <label key={JSON.stringify(z)} style={{display:'block',padding:4}}><input type="checkbox" disabled={noCeiling.some(matches)} checked={tags[i].some(matches)} onChange={e=>{const checked=e.target.checked;setTags(list=>list.map((row,n)=>n!==i?row:checked?[...row,z]:row.filter(v=>!matches(v))));}}/> {z.floor} · {z.area}</label>;
  })}</div></fieldset>)}
+ {isCeiling&&<fieldset style={{margin:'12px 0'}}><legend>No ceiling</legend><div style={{maxHeight:140,overflow:'auto'}}>{options.map(z=>{const same=v=>v.floor===z.floor&&v.area===z.area;return <label key={JSON.stringify(z)} style={{display:'block',padding:4}}><input type="checkbox" checked={noCeiling.some(same)} onChange={e=>{setNoCeiling(old=>e.target.checked?[...old,z]:old.filter(v=>!same(v)));if(e.target.checked)setTags(old=>old.map(row=>row.filter(v=>!same(v))))}}/> {z.floor} · {z.area}</label>})}</div></fieldset>}
  {error&&<p role="alert">{error}</p>}
- <div style={{position:'sticky',bottom:0,background:'#FAF9F5',padding:8,display:'flex',gap:8}}><button type="button" style={buttonStyle} onClick={onClear}>Cancel</button><button type="button" style={buttonStyle} disabled={!date||date>today||tags.some(row=>!row.length)} onClick={submit}>{files.length===1?'Upload drawing':'Upload '+files.length+' drawings'}</button></div>
+ <div style={{position:'sticky',bottom:0,background:'#FAF9F5',padding:8,display:'flex',gap:8}}><button type="button" style={buttonStyle} onClick={onClear}>Cancel</button><button type="button" style={buttonStyle} disabled={savingCeiling||!date||date>today||(!noCeiling.length&&(!files.length||tags.some(row=>!row.length)))} onClick={submit}>{savingCeiling?'Saving…':noCeiling.length?'Save selection':files.length===1?'Upload drawing':'Upload '+files.length+' drawings'}</button></div>
  </section></div>;
 }
 
