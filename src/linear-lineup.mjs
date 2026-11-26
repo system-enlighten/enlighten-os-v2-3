@@ -62,6 +62,44 @@ export function targetFittingOptionsForRow({row,groupProducts=[],database=[],ico
  }
  return [...options.values()];
 }
+export function extractCodeSortKey(code){
+ const text=String(code||'').trim().toUpperCase();
+ const pipeMatch=text.match(/\|.*?(?:^|\D)(\d{3})([A-Z]*)$/)||text.match(/\|(\d{1,3})([A-Z]*)$/);
+ if(pipeMatch)return {num:Number(pipeMatch[1]),suffix:pipeMatch[2]||''};
+ const tailMatch=text.match(/(\d{3})([A-Z]*)$/);
+ if(tailMatch)return {num:Number(tailMatch[1]),suffix:tailMatch[2]||''};
+ return null;
+}
+export function sortLinearApplications(applications,{getCodes,order=[],customApplications=[]}={}){
+ const orderIndex=new Map(order.map((id,i)=>[id,i]));
+ const customIndex=new Map(customApplications.map((a,i)=>[a.id,i]));
+ const keyFor=app=>{
+  for(const code of getCodes(app)){
+   const key=extractCodeSortKey(code);
+   if(key)return key;
+  }
+  return null;
+ };
+ return [...applications].sort((a,b)=>{
+  const aCustom=String(a.id||'').startsWith('custom-'),bCustom=String(b.id||'').startsWith('custom-');
+  if(aCustom!==bCustom)return aCustom?1:-1;
+  if(aCustom&&bCustom){
+   const ao=customIndex.get(a.id)??orderIndex.get(a.id)??Infinity;
+   const bo=customIndex.get(b.id)??orderIndex.get(b.id)??Infinity;
+   return ao-bo;
+  }
+  const ka=keyFor(a),kb=keyFor(b);
+  if(ka&&kb){
+   if(ka.num!==kb.num)return ka.num-kb.num;
+   const suffixCmp=ka.suffix.localeCompare(kb.suffix);
+   if(suffixCmp!==0)return suffixCmp;
+  }else if(ka||kb){
+   return ka?-1:1;
+  }
+  const ao=orderIndex.get(a.id)??Infinity,bo=orderIndex.get(b.id)??Infinity;
+  return ao!==bo?ao-bo:0;
+ });
+}
 export function linearCatalogue(groups,database){
  const codes=new Map(database.map(f=>[normalizeLinearCode(f.fittingType),f]));
  return groups.map(g=>({...g,products:g.products.map(p=>({...p,fitting:codes.get(normalizeLinearCode(p.code))||null}))}));

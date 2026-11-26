@@ -1,5 +1,5 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
-import {linearCatalogue,linearApplications,catalogueLinearGroups,COLOUR_VARIANT_LABELS,imageIdentity,resolveIconsFor,resolveIconCode,filterUnassignedReferences,targetFittingOptionsForRow} from './linear-lineup.mjs';
+import {linearCatalogue,linearApplications,catalogueLinearGroups,COLOUR_VARIANT_LABELS,imageIdentity,resolveIconsFor,resolveIconCode,filterUnassignedReferences,targetFittingOptionsForRow,sortLinearApplications} from './linear-lineup.mjs';
 import './LinearLightLineup.css';
 import LinearApplicationPicker from './LinearApplicationPicker.jsx';
 import ProductSpecSheet from './ProductSpecSheet.jsx';
@@ -78,10 +78,14 @@ export default function LinearLightLineup({database,catalogue,onAddProduct,onSav
  for(const [number,owner] of familyOwners){const icons=variantIcons.get(owner);for(const [slot,url] of catalogueFamilyIcons.get(number)||[])if(!icons.get(slot))icons.set(slot,url);}
  const primarySlot=a=>variantInfo(a)?.slot||1;
  const iconsFor=a=>resolveIconsFor({app:a,variantIcons,layoutVariantIcons:layout?.variantIcons,primarySlot:primarySlot(a)});
- const orderIndex=new Map((layout?.order||[]).map((id,i)=>[id,i]));
- applications.sort((a,b)=>(orderIndex.get(a.id)??Infinity)-(orderIndex.get(b.id)??Infinity));
  const iconCode=(a,slot)=>resolveIconCode({app:a,slot,primarySlot:primarySlot(a),familyNumber:familyNumbers.get(a.id)||'',groupCode:groupCode(groups.find(g=>g.id===a.groupId)),codes,variantCodes:layout?.variantCodes,catalogueFamilyCodes});
  const applicationCode=a=>iconCode(a,primarySlot(a));
+ const orderedApplications=sortLinearApplications(applications,{
+  getCodes:a=>[applicationCode(a),...iconsFor(a).map(([slot])=>iconCode(a,slot))],
+  order:layout?.order||[],
+  customApplications:layout?.customApplications||[],
+ });
+ applications.splice(0,applications.length,...orderedApplications);
  const primaryIconUrl=a=>{const icons=iconsFor(a);const slot=primarySlot(a);return icons.find(([s])=>s===slot)?.[1]||icons.at(-1)?.[1]||a.url;};
  const choices=applications.map(a=>{
   const iconList=iconsFor(a);
