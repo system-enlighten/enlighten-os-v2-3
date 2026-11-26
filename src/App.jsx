@@ -2877,7 +2877,7 @@ const projectApi = {
   saveDesignation: item => apiRequest("saveDesignation", item),
   listDrawingTaskMaster: () => apiRequest("listDrawingTaskMaster", {}, "GET"),
   saveDrawingTaskMaster: templates => apiRequest("saveDrawingTaskMaster", { templates }),
-  getDesignDashboard: projectId => apiRequest("getDesignDashboard", { projectId }, "GET"),
+  getDesignDashboard: (projectId,fastRead=false) => apiRequest("getDesignDashboard", fastRead?{projectId,fastRead:true}:{projectId}, "GET"),
   getWIH: (includeCompleted=true, projectId="", fastRead=false) => apiRequest("getWIH", { includeCompleted, ...(projectId?{projectId}:{}), ...(fastRead?{fastRead}:{}) }, "GET"),
   assignTask: payload => apiRequest("assignDesignTask", payload),
   startTask: designTaskId => apiRequest("startTask", { designTaskId }),
@@ -6157,8 +6157,8 @@ function DrawingControlDashboard({state,persist,projectId,deferLoad=false,headin
   const scope=JSON.stringify([AUTH_SESSION_GENERATION,project?.id]);
   const [dashboardResult,setDashboardResult]=useState(null),[workResult,setWorkResult]=useState(null);
   const [loading,setLoading]=useState(true),[error,setError]=useState(''),[revision,setRevision]=useState(0);
-  const payload=dashboardResult?.scope===scope?dashboardResult.data:peekPageRead('getDesignDashboard',{projectId:project?.id});
-  const work=workResult?.scope===scope?workResult.data:peekPageRead('getWIH',{includeCompleted:true,projectId:project?.id,fastRead:true});
+  const payload=dashboardResult?.scope===scope?dashboardResult.data:(peekPageRead('getDesignDashboard',{projectId:project?.id,fastRead:true})||peekPageRead('getDesignDashboard',{projectId:project?.id}));
+  const work=workResult?.scope===scope?workResult.data:payload?.work||peekPageRead('getWIH',{includeCompleted:true,projectId:project?.id,fastRead:true});
   const wih=Array.isArray(work)?work:[];
   const sectionRef=useRef(null),[ready,setReady]=useState(!deferLoad),[showHours,setShowHours]=useState(false);
   const [output,setOutput]=useState(null),[outputBusy,setOutputBusy]=useState(false),[outputError,setOutputError]=useState(''),[outputNotice,setOutputNotice]=useState('');
@@ -6190,7 +6190,24 @@ function DrawingControlDashboard({state,persist,projectId,deferLoad=false,headin
   useEffect(()=>{let live=true;setLoading(true);setError('');
     if(!project?.id){setLoading(false);return()=>{live=false;};}
     if(!ready)return()=>{live=false;};
-    queueDesignDashboardLoad(()=>{if(!live)return; const dashboard=projectApi.getDesignDashboard(project.id).then(data=>{if(live)setDashboardResult({scope,data});});const work=projectApi.getWIH(true,project.id,true).then(data=>{if(live)setWorkResult({scope,data});});return Promise.allSettled([dashboard,work]).then(results=>{const failed=results.find(r=>r.status==='rejected');if(failed)throw failed.reason;});}).catch(e=>{if(live)setError(e.message||'Could not load dashboard data.');}).finally(()=>{if(live)setLoading(false);});
+    queueDesignDashboardLoad(async()=>{
+      if(!live)return;
+      const data=await projectApi.getDesignDashboard(project.id,true);
+      if(!live)return;
+      setDashboardResult({scope,data});
+      if(Array.isArray(data.work))setWorkResult({scope,data:data.work});
+      else projectApi.getWIH(true,project.id,true).then(rows=>{if(live)setWorkResult({scope,data:rows});}).catch(()=>{});
+      setLoading(false);
+    }).then(()=>{
+      if(!live||!canReceive)return;
+      // Repair existing receipts only after the first matrix is visible.
+      return queueDesignDashboardLoad(()=>live?apiRequest('reconcileWihProject',{projectId:project.id},'POST',120000):null).then(async()=>{
+        if(!live)return;
+        PAGE_READ_CACHE.clear();
+        const data=await projectApi.getDesignDashboard(project.id,true);
+        if(live){setDashboardResult({scope,data});if(Array.isArray(data.work))setWorkResult({scope,data:data.work});}
+      }).catch(e=>{if(live)setError('Dashboard loaded. Task recovery: '+e.message);});
+    }).catch(e=>{if(live)setError(e.message||'Could not load dashboard data.');}).finally(()=>{if(live)setLoading(false);});
     return()=>{live=false;};
   },[project?.id,revision,ready,scope]);
   if(!project)return <p>No active project available.</p>;
@@ -6323,7 +6340,7 @@ function DrawingControlDashboard({state,persist,projectId,deferLoad=false,headin
           </table>
         </div>
 
-        <ProjectMomTasks key={project.id} state={state} projectId={project.id} enabled={ready} revision={revision}/>
+        <ProjectMomTasks key={project.id} state={state} projectId={project.id} enabled={ready&&!!payload&&!loading} revision={revision}/>
       </div>
       {showHours&&<aside id={`project-hours-${project.id}`} aria-label="Hours by Person" style={{border:`1px solid ${T.line}`,background:'#fff',position:'sticky',top:0,minWidth:0}}><div style={{padding:12,borderBottom:`1px solid ${T.line}`,background:'#FAF9F5'}}><div style={{fontFamily:FONT_MONO,fontSize:9,fontWeight:700,marginBottom:8,background:'#D2CDC1',color:'#1C1C19',padding:'9px 10px',borderBottom:`2px solid ${T.ink}`}}>{hoursScope==='own'?'MY HOURS':hoursScope==='project'?'PROJECT HOURS BY PERSON':'HOURS BY PERSON'}</div>{personHours.map(([person,hours])=><div key={person} style={{display:'flex',justifyContent:'space-between',gap:12,fontFamily:FONT_BODY,fontSize:11,padding:'4px 0'}}><span>{person}</span><strong>{hours.toFixed(1)} h</strong></div>)}{!personHours.length&&<div style={{fontFamily:FONT_BODY,fontSize:11,color:T.inkDim}}>{loading?'Loading hours…':'No completed WIH hours yet.'}</div>}</div></aside>}
 
@@ -6372,12 +6389,13 @@ function DesignWorkspaceView({state,persist,workflowTarget}){
 
 function DesignFlowView({state,persist,onOpenWorkflow}){
   const [editId,setEditId]=useState(''),[projectDraft,setProjectDraft]=useState({}),[saving,setSaving]=useState(false),[error,setError]=useState('');
-  const [statusProject,setStatusProject]=useState('');
+  const [statusProject,setStatusProject]=useState(null);
   const seen=new Set();
   const projects=orderedProjects(state.projects).filter(p=>{
     if(p.completed||p.status==='Completed'||p.projectControl?.projectStatus==='Completed')return false;
     const id=String(p.id||p.no||p.name||'').toLowerCase();if(!id||seen.has(id))return false;seen.add(id);return true;
   });
+  const selectedProject=statusProject===null?String(projects[0]?.id||''):statusProject;
   const canEditProject=id=>state.currentUser?.appAccess?.toLowerCase()!=='viewer'&&projectRole(state,id)==='Admin';
   const editing=projects.find(p=>String(p.id)===editId);
   const openEdit=p=>{setProjectDraft({no:p.no||p.projectNo||'',name:p.name||'',client:p.client||p.contacts?.Owner?.name||'',architect:p.architect||p.contacts?.Architect?.name||'',address:p.address||'',type:p.type||p.projectType||'Residence'});setEditId(String(p.id));setError('');};
@@ -6391,8 +6409,8 @@ function DesignFlowView({state,persist,onOpenWorkflow}){
   return <div>
     <header className="studio-dashboard-intro"><div className="wih-register-head studio-system-title"><h1 className="studio-page-heading">System Design</h1></div><section aria-label="System Design values" style={{borderLeft:`3px solid ${T.blue}`,padding:'2px 0 2px 14px',maxWidth:1100}}><div style={{fontFamily:FONT_MONO,fontSize:10,fontWeight:700,letterSpacing:'.06em',color:T.blue,marginBottom:7}}>VALUES</div><p style={{fontFamily:FONT_BODY,fontSize:13,lineHeight:1.65,color:T.ink,margin:'0 0 12px',fontStyle:'italic'}}>Construction is not a one-day thing.<br/>It’s a process. It’s a year-long relationship. Sometimes even more.<br/>First of all, you should know what you’re doing; only then will you be able to drive on the right road.</p><p style={{fontFamily:FONT_BODY,fontSize:13,lineHeight:1.65,color:T.ink,margin:'0 0 6px',fontStyle:'italic'}}>Lighting is what is going to define the mood of the space.</p><div style={{fontFamily:FONT_BODY,fontSize:13,fontWeight:600,color:T.blue}}>Energetic&nbsp; | &nbsp;Relax&nbsp; | &nbsp;Focus</div></section></header>
 
-    <label style={{display:'flex',alignItems:'center',gap:10,margin:'0 0 12px',fontFamily:FONT_BODY,fontSize:13}}>Project <select value={projects.some(p=>String(p.id)===statusProject)?statusProject:''} onChange={e=>setStatusProject(e.target.value)} style={{...inputStyle,width:'min(420px,80%)'}}><option value="">All projects</option>{projects.map(p=><option key={p.id} value={p.id}>{p.name}{p.no?' · '+p.no:''}</option>)}</select></label>
-    {projects.filter(p=>!projects.some(v=>String(v.id)===statusProject)||String(p.id)===statusProject).map((p,index)=><section key={p.id} data-activity-project={p.id} aria-label={`Design dashboard ${p.name}`} className="studio-dashboard-project" style={{borderBottom:`2px solid ${T.line}`}}>
+    <label style={{display:'flex',alignItems:'center',gap:10,margin:'0 0 12px',fontFamily:FONT_BODY,fontSize:13}}>Project <select value={projects.some(p=>String(p.id)===selectedProject)?selectedProject:''} onChange={e=>setStatusProject(e.target.value)} style={{...inputStyle,width:'min(420px,80%)'}}><option value="">All projects</option>{projects.map(p=><option key={p.id} value={p.id}>{p.name}{p.no?' · '+p.no:''}</option>)}</select></label>
+    {projects.filter(p=>!projects.some(v=>String(v.id)===selectedProject)||String(p.id)===selectedProject).map((p,index)=><section key={p.id} data-activity-project={p.id} aria-label={`Design dashboard ${p.name}`} className="studio-dashboard-project" style={{borderBottom:`2px solid ${T.line}`}}>
       <DrawingControlDashboard state={state} persist={persist} projectId={p.id} deferLoad={index>0} heading={p.name} onOpenWorkflow={onOpenWorkflow} onEdit={canEditProject(p.id)?()=>openEdit(p):undefined}/>
     </section>)}
     {projects.length>0&&<footer aria-label="Design dashboard status legend">

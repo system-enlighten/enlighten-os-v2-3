@@ -290,7 +290,7 @@ function InvoiceWorkspace({records,invoice,editing,busy,form,onChoose,onNew,onEd
   </div>;
 }
 
-export default function Accounts({page,request,user,onNavigate,reconciliationBank}){
+export default function Accounts({page,request,user,onNavigate,reconciliationBank,reconciliationTransaction}){
   const [data,setData]=useState(null),[draft,setDraft]=useState(null),[selected,setSelected]=useState(null);
   const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
   const [asOf,setAsOf]=useState(today);
@@ -589,7 +589,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
         <button type="button" aria-pressed={Boolean(reconciliationBank)} onClick={()=>onNavigate('Banking',bank)}>Reconciliation</button>
       </nav>
       {reconciliationBank
-        ? <AccountsReconciliation loading={!data} records={records} projects={projects} heads={heads} bank={bank} setBank={setBank} request={request} onSaved={load} readOnly={readOnly} onNavigate={onNavigate}/>
+        ? <AccountsReconciliation key={reconciliationTransaction||'banking'} focusTransactionId={reconciliationTransaction} loading={!data} records={records} projects={projects} heads={heads} bank={bank} setBank={setBank} request={request} onSaved={load} readOnly={readOnly} onNavigate={onNavigate}/>
         : <BankingOverview loading={!data} records={records} today={today()} onNavigate={onNavigate}/>}
     </>}
     {page==='GST'&&<GstOverview loading={!data} records={records} today={today()} onRecord={readOnly||busy?null:period=>begin('gstFiling',{period})}/>}
@@ -656,7 +656,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
       <Table columns={['Date','Type','Project','Description','Ledger head','Amount','IDFC']} rows={records.filter(r=>r.kind==='legacyDesign').map(r=>({key:r.id,cells:[r.date,r.type,r.projectName,r.description,r.head,money(r.amount),r.idfc?'Matched':'—']}))}/>
     </details>}
 
-    {page==='Debit / Credit'&&<DesignTransactions records={records} projects={projects} heads={heads} request={request} onSaved={load} readOnly={readOnly}/>}
+    {page==='Debit / Credit'&&<DesignTransactions onReconcile={row=>onNavigate('Banking',row.bank,row.id)} records={records} projects={projects} heads={heads} request={request} onSaved={load} readOnly={readOnly}/>}
 
 
     {page==='Chart of Accounts'&&<>

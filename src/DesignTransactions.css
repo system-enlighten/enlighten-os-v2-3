@@ -76,3 +76,4 @@
 .transaction-filter-options{inset-inline-start:auto;inset-inline-end:0}
 .design-transactions .transaction-actions button:not(.transaction-delete) { border:1px solid #174a85; color:#174a85; background:#fff; }
 .accounts .design-transactions .transaction-actions {white-space:nowrap;min-width:max-content;}
+.accounts .design-transactions button.transaction-reconcile-link { background:#f3efe5;color:#786741;border:1px solid transparent;border-radius:3px;padding:5px 8px;font:inherit;font-size:12px;text-decoration:underline;text-underline-offset:2px; }
