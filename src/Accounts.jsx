@@ -202,6 +202,8 @@ function InvoiceWorkspace({records,invoice,editing,busy,form,onChoose,onNew,onEd
   const search=query.trim().toLowerCase();
   const visible=records.filter(record=>[record.number,record.sourceNumber,record.client,record.projectName].some(value=>String(value||'').toLowerCase().includes(search)));
 
+  if(!ready)return <div className="accounts-document-loading" role="status"><span className="accounts-document-loading-line" aria-hidden="true"/>Loading {documentLabel.toLowerCase()}s…</div>;
+
   return <div className="invoice-workspace">
     <aside className="invoice-list" aria-label={documentLabel+" list"}>
       <header><h2>{isEstimate?"Estimates":"Invoices"}</h2>{onNew&&<button type="button" disabled={editing} onClick={onNew}>＋ Add New Estimate</button>}</header>
@@ -631,7 +633,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
       </details>
     </>}
 
-    {['Estimates','Invoices'].includes(page)&&<InvoiceWorkspace
+    {['Estimates','Invoices'].includes(page)&&(!error||data)&&<InvoiceWorkspace
       isEstimate={page==='Estimates'}
       onConvert={canConvert?convertEstimate:undefined}
       converted={Boolean(convertedInvoice||draft?.convertedFromEstimateId)}

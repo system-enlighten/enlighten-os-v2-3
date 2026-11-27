@@ -387,3 +387,5 @@
 .accounts .party-ledger-controls input{font-size:12px;padding:4px 6px}
 
 .party-profile-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:12px 0}.party-profile-fields label{display:grid;gap:5px}.party-profile-fields input,.party-profile-fields select{width:100%;box-sizing:border-box;padding:8px;border:1px solid #d2cdc1;background:#fff;color:#132237;font:inherit}
+
+.accounts-document-loading{display:flex;align-items:center;gap:12px;color:#536174;font-size:13px;padding:18px 0}.accounts-document-loading-line{display:inline-block;width:24px;height:3px;background:var(--studio-accent)}
