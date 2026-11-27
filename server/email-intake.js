@@ -74,7 +74,16 @@ export async function cancelEmailIntake(p,{user,database=db}) {
   });
 }
 
-export async function submitEmailIntake(p,{user,database=db,files=emailDrive,env=process.env,readAttachments=readIntakeAttachments,notify=sendIntakeConfirmation}) {
+export function submitEmailIntake(p,context) {
+  return commitEmailIntake(p,context);
+}
+
+// Worker-only entry point. Browser payloads cannot select the approval path.
+export function approveHistoricalEmailIntake(p,context) {
+  return commitEmailIntake(p,context,true);
+}
+
+async function commitEmailIntake(p,{user,database=db,files=emailDrive,env=process.env,readAttachments=readIntakeAttachments,notify=sendIntakeConfirmation},historical=false) {
   access(user,true);
   const intakeId=text(p.intakeId),projectSelector=lower(p.project),date=text(p.date),type=text(p.type);
   const floors=[...new Set((Array.isArray(p.floors)?p.floors:[]).map(text).filter(Boolean))];
@@ -86,9 +95,17 @@ export async function submitEmailIntake(p,{user,database=db,files=emailDrive,env
       await tx.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['email-intake:'+intakeId]);
       const rows=await tx.rows("SELECT record_id,cells FROM "+table+" WHERE cells->>'intakeId'=$1 LIMIT 2 FOR UPDATE",[intakeId]);
       const found=rows[0],intake=found?.cells;
-      if (rows.length!==1||lower(intake.sender)!==lower(user.email)) throw failure('This drawing is not assigned to your account.',403);
+      if (rows.length!==1) throw failure('This drawing is not assigned to your account.',403);
       const data=details(intake);
-      if (!data.senderForm) throw failure('This older intake must be confirmed by the receiving admin. Send a new email to use the sender form.',409);
+      if (historical) {
+        if (data.senderForm||lower(user.appAccess)!=='admin'||lower(user.email)!==lower(env.EMAIL_INTAKE_ADDRESS)||
+          lower(data.approvalAddress||env.EMAIL_INTAKE_ADDRESS)!==lower(user.email)||intake.token!==p.token) {
+          throw failure('Only the receiving mailbox can confirm this intake.',403);
+        }
+      } else {
+        if (lower(intake.sender)!==lower(user.email)) throw failure('This drawing is not assigned to your account.',403);
+        if (!data.senderForm) throw failure('This older intake must be confirmed by the receiving admin. Send a new email to use the sender form.',409);
+      }
       if (intake.status==='Uploaded') return {status:'Uploaded'};
       if (intake.status==='Cancelled') throw failure('This intake was cancelled.',409);
       eligible=true;
@@ -140,7 +157,8 @@ export async function submitEmailIntake(p,{user,database=db,files=emailDrive,env
       }
       Object.assign(data,{projectId,floors,date,drawingType:type});
       await tx.query('UPDATE '+table+' SET cells=cells||$1::jsonb,updated_at=clock_timestamp() WHERE record_id=$2',
-        [JSON.stringify({status:'Uploaded',error:'',updatedAt:now(),detailsJson:JSON.stringify(data)}),found.record_id]);
+        [JSON.stringify({status:'Uploaded',error:'',updatedAt:now(),detailsJson:JSON.stringify(data),
+          ...(historical?{pollerApprovalMessageId:p.approvalMessageId}:{})}),found.record_id]);
       confirmed={token:intake.token,recipient:data.approvalAddress||env.EMAIL_INTAKE_ADDRESS,files:data.files};
       return {status:'Uploaded'};
     });
@@ -148,7 +166,7 @@ export async function submitEmailIntake(p,{user,database=db,files=emailDrive,env
     return result;
   } catch(error) {
     await Promise.allSettled(uploaded.map(id=>files.trash(id)));
-    if (eligible) await database.query(`UPDATE ${table} SET cells=cells||$1::jsonb,updated_at=clock_timestamp()
+    if (eligible&&!historical) await database.query(`UPDATE ${table} SET cells=cells||$1::jsonb,updated_at=clock_timestamp()
       WHERE cells->>'intakeId'=$2 AND lower(btrim(cells->>'sender'))=$3 AND cells->>'status' NOT IN ('Uploaded','Cancelled')`,
     [JSON.stringify({status:'Needs attention',error:(error.statusCode?error.message:'Email attachment processing failed.').slice(0,500),updatedAt:now()}),intakeId,lower(user.email)]).catch(()=>{});
     throw error;

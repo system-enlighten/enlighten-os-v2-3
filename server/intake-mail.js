@@ -2,8 +2,12 @@ import {sendMomMail} from './mom-mail.js';
 import {OAuth2Client} from 'google-auth-library';
 import {failure} from './project-write-storage.js';
 
-export async function readIntakeAttachments(messageId,{env=process.env,request=fetch,getToken}={}) {
-  if (!/^[A-Za-z0-9_-]{1,180}$/.test(messageId)) throw failure('Invalid original Gmail message identifier.');
+const resourceId=value=>{
+  if (!/^[A-Za-z0-9_-]{1,512}$/.test(value||'')) throw failure('Invalid Gmail resource identifier.');
+  return value;
+};
+const root='https://gmail.googleapis.com/gmail/v1/users/me';
+export function createIntakeMailbox({env=process.env,request=fetch,getToken}={}) {
   const access=getToken||async function () {
     const {INTAKE_MAIL_CLIENT_ID:id,INTAKE_MAIL_CLIENT_SECRET:secret,INTAKE_MAIL_REFRESH_TOKEN:refresh}=env;
     if (!id||!secret||!refresh) throw failure('Drawing intake mailbox is not configured.',503);
@@ -11,20 +15,40 @@ export async function readIntakeAttachments(messageId,{env=process.env,request=f
     client.setCredentials({refresh_token:refresh});
     return (await client.getAccessToken()).token;
   };
-  const token=await access(),root='https://gmail.googleapis.com/gmail/v1/users/me/messages/'+encodeURIComponent(messageId);
-  if (!token) throw failure('Drawing intake mailbox authorization is unavailable.',503);
-  const load=async suffix=>{
-    const response=await request(root+suffix,{headers:{Authorization:'Bearer '+token},redirect:'error',signal:AbortSignal.timeout(30000)});
-    if (!response.ok) throw failure('Original Gmail message or attachment is unavailable.',503);
+  let token;
+  const load=async (suffix,body)=>{
+    token ||= await access();
+    if (!token) throw failure('Drawing intake mailbox authorization is unavailable.',503);
+    const headers={Authorization:'Bearer '+token};
+    if (body) headers['Content-Type']='application/json';
+    const response=await request(root+suffix,{headers,redirect:'error',signal:AbortSignal.timeout(15000),
+      ...(body?{method:'POST',body:JSON.stringify(body)}:{})});
+    if (!response.ok) throw failure('Drawing intake Gmail request failed.',503);
     return response.json();
   };
-  const message=await load('?format=full'),attachments=[];
+  const messagePath=id=>'/messages/'+resourceId(id);
+  return {
+    profile:()=>load('/profile'),
+    aliases:()=>load('/settings/sendAs'),
+    labels:()=>load('/labels'),
+    threads:(label,pageToken)=>load('/threads?'+new URLSearchParams({labelIds:resourceId(label),q:'newer_than:30d',
+      maxResults:'30',...(pageToken?{pageToken}:{})})),
+    thread:id=>load('/threads/'+resourceId(id)+'?format=full'),
+    message:id=>load(messagePath(id)+'?format=full'),
+    part:(id,part)=>load(messagePath(id)+'/attachments/'+resourceId(part)),
+    sent:id=>load('/messages?'+new URLSearchParams({labelIds:'SENT',q:'rfc822msgid:'+id,maxResults:'2'})),
+    send:raw=>load('/messages/send',{raw})
+  };
+}
+
+export function intakeAttachments(message,mailbox) {
+  const attachments=[];
   function visit(part) {
     const disposition=(part.headers||[]).find(item=>String(item.name).toLowerCase()==='content-disposition')?.value||'';
     if (part.filename&&!/^inline/i.test(disposition)) {
       const body=part.body||{};
       attachments.push({name:part.filename,mimeType:part.mimeType,size:Number(body.size),bytes:async()=>{
-        const encoded=body.attachmentId?(await load('/attachments/'+encodeURIComponent(body.attachmentId))).data:body.data;
+        const encoded=body.attachmentId?(await mailbox.part(message.id,body.attachmentId)).data:body.data;
         if (typeof encoded!=='string'||encoded.length>28000000) throw failure('Gmail attachment is too large or unavailable.',409);
         return Buffer.from(encoded,'base64url');
       }});
@@ -33,6 +57,12 @@ export async function readIntakeAttachments(messageId,{env=process.env,request=f
   }
   if (message.payload) visit(message.payload);
   return attachments;
+}
+
+export async function readIntakeAttachments(messageId,options) {
+  const mailbox=createIntakeMailbox(options);
+  const message=await mailbox.message(messageId);
+  return intakeAttachments({...message,id:messageId},mailbox);
 }
 
 export async function sendIntakeConfirmation({token,recipient,files},{env=process.env}={}) {
