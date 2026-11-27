@@ -139,7 +139,7 @@ export function catalogueLinearGroups(catalogue, fittings, existingGroups) {
 }
 
 export function applicationCategory(fitting={},label=''){
- const category=String(fitting.category||label||'').toUpperCase();
+ const category=String(fitting?.category||label||'').toUpperCase().replace(/\s+/g,' ');
  if(/DOWNLIGHT/.test(category))return 'Downlights';
  if(/UPLIGHT/.test(category))return 'Uplights';
  if(/WALL WASHER/.test(category))return 'Wall Washers';
@@ -150,8 +150,17 @@ export function applicationCategory(fitting={},label=''){
  if(/LINEAR|COVE|CABINET|SHELF|NICHE|PROFILE|CURTAIN/.test(category))return 'Linear Lights';
  return 'Application-Specific';
 }
-export const applicationCategories=['All','Linear Lights','Downlights','Uplights','Wall Washers','Wall Highlighters','Texture Grazers','Stretch Cloth','Track Systems','Application-Specific'];
+export const applicationCategories=['All','Downlights','Wall Highlighters','Wall Washers','Texture Grazers','Uplights','Stretch Cloth','Linear Lights','Application-Specific','Track Systems'];
 export function catalogueColourFamily(code){
  const match=normalizeLinearCode(code).match(/^([A-Z]+\+?)([1-4])([A-Z].*)$/);
  return match?{number:'code-'+match[1]+match[3],slot:Number(match[2])}:null;
 }
+
+export function catalogueSectionCategory(section){
+ return applicationCategory({},section.category||(isLinearCatalogueRow(section.codeRow)?'Linear light':''));
+}
+export function catalogueRowCategory(catalogue,row){
+ const section=(catalogue?.sections||[]).find(s=>row>=s.iconRow&&row<=s.codeRow);
+ return section?catalogueSectionCategory(section):'';
+}
+export function categoryOrder(category){const index=applicationCategories.indexOf(category);return index<0?applicationCategories.length:index;}

@@ -1,5 +1,5 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
-import {linearCatalogue,linearApplications,catalogueLinearGroups,COLOUR_VARIANT_LABELS,imageIdentity,resolveIconsFor,resolveIconCode,filterUnassignedReferences,targetFittingOptionsForRow,sortLinearApplications,applicationCategory,catalogueColourFamily} from './linear-lineup.mjs';
+import {linearCatalogue,linearApplications,catalogueLinearGroups,COLOUR_VARIANT_LABELS,imageIdentity,resolveIconsFor,resolveIconCode,filterUnassignedReferences,targetFittingOptionsForRow,sortLinearApplications,applicationCategory,catalogueColourFamily,catalogueSectionCategory,categoryOrder} from './linear-lineup.mjs';
 import './LinearLightLineup.css';
 import LinearApplicationPicker from './LinearApplicationPicker.jsx';
 import ProductSpecSheet from './ProductSpecSheet.jsx';
@@ -85,7 +85,7 @@ export default function LinearLightLineup({database,catalogue,onAddProduct,onSav
    familyOwners.set(info.number,a.id);familyNumbers.set(a.id,info.number);variantIcons.set(a.id,new Map([[info.slot,a.url]]));
    if(a.url&&!info.number.startsWith('code-'))iconOwners.set(image,a.id);return true;
   }
-  if(a.url&&iconOwners.has(image)){canonicalIds.set(a.id,iconOwners.get(image));return false;}
+  if(a.url&&iconOwners.has(image)&&(!String(a.groupId).startsWith('catalogue-')||applicationCategory(groups.find(g=>g.id===a.groupId)?.products[0]?.fitting,groups.find(g=>g.id===a.groupId)?.label)==='Linear Lights')){canonicalIds.set(a.id,iconOwners.get(image));return false;}
   if(a.url)iconOwners.set(image,a.id);return true;
  });
  // Reserve every variant illustration globally, so aliases never get another row.
@@ -171,8 +171,17 @@ export default function LinearLightLineup({database,catalogue,onAddProduct,onSav
   const targetOpts=targetOptionsFor(g,nextLinked);
   setTarget(targetOpts[0]?.fitting.id||"");
  };
- const categoryRows=rows.filter(g=>category==='All'||applicationCategory(g.products[0]?.fitting||groups.find(x=>x.id===g.app.groupId)?.products[0]?.fitting,g.label)===category);
- const categoryApps=applications.filter(a=>categoryRows.some(g=>g.id===a.id));
+ const rowCategory=g=>{
+  const source=groups.find(x=>x.id===g.app.groupId);
+  const match=String(g.app.groupId||'').match(/^catalogue-(\d+)-/);
+  const section=match&&catalogue?.sections?.find(s=>s.codeRow===Number(match[1]));
+  if(section)return catalogueSectionCategory(section);
+  if(String(g.app.groupId||'').startsWith('linear-'))return 'Linear Lights';
+  return applicationCategory(source?.products[0]?.fitting||g.products[0]?.fitting,g.label);
+ };
+ const categoryRows=rows.filter(g=>category==='All'||rowCategory(g)===category).sort((a,b)=>categoryOrder(rowCategory(a))-categoryOrder(rowCategory(b)));
+ const categoryApps=categoryRows.map(g=>g.app);
+ useEffect(()=>{setApplication('');setQuery('');setChecked([]);},[category]);
  const selected=categoryApps.find(a=>a.id===application);
  const saveLayout=async next=>{setSaving(true);setError('');try{setLayout(await request('saveLinearApplicationLayout',{...next,expectedVersion:layout.version},'POST',90000));return true;}catch(e){setError(e.message);return false;}finally{setSaving(false);}};
  const reorder=async (from,to)=>{
