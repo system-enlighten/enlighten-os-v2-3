@@ -385,5 +385,3 @@
 .financial-reports tr[data-status=report-total] td{background:#e7ede8;font-weight:700}
 .accounts .party-ledger-controls{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px}
 .accounts .party-ledger-controls input{font-size:12px;padding:4px 6px}
-
-.party-profile-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:12px 0}.party-profile-fields label{display:grid;gap:5px}.party-profile-fields input,.party-profile-fields select{width:100%;box-sizing:border-box;padding:8px;border:1px solid #d2cdc1;background:#fff;color:#132237;font:inherit}

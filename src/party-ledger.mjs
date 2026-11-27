@@ -1,11 +1,6 @@
 export function partyLedger(records) {
  const invoices=new Map(records.filter(record=>record.kind==='invoice').map(record=>[record.id,record]));
- const parties=new Map(), names=new Map();
- for(const profile of records.filter(r=>r.kind==='partyProfile')){
-  const key=profile.name.trim().replace(/\s+/g,' ').toLowerCase();
-  parties.set(key,{name:profile.name,profile,entries:[],debit:0,credit:0});
-  for(const name of [profile.name,...(profile.aliases||[])])names.set(name.trim().replace(/\s+/g,' ').toLowerCase(),key);
- }
+ const parties=new Map();
  const ordered=[...records].sort((a,b)=>String(a.date).localeCompare(String(b.date)));
  for(const record of ordered){
   let name='',debit=0,credit=0;
@@ -27,8 +22,8 @@ export function partyLedger(records) {
   }
   name=name.trim().replace(/\s+/g,' ');
   if(!name||(!debit&&!credit))continue;
-  const key=names.get(name.toLowerCase());
-  if(!key)continue;
+  const key=name.toLowerCase();
+  if(!parties.has(key))parties.set(key,{name,entries:[],debit:0,credit:0});
   const party=parties.get(key);
   party.debit+=debit;
   party.credit+=credit;

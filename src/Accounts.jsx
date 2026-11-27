@@ -299,7 +299,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
   const [payMonth,setPayMonth]=useState(()=>today().slice(0,7)),[staffQuery,setStaffQuery]=useState('');
   const [coaQuery,setCoaQuery]=useState('');
   const [headDraft,setHeadDraft]=useState(null),[partyKey,setPartyKey]=useState('');
-  const [partyQuery,setPartyQuery]=useState(''),[partyDraft,setPartyDraft]=useState(null);
+  const [partyQuery,setPartyQuery]=useState('');
   const [ledgerFrom,setLedgerFrom]=useState(''),[ledgerTo,setLedgerTo]=useState('');
   const [ledgerPeriod,setLedgerPeriod]=useState('all');
   const ledgerPrintRef=useRef(null);
@@ -322,7 +322,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
 
   useEffect(()=>{load();},[]);
   useEffect(()=>{if(page==='Banking'&&reconciliationBank)setBank(reconciliationBank);},[page,reconciliationBank]);
-  useEffect(()=>{setDraft(null);setSelected(invoiceToOpen.current);invoiceToOpen.current=null;setInvoiceClosed(false);setNotice('');setHeadDraft(null);setPartyKey('');setPartyDraft(null);},[page]);
+  useEffect(()=>{setDraft(null);setSelected(invoiceToOpen.current);invoiceToOpen.current=null;setInvoiceClosed(false);setNotice('');setHeadDraft(null);setPartyKey('');},[page]);
 
   const save=async e=>{
     if(e?.preventDefault)e.preventDefault();
@@ -727,8 +727,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
       const party=parties.get(activeKey);
       const matches=party?projects.filter(p=>String(p.billing?.client||p.client||'').trim().replace(/\s+/g,' ').toLowerCase()===activeKey):[];
       const profiles=matches.map(p=>p.billing).filter(Boolean);
-      const billingProfile=profiles.length&&profiles.every(p=>['address','gstin','contact','phone','contactEmail'].every(k=>(p[k]||'')===(profiles[0][k]||'')))?profiles[0]:{};
-      const profile={...billingProfile,...Object.fromEntries(Object.entries(party?.profile||{}).filter(([,v])=>v!==''))};
+      const profile=profiles.length&&profiles.every(p=>['address','gstin','contact','phone','contactEmail'].every(k=>(p[k]||'')===(profiles[0][k]||'')))?profiles[0]:{};
       const entries=party?.entries.filter(({record})=>(!ledgerFrom||record.date>=ledgerFrom)&&(!ledgerTo||record.date<=ledgerTo))||[];
       const opening=ledgerFrom?(party?.entries.filter(({record})=>record.date<ledgerFrom).at(-1)?.balance||0):0;
       const ledger={party,profile,from:ledgerFrom,to:ledgerTo,entries,opening};
@@ -757,24 +756,16 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
       <StudioHeading title="Party Ledger" department="Accounts"/>
       <div className="invoice-workspace party-ledger-workspace">
       <aside className="invoice-list" aria-label="Party list">
-        <header><h2>Parties</h2>{!readOnly&&<button type="button" onClick={()=>setPartyDraft({name:"",aliases:[]})}>+ Add Party</button>}</header>
+        <header><h2>Parties</h2></header>
         <input type="search" className="invoice-search" aria-label="Search parties" placeholder="Search by party name…" value={partyQuery} onChange={event=>setPartyQuery(event.target.value)}/>
         {visibleParties.map(([key,party])=>
           <button type="button" className="invoice-list-row" key={key} aria-current={activeKey===key?'true':undefined} onClick={()=>setPartyKey(key)}>
             <strong>{party.name}</strong>
           </button>
         )}
-        {data&&!visibleParties.length&&<p className="party-ledger-content">{parties.size?"No parties match your search.":"Add a party from Studio or create a new party."}</p>}
+        {data&&!visibleParties.length&&<p className="party-ledger-content">{parties.size?"No parties match your search.":"No posted transactions have a client or beneficiary yet."}</p>}
       </aside>
       <section className="invoice-detail" aria-label="Selected party ledger">
-      {partyDraft&&<form className="party-ledger-content" onSubmit={async e=>{e.preventDefault();if(busy)return;setBusy(true);setError('');try{const saved=await request('saveAccountsParty',partyDraft,'POST');setData(d=>({...d,records:[...d.records.filter(r=>r.id!==saved.id),saved]}));setPartyKey(saved.name.trim().replace(/\s+/g,' ').toLowerCase());setPartyQuery('');setPartyDraft(null);}catch(e){setError(e.message)}finally{setBusy(false)}}}>
-       <h2>{partyDraft.id?'Edit party':'Add party'}</h2>
-       <div className="party-profile-fields"><label>Studio directory<select value="" onChange={e=>{const source=data.studioParties?.[Number(e.target.value)];if(e.target.value!==''&&source)setPartyDraft(d=>({...d,...source}))}}><option value="">Select existing party (optional)</option>{(data?.studioParties||[]).map((p,i)=><option key={i} value={i}>{p.name}</option>)}</select></label>
-       {['name','address','contact','phone','contactEmail','gstin'].map((key,i)=><label key={key}>{['Party name','Address','Contact person','Phone','Email','GSTIN'][i]}<input required={key==='name'} value={partyDraft[key]||''} onChange={e=>setPartyDraft(d=>({...d,[key]:e.target.value}))}/></label>)}
-       <label>Other names used in transactions (comma separated)<input value={(partyDraft.aliases||[]).join(',')} onChange={e=>setPartyDraft(d=>({...d,aliases:e.target.value.split(',')}))}/></label></div>
-       <button type="submit" disabled={busy}>Save party</button> <button type="button" onClick={()=>setPartyDraft(null)}>Cancel</button>
-      </form>}
-      {!readOnly&&party&&!partyDraft&&<button type="button" onClick={()=>setPartyDraft({...party.profile})}>Edit party</button>}
         {party?<>
             <header className="invoice-detail-heading"><div>
               <h2>{party.name}</h2>
