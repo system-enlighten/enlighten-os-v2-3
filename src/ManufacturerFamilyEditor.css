@@ -5,3 +5,5 @@
 .family-entry-choices{gap:10px;flex-wrap:wrap;border-bottom:0;margin:16px 0 0}.manufacturer-family-editor .family-entry-choices button{border:1px solid #174a85;color:#174a85;min-width:116px;padding:9px 16px;text-align:center}.manufacturer-family-editor .family-entry-choices button:hover{background:#132237;color:#fff;border-color:#132237}
 
 .family-link-choice{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;margin-bottom:16px}.family-link-choice label{display:grid;gap:6px;min-width:min(320px,100%)}.family-link-choice button:disabled{opacity:.45;cursor:default}.family-link-choice button{min-height:34px}
+
+.family-identity-fields,.family-asset-fields{grid-template-columns:repeat(auto-fit,minmax(240px,1fr));align-items:start}.family-common-details{margin:12px 0;border-top:1px solid #d2cdc1;padding-top:10px}.family-common-details summary{cursor:pointer;color:#174a85;margin-bottom:8px}.family-asset-fields{margin-top:12px}.family-product-columns th:first-child{width:22%}.family-product-columns td{min-width:200px}.family-product-columns thead th button{float:right;padding:0 7px}.manufacturer-family-editor input::placeholder{color:#77828e;opacity:1}
