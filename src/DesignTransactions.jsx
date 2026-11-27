@@ -1,10 +1,11 @@
 import {Plus, Upload, MessageCircle, Download, Filter, RotateCcw} from 'lucide-react';
 import {transactionBillSource} from './transaction-bill.mjs';
-import React,{useEffect,useRef,useState} from 'react';
+import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {downloadTransactionTemplate,readDesignTransactionFile,transactionErrors} from './design-transactions.mjs';
 import {reconciliationIds} from './reconciliation.mjs';
 import './DesignTransactions.css';
-const money=n=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR'}).format((n||0)/100),today=()=>new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Kolkata'});
+const currencyFormatter=new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR'});
+const money=n=>currencyFormatter.format((n||0)/100),today=()=>new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Kolkata'});
 const modes=['Cash','UPI','NEFT/RTGS/IMPS','Cheque','Debit Card','Credit Card','Other'];
 function TransactionReviewTable({children}) {
  const viewport=useRef(null),table=useRef(null);
@@ -52,7 +53,7 @@ export default function DesignTransactions({records,projects,heads,request,onSav
  function edit(row){setError('');setMessage('');setProof(null);setForm({...row,company:'Design',entryType:row.entryType||'Payment',amount:(row.amount/100).toFixed(2),editFingerprint:row.deleteFingerprint,projectId:row.projectId||'',projectName:row.projectId?row.projectName||'':'',paymentMode:row.paymentMode||'',fromAccount:row.fromAccount||'IDFC',toAccount:row.toAccount||'Cash'});window.requestAnimationFrame(()=>document.querySelector('.design-transaction-form')?.scrollIntoView({block:'start'}));}
  function mapRows(rows){return rows.map(r=>{const p=projects.filter(p=>[p.id,p.name].some(v=>String(v).trim().toLowerCase()===r.projectName.toLowerCase())),h=heads.find(([h])=>h.trim().toLowerCase()===r.head.toLowerCase());return {...r,id:crypto.randomUUID(),bank:r.bank||(/^cash$/i.test(r.paymentMode)?'Cash':bank),projectId:p.length===1?p[0].id:'',head:h?.[0]||r.head,selected:true};})}
  async function upload(e){const files=[...e.target.files];e.target.value='';if(!files.length)return;setBusy(true);setError('');setMessage('');try{const rows=[],excluded=[];for(const f of files){const p=await readDesignTransactionFile(f);rows.push(...p.rows);excluded.push(...p.excluded)}if(rows.length>500)throw Error('Import up to 500 Design transactions per batch.');setPreview({rows:mapRows(rows),excluded});}catch(e){setError(e.message)}finally{setBusy(false)}}
- async function post(rows){if(saving.current)return;saving.current=true;setBusy(true);setError('');try{const editing=rows.length===1&&rows[0].editFingerprint;const result=editing?await request('editDesignTransaction',{row:rows[0],expectedFingerprint:editing},'POST',90000):await request('importDesignTransactions',{rows,autoMatch},'POST',150000);await onSaved();setMessage(editing?'Transaction updated.':`${result.imported} transactions saved · ${result.duplicates} duplicates skipped · ${result.matched} bank lines matched. ${result.unmatched} bank lines remain for review.`);setPreview(null);setForm(null);setProof(null);}catch(e){setError(e.message)}finally{saving.current=false;setBusy(false)}}
+ async function post(rows){if(saving.current)return;saving.current=true;setBusy(true);setError('');try{const editing=rows.length===1&&rows[0].editFingerprint;const result=editing?await request('editDesignTransaction',{row:rows[0],expectedFingerprint:editing},'POST',90000):await request('importDesignTransactions',{rows,autoMatch},'POST',150000);await onSaved(editing?result.record:undefined);setMessage(editing?'Transaction updated.':`${result.imported} transactions saved · ${result.duplicates} duplicates skipped · ${result.matched} bank lines matched. ${result.unmatched} bank lines remain for review.`);setPreview(null);setForm(null);setProof(null);}catch(e){setError(e.message)}finally{saving.current=false;setBusy(false)}}
  async function save(e){e.preventDefault();if(saving.current)return;const errors=transactionErrors(form,projects,heads);if(errors.length){setError(errors.join(' · '));return;}if(proof){setBusy(true);try{if(proof.size>3*1024*1024)throw Error('Use a payment screenshot or PDF below 3 MB.');const base64=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=reject;reader.readAsDataURL(proof)});const asset=await request('uploadAccountsTransactionAttachment',{transactionId:form.id,name:proof.name,base64},'POST',120000);await post([{...form,attachmentId:asset.id}]);}catch(e){setError(e.message||'Could not upload attachment.')}finally{setBusy(false)}}else await post([form]);}
  async function openProof(row){if(!row.attachmentId){const source=transactionBillSource(row.attachmentUrl);if(source)setBill({...source,name:row.billNumber||'Payment bill'});else setError('Enter a valid HTTPS bill or Google Drive link.');return;}setBusy(true);setError('');try{const asset=await request('getAccountsTransactionAttachment',{attachmentId:row.attachmentId},'POST',90000),bytes=Uint8Array.from(atob(asset.base64),c=>c.charCodeAt(0)),url=URL.createObjectURL(new Blob([bytes],{type:asset.mimeType}));setBill({url,name:asset.name,image:asset.mimeType.startsWith('image/'),blob:true});}catch(e){setError(e.message)}finally{setBusy(false)}}
 
@@ -62,9 +63,9 @@ export default function DesignTransactions({records,projects,heads,request,onSav
  const [receiptDrafts,setReceiptDrafts]=useState([]);
  async function removeTransaction(){if(!deleteTarget||saving.current)return;saving.current=true;setBusy(true);setError('');try{const result=await request('deleteDesignTransaction',{transactions:deleteTarget.map(row=>({id:row.id,expectedFingerprint:row.deleteFingerprint}))},'POST',90000);setDeleteTarget(null);setSelectedIds(new Set());await onSaved();setMessage(`${result.count} transaction(s) deleted.`+(result.unmatched?' Its bank match has been reopened for review.':''));}catch(e){setError(e.message)}finally{saving.current=false;setBusy(false)}}
  const updateRow=(i,patch)=>setPreview(p=>({...p,rows:p.rows.map((r,j)=>j===i?{...r,...patch}:r)}));
- const used=reconciliationIds(records),entries=records.filter(r=>r.kind==='transaction'||r.kind==='reconciliation'&&r.postings?.length>0),selected=preview?.rows.filter(r=>r.selected)||[],invalid=selected.some(r=>transactionErrors(r,projects,heads).length);
+ const used=useMemo(()=>reconciliationIds(records),[records]),entries=useMemo(()=>records.filter(r=>r.kind==='transaction'||r.kind==='reconciliation'&&r.postings?.length>0),[records]),selected=preview?.rows.filter(r=>r.selected)||[],invalid=selected.some(r=>transactionErrors(r,projects,heads).length);
  const isMatched=row=>used.has(row.id)||row.kind==='reconciliation';
- const fieldFilters=[
+ const fieldFilters=useMemo(()=>[
   ['Head',row=>row.entryType==='Contra'?'Contra transfers':row.head?.trim()||'Uncategorised'],
   ['Debit / Credit',row=>row.entryType==='Contra'?'Contra':row.direction==='Inflow'?'Credit':'Debit'],
   ['Project',row=>row.projectName||'Studio'],
@@ -72,14 +73,14 @@ export default function DesignTransactions({records,projects,heads,request,onSav
   ['Account',row=>row.bank||'(Blank)'],
   ['Mode',row=>row.paymentMode||'(Blank)'],
   ['Bank status',row=>isMatched(row)?'Matched':'To Reconcile'],
- ];
+ ],[used]);
  const query=filters.search?.trim().toLowerCase();
- const visible=entries.filter(row=>
+ const visible=useMemo(()=>entries.filter(row=>
   (!filters.from||row.date>=filters.from)&&(!filters.to||row.date<=filters.to)&&
   fieldFilters.every(([label,getValue])=>!filters[label]?.length||filters[label].includes(getValue(row)))&&
   (!query||[row.description,row.billNumber,row.reference,row.date,money(row.categorizedAmount??row.amount),...fieldFilters.map(([,getValue])=>getValue(row))]
     .some(value=>String(value??'').toLowerCase().includes(query)))
- ).sort((a,b)=>oldestFirst?(a.date||'').localeCompare(b.date||''):(b.date||'').localeCompare(a.date||''));
+ ).sort((a,b)=>oldestFirst?(a.date||'').localeCompare(b.date||''):(b.date||'').localeCompare(a.date||'')),[entries,filters,fieldFilters,query,oldestFirst]);
  const deletable=visible.filter(row=>row.kind==='transaction'&&row.deleteFingerprint);
  const selectedEntries=deletable.filter(row=>selectedIds.has(row.id));
  const allSelected=deletable.length>0&&selectedEntries.length===deletable.length;

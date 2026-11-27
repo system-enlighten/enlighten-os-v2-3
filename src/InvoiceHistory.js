@@ -29,3 +29,13 @@ export function invoiceForDisplay(record){
   }
   return {...record,documentType:'Invoice record',items:[],incompleteHistory:true};
 }
+
+
+// Estimate numbers end in a sequential number within their respective series.
+export function compareEstimateNumbers(a,b){
+  const number=r=>String(invoiceForDisplay(r).number||r.sourceNumber||'').trim();
+  const parse=r=>{const m=number(r).match(/(?:^|[^0-9])(\d{3})\s*$/);return m?Number(m[1]):Infinity;};
+  const x=parse(a),y=parse(b);
+  if(x!==y)return x<y?-1:1;
+  return number(a).localeCompare(number(b),undefined,{numeric:true})||String(a.date||'').localeCompare(String(b.date||''));
+}

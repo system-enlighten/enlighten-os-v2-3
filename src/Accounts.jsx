@@ -6,7 +6,7 @@ import DesignTransactions from './DesignTransactions.jsx';
 import StudioHeading from './StudioHeading.jsx';
 import AccountsReconciliation from './AccountsReconciliation.jsx';
 import {ProjectBilling} from './ProjectBilling.jsx';
-import {invoiceForDisplay} from './InvoiceHistory.js';
+import {invoiceForDisplay,compareEstimateNumbers} from './InvoiceHistory.js';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './Accounts.css';
 import PaymentDashboard from './PaymentDashboard.jsx';
@@ -17,7 +17,8 @@ import { Mail, Share2, Printer, Edit3, Download, Search, CheckCircle, ArrowRight
 export const accountsPages = ['Projects & Clients','Payment Dashboard','Estimates','Invoices','Debit / Credit','Banking','GST','Chart of Accounts','Party Ledger','Payroll','Financial Reports'];
 const banks = bankAccounts;
 const today = () => new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Kolkata'});
-const formatMoney = n => new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR'}).format((n||0)/100);
+const currencyFormatter = new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR'});
+const formatMoney = n => currencyFormatter.format((n||0)/100);
 const total = (rows,key) => rows.reduce((sum,row)=>sum+(Number(row[key])||0),0);
 const freshItem = () => ({description:'',sac:'99839',unit:'LS',quantity:1,rate:''});
 
@@ -314,6 +315,11 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
   const readOnly=!data||/^viewer$/i.test(user.appAccess);
   const money=value=>data?formatMoney(value):"—";
 
+  const transactionSaved=async record=>{
+    if(record?.id&&record.deleteFingerprint){setData(current=>current?{...current,records:current.records.map(r=>r.id===record.id?record:r)}:current);return;}
+    await load();
+  };
+
   const load=async()=>{
     setError('');
     try{setData(await request('getAccounts'));}
@@ -412,12 +418,11 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
     reportEndDate = [reportEndDate,`${y + 1}-03-31`].sort()[0];
   }
 
-  const reportRecords = records.filter(r => r.date >= reportStartDate && r.date <= reportEndDate);
+  const reportRecords = page==='Financial Reports'?records.filter(r => r.date >= reportStartDate && r.date <= reportEndDate):[];
   const report=reportRecords.flatMap(r=>r.postings||[]);
-  const headRows=heads.map(([name,type])=>{
-    const entries=report.filter(r=>r.head===name);
-    return {name,type,balance:total(entries,'debit')-total(entries,'credit')};
-  });
+  const reportBalances=new Map();
+  for(const posting of report)reportBalances.set(posting.head,(reportBalances.get(posting.head)||0)+(Number(posting.debit)||0)-(Number(posting.credit)||0));
+  const headRows=heads.map(([name,type])=>({name,type,balance:reportBalances.get(name)||0}));
   const balance=type=>total(headRows.filter(r=>r.type===type),'balance');
   const margin=-balance('Revenue')-balance('Direct expense');
   const surplus=margin-balance('Expense');
@@ -436,7 +441,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
   };
 
   const cashMovement=postings=>postings.reduce((net,p)=>banks.includes(p.head)?net+(p.debit||0)-(p.credit||0):net,0);
-  const openingCash=total(records.filter(r=>r.date<reportStartDate).map(r=>({net:cashMovement(r.postings||[])})),'net');
+  const openingCash=page==='Financial Reports'?total(records.filter(r=>r.date<reportStartDate).map(r=>({net:cashMovement(r.postings||[])})),'net'):0;
   const openingJournals=cashMovement(reportRecords.filter(r=>r.kind==='opening').flatMap(r=>r.postings||[]));
   const cashPostings=reportRecords.filter(r=>r.kind!=='opening').flatMap(r=>r.postings||[]);
   let cashIn=0,cashOut=0;
@@ -457,7 +462,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
   const closingCash=openingCash+cashMovement(report);
 
   const invoiceList=records.filter(r=>['invoice','legacyInvoice'].includes(r.kind)&&(page==='Estimates'?r.documentType==='Proforma Invoice':r.documentType!=='Proforma Invoice'))
-    .sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+    .sort((a,b)=>page==='Estimates'?compareEstimateNumbers(a,b):String(b.date||'').localeCompare(String(a.date||'')));
   const activeInvoice=draft?.kind==='receipt'?draft.targetInvoice:draft?.kind==='invoice'?draftInvoice(draft,projects):
     ['invoice','legacyInvoice'].includes(selected?.kind)?selected:invoiceClosed?null:invoiceList[0];
   const convertedId=activeInvoice?.id&&`${activeInvoice.id}-INVOICE`;
@@ -666,7 +671,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
       <Table columns={['Date','Type','Project','Description','Ledger head','Amount','IDFC']} rows={records.filter(r=>r.kind==='legacyDesign').map(r=>({key:r.id,cells:[r.date,r.type,r.projectName,r.description,r.head,money(r.amount),r.idfc?'Matched':'—']}))}/>
     </details>}
 
-    {page==='Debit / Credit'&&<DesignTransactions onReconcile={row=>onNavigate('Banking',row.bank,row.id)} records={records} projects={projects} heads={heads} request={request} onSaved={load} readOnly={readOnly}/>}
+    {page==='Debit / Credit'&&<DesignTransactions onReconcile={row=>onNavigate('Banking',row.bank,row.id)} records={records} projects={projects} heads={heads} request={request} onSaved={transactionSaved} readOnly={readOnly}/>}
 
 
     {page==='Chart of Accounts'&&<>
