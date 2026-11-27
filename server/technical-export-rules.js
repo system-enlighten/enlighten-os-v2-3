@@ -1,0 +1,9 @@
+import {failure} from './project-write-storage.js';
+export function validateTechnicalSheetModel(m){
+ if(!m||!Array.isArray(m.rows)||!m.rows.length||m.rows.length>8001||!Array.isArray(m.widths)||m.widths.length!==13||m.widths.some(w=>!Number.isInteger(w)||w<20||w>1000))throw failure('Invalid Technical Table layout.');
+ m.rows.forEach((r,i)=>{if(!r||!['header','category','divider','data'].includes(r.kind)||(i===0)!==(r.kind==='header')||!Array.isArray(r.values)||r.values.length!==13||r.values.some(v=>typeof v!=='string'||v.length>4000)||!Number.isInteger(r.height)||r.height<10||r.height>500)throw failure('Invalid table row.');});
+ if(!Array.isArray(m.merges)||m.merges.length>6000||!Array.isArray(m.images)||m.images.length>6000)throw failure('Invalid table assets.');
+ const cells=new Set();m.merges.forEach(a=>{if(!a||![a.row,a.column,a.rowSpan,a.colSpan].every(Number.isInteger)||a.row<2||a.column<1||a.rowSpan<1||a.colSpan<1||a.row+a.rowSpan-1>m.rows.length||a.column+a.colSpan-1>13)throw failure('Invalid table merge.');for(let r=a.row;r<a.row+a.rowSpan;r++)for(let c=a.column;c<a.column+a.colSpan;c++){const key=r+'|'+c;if(cells.has(key))throw failure('Overlapping table merges.');cells.add(key);}});
+ const keys=new Set(),positions=new Set();m.images.forEach(a=>{if(!a||!/^image-\d+-\d+$/.test(String(a.key))||keys.has(a.key)||![a.row,a.column,a.width,a.height].every(Number.isInteger)||a.row<2||a.row>m.rows.length||m.rows[a.row-1].kind!=='data'||![3,6,7].includes(a.column)||a.width<1||a.width>m.widths[a.column-1]-8||a.height<1||a.height>m.rows[a.row-1].height-8||positions.has(a.row+'|'+a.column))throw failure('Invalid table image.');keys.add(a.key);positions.add(a.row+'|'+a.column);});
+ if(JSON.stringify(m).length>1200000)throw failure('Technical Table export is too large.');return m;
+}

@@ -1,0 +1,7 @@
+import {Pool} from 'pg';
+const actions=new Set(['createProject','updateProject','completeProject','deleteProject']);
+let pool;
+function db(){if(!pool){const u=new URL(process.env.SUPABASE_DATABASE_URL);if(!['postgres:','postgresql:'].includes(u.protocol))throw Error('Invalid database URL');for(const k of ['sslmode','sslcert','sslkey','sslrootcert'])u.searchParams.delete(k);pool=new Pool({connectionString:u.toString(),ssl:{ca:process.env.SUPABASE_DB_CA.replace(/\\n/g,'\n').trim(),rejectUnauthorized:true},max:2,connectionTimeoutMillis:5000,statement_timeout:5000});pool.on('error',()=>console.error('Project recording pool error'));}return pool;}
+export function recordingEnabled(action,method,env=process.env){return env.VERCEL_ENV==='preview'&&env.SUPABASE_PROJECT_PREVIEW==='1'&&method==='POST'&&actions.has(action);}
+export function recordValues(action,data){if(!actions.has(action)||!data||typeof data.projectId!=='string'||!data.projectId.trim())throw Error('Missing project ID');const deleted=action==='deleteProject';if(deleted?data.deleted!==true:typeof data.projectName!=='string')throw Error('Unexpected project response');return [data.projectId,JSON.stringify(data),deleted,action];}
+export async function recordProject(action,data){const values=recordValues(action,data);await db().query(`INSERT INTO enlighten_preview.project_records(project_id,cells,deleted,last_action) VALUES($1,$2::jsonb,$3,$4) ON CONFLICT(project_id) DO UPDATE SET cells=EXCLUDED.cells,deleted=EXCLUDED.deleted,last_action=EXCLUDED.last_action,recorded_at=now()`,values);}

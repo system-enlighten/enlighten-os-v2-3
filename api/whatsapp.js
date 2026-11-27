@@ -1,6 +1,11 @@
+import {isOperationalPreview} from '../server/preview-isolation.js';
 import {createHmac,timingSafeEqual} from 'node:crypto';
-import {signRequest,fetchAppsScript} from './index.js';
 import {readPaymentReceipt} from '../server/payment-receipts.js';
+import {loadOperationalIdentity} from '../server/permissions.js';
+import {claimPaymentReceiptDraft,finishPaymentReceiptDraft} from '../server/accounts-receipt-drafts.js';
+import {uploadAccountsTransactionAttachment} from '../server/drive-attachments.js';
+
+const directActions={claimPaymentReceiptDraft,finishPaymentReceiptDraft,uploadAccountsTransactionAttachment};
 export const config={api:{bodyParser:false}};
 export const maxDuration=300;
 export function validWhatsAppSignature(raw,signature,secret){if(!secret||!/^sha256=[a-f0-9]{64}$/.test(signature||''))return false;const expected=createHmac('sha256',secret).update(raw).digest('hex');return timingSafeEqual(Buffer.from(signature.slice(7)),Buffer.from(expected));}
@@ -15,7 +20,11 @@ export default async function handler(req,res){
  const token=process.env.WHATSAPP_ACCESS_TOKEN,phone=process.env.WHATSAPP_PHONE_NUMBER_ID;
  for(const entry of event.entry||[])for(const change of entry.changes||[]){const value=change.value;if(value?.metadata?.phone_number_id!==phone)continue;
  for(const message of value.messages||[]){const identity=identities[message.from];if(!identity?.email||!identity.sub||message.type!=='image')continue;
- const backend=async(action,payload)=>{const r=await fetchAppsScript(process.env.APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(signRequest(action,payload,identity,process.env.ENLIGHTEN_PROXY_SECRET)),signal:AbortSignal.timeout(60000)});const j=await r.json();if(!j.ok)throw Error('Accounts receipt access failed');return j.data;};
+ const direct=isOperationalPreview()&&process.env.SUPABASE_DIRECT_OPERATIONAL_WRITES==='1'&&
+   process.env.SUPABASE_ACCOUNTS_BACKFILL_VERIFIED==='1';
+ if (!direct) throw Error('Supabase WhatsApp intake is disabled.');
+ const user=await loadOperationalIdentity(identity);
+ const backend=(action,payload)=>directActions[action](payload,{user});
  const claim=await backend('claimPaymentReceiptDraft',{id:message.id});if(!claim.claimed){if(claim.status==='ready')continue;throw Error('Receipt still processing');}
  const meta=await fetch(`https://graph.facebook.com/${version}/${encodeURIComponent(message.image.id)}`,{headers:{Authorization:'Bearer '+token},signal:AbortSignal.timeout(20000)});if(!meta.ok)throw Error('Media metadata unavailable');const media=await meta.json(),url=new URL(media.url);
  if(url.protocol!=='https:'||!/(^|\.)(facebook\.com|fbcdn\.net|fbsbx\.com|whatsapp\.net)$/.test(url.hostname)||media.file_size>3*1024*1024||!['image/jpeg','image/png','image/webp'].includes(media.mime_type))throw Error('Unsupported receipt');
