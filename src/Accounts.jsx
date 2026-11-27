@@ -316,7 +316,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
   const money=value=>data?formatMoney(value):"—";
 
   const transactionSaved=async record=>{
-    if(record?.id&&record.deleteFingerprint){setData(current=>current?{...current,records:current.records.map(r=>r.id===record.id?record:r)}:current);return;}
+    if(record?.id&&(record.deleteFingerprint||record.kind==='reconciliation')){setData(current=>current?{...current,records:current.records.some(r=>r.id===record.id)?current.records.map(r=>r.id===record.id?record:r):[...current.records,record]}:current);return;}
     await load();
   };
 
@@ -462,7 +462,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
   const closingCash=openingCash+cashMovement(report);
 
   const invoiceList=records.filter(r=>['invoice','legacyInvoice'].includes(r.kind)&&(page==='Estimates'?r.documentType==='Proforma Invoice':r.documentType!=='Proforma Invoice'))
-    .sort((a,b)=>page==='Estimates'?compareEstimateNumbers(a,b):String(b.date||'').localeCompare(String(a.date||'')));
+    .sort((a,b)=>compareEstimateNumbers(a,b));
   const activeInvoice=draft?.kind==='receipt'?draft.targetInvoice:draft?.kind==='invoice'?draftInvoice(draft,projects):
     ['invoice','legacyInvoice'].includes(selected?.kind)?selected:invoiceClosed?null:invoiceList[0];
   const convertedId=activeInvoice?.id&&`${activeInvoice.id}-INVOICE`;
@@ -601,7 +601,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
         <button type="button" aria-pressed={Boolean(reconciliationBank)} onClick={()=>onNavigate('Banking',bank)}>Reconciliation</button>
       </nav>
       {reconciliationBank
-        ? <AccountsReconciliation key={reconciliationTransaction||'banking'} focusTransactionId={reconciliationTransaction} loading={!data} records={records} projects={projects} heads={heads} bank={bank} setBank={setBank} request={request} onSaved={load} readOnly={readOnly} onNavigate={onNavigate}/>
+        ? <AccountsReconciliation key={reconciliationTransaction||'banking'} focusTransactionId={reconciliationTransaction} loading={!data} records={records} projects={projects} heads={heads} bank={bank} setBank={setBank} request={request} onSaved={transactionSaved} readOnly={readOnly} onNavigate={onNavigate}/>
         : <BankingOverview loading={!data} records={records} today={today()} onNavigate={onNavigate}/>}
     </>}
     {page==='GST'&&<GstOverview loading={!data} records={records} today={today()} onRecord={readOnly||busy?null:period=>begin('gstFiling',{period})}/>}

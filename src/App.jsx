@@ -1,3 +1,5 @@
+import {configureProductAssets} from './product-assets.mjs';
+import {useProductAsset} from './ProductAssetImage.jsx';
 import {createTechnicalWorkspaceRequest} from './technical-workspace-request.mjs';
 import LuminaireEquivalentForm from './LuminaireEquivalentForm.jsx';
 import ProjectProductDocuments from './ProjectProductDocuments.jsx';
@@ -4174,10 +4176,11 @@ function WihDashboardStatus({task}){
 }
 
 function TechnicalImage({url,label,kind='image',size=80}){
- const source=technicalIconMap[url]||url;const [failed,setFailed]=useState(false);
+ const source=useProductAsset(technicalIconMap[url]||url);const [failed,setFailed]=useState(false);
  useEffect(()=>setFailed(false),[source]);
  return <span className={`technical-media technical-media--${kind}`} style={{width:size,height:size}}>{source&&!failed?<img src={source} alt={label||'Luminaire illustration'} loading="lazy" decoding="async" onError={()=>setFailed(true)}/>:<span style={{fontSize:10,color:T.inkDim}}>{source?'Image unavailable':'—'}</span>}</span>;
 }
+configureProductAssets(apiRequest);
 function LocalTechnicalDatabase({state,initialFittingId}){
  const [catalogueView,setCatalogueView]=useState('all'),[catalogueCategory,setCatalogueCategory]=useState('All');
  const [databaseLayout,setDatabaseLayout]=useState('grid');

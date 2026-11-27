@@ -31,11 +31,11 @@ export function invoiceForDisplay(record){
 }
 
 
-// Estimate numbers end in a sequential number within their respective series.
+// Newest financial-year series first, then descending document sequence.
 export function compareEstimateNumbers(a,b){
-  const number=r=>String(invoiceForDisplay(r).number||r.sourceNumber||'').trim();
-  const parse=r=>{const m=number(r).match(/(?:^|[^0-9])(\d{3})\s*$/);return m?Number(m[1]):Infinity;};
-  const x=parse(a),y=parse(b);
-  if(x!==y)return x<y?-1:1;
-  return number(a).localeCompare(number(b),undefined,{numeric:true})||String(a.date||'').localeCompare(String(b.date||''));
+ const number=r=>String(invoiceForDisplay(r).number||r.sourceNumber||'').replace(/\s/g,'');
+ const parse=r=>{const m=number(r).match(/(\d{2,4})[-/](\d{2,4})[-/](\d{3})(?:[-/].*)?$/);return m?{year:Number(m[1])%100,seq:Number(m[3])}:null};
+ const x=parse(a),y=parse(b);
+ if(x&&y)return y.year-x.year||y.seq-x.seq||String(b.date||'').localeCompare(String(a.date||''));
+ return String(b.date||'').localeCompare(String(a.date||''))||number(b).localeCompare(number(a),undefined,{numeric:true});
 }

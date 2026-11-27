@@ -1,3 +1,4 @@
+import ProductAssetImage from './ProductAssetImage.jsx';
 import LinearApplicationPicker from './LinearApplicationPicker.jsx';
 import React,{useState} from 'react';
 import {specSheetFields} from './spec-sheet.mjs';
@@ -20,6 +21,7 @@ const documentTypes='.pdf,.png,.jpg,.jpeg,.webp';
 
 export function CatalogueSpecEditor({product,onSave,onCancel,onUpload,onAi,busy,linearChoices}){
  const [draft,setDraft]=useState(()=>({...product,model:product.specs?.article||product.model})),[loading,setLoading]=useState(''),[error,setError]=useState(''),[result,setResult]=useState(null),[selected,setSelected]=useState('');
+ const [uploadFailed,setUploadFailed]=useState(false);
  const specs=draft.specs||{},detail=specs.specSheet||{};
  const update=(key,value,target='specs')=>setDraft(old=>target==='product'?{...old,[key]:value}:target==='detail'?{...old,specs:{...old.specs,specSheet:{...old.specs?.specSheet,[key]:value}}}:{...old,specs:{...old.specs,[key]:value}});
  async function extract(file){
@@ -42,8 +44,8 @@ export function CatalogueSpecEditor({product,onSave,onCancel,onUpload,onAi,busy,
  async function upload(file,key,target){
   if(!file)return;
   setLoading('Uploading file…');setError('');
-  try{const asset=await onUpload(file);if(!asset?.url)throw Error('File URL is missing.');update(key,asset.url,target);}
-  catch(e){setError(e.message||'Could not upload file.');}finally{setLoading('');}
+  try{const asset=await onUpload(file);if(!asset?.url)throw Error('File URL is missing.');update(key,asset.url,target);setUploadFailed(false);}
+  catch(e){setUploadFailed(true);setError(e.message||'Could not upload file.');}finally{setLoading('');}
  }
  function row(key,label,target='specs',required=false){
   const raw=(target==='product'?draft:target==='detail'?detail:specs)[key];
@@ -55,10 +57,11 @@ export function CatalogueSpecEditor({product,onSave,onCancel,onUpload,onAi,busy,
   e.preventDefault();
   const normalized=Object.fromEntries([...listKeys].filter(key=>typeof specs[key]==='string').map(key=>[key,specs[key].split(',').map(s=>s.trim()).filter(Boolean)]));
   const article=draft.model?.trim();
+  if(uploadFailed){setError('Retry the failed upload or choose Continue without failed upload.');return;}
   if(!busy&&!loading&&article)onSave({...draft,model:draft.model?.trim()||article,specs:{...specs,...normalized,article}});
  }}>
  <header><div className="catalogue-spec-title"><h3>Manufacturer specification</h3><strong>{draft.specs?.article||draft.model||product.model}</strong></div>{onAi&&<label>Read catalogue, datasheet or photo<input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.xlsx,.xls,.csv,.tsv" disabled={busy||!!loading} onChange={e=>{const file=e.target.files?.[0];e.target.value='';extract(file);}}/></label>}</header>
- {loading&&<p role="status">{loading}</p>}{error&&<p role="alert">{error}</p>}
+ {loading&&<p role="status">{loading}</p>}{error&&<p role="alert">{error}</p>}{uploadFailed&&<button type="button" onClick={()=>{setUploadFailed(false);setError('')}}>Continue without failed upload</button>}
  {result&&<section><p>Choose a model and check the imported fields before saving.</p><label>Catalogue model<select value={selected} onChange={e=>setSelected(e.target.value)}><option value="">Select model</option>{result.products.map((p,i)=><option key={i} value={i}>{[p.brand,p.model,p.specs?.article,p.source].filter(Boolean).join(' · ')}</option>)}</select></label><button type="button" disabled={selected===''} onClick={applyCandidate}>Fill spec sheet</button>{result.warnings.map((w,i)=><p key={i}>{w}</p>)}</section>}
  {linearChoices&&<LinearApplicationPicker choices={linearChoices} selected={draft.linearApplicationIds||[]} onChange={ids=>update('linearApplicationIds',ids,'product')} disabled={busy}/>}
  <div className="catalogue-spec-columns"><div className="catalogue-spec-fields">
@@ -69,7 +72,7 @@ export function CatalogueSpecEditor({product,onSave,onCancel,onUpload,onAi,busy,
  </div><div className="catalogue-spec-assets">{assets.map(([key,label],i)=>{
   const target=i===0?'product':i===1?'specs':'detail';
   const url=(target==='product'?draft:target==='detail'?detail:specs)[key];
-  return <section key={key}><h4>{label}</h4>{url&&<img src={url} alt={label}/>}
+  return <section key={key}><h4>{label}</h4>{url&&<ProductAssetImage src={url} alt={label}/>}
    {row(key,'Image URL',target)}{onUpload&&<label>Upload image<input type="file" accept="image/png,image/jpeg,image/webp" disabled={busy||!!loading} onChange={e=>upload(e.target.files?.[0],key,target)}/></label>}
   </section>;
  })}

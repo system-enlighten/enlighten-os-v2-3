@@ -7,7 +7,7 @@ const join=(...v)=>v.filter(x=>x!==''&&x!=null).join(' | ');
 export function specificationUnit(value,label){
  const text=String(value??'').trim();
  if(!text)return '';
- const units={W:/\b(?:W|watts?|W\/m)\b/i,lm:/\b(?:lm|lumens?)\b/i,mm:/\b(?:mm|cm|m)\b/i,h:/\b(?:h|hrs?|hours?)\b/i};
+ const units={W:/(?:^|[^A-Za-z])(?:W\/m|W|watts?)\b/i,lm:/(?:^|[^A-Za-z])(?:lm|lumens?)\b/i,mm:/(?:^|[^A-Za-z])(?:mm|cm|m)\b/i,h:/(?:^|[^A-Za-z])(?:h|hrs?|hours?)\b/i};
  const base=label.split(' ')[0];
  return units[base]?.test(text)?text+(label.includes(' recess')?' recess':''):`${text} ${label}`;
 }

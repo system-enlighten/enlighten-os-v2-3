@@ -1,3 +1,5 @@
+import {resolveProductAsset} from './product-assets.mjs';
+import {useProductAsset} from './ProductAssetImage.jsx';
 import React,{useMemo,useState,useEffect,useRef} from 'react';
 import {familyModelProduct} from './manufacturer-family.mjs';
 import regular from './invoice-assets/HelveticaNeue-Light.woff2?url';
@@ -16,7 +18,7 @@ export function specSheetDocument(product,fitting={},context={},fonts={regular,b
  const css=sheetCss.replace('FONT_REGULAR',esc(new URL(fonts.regular,globalThis.location?.href||'http://localhost').href)).replace('FONT_BOLD',esc(new URL(fonts.bold,globalThis.location?.href||'http://localhost').href));
  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${esc(fitting.fittingType||product.model)} — Spec Sheet</title><style>${css}</style></head><body><main class="sheet"><section class="left"><div class="intent"><b>Design Intent</b><div>${esc(context.designIntent||d.designIntent||'')}</div></div><div class="title"><span>Technical Specs</span><strong>${esc(fitting.fittingType||'')}</strong></div><table class="specs"><tbody>${rows}</tbody></table><div class="notes"><p>${d.notes||product.notes?`<b>Notes: </b>${esc(d.notes||product.notes)}`:''}</p><p>${esc(d.sampleApproval||'')}</p></div><div class="legend"><span class="swatch"></span><span>Yellow: information supplied · Grey: information missing</span></div></section><section class="right"><table class="project"><tbody>${['Project','Location','Area'].map(k=>`<tr><td>${k}</td><td>${esc(context[k.toLowerCase()]||'')}</td></tr>`).join('')}</tbody></table><div class="typified"><div class="product-info"><h3>Project Typified On</h3><table><tbody>${[['Manufacturer',product.brand],['Catalogue No.',s.article||product.model],['Accessories',d.accessories],['Equivalent Make',d.equivalents]].map(([k,v])=>`<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}</tbody></table></div>${image(product.imageUrl,'hero','Product')}</div><div class="media">${image(s.diagramUrl,'diagram','Dimension diagram')}${image(d.photometricUrl,'photometric','Photometric distribution')}</div><div class="extra"><div>${image(d.symbolsUrl,'symbols','Manufacturer compliance symbols')}${d.controlDiagramUrl?image(d.controlDiagramUrl,'control','Control compatibility'):''}</div><div class="photo-data">${photometry?`<table><thead><tr><td>Beam</td><td>h(m)</td><td>Ø(m)</td><td>E(lx)</td></tr></thead><tbody>${photometry}</tbody></table>`:''}</div></div></section><footer class="footer">1 of 1</footer></main></body></html>`;
 }
-async function inlineUrl(url){if(!url||url.startsWith('data:'))return url;const r=await fetch(url);if(!r.ok)throw Error('An image or font could not be embedded. Check the asset URL, then retry.');const blob=await r.blob();return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(blob);});}
+async function inlineUrl(url){url=await resolveProductAsset(url);if(!url||url.startsWith('data:'))return url;const r=await fetch(url);if(!r.ok)throw Error('An image or font could not be embedded. Check the asset URL, then retry.');const blob=await r.blob();return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(blob);});}
 export default function ProductSpecSheet({product,fitting,onClose,closeLabel='Back to product',onEditProduct,extraActions,compact=false,cornerActions,renderSheetActions,initialContext={},review,onReview,catalogue=[]}){
  const [context,setContext]=useState(()=>({project:'',location:'',area:'',...initialContext})),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const [familyModel,setFamilyModel]=useState(''),[familySelection,setFamilySelection]=useState({}),[familyVariant,setFamilyVariant]=useState('');
@@ -26,7 +28,8 @@ export default function ProductSpecSheet({product,fitting,onClose,closeLabel='Ba
  const configured=model?familyModelProduct(product,model,variant?.configuration||familySelection,variant):product;
  const sheetContext={...context,area:review?.area??context.area};
  const sheetProduct=review?{...configured,specs:{...configured.specs,specSheet:{...configured.specs?.specSheet,customization:review.customization||'',equivalents:(review.equivalents||[]).join(' · ')}}}:configured;
- const html=specSheetDocument(sheetProduct,fitting,sheetContext);
+ const photo=useProductAsset(sheetProduct.imageUrl),diagram=useProductAsset(sheetProduct.specs?.diagramUrl);
+ const html=specSheetDocument({...sheetProduct,imageUrl:photo,specs:{...sheetProduct.specs,diagramUrl:diagram}},fitting,sheetContext);
  const download=async()=>{setBusy(true);setError('');try{const p=structuredClone(sheetProduct),s=p.specs||={},d=s.specSheet||{};const urls=[p.imageUrl,s.diagramUrl,d.photometricUrl,d.symbolsUrl,d.controlDiagramUrl,regular,bold];const embedded=await Promise.all(urls.map(u=>u?inlineUrl(u):''));p.imageUrl=embedded[0];p.specs={...s,diagramUrl:embedded[1],specSheet:{...d,photometricUrl:embedded[2],symbolsUrl:embedded[3],controlDiagramUrl:embedded[4]}};const content=specSheetDocument(p,fitting,sheetContext,{regular:embedded[5],bold:embedded[6]});const url=URL.createObjectURL(new Blob([content],{type:'text/html;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=(fitting.fittingType||product.model||'Product').replace(/[^a-z0-9_.-]/gi,'_')+'_Spec_Sheet.html';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){setError(e.message||'Could not embed an image. Use a directly accessible image URL.');}finally{setBusy(false);}};
  const previewFrame=useRef(null);
  const printPdf=()=>previewFrame.current?.contentWindow?.print();
@@ -53,7 +56,8 @@ export default function ProductSpecSheet({product,fitting,onClose,closeLabel='Ba
 export function SpecSheetLivePreview({product,fitting={},context={}}){
  const host=useRef(null),[width,setWidth]=useState(560);
  useEffect(()=>{const element=host.current;if(!element)return;const observer=new ResizeObserver(entries=>setWidth(entries[0].contentRect.width));observer.observe(element);return()=>observer.disconnect();},[]);
- const html=useMemo(()=>specSheetDocument(product,fitting,context),[product,fitting,context]);
+ const photo=useProductAsset(product.imageUrl),diagram=useProductAsset(product.specs?.diagramUrl);
+ const html=useMemo(()=>specSheetDocument({...product,imageUrl:photo,specs:{...product.specs,diagramUrl:diagram}},fitting,context),[product,fitting,context,photo,diagram]);
  const scale=Math.min(1,Math.max(1,width)/1123);
  return <div ref={host} className="spec-live-preview"><div style={{height:794*scale,position:'relative',overflow:'hidden'}}><iframe title="Live product spec sheet" srcDoc={html} style={{width:1123,height:794,border:0,display:'block',transform:`scale(${scale})`,transformOrigin:'top left'}}/></div></div>;
 }
