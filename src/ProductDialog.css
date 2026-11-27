@@ -37,3 +37,18 @@
 .fitting-icon-options button{display:flex;flex-direction:column;align-items:center;gap:4px}
 .fitting-icon-options img{height:64px}
 .fitting-icon-options span{padding:0 4px 5px;overflow-wrap:anywhere}
+
+.product-panel.catalogue-product-dialog{background:#f4f1e8;border:1px solid #d2cdc1;border-top:3px solid #132237;border-radius:0;font-family:Inter,system-ui,sans-serif;color:#132237}
+.catalogue-product-dialog .product-dialog-header h2{color:#132237;font-weight:700}
+.catalogue-product-dialog .product-dialog-header p,.catalogue-product-dialog .product-dialog-eyebrow{color:#516174}
+.catalogue-product-dialog .product-dialog-tools{background:#fff;border:1px solid #d2cdc1;padding:0 8px 0 0;flex-wrap:wrap}
+.catalogue-product-dialog .product-dialog-tabs{gap:0;flex-wrap:wrap}
+.catalogue-product-dialog .product-dialog-tabs button{padding:12px 16px!important;color:#132237!important}
+.catalogue-product-dialog .product-dialog-tabs button[aria-selected=true]{background:#132237!important;color:#fff!important;border-bottom-color:#81c7d3!important}
+.catalogue-product-dialog .product-dialog-add,.catalogue-product-dialog .comparison-pick,.catalogue-product-dialog .comparison-row-actions button,.catalogue-product-dialog .product-dialog-close{background:#fff;color:#174a85;border:1px solid #174a85;border-radius:0;padding:6px 10px}
+.catalogue-product-dialog .product-comparison-scroll{border-radius:0;border-color:#d2cdc1}
+.catalogue-product-dialog .product-comparison th{background:#d2cdc1;color:#132237;border:1px solid #c8c2b5;border-bottom:2px solid #132237;text-align:left;padding:11px 10px}
+.catalogue-product-dialog .product-comparison td{background:#fff;border:1px solid #d2cdc1;color:#132237;text-align:left}
+.catalogue-product-dialog .comparison-fitting-details strong,.catalogue-product-dialog .product-comparison .comparison-article button{color:#174a85}
+.catalogue-product-dialog .comparison-review-list article{background:white;border-color:#d2cdc1}
+.catalogue-product-dialog .comparison-rating-grid>div{background:#f4f1e8}

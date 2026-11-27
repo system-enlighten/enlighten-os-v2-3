@@ -179,3 +179,7 @@
 .linear-linked-variant-item .linear-variant-code { font-weight: 600; color: #142238; }
 .linear-linked-variant-item .linear-variant-label { color: #516174; }
 .linear-product-variant-tag { display: inline-block; font-size: 10px; line-height: 1.2; color: #174a85; background: #edf3fa; border-radius: 3px; padding: 1px 4px; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
+.linear-lineup .linear-product-tile button { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.linear-lineup .linear-product-meta { display: block; width: 100%; text-align: center; }
+.linear-lineup .linear-product-title { display: block; font-size: 12px; font-weight: 600; line-height: 1.25; color: #142238; overflow-wrap: anywhere; }
+.linear-lineup .linear-product-brand { display: block; margin-top: 1px; font-size: 11px; line-height: 1.2; color: #516174; overflow-wrap: anywhere; }

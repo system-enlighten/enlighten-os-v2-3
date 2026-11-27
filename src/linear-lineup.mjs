@@ -1,6 +1,13 @@
 export const normalizeLinearCode=value=>String(value||'').trim().toUpperCase().replace(/\s+/g,'');
 export const COLOUR_VARIANT_LABELS=['Static Colour','Tunable White','Dim to Warm','RGBW'];
 export const imageIdentity=url=>{const match=String(url||'').match(/(?:catalogue-)?([a-f0-9]{16})(?:[a-f0-9]{4})?\.png$/i);return match?match[1]:url;};
+export function productTileImage(product){
+ return product?.imageUrl
+  ||product?.specs?.manufacturerFamily?.models?.find(m=>m?.imageUrl)?.imageUrl
+  ||product?.specs?.diagramUrl
+  ||product?.specs?.manufacturerFamily?.models?.find(m=>m?.diagramUrl)?.diagramUrl
+  ||'';
+}
 export const linearCodeNumber=code=>{const match=String(code||'').trim().toUpperCase().match(/\|([A-Z0-9]+)$/);return match?match[1]:'';};
 export function resolveIconsFor({app,variantIcons,layoutVariantIcons,primarySlot=1}){
  const icons=new Map(variantIcons?.get(app.id)||[[primarySlot,app.url]]);
@@ -119,13 +126,13 @@ export const isLinearCatalogueRow = row => row >= 39 && row <= 83;
 export function catalogueLinearGroups(catalogue, fittings, existingGroups) {
  const byId = new Map(fittings.map(fitting => [fitting.id,fitting]));
  const existing = new Set(existingGroups.map(group => JSON.stringify(group.products.map(product => normalizeLinearCode(product.code)))));
- return (catalogue?.sections || []).filter(section => isLinearCatalogueRow(section.codeRow)).flatMap(section =>
+ return (catalogue?.sections || []).flatMap(section =>
   (catalogue.rows[section.codeRow] || []).flatMap((cell,column) => {
    const fitting = byId.get(cell.fittingId);
    if (!column || !fitting || fitting.deleted || existing.has(JSON.stringify([normalizeLinearCode(fitting.fittingType)]))) return [];
-   const icon = catalogue.rows[section.iconRow]?.[column]?.image || fitting.iconUrl;
-   const image = catalogue.rows[section.photoRow]?.[column]?.image || fitting.thumbnailUrl;
-   const category = section.category || catalogue.rows[section.photoRow]?.[0]?.text || 'Linear light';
+   const icon = fitting.iconUrl || catalogue.rows[section.iconRow]?.[column]?.image;
+   const image = fitting.thumbnailUrl || catalogue.rows[section.photoRow]?.[column]?.image;
+   const category = section.category || (isLinearCatalogueRow(section.codeRow)?'Linear light':catalogue.rows[section.photoRow]?.[0]?.text) || fitting.category || 'Application-specific';
    const mounting = catalogue.rows[section.mountRow]?.[column]?.text;
    const dimensions = catalogue.rows[section.codeRow - 1]?.[column]?.text;
    return [{
@@ -137,3 +144,30 @@ export function catalogueLinearGroups(catalogue, fittings, existingGroups) {
   })
  );
 }
+
+export function applicationCategory(fitting={},label=''){
+ const category=String(fitting?.category||label||'').toUpperCase().replace(/\s+/g,' ');
+ if(/DOWNLIGHT/.test(category))return 'Downlights';
+ if(/UPLIGHT/.test(category))return 'Uplights';
+ if(/WALL WASHER/.test(category))return 'Wall Washers';
+ if(/WALL HIGHLIGHTER/.test(category))return 'Wall Highlighters';
+ if(/TEXTURE GRAZER/.test(category))return 'Texture Grazers';
+ if(/STRETCH CLOTH/.test(category))return 'Stretch Cloth';
+ if(/SYSTEMS|TRACK/.test(category))return 'Track Systems';
+ if(/LINEAR|COVE|CABINET|SHELF|NICHE|PROFILE|CURTAIN/.test(category))return 'Linear Lights';
+ return 'Application-Specific';
+}
+export const applicationCategories=['All','Downlights','Wall Highlighters','Wall Washers','Texture Grazers','Uplights','Stretch Cloth','Linear Lights','Application-Specific','Track Systems'];
+export function catalogueColourFamily(code){
+ const match=normalizeLinearCode(code).match(/^([A-Z]+\+?)([1-4])([A-Z].*)$/);
+ return match?{number:'code-'+match[1]+match[3],slot:Number(match[2])}:null;
+}
+
+export function catalogueSectionCategory(section){
+ return applicationCategory({},section.category||(isLinearCatalogueRow(section.codeRow)?'Linear light':''));
+}
+export function catalogueRowCategory(catalogue,row){
+ const section=(catalogue?.sections||[]).find(s=>row>=s.iconRow&&row<=s.codeRow);
+ return section?catalogueSectionCategory(section):'';
+}
+export function categoryOrder(category){const index=applicationCategories.indexOf(category);return index<0?applicationCategories.length:index;}
