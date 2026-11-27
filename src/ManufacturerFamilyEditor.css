@@ -3,3 +3,5 @@
 .family-level-strip{display:flex;gap:0;margin:10px 0;border-bottom:2px solid #132237}.manufacturer-family-editor .family-level-strip button{border:0;background:white;color:#132237}.manufacturer-family-editor .family-level-strip button[aria-pressed=true]{background:#132237;color:white}.manufacturer-family-table tr.is-selected td{background:#e5ecea}#manufacturer-variants{scroll-margin-top:16px}#manufacturer-variants>label{display:grid;gap:4px;max-width:300px;margin-bottom:12px}
 
 .family-entry-choices{gap:10px;flex-wrap:wrap;border-bottom:0;margin:16px 0 0}.manufacturer-family-editor .family-entry-choices button{border:1px solid #174a85;color:#174a85;min-width:116px;padding:9px 16px;text-align:center}.manufacturer-family-editor .family-entry-choices button:hover{background:#132237;color:#fff;border-color:#132237}
+
+.family-link-choice{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;margin-bottom:16px}.family-link-choice label{display:grid;gap:6px;min-width:min(320px,100%)}.family-link-choice button:disabled{opacity:.45;cursor:default}.family-link-choice button{min-height:34px}
