@@ -6,7 +6,7 @@ import DesignTransactions from './DesignTransactions.jsx';
 import StudioHeading from './StudioHeading.jsx';
 import AccountsReconciliation from './AccountsReconciliation.jsx';
 import {ProjectBilling} from './ProjectBilling.jsx';
-import {invoiceForDisplay} from './InvoiceHistory.js';
+import {invoiceForDisplay,compareEstimateNumbers} from './InvoiceHistory.js';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './Accounts.css';
 import PaymentDashboard from './PaymentDashboard.jsx';
@@ -17,7 +17,8 @@ import { Mail, Share2, Printer, Edit3, Download, Search, CheckCircle, ArrowRight
 export const accountsPages = ['Projects & Clients','Payment Dashboard','Estimates','Invoices','Debit / Credit','Banking','GST','Chart of Accounts','Party Ledger','Payroll','Financial Reports'];
 const banks = bankAccounts;
 const today = () => new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Kolkata'});
-const formatMoney = n => new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR'}).format((n||0)/100);
+const currencyFormatter = new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR'});
+const formatMoney = n => currencyFormatter.format((n||0)/100);
 const total = (rows,key) => rows.reduce((sum,row)=>sum+(Number(row[key])||0),0);
 const freshItem = () => ({description:'',sac:'99839',unit:'LS',quantity:1,rate:''});
 
@@ -201,6 +202,8 @@ function InvoiceWorkspace({records,invoice,editing,busy,form,onChoose,onNew,onEd
   const search=query.trim().toLowerCase();
   const visible=records.filter(record=>[record.number,record.sourceNumber,record.client,record.projectName].some(value=>String(value||'').toLowerCase().includes(search)));
 
+  if(!ready)return <div className="accounts-document-loading" role="status"><span className="accounts-document-loading-line" aria-hidden="true"/>Loading {documentLabel.toLowerCase()}s…</div>;
+
   return <div className="invoice-workspace">
     <aside className="invoice-list" aria-label={documentLabel+" list"}>
       <header><h2>{isEstimate?"Estimates":"Invoices"}</h2>{onNew&&<button type="button" disabled={editing} onClick={onNew}>＋ Add New Estimate</button>}</header>
@@ -290,7 +293,7 @@ function InvoiceWorkspace({records,invoice,editing,busy,form,onChoose,onNew,onEd
   </div>;
 }
 
-export default function Accounts({page,request,user,onNavigate,reconciliationBank}){
+export default function Accounts({page,request,user,onNavigate,reconciliationBank,reconciliationTransaction}){
   const [data,setData]=useState(null),[draft,setDraft]=useState(null),[selected,setSelected]=useState(null);
   const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
   const [asOf,setAsOf]=useState(today);
@@ -299,7 +302,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
   const [payMonth,setPayMonth]=useState(()=>today().slice(0,7)),[staffQuery,setStaffQuery]=useState('');
   const [coaQuery,setCoaQuery]=useState('');
   const [headDraft,setHeadDraft]=useState(null),[partyKey,setPartyKey]=useState('');
-  const [partyQuery,setPartyQuery]=useState('');
+  const [partyQuery,setPartyQuery]=useState(''),[partyDraft,setPartyDraft]=useState(null);
   const [ledgerFrom,setLedgerFrom]=useState(''),[ledgerTo,setLedgerTo]=useState('');
   const [ledgerPeriod,setLedgerPeriod]=useState('all');
   const ledgerPrintRef=useRef(null);
@@ -314,6 +317,11 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
   const readOnly=!data||/^viewer$/i.test(user.appAccess);
   const money=value=>data?formatMoney(value):"—";
 
+  const transactionSaved=async record=>{
+    if(record?.id&&(record.deleteFingerprint||record.kind==='reconciliation')){setData(current=>current?{...current,records:current.records.some(r=>r.id===record.id)?current.records.map(r=>r.id===record.id?record:r):[...current.records,record]}:current);return;}
+    await load();
+  };
+
   const load=async()=>{
     setError('');
     try{setData(await request('getAccounts'));}
@@ -322,7 +330,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
 
   useEffect(()=>{load();},[]);
   useEffect(()=>{if(page==='Banking'&&reconciliationBank)setBank(reconciliationBank);},[page,reconciliationBank]);
-  useEffect(()=>{setDraft(null);setSelected(invoiceToOpen.current);invoiceToOpen.current=null;setInvoiceClosed(false);setNotice('');setHeadDraft(null);setPartyKey('');},[page]);
+  useEffect(()=>{setDraft(null);setSelected(invoiceToOpen.current);invoiceToOpen.current=null;setInvoiceClosed(false);setNotice('');setHeadDraft(null);setPartyKey('');setPartyDraft(null);},[page]);
 
   const save=async e=>{
     if(e?.preventDefault)e.preventDefault();
@@ -337,9 +345,16 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
       if(draft.convertedFromEstimateId){
         invoiceToOpen.current=record;
         onNavigate('Invoices');
-      }else if(['invoice','payroll'].includes(record.kind))setSelected(record);
+      }else if(['invoice','legacyInvoice','payroll'].includes(record.kind))setSelected(record);
     }catch(e){setError(e.message);}
     finally{saving.current=false;setBusy(false);}
+  };
+
+  const deleteInvoice=async()=>{
+    if(!draft?.isEdit||saving.current||readOnly||!window.confirm('Delete this document from Accounts? Its original record will be retained for audit.'))return;
+    saving.current=true;setBusy(true);setError('');setNotice('');
+    try{await request('deleteAccountsInvoice',{id:draft.id},'POST');setData(d=>({...d,records:d.records.filter(r=>r.id!==draft.id)}));setDraft(null);setSelected(null);setInvoiceClosed(false);setNotice('Document deleted.');}
+    catch(e){setError(e.message);}finally{saving.current=false;setBusy(false);}
   };
 
   const saveHead=async(remove=false)=>{
@@ -405,12 +420,11 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
     reportEndDate = [reportEndDate,`${y + 1}-03-31`].sort()[0];
   }
 
-  const reportRecords = records.filter(r => r.date >= reportStartDate && r.date <= reportEndDate);
+  const reportRecords = page==='Financial Reports'?records.filter(r => r.date >= reportStartDate && r.date <= reportEndDate):[];
   const report=reportRecords.flatMap(r=>r.postings||[]);
-  const headRows=heads.map(([name,type])=>{
-    const entries=report.filter(r=>r.head===name);
-    return {name,type,balance:total(entries,'debit')-total(entries,'credit')};
-  });
+  const reportBalances=new Map();
+  for(const posting of report)reportBalances.set(posting.head,(reportBalances.get(posting.head)||0)+(Number(posting.debit)||0)-(Number(posting.credit)||0));
+  const headRows=heads.map(([name,type])=>({name,type,balance:reportBalances.get(name)||0}));
   const balance=type=>total(headRows.filter(r=>r.type===type),'balance');
   const margin=-balance('Revenue')-balance('Direct expense');
   const surplus=margin-balance('Expense');
@@ -429,7 +443,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
   };
 
   const cashMovement=postings=>postings.reduce((net,p)=>banks.includes(p.head)?net+(p.debit||0)-(p.credit||0):net,0);
-  const openingCash=total(records.filter(r=>r.date<reportStartDate).map(r=>({net:cashMovement(r.postings||[])})),'net');
+  const openingCash=page==='Financial Reports'?total(records.filter(r=>r.date<reportStartDate).map(r=>({net:cashMovement(r.postings||[])})),'net'):0;
   const openingJournals=cashMovement(reportRecords.filter(r=>r.kind==='opening').flatMap(r=>r.postings||[]));
   const cashPostings=reportRecords.filter(r=>r.kind!=='opening').flatMap(r=>r.postings||[]);
   let cashIn=0,cashOut=0;
@@ -450,7 +464,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
   const closingCash=openingCash+cashMovement(report);
 
   const invoiceList=records.filter(r=>['invoice','legacyInvoice'].includes(r.kind)&&(page==='Estimates'?r.documentType==='Proforma Invoice':r.documentType!=='Proforma Invoice'))
-    .sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+    .sort((a,b)=>compareEstimateNumbers(a,b));
   const activeInvoice=draft?.kind==='receipt'?draft.targetInvoice:draft?.kind==='invoice'?draftInvoice(draft,projects):
     ['invoice','legacyInvoice'].includes(selected?.kind)?selected:invoiceClosed?null:invoiceList[0];
   const convertedId=activeInvoice?.id&&`${activeInvoice.id}-INVOICE`;
@@ -530,7 +544,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
 
       <fieldset disabled={busy}><div className="accounts-fields">
       {field(draft.kind==='milestone'?'Scheduled date':'Date','date','date',true)}
-      {['milestone','invoice','transaction','reconciliation'].includes(draft.kind)&&options('Project','projectId',projectOptions,['milestone','invoice'].includes(draft.kind),id=>{
+      {['milestone','invoice','transaction','reconciliation'].includes(draft.kind)&&options('Project','projectId',projectOptions,(draft.kind==='milestone'||draft.kind==='invoice'&&!draft.legacyEdit),id=>{
         if(draft.kind==='invoice'){
           const proj = projects.find(p=>p.id===id);
           update('client',proj?.client||'');
@@ -558,7 +572,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
         {options('Document type','documentType',(page==='Estimates'&&!draft.convertedFromEstimateId?['Proforma Invoice']:['Invoice','Bill of Supply']),true)}
         {options('Milestone','milestoneId',milestones.filter(m=>m.projectId===draft.projectId&&!invoices.some(r=>r.milestoneId===m.id)).map(m=>[m.id,m.description]),false,id=>{const m=milestones.find(r=>r.id===id);if(m)update('items',[{...freshItem(),description:m.description,rate:m.amount/100}]);})}
         {field('Due date','dueDate','date')}{field('Client','client','text',true)}
-        <label>Billing address<textarea required value={draft.address||''} onChange={e=>update('address',e.target.value)}/></label>
+        <label>Billing address<textarea required={!draft.legacyEdit} value={draft.address||''} onChange={e=>update('address',e.target.value)}/></label>
         {field('State','state')}{field('State code','stateCode')}{field('Client GSTIN','gstin')}{field('PO / Reference','po')}{field('Contract / order date','orderDate','date')}{field('Contact person','contact')}{field('Contact email','contactEmail','email')}{field('Contact number','phone','tel')}
       </>}
       {draft.kind==='payroll'&&<>
@@ -575,7 +589,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
         {[['Description','description','text'],['SAC','sac','text'],['Unit','unit','text'],['Quantity','quantity','number'],['Unit rate (INR)','rate','number']].map(([label,key,type])=><label key={key}>{label}<input required type={type} min={type==='number'?(key==='rate'?.01:1):undefined} step={key==='rate'?.01:undefined} value={line[key]} onChange={e=>update('items',draft.items.map((other,j)=>j===i?{...other,[key]:e.target.value}:other))}/></label>)}
         <button type="button" disabled={draft.items.length===1} onClick={()=>update('items',draft.items.filter((_,j)=>i!==j))}>Remove line</button></div>)}
       <button type="button" disabled={draft.items.length>=25} onClick={()=>update('items',[...draft.items,freshItem()])}>Add line</button></>}
-      <div className="accounts-actions"><button type="submit">{busy?'Saving…':draft.kind==='invoice'?(draft.documentType==='Proforma Invoice'?(draft.isEdit?'Update estimate':'Save estimate'):(draft.isEdit?'Update invoice':'Save invoice')):'Save'}</button><button type="button" onClick={()=>setDraft(null)}>Cancel</button></div></fieldset>
+      <div className="accounts-actions"><button type="submit">{busy?'Saving…':draft.kind==='invoice'?(draft.documentType==='Proforma Invoice'?(draft.isEdit?'Update estimate':'Save estimate'):(draft.isEdit?'Update invoice':'Save invoice')):'Save'}</button><button type="button" onClick={()=>setDraft(null)}>Cancel</button>{draft.kind==='invoice'&&draft.isEdit&&page==='Invoices'&&<button type="button" style={{color:'#a23424',marginLeft:'auto'}} disabled={busy||readOnly} onClick={deleteInvoice}>Delete invoice</button>}</div></fieldset>
     </form>;
 
   return <AccountsDataReady.Provider value={Boolean(data)}><section className="accounts" aria-busy={!data&&!error}>
@@ -589,7 +603,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
         <button type="button" aria-pressed={Boolean(reconciliationBank)} onClick={()=>onNavigate('Banking',bank)}>Reconciliation</button>
       </nav>
       {reconciliationBank
-        ? <AccountsReconciliation loading={!data} records={records} projects={projects} heads={heads} bank={bank} setBank={setBank} request={request} onSaved={load} readOnly={readOnly} onNavigate={onNavigate}/>
+        ? <AccountsReconciliation key={reconciliationTransaction||'banking'} focusTransactionId={reconciliationTransaction} loading={!data} records={records} projects={projects} heads={heads} bank={bank} setBank={setBank} request={request} onSaved={transactionSaved} readOnly={readOnly} onNavigate={onNavigate}/>
         : <BankingOverview loading={!data} records={records} today={today()} onNavigate={onNavigate}/>}
     </>}
     {page==='GST'&&<GstOverview loading={!data} records={records} today={today()} onRecord={readOnly||busy?null:period=>begin('gstFiling',{period})}/>}
@@ -619,7 +633,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
       </details>
     </>}
 
-    {['Estimates','Invoices'].includes(page)&&<InvoiceWorkspace
+    {['Estimates','Invoices'].includes(page)&&(!error||data)&&<InvoiceWorkspace
       isEstimate={page==='Estimates'}
       onConvert={canConvert?convertEstimate:undefined}
       converted={Boolean(convertedInvoice||draft?.convertedFromEstimateId)}
@@ -633,10 +647,13 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
       onChoose={record=>{setSelected(record);setInvoiceClosed(false);setDraft(null);}}
       onNew={readOnly||busy||page!=='Estimates'?undefined:()=>begin('invoice',{documentType:'Proforma Invoice'})}
       onEdit={readOnly||!!draft||activeInvoice?.generatedFromReceiptId||paid(activeInvoice?.id)>0?undefined:invoice=>{
+        const display=invoiceForDisplay(invoice);
+        const items=display.items?.length?display.items:[{...freshItem(),description:display.description||'Lighting design & consultancy services',quantity:1,rate:display.amount}];
         begin('invoice',{
-          ...invoice,
-          isEdit: true,
-          items: invoice.items.map(i=>({...i, rate: (i.rate/100).toFixed(2)}))
+          ...display,kind:'invoice',legacyEdit:invoice.kind==='legacyInvoice',
+          isEdit:true,documentType:['Invoice','Bill of Supply','Proforma Invoice'].includes(display.documentType)?display.documentType:'Invoice',
+          projectId:invoice.projectId||'',dueDate:display.dueDate||display.date,
+          items:items.map(i=>({...i,quantity:Number(i.quantity)||1,rate:(Number(i.rate??i.amount)/100).toFixed(2)}))
         });
       }}
       onClose={busy?undefined:()=>{if(draft)setDraft(null);else{setSelected(null);setInvoiceClosed(true);}}}
@@ -656,7 +673,7 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
       <Table columns={['Date','Type','Project','Description','Ledger head','Amount','IDFC']} rows={records.filter(r=>r.kind==='legacyDesign').map(r=>({key:r.id,cells:[r.date,r.type,r.projectName,r.description,r.head,money(r.amount),r.idfc?'Matched':'—']}))}/>
     </details>}
 
-    {page==='Debit / Credit'&&<DesignTransactions records={records} projects={projects} heads={heads} request={request} onSaved={load} readOnly={readOnly}/>}
+    {page==='Debit / Credit'&&<DesignTransactions onReconcile={row=>onNavigate('Banking',row.bank,row.id)} records={records} projects={projects} heads={heads} request={request} onSaved={transactionSaved} readOnly={readOnly}/>}
 
 
     {page==='Chart of Accounts'&&<>
@@ -717,7 +734,8 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
       const party=parties.get(activeKey);
       const matches=party?projects.filter(p=>String(p.billing?.client||p.client||'').trim().replace(/\s+/g,' ').toLowerCase()===activeKey):[];
       const profiles=matches.map(p=>p.billing).filter(Boolean);
-      const profile=profiles.length&&profiles.every(p=>['address','gstin','contact','phone','contactEmail'].every(k=>(p[k]||'')===(profiles[0][k]||'')))?profiles[0]:{};
+      const billingProfile=profiles.length&&profiles.every(p=>['address','gstin','contact','phone','contactEmail'].every(k=>(p[k]||'')===(profiles[0][k]||'')))?profiles[0]:{};
+      const profile={...billingProfile,...Object.fromEntries(Object.entries(party?.profile||{}).filter(([,v])=>v!==''))};
       const entries=party?.entries.filter(({record})=>(!ledgerFrom||record.date>=ledgerFrom)&&(!ledgerTo||record.date<=ledgerTo))||[];
       const opening=ledgerFrom?(party?.entries.filter(({record})=>record.date<ledgerFrom).at(-1)?.balance||0):0;
       const ledger={party,profile,from:ledgerFrom,to:ledgerTo,entries,opening};
@@ -746,16 +764,24 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
       <StudioHeading title="Party Ledger" department="Accounts"/>
       <div className="invoice-workspace party-ledger-workspace">
       <aside className="invoice-list" aria-label="Party list">
-        <header><h2>Parties</h2></header>
+        <header><h2>Parties</h2>{!readOnly&&<button type="button" onClick={()=>setPartyDraft({name:"",aliases:[]})}>+ Add Party</button>}</header>
         <input type="search" className="invoice-search" aria-label="Search parties" placeholder="Search by party name…" value={partyQuery} onChange={event=>setPartyQuery(event.target.value)}/>
         {visibleParties.map(([key,party])=>
           <button type="button" className="invoice-list-row" key={key} aria-current={activeKey===key?'true':undefined} onClick={()=>setPartyKey(key)}>
             <strong>{party.name}</strong>
           </button>
         )}
-        {data&&!visibleParties.length&&<p className="party-ledger-content">{parties.size?"No parties match your search.":"No posted transactions have a client or beneficiary yet."}</p>}
+        {data&&!visibleParties.length&&<p className="party-ledger-content">{parties.size?"No parties match your search.":"Add a party from Studio or create a new party."}</p>}
       </aside>
       <section className="invoice-detail" aria-label="Selected party ledger">
+      {partyDraft&&<form className="party-ledger-content" onSubmit={async e=>{e.preventDefault();if(busy)return;setBusy(true);setError('');try{const saved=await request('saveAccountsParty',partyDraft,'POST');setData(d=>({...d,records:[...d.records.filter(r=>r.id!==saved.id),saved]}));setPartyKey(saved.name.trim().replace(/\s+/g,' ').toLowerCase());setPartyQuery('');setPartyDraft(null);}catch(e){setError(e.message)}finally{setBusy(false)}}}>
+       <h2>{partyDraft.id?'Edit party':'Add party'}</h2>
+       <div className="party-profile-fields"><label>Studio directory<select value="" onChange={e=>{const source=data.studioParties?.[Number(e.target.value)];if(e.target.value!==''&&source)setPartyDraft(d=>({...d,...source}))}}><option value="">Select existing party (optional)</option>{(data?.studioParties||[]).map((p,i)=><option key={i} value={i}>{p.name}</option>)}</select></label>
+       {['name','address','contact','phone','contactEmail','gstin'].map((key,i)=><label key={key}>{['Party name','Address','Contact person','Phone','Email','GSTIN'][i]}<input required={key==='name'} value={partyDraft[key]||''} onChange={e=>setPartyDraft(d=>({...d,[key]:e.target.value}))}/></label>)}
+       <label>Other names used in transactions (comma separated)<input value={(partyDraft.aliases||[]).join(',')} onChange={e=>setPartyDraft(d=>({...d,aliases:e.target.value.split(',')}))}/></label></div>
+       <button type="submit" disabled={busy}>Save party</button> <button type="button" onClick={()=>setPartyDraft(null)}>Cancel</button>
+      </form>}
+      {!readOnly&&party&&!partyDraft&&<button type="button" onClick={()=>setPartyDraft({...party.profile})}>Edit party</button>}
         {party?<>
             <header className="invoice-detail-heading"><div>
               <h2>{party.name}</h2>

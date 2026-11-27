@@ -71,7 +71,7 @@ export default function GeneratedTechnicalTable({projectId,projectName,projectCo
  async function choose(row,kind,ids=[row.id]){
   const n=generation.current;setError('');setOptions([]);setQuery('');setPicker({id:row.id,ids,cn:row.cn,kind,media:row.override[kind]||null,loading:true,uploading:false,error:''});
   try{
-   let list;if(kind==='reference'){const r=await loadApplications(request);if(r.warning)throw Error(r.warning);list=r.records.map(r=>({id:r.id,label:[r.title,r.category,r.fittingType].filter(Boolean).join(' · '),url:r.imageUrl}));}
+   let list;if(kind==='reference'){const r=await loadApplications(request);if(r.warning)throw Error(r.warning);list=[...r.records].sort((a,b)=>Number(b.fittingType===row.code)-Number(a.fittingType===row.code)).map(r=>({id:r.id,label:[r.title,r.category,r.fittingType].filter(Boolean).join(' · '),url:r.imageUrl}));}
    else if(kind==='fixture')list=fittingIconOptions(products);
    else list=await projectImages();
    if(n===generation.current){setOptions(list.filter(m=>m.url));setPicker(p=>p?{...p,loading:false}:null)}

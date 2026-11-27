@@ -15,8 +15,8 @@ export function createCadDriveReader(source,accessToken){
   if(full)return full.subarray(offset,offset+length);
   let response;
   try{response=await fetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(source.driveFileId)+'?alt=media&supportsAllDrives=true',{headers:{Authorization:'Bearer '+accessToken,Range:`bytes=${offset}-${offset+length-1}`},redirect:'error',signal:AbortSignal.timeout(90000)});}catch{throw Error('The server could not download this CAD file from Google Drive. Retry preparation.');}
-  if(response.status===401||response.status===403)throw Error('Google Drive denied the CAD download. Confirm the Apps Script deployment owner can download this file and Google Drive API is enabled.');
-  if(response.status===404)throw Error('The original CAD file was not found or is inaccessible to the deployment owner.');
+  if(response.status===401||response.status===403)throw Error('Google Drive denied the CAD download. Confirm the configured Google Drive account can download this file and Google Drive API is enabled.');
+  if(response.status===404)throw Error('The original CAD file was not found or is inaccessible to the configured Google Drive account.');
   if(response.status!==200&&response.status!==206)throw Error('Google Drive returned HTTP '+response.status+' during CAD transfer. Retry preparation.');
   const limit=response.status===200?source.size:length,chunks=[];let count=0;
   if(Number(response.headers.get('content-length')||0)>limit)throw Error('Google Drive returned an unexpected CAD file size. Refresh and retry.');
@@ -43,7 +43,7 @@ export async function runCadAction(action,payload,backend){
    if(!signed.data.uploadKey||signed.data.urls?.length!==parts)throw Error('Autodesk did not return a complete upload session. Retry.');
    const transfer=await backend('getCadSourceTransfer',{projectId:source.projectId,driveFileId:source.driveFileId,modified:source.modified});
    if(transfer.driveFileId!==source.driveFileId||transfer.modified!==source.modified||Number(transfer.size)!==source.size)throw Error('Drawing changed before transfer. Refresh and retry.');
-   const readDrive=createCadDriveReader(source,transfer.accessToken);
+   const readDrive=transfer.read||createCadDriveReader(source,transfer.accessToken);
    for(let i=0;i<parts;i++){
      const url=new URL(signed.data.urls[i]);if(url.protocol!=='https:'||!url.hostname.endsWith('.amazonaws.com'))throw Error('Unexpected Autodesk storage URL.');
      const bytes=await readDrive(i*chunkSize,Math.min(chunkSize,source.size-i*chunkSize));if(bytes.length!==Math.min(chunkSize,source.size-i*chunkSize))throw Error('The drawing transfer was incomplete. Retry.');

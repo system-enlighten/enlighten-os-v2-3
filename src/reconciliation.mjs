@@ -7,3 +7,11 @@ export function bankBookEntries(records,bank){
   return {...r,bookAmount:Math.abs(net),bookDirection:net>=0?'Inflow':'Outflow',runningBalance:balance,reconciled:r.kind==='reconciliation'||matched.has(r.id),status:r.kind==='reconciliation'?'Categorized':matched.has(r.id)?'Matched':r.kind==='opening'?'Opening':'Manually Added'};
  });
 }
+
+
+const statementKey=r=>JSON.stringify([r.bank,r.date,r.direction,r.amount,String(r.reference||'').toLowerCase()]);
+export function reconciliationIndex(records){
+ const byId=new Map(),byKey=new Map();
+ for(const r of records){if(r.kind!=='reconciliation')continue;if(r.statementId&&!byId.has(r.statementId))byId.set(r.statementId,r);const key=statementKey(r);if(!byKey.has(key))byKey.set(key,r);}
+ return row=>byId.get(row.id)||byKey.get(statementKey(row));
+}

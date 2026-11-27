@@ -4,7 +4,14 @@ export const specSheetFields=[
 export const specSheetAssets=[['photometricUrl','Photometric distribution diagram'],['symbolsUrl','Compliance / protection symbols'],['controlDiagramUrl','Control / compatibility diagram']];
 export const defaultHighlights=['shape','trim','dimensions','mounting','ip','cct','optics','driver','dimming'];
 const join=(...v)=>v.filter(x=>x!==''&&x!=null).join(' | ');
-const unit=(value,label)=>value!==''&&value!=null?`${value} ${label}`:'';
+export function specificationUnit(value,label){
+ const text=String(value??'').trim();
+ if(!text)return '';
+ const units={W:/(?:^|[^A-Za-z])(?:W\/m|W|watts?)\b/i,lm:/(?:^|[^A-Za-z])(?:lm|lumens?)\b/i,mm:/(?:^|[^A-Za-z])(?:mm|cm|m)\b/i,h:/(?:^|[^A-Za-z])(?:h|hrs?|hours?)\b/i};
+ const base=label.split(' ')[0];
+ return units[base]?.test(text)?text+(label.includes(' recess')?' recess':''):`${text} ${label}`;
+}
+const unit=specificationUnit;
 export function productDimensions(spec){
  return spec.specSheet?.dimensions||join(unit(spec.size,'mm'),unit(spec.recess,'mm recess'));
 }

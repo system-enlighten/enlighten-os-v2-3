@@ -1,7 +1,7 @@
 // Operational Preview reader. No production routing or persistent business writes.
 // server/workflow.js — Preview snapshot reads only; not a replacement for getWIH.
 import { db } from './supabase-db.js';
-import { requireSystemAdmin } from './permissions.js';
+import { checkProjectRead, requireSystemAdmin, visibleProjectIds } from './permissions.js';
 const norm = v => String(v ?? '').trim().toLowerCase();
 const key = (a,b) => JSON.stringify([norm(a),norm(b)]);
 const tables = new Set(['line_of_work','workflow_delegations','design_tasks','wih','wih_plans']);
@@ -25,12 +25,14 @@ function resolve(row,rules) {
   return {...row,responsible:value,delegationSource:project?.responsibleId?'project':project||!raw?(base?'default':'none'):'project',delegationValue:value,delegationRawResponsible:raw};
 }
 async function loadWorkflow(payload, {user,exportId,database=db}={}) {
-  guard(user,exportId);
+  if (process.env.VERCEL_ENV !== 'preview' || process.env.SUPABASE_OPERATIONAL_ACCESS !== '1' || exportId !== 'operational') throw Error('Operational reads disabled');
+  const projects=visibleProjectIds(user);
   const id=String(payload.projectId||'').trim();
   return database.transaction(async tx=>{
+    if (id!=='*') await checkProjectRead(tx,user,id);
     const rules=await read(tx,'workflow_delegations',exportId,id,true);
-    const rows=await read(tx,'line_of_work',exportId,id);
-    const workflow=rows.filter(r=>['true','yes','1','y'].includes(norm(r.active))).map(r=>resolve(r,rules)).sort((a,b)=>Number(a.seq||a.sourceRow||0)-Number(b.seq||b.sourceRow||0));
+    const rows=id==='*'?[]:await read(tx,'line_of_work',exportId,id);
+    const workflow=rows.filter(r=>(projects===null||projects.includes(String(r.projectId)))&&!['false','no','0','n',''].includes(norm(r.active))).map(r=>resolve(r,rules)).sort((a,b)=>Number(a.seq||a.sourceRow||0)-Number(b.seq||b.sourceRow||0));
     return {rules,workflow};
   },{readOnly:true});
 }

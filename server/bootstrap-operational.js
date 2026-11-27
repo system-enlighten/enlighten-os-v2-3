@@ -1,16 +1,17 @@
 // Operational Preview reader. No production routing or persistent business writes.
 // server/bootstrap.js — read-only imported snapshot, Preview system admin only.
-// Call only after existing Google/session middleware AND live Apps Script authorization.
+// Call after Google/session verification and operational identity resolution.
 import { db } from './supabase-db.js';
-import { requireSystemAdmin } from './permissions.js';
+import {isSystemAdmin,requireAdmin,requireStudio,visibleProjectIds} from './permissions.js';
 const norm=v=>String(v||'').trim().toLowerCase();
 const bool=v=>typeof v==='boolean'?v:['true','yes','1','y'].includes(norm(v))?true:['false','no','0','n',''].includes(norm(v))?false:Boolean(v);
 const key=(a,b)=>JSON.stringify([norm(a),norm(b)]);
 const tables=['projects','project_contacts','line_of_work','floor_zones','people','workflow_delegations','departments','designations','drawing_task_master','drawing_register','files','project_meetings'];
 function guard(user,exportId){
   if(process.env.VERCEL_ENV!=='preview'||process.env.SUPABASE_OPERATIONAL_ACCESS!=='1')throw Error('Snapshot reads disabled');
-  requireSystemAdmin(user);
+  const ids=visibleProjectIds(user);
   if(exportId !== 'operational')throw Error('Explicit export ID required');
+  return ids;
 }
 async function read(tx,table,id){
   if(!tables.includes(table))throw Error('Unsupported table');
@@ -38,14 +39,39 @@ function drawingMaster(rows){
   for(const r of rows){const id=String(r.drawingTypeId||'').trim(),name=String(r.drawingType||'').trim();if(!name)continue;const k=id||name;if(!by.has(k))by.set(k,{drawingTypeId:id,drawingType:name,sequence:Number(r.drawingSequence||999),active:bool(r.active),tasks:[]});if(String(r.taskTitle||'').trim())by.get(k).tasks.push({taskId:String(r.taskId||''),title:String(r.taskTitle).trim(),sequence:Number(r.taskSequence||999),assignee:String(r.defaultAssignee||'').trim()});}
   return [...by.values()].map(t=>({...t,tasks:t.tasks.sort((a,b)=>a.sequence-b.sequence)})).sort((a,b)=>a.sequence-b.sequence);
 }
+export async function listDepartments(_payload,{user,database=db}) {
+  requireAdmin(user);
+  return departments(await read(database,'departments','operational'));
+}
+export async function listDesignations(_payload,{user,database=db}) {
+  requireAdmin(user);
+  return read(database,'designations','operational');
+}
+export async function listDrawingTaskMaster(_payload,{user,database=db}) {
+  requireStudio(user);
+  return drawingMaster(await read(database,'drawing_task_master','operational'));
+}
+export function getWorkflowCapabilities(_payload,{user}) {
+  requireStudio(user);
+  return {areaWorkflowVersion:1,designFlowVersion:2,floorGantt:true,sharedStageMeetings:true,orderedSubtasks:true,
+    multiFloorCoverage:true,multiFloorUpload:true};
+}
 export async function getBootstrap(payload={}, {user,exportId,database=db}={}){
-  guard(user,exportId);
+  const allowedIds=guard(user,exportId);
   return database.transaction(async tx=>{
     const load=t=>read(tx,t,exportId);
     const [projects,contacts,workflow,zones,people,rules]=await Promise.all(tables.slice(0,6).map(load));
     const ids=new Set(projects.map(r=>r.projectId));if(!projects.length||ids.size!==projects.length||projects.some(r=>!r.projectId))throw Error('Invalid project snapshot');
     const activeOnly=String(payload.activeOnly||'true')!=='false';
-    const result={projects:projects.filter(r=>!activeOnly||(!bool(r.completed)&&norm(r.projectStatus)!=='completed')),projectContacts:contacts.filter(r=>bool(r.active)).map(r=>({...r,staffUserId:contactStaff(r,people)})),lineOfWork:workflow.filter(r=>bool(r.active)).map(r=>delegate(r,rules)).sort((a,b)=>Number(a.seq||a.sourceRow||0)-Number(b.seq||b.sourceRow||0)),floorZones:zones.filter(r=>bool(r.active)).sort((a,b)=>Number(a.seq||0)-Number(b.seq||0)),people:people.filter(r=>bool(r.active)),serverTime:new Date().toISOString()};
+    const allowed=row=>allowedIds===null||allowedIds.includes(String(row.projectId));
+    let staff=people;
+    if (!isSystemAdmin(user)) {
+      const managed=norm(user.appAccess)==='viewer'?[]:Object.keys(user.projectRoles).filter(id=>user.projectRoles[id]==='Admin');
+      const memberships=await tx.rows("SELECT cells FROM enlighten_operational.project_roles WHERE cells->>'projectId'=ANY($1::text[])",[managed]);
+      const staffIds=new Set(memberships.filter(({cells})=>bool(cells.active)).map(({cells})=>String(cells.userId)));
+      staff=people.filter(row=>staffIds.has(String(row.userId))).map(({userId,name,role,department,active})=>({userId,name,role,department,active}));
+    }
+    const result={projects:projects.filter(r=>allowed(r)&&(!activeOnly||(!bool(r.completed)&&norm(r.projectStatus)!=='completed'))),projectContacts:contacts.filter(r=>allowed(r)&&bool(r.active)).map(r=>({...r,staffUserId:contactStaff(r,people)})),lineOfWork:workflow.filter(r=>allowed(r)&&bool(r.active)).map(r=>delegate(r,rules)).sort((a,b)=>Number(a.seq||a.sourceRow||0)-Number(b.seq||b.sourceRow||0)),floorZones:zones.filter(r=>allowed(r)&&bool(r.active)).sort((a,b)=>Number(a.seq||0)-Number(b.seq||0)),people:staff.filter(r=>bool(r.active)),serverTime:new Date().toISOString()};
     if(payload.includeMaster===true||norm(payload.includeMaster)==='true'){
       const [d,s,m]=await Promise.all(['departments','designations','drawing_task_master'].map(load));
       if(!s.length||!m.length)throw Error('Missing master snapshot; do not initialize from preview');
@@ -55,9 +81,11 @@ export async function getBootstrap(payload={}, {user,exportId,database=db}={}){
   },{readOnly:true});
 }
 export async function getProjectWorkspace({user,exportId,database=db}={}){
-  guard(user,exportId);
+  const allowedIds=guard(user,exportId);
   return database.transaction(async tx=>{
     const [drawings,files,meetings]=await Promise.all(['drawing_register','files','project_meetings'].map(t=>read(tx,t,exportId)));
-    return {drawings:drawings.filter(r=>!bool(r.trashed)),files:files.filter(r=>!bool(r.trashed)&&norm(r.direction)==='received'),meetings:meetings.filter(r=>bool(r.active)),meetingIds:meetings.map(r=>r.id)};
+    const allowed=row=>allowedIds===null||allowedIds.includes(String(row.projectId));
+    const visibleMeetings=meetings.filter(allowed);
+    return {drawings:drawings.filter(r=>allowed(r)&&!bool(r.trashed)),files:files.filter(r=>allowed(r)&&!bool(r.trashed)&&norm(r.direction)==='received'),meetings:visibleMeetings.filter(r=>bool(r.active)),meetingIds:visibleMeetings.map(r=>r.id)};
   },{readOnly:true});
 }

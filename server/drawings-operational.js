@@ -2,25 +2,23 @@
 // server/drawings.js — read-only imported snapshot, Preview only.
 // Caller must supply a verified live administrator identity and server-selected exportId.
 import { db } from './supabase-db.js';
-import { requireSystemAdmin } from './permissions.js';
+import { checkProjectRead, visibleProjectIds } from './permissions.js';
 
 const TABLES = Object.freeze({drawings:'drawing_register', files:'files', tasks:'design_tasks'});
 function bool(v) { return v === true || ['true','yes','1','y'].includes(String(v ?? '').trim().toLowerCase()); }
 function guard(user, exportId) {
   if (process.env.VERCEL_ENV !== 'preview' || process.env.SUPABASE_OPERATIONAL_ACCESS !== '1') throw new Error('Snapshot reads disabled');
-  requireSystemAdmin(user);
+  const ids = visibleProjectIds(user);
   if (exportId !== 'operational') throw new Error('Explicit export ID required');
+  return ids;
 }
 async function readRegister(projectId, {user, exportId, database = db} = {}) {
-  guard(user, exportId);
+  const ids = guard(user, exportId);
   return database.transaction(async tx => {
-    if (projectId) {
-      const projects = await tx.rows(`SELECT 1 FROM enlighten_operational.projects WHERE ($1::text = $$operational$$) AND cells->>'projectId'=$2 LIMIT 1`, [exportId,projectId]);
-      if (!projects.length) throw new Error('Project not found in snapshot');
-    }
+    await checkProjectRead(tx,user,projectId);
     const result = {};
     for (const [key, table] of Object.entries(TABLES)) {
-      const rows = await tx.rows(`SELECT cells FROM enlighten_operational."${table}" WHERE ($1::text = $$operational$$) AND ($2='' OR cells->>'projectId'=$2) ORDER BY source_row_number, record_id`, [exportId,projectId]);
+      const rows = await tx.rows(`SELECT cells FROM enlighten_operational."${table}" WHERE ($1::text[] IS NULL OR cells->>'projectId'=ANY($1)) AND ($2='' OR cells->>'projectId'=$2) ORDER BY source_row_number NULLS LAST, record_id`, [ids,projectId]);
       result[key] = rows.map(({cells}) => {
         if (!cells || typeof cells !== 'object' || Array.isArray(cells)) throw new Error('Invalid imported drawing record');
         return cells;

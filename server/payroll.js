@@ -1,22 +1,41 @@
-// server/payroll.js — Preview-only payroll migration preflight.
-// The imported schema supplied for this migration does not contain the
-// Payroll Machine Attendance sheet. Never substitute studio attendance.
 import { db } from './supabase-db.js';
-import { requireSystemAdmin } from './permissions.js';
+import { requireAccounts } from './permissions.js';
 
-export async function readPayrollMachineAttendance({user, exportId, year, database = db} = {}) {
-  if (process.env.VERCEL_ENV !== 'preview' || process.env.SUPABASE_IMPORTED_PROJECT_READS !== '1') throw new Error('Snapshot reads disabled');
-  requireSystemAdmin(user);
-  if (typeof exportId !== 'string' || !exportId.trim()) throw new Error('Explicit export ID required');
-  if (!/^20\d{2}$/.test(String(year ?? ''))) throw new Error('Select a valid year.');
-  const result = await database.one("SELECT to_regclass('enlighten_import.payroll_machine_attendance') IS NOT NULL AS present");
-  if (!result?.present) throw new Error('Payroll Machine Attendance is missing from the imported schema. Retain the existing Apps Script payroll route.');
-  // Even if the table is subsequently created, its source headers and export
-  // completeness must be verified before implementing a payroll reader.
-  throw new Error('Payroll snapshot mapping is not validated. Retain the existing Apps Script payroll route.');
+export async function readPayrollMachineAttendance({year}, {user, database=db} = {}) {
+  requireAccounts(user);
+  if (!/^20\d{2}$/.test(String(year ?? ''))) throw Object.assign(new Error('Select a valid year.'), {statusCode:400});
+  return database.rows(`SELECT employee_id AS "employeeId", to_char(attendance_date,'YYYY-MM-DD') AS date,
+    coalesce(to_char(check_in,'HH24:MI'),'') AS "checkIn",
+    coalesce(to_char(check_out,'HH24:MI'),'') AS "checkOut"
+    FROM enlighten_operational.payroll_machine_attendance
+    WHERE attendance_date >= make_date($1::integer,1,1) AND attendance_date < make_date($1::integer+1,1,1)
+    ORDER BY attendance_date,employee_id`, [Number(year)]);
 }
-// Pure validation matching the existing import's punch format.
-// Does not authorize or persist any records.
+
+export async function importPayrollMachineAttendance({rows}, {user, database=db} = {}) {
+  requireAccounts(user, {write:true});
+  return database.transaction(async tx => {
+    const people = await tx.rows("SELECT cells FROM enlighten_operational.people WHERE NULLIF(cells->>'userId','') IS NOT NULL FOR SHARE");
+    const staff = new Set(people.filter(({cells})=>!['false','no','0','n',''].includes(String(cells.active ?? '').trim().toLowerCase())).map(({cells})=>String(cells.userId)));
+    let punches;
+    try {
+      punches = validatePayrollPunches(rows, staff);
+    } catch (error) {
+      error.statusCode=400;
+      throw error;
+    }
+    const result = await tx.query(`INSERT INTO enlighten_operational.payroll_machine_attendance AS existing
+      (employee_id,attendance_date,check_in,check_out)
+      SELECT "employeeId",date::date,nullif("checkIn",'')::time,nullif("checkOut",'')::time
+      FROM jsonb_to_recordset($1::jsonb) AS punch("employeeId" text,date text,"checkIn" text,"checkOut" text)
+      ORDER BY "employeeId",date
+      ON CONFLICT (employee_id,attendance_date) DO UPDATE
+      SET check_in=excluded.check_in,check_out=excluded.check_out,updated_at=clock_timestamp()
+      WHERE (existing.check_in,existing.check_out) IS DISTINCT FROM (excluded.check_in,excluded.check_out)`, [JSON.stringify(punches)]);
+    return {saved:result.rowCount};
+  });
+}
+
 export function validatePayrollPunches(rows, activeEmployeeIds) {
   if (!Array.isArray(rows) || !rows.length || rows.length > 5000) throw new Error('Import between 1 and 5,000 employee days.');
   if (!(activeEmployeeIds instanceof Set)) throw new Error('Active employee set required.');
@@ -26,7 +45,7 @@ export function validatePayrollPunches(rows, activeEmployeeIds) {
     return value;
   };
   for (const entry of rows) {
-    const employeeId = String(entry.employeeId || '');
+    const employeeId = String(entry?.employeeId || '');
     if (!activeEmployeeIds.has(employeeId)) throw new Error('Map punches to active team members before importing.');
     const date = String(entry.date || '');
     const parsed = new Date(date+'T00:00:00Z');

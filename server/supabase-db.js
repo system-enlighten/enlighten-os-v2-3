@@ -6,7 +6,7 @@ export function createDatabase({env = process.env, PoolClass = Pool} = {}) {
   let pool;
   function getPool() {
     if (pool) return pool;
-    const url = new URL(env.SUPABASE_DATABASE_URL || '');
+    const url = new URL((env.VERCEL_ENV==='preview'?env.SUPABASE_PREVIEW_DATABASE_URL:env.SUPABASE_DATABASE_URL)||'');
     if (!['postgres:', 'postgresql:'].includes(url.protocol)) throw new Error('Invalid database protocol');
     const ca = String(env.SUPABASE_DB_CA || '').replace(/\\n/g, '\n').trim();
     if (!ca.includes('-----BEGIN CERTIFICATE-----')) throw new Error('SUPABASE_DB_CA is required');

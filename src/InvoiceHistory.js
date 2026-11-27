@@ -19,7 +19,7 @@ const extracted={
 };
 
 export function invoiceForDisplay(record){
-  if(record.kind!=='legacyInvoice')return record;
+  if(record.kind!=='legacyInvoice'||record.editedHistory)return record;
   const key=String(record.sourceNumber||record.number||'').replace(/\s/g,'');
   const source=pdfHistory[key]||extracted[key];
   if(source){
@@ -28,4 +28,14 @@ export function invoiceForDisplay(record){
       registerDate:record.date};
   }
   return {...record,documentType:'Invoice record',items:[],incompleteHistory:true};
+}
+
+
+// Newest financial-year series first, then descending document sequence.
+export function compareEstimateNumbers(a,b){
+ const number=r=>String(invoiceForDisplay(r).number||r.sourceNumber||'').replace(/\s/g,'');
+ const parse=r=>{const m=number(r).match(/(\d{2,4})[-/](\d{2,4})[-/](\d{3})(?:[-/].*)?$/);return m?{year:Number(m[1])%100,seq:Number(m[3])}:null};
+ const x=parse(a),y=parse(b);
+ if(x&&y)return y.year-x.year||y.seq-x.seq||String(b.date||'').localeCompare(String(a.date||''));
+ return String(b.date||'').localeCompare(String(a.date||''))||number(b).localeCompare(number(a),undefined,{numeric:true});
 }

@@ -2,12 +2,11 @@
 // server/projects.js — Preview snapshot reads and isolated project update rehearsal.
 // Not a production replacement. Never route live project mutations here.
 import { db } from './supabase-db.js';
-import { requireSystemAdmin } from './permissions.js';
+import { requireSystemAdmin, visibleProjectIds } from './permissions.js';
 const norm = v => String(v ?? '').trim().toLowerCase();
 const completed = r => r.completed === true || ['true','yes','1'].includes(norm(r.completed)) || norm(r.projectStatus)==='completed';
-function guard(user, exportId) {
+function guard(exportId) {
   if (process.env.VERCEL_ENV !== 'preview' || process.env.SUPABASE_OPERATIONAL_ACCESS !== '1') throw Error('Preview only');
-  requireSystemAdmin(user);
   if (exportId !== 'operational') throw Error('Explicit export ID required');
 }
 function outcome(v) {
@@ -21,10 +20,10 @@ function today(now) {
   return `${get('year')}-${get('month')}-${get('day')}`;
 }
 export async function listProjects(payload={}, {user,exportId,database=db}={}) {
-  guard(user,exportId);
-  const rows=await database.rows('SELECT cells FROM enlighten_operational.projects WHERE ($1::text = $$operational$$) ORDER BY source_row_number,record_id',[exportId]);
+  guard(exportId);
+  const rows=await database.rows("SELECT cells FROM enlighten_operational.projects WHERE ($1::text[] IS NULL OR cells->>'projectId'=ANY($1)) ORDER BY source_row_number NULLS LAST,record_id",[visibleProjectIds(user)]);
   const projects=rows.map(r=>r.cells);
-  if (!projects.length || projects.some(r=>!r?.projectId) || new Set(projects.map(r=>r.projectId)).size!==projects.length) throw Error('Invalid project snapshot');
+  if (projects.some(r=>!r?.projectId) || new Set(projects.map(r=>r.projectId)).size!==projects.length) throw Error('Invalid project records');
   return norm(payload.activeOnly)==='true'?projects.filter(r=>!completed(r)):projects;
 }
 // Pure transformation of a project row; does not persist or authorize a request.
@@ -45,7 +44,8 @@ export function projectStatusPatch(old,payload,actor,now=new Date()) {
 }
 // Read-only rehearsal: return a proposed change without touching any database row.
 export async function previewProjectStatus(payload,{user,exportId,database=db}={}) {
-  guard(user,exportId);
+  guard(exportId);
+  requireSystemAdmin(user);
   const rows=await database.rows("SELECT cells FROM enlighten_operational.projects WHERE ($1::text = $$operational$$) AND cells->>'projectId'=$2 LIMIT 2",[exportId,payload.projectId]);
   if(rows.length!==1) throw Error('Project not uniquely found');
   return {persisted:false,project:projectStatusPatch(rows[0].cells,payload,user.email)};

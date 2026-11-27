@@ -1,0 +1,131 @@
+.spec-sheet-themed {
+  background: #f4f1e8;
+  border: 1px solid #d2cdc1;
+  border-top: 3px solid #132237;
+  padding: 18px 20px;
+  color: #132237;
+  font: 12px/1.4 Inter, system-ui, sans-serif;
+}
+.spec-sheet-themed .spec-sheet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #d2cdc1;
+  margin-bottom: 14px;
+}
+.spec-sheet-themed .spec-sheet-eyebrow {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  color: #174a85;
+  margin-bottom: 2px;
+}
+.spec-sheet-themed .spec-sheet-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #132237;
+}
+.spec-sheet-themed .spec-sheet-header p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #516174;
+}
+.spec-sheet-themed .spec-sheet-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.spec-sheet-themed button,
+.spec-sheet-compact .spec-sheet-na-btn {
+  font: inherit;
+  padding: 7px 12px;
+  border: 1px solid #174a85;
+  border-radius: 0;
+  background: #fff;
+  color: #174a85;
+  font-weight: 500;
+  cursor: pointer;
+}
+.spec-sheet-themed button:hover:not(:disabled),
+.spec-sheet-compact .spec-sheet-na-btn:hover:not(:disabled) {
+  background: #f0f4f8;
+}
+.spec-sheet-themed button:disabled {
+  opacity: .5;
+  cursor: default;
+}
+.spec-sheet-themed .spec-sheet-primary-btn,
+.spec-sheet-view .spec-sheet-na-btn[aria-pressed="true"] {
+  background: #132237;
+  border-color: #132237;
+  color: #fff;
+  font-weight: 600;
+}
+.spec-sheet-themed .spec-sheet-primary-btn:hover:not(:disabled),
+.spec-sheet-view .spec-sheet-na-btn[aria-pressed="true"]:hover:not(:disabled) {
+  background: #1f3350;
+}
+.spec-sheet-themed .spec-sheet-card {
+  background: #fff;
+  border: 1px solid #d2cdc1;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+.spec-sheet-themed .product-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+.spec-sheet-themed .product-fields label,
+.spec-sheet-themed .spec-sheet-field {
+  display: grid;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #132237;
+  margin: 0;
+}
+.spec-sheet-themed select,
+.spec-sheet-themed input:not([type="checkbox"]) {
+  font: inherit;
+  font-weight: 400;
+  min-width: 0;
+  width: 100%;
+  min-height: 34px;
+  box-sizing: border-box;
+  padding: 6px 9px;
+  border: 1px solid #d2cdc1;
+  border-radius: 0;
+  background: #fff;
+  color: #132237;
+}
+.spec-sheet-view .spec-sheet-finish-row {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+.spec-sheet-view .spec-sheet-finish-row select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.spec-sheet-view .spec-sheet-finish-row .spec-sheet-na-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding: 6px 10px;
+}
+.spec-sheet-themed .spec-sheet-note {
+  margin: 10px 0 0;
+  font-size: 11px;
+  color: #516174;
+}
+.spec-sheet-themed .spec-sheet-frame-wrap {
+  background: #fff;
+  border: 1px solid #d2cdc1;
+}

@@ -44,7 +44,7 @@ const accountsNavigation=[
 export function DepartmentWorkspace({id,name=departments[id][0],user,request:apiRequest,buttonStyle,switchDepartment,PerformanceView,performanceState,WorkspaceShell,theme,inputStyle}){
  const [attendanceDay,setAttendanceDay]=useState('');
  const [assigned,setAssigned]=useState(false),[teamBusy,setTeamBusy]=useState(false);
- const [reconciliationBank,setReconciliationBank]=useState();
+ const [reconciliationBank,setReconciliationBank]=useState(),[reconciliationTransaction,setReconciliationTransaction]=useState(null);
  const [page,setPage]=useState('Home'),[log,setLog]=useState(null),[team,setTeam]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(false);
  const isAccounts=id==='accounts';
  const activityPage=isAccounts?'accounts:'+page:undefined;
@@ -52,7 +52,7 @@ export function DepartmentWorkspace({id,name=departments[id][0],user,request:api
  const load=async(action)=>{setBusy(true);setError('');try{const result=await request(action?'saveStudioDay':'getStudioDay',action?{action}:{},'POST');setLog(action?{...result,missedDay:log?.missedDay}:result);if(action)window.dispatchEvent(new Event('enlighten-attendance-change'));}catch(e){setError(e.message);}finally{setBusy(false);}};
  useEffect(()=>{if(page==='Home'&&!['marketing','sales'].includes(id))load();},[id,page]);
  useEffect(()=>{if(page==='Team & Tasks'||page==='Home'&&assigned){let live=true;setTeamBusy(true);request('departmentTeam',{department:id},'POST').then(result=>{if(live)setTeam(result);}).catch(e=>{if(live)setError(e.message);}).finally(()=>{if(live)setTeamBusy(false);});return()=>{live=false;};}},[page,id,assigned,request]);
- const go=(next,bank)=>{setError('');setAttendanceDay('');setReconciliationBank(bank);setPage(next);};
+ const go=(next,bank,transactionId)=>{setError('');setAttendanceDay('');setReconciliationBank(bank);setReconciliationTransaction(transactionId||null);setPage(next);};
  const fmt=s=>new Date(s).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit'});
  if(id==='sales')return <WorkspaceShell name={name} switchDepartment={switchDepartment} currentUser={user}
    view={page==='Home'?'home':page} viewLabel={page} items={salesNavigation}
@@ -92,7 +92,7 @@ export function DepartmentWorkspace({id,name=departments[id][0],user,request:api
  </div>}
  {page==='Home'&&!isAccounts&&<section className="studio-home-attendance"><div><strong>Attendance</strong><p>{!log?'Loading attendance…':log.checkOut?'Checked out':log.breakStart?'On break':log.checkIn?'Checked in':'Ready to check in'}</p>{log?.checkIn&&<p>{fmt(log.checkIn)}{log.checkOut?' – '+fmt(log.checkOut):''} · IST</p>}</div><div>{log?.checkIn&&!log.checkOut&&<button style={buttonStyle} disabled={busy} onClick={()=>load(log.breakStart?'resume':'break')}>{log.breakStart?'Resume work':'Pause for break'}</button>} <button style={buttonStyle} disabled={!log||busy||!!log.checkOut} onClick={()=>load(log.checkIn?'out':'in')}>{log?.checkOut?'Day closed':log?.checkIn?'Check out':'Check in'}</button></div></section>}
  {page==='Home'&&!isAccounts&&<MissedCheckoutNotice day={log?.missedDay} onReview={day=>{setAttendanceDay(day);setPage('Timeline');}} buttonStyle={buttonStyle}/>}
- {isAccounts&&(page==='Home'||accountsPages.includes(page))&&<Accounts page={page} request={request} user={user} onNavigate={go} reconciliationBank={reconciliationBank}/>}
+ {isAccounts&&(page==='Home'||accountsPages.includes(page))&&<Accounts page={page} request={request} user={user} onNavigate={go} reconciliationBank={reconciliationBank} reconciliationTransaction={reconciliationTransaction}/>}
  {page==='Home'&&<TeamAvailability request={request} department={id} buttonStyle={buttonStyle}/>}
  {isAccounts&&page==='Office Policy'&&<OfficePolicy/>}
  {page==='Timeline'&&<PerformanceAttendance initialDay={attendanceDay} request={request} user={user}/>}
@@ -155,5 +155,7 @@ export function DepartmentWorkspace({id,name=departments[id][0],user,request:api
 }
 
 export function DepartmentHeading({name,onChoose}){
- return onChoose?<button type="button" onClick={onChoose} aria-label={name+' — choose a department'} style={{border:0,padding:0,background:'transparent',color:'inherit',font:'inherit',fontWeight:650,textAlign:'left',cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6}}>{name}</button>:<strong>{name}</strong>;
+ const shortNames={studio:'Studio',sales:'Sales',marketing:'Marketing',accounts:'Accounts',legal:'Legal',hr:'Human Resources'};
+ const heading=shortNames[departmentFor(name)];
+ return onChoose?<button type="button" onClick={onChoose} aria-label={name+' — choose a department'} style={{border:0,padding:0,background:'transparent',color:'inherit',font:'inherit',fontWeight:650,textAlign:'left',cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6}}>{heading}</button>:<strong>{heading}</strong>;
 }
