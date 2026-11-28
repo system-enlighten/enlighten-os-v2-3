@@ -35,6 +35,15 @@ test('deployment gate requires the designated branch and a distinct isolated dat
     PORTAL_ARCHIVE_FOLDER_ID:'other-archive',SUPABASE_PREVIEW_DATABASE_URL:'postgresql://user:private@db.other.supabase.co/postgres'}),[
     'VERCEL_GIT_COMMIT_REF:wrong-or-missing','SUPABASE_DIRECT_OPERATIONAL_READS:not-enabled',
     'PROJECTS_DRIVE_ROOT_FOLDER_ID:root-mismatch','PORTAL_ARCHIVE_FOLDER_ID:root-mismatch',
-    'SUPABASE_PREVIEW_DATABASE_URL:project-mismatch'
+    'SUPABASE_PREVIEW_DATABASE_URL:project-mismatch','SUPABASE_PREVIEW_DATABASE_URL:unrecognized-host'
+  ]);
+  const pooler='postgresql://postgres%2E'+ref+':fixture%40%2F%23%25@aws-0-ap-south-1.pooler.supabase.com:5432/postgres';
+  assert.deepEqual(operationalPreviewFailures({...config,SUPABASE_PREVIEW_DATABASE_URL:pooler}),[]);
+  assert.deepEqual(operationalPreviewFailures({...config,SUPABASE_PREVIEW_DATABASE_URL:pooler+'?host=other'}),[
+    'SUPABASE_PREVIEW_DATABASE_URL:connection-override-parameter'
+  ]);
+  assert.deepEqual(operationalPreviewFailures({...config,SUPABASE_PREVIEW_DATABASE_URL:pooler.replace(ref,'mypofxuvupmrgjqeczmd')}),[
+    'SUPABASE_PREVIEW_DATABASE_URL:project-mismatch','SUPABASE_PREVIEW_DATABASE_URL:pooler-username-ref-mismatch',
+    'SUPABASE_PREVIEW_DATABASE_URL:matches-intended-project','SUPABASE_PREVIEW_PROJECT_REF:unexpected-preview-project'
   ]);
 });
