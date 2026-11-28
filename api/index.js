@@ -1,4 +1,4 @@
-import {isOperationalPreview} from '../server/preview-isolation.js';
+import {operationalPreviewFailures} from '../server/preview-isolation.js';
 import {getTechnicalSheetExport,createTechnicalSheetExport,addTechnicalSheetImages,finishTechnicalSheetExport} from '../server/technical-sheet-export.js';
 import {getNativeTechnicalTable,getScheduleSpecSheet,importTechnicalOutput} from '../server/native-technical.js';
 import {attendanceDay} from '../server/attendance-history.js';
@@ -214,8 +214,12 @@ export default async function handler(req,res) {
       const value=createAppSession(identity,secret,audience,requestHost(req));setSessionCookie(req,res,value,SESSION_SECONDS);
       return send(200,{ok:true,data:{signedIn:true}});
     }
-    const operationalPreview=isOperationalPreview();
-    if (!operationalPreview) return send(503,{ok:false,error:{message:'Supabase operations are available only in the configured Preview environment.'}});
+    const isolationFailures=operationalPreviewFailures();
+    const operationalPreview=isolationFailures.length===0;
+    if (!operationalPreview) {
+      console.warn('Preview isolation rejected request:',isolationFailures.join(', '));
+      return send(503,{ok:false,error:{message:'Supabase operations are available only in the configured Preview environment.'}});
+    }
     if(method==='POST'&&['getVendorLuminaireItem','submitVendorLuminaireOffer'].includes(action)){
       const payload=body.payload||{};
       if(typeof payload.token!=='string'||!/^[a-f0-9]{64}$/i.test(payload.token)||typeof payload.itemId!=='string'||payload.itemId.length>200||JSON.stringify(payload).length>55000)return send(400,{ok:false,error:{message:'Invalid luminaire invitation or submission.'}});

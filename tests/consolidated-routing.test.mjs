@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import test from 'node:test';
-import {isOperationalPreview} from '../server/preview-isolation.js';
+import {isOperationalPreview,operationalPreviewFailures} from '../server/preview-isolation.js';
 
 test('all 226 documented actions are explicitly routed through the Supabase gateway',()=>{
   const api=readFileSync(new URL('../api/index.js',import.meta.url),'utf8');
@@ -30,4 +30,11 @@ test('deployment gate requires the designated branch and a distinct isolated dat
   assert.equal(isOperationalPreview({...config,SUPABASE_PREVIEW_DATABASE_URL:''}),false);
   assert.equal(isOperationalPreview({...config,SUPABASE_PREVIEW_PROJECT_REF:'rxkzjdwldynxcsayvjbm'}),false);
   assert.equal(isOperationalPreview({...config,SUPABASE_PREVIEW_DATABASE_URL:'postgresql://unknown@db.other.supabase.co/postgres'}),false);
+  assert.deepEqual(operationalPreviewFailures({...config,VERCEL_GIT_COMMIT_REF:'',
+    SUPABASE_DIRECT_OPERATIONAL_READS:'0',PROJECTS_DRIVE_ROOT_FOLDER_ID:'other-root',
+    PORTAL_ARCHIVE_FOLDER_ID:'other-archive',SUPABASE_PREVIEW_DATABASE_URL:'postgresql://user:private@db.other.supabase.co/postgres'}),[
+    'VERCEL_GIT_COMMIT_REF:wrong-or-missing','SUPABASE_DIRECT_OPERATIONAL_READS:not-enabled',
+    'PROJECTS_DRIVE_ROOT_FOLDER_ID:root-mismatch','PORTAL_ARCHIVE_FOLDER_ID:root-mismatch',
+    'SUPABASE_PREVIEW_DATABASE_URL:project-mismatch'
+  ]);
 });
