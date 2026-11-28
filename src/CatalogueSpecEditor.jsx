@@ -19,7 +19,7 @@ const attachments=[
 ];
 const documentTypes='.pdf,.png,.jpg,.jpeg,.webp';
 
-export function CatalogueSpecEditor({product,onSave,onCancel,onUpload,onAi,busy,linearChoices}){
+export function CatalogueSpecEditor({product,onSave,onCancel,onUpload,onAi,busy,saveError,linearChoices}){
  const [draft,setDraft]=useState(()=>({...product,model:product.specs?.article||product.model})),[loading,setLoading]=useState(''),[error,setError]=useState(''),[result,setResult]=useState(null),[selected,setSelected]=useState('');
  const [uploadFailed,setUploadFailed]=useState(false);
  const specs=draft.specs||{},detail=specs.specSheet||{};
@@ -95,6 +95,6 @@ export function CatalogueSpecEditor({product,onSave,onCancel,onUpload,onAi,busy,
   })}
  </section>
  </div></div>
- <footer><button className="technical-primary-action" disabled={busy||!!loading}>Save product</button><button type="button" onClick={onCancel}>Cancel</button></footer>
+ <footer>{(error||saveError)&&<p role="alert" style={{color:"#a33b23"}}>{error||saveError}</p>}<button className="technical-primary-action" disabled={busy||!!loading}>Save product</button><button type="button" onClick={onCancel}>Cancel</button></footer>
  </form>;
 }
