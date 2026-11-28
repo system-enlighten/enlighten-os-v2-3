@@ -1,4 +1,4 @@
-import {operationalPreviewFailures} from '../server/preview-isolation.js';
+import {operationalPreviewFailures,previewDatabaseRuntimeFacts} from '../server/preview-isolation.js';
 import {getTechnicalSheetExport,createTechnicalSheetExport,addTechnicalSheetImages,finishTechnicalSheetExport} from '../server/technical-sheet-export.js';
 import {getNativeTechnicalTable,getScheduleSpecSheet,importTechnicalOutput} from '../server/native-technical.js';
 import {attendanceDay} from '../server/attendance-history.js';
@@ -218,6 +218,9 @@ export default async function handler(req,res) {
     const operationalPreview=isolationFailures.length===0;
     if (!operationalPreview) {
       console.warn('Preview isolation rejected request:',isolationFailures.join(', '));
+      if (process.env.VERCEL_ENV==='preview'&&process.env.VERCEL_GIT_COMMIT_REF==='supabase-consolidated') {
+        console.warn('Preview database URI facts:',JSON.stringify(previewDatabaseRuntimeFacts()));
+      }
       return send(503,{ok:false,error:{message:'Supabase operations are available only in the configured Preview environment.'}});
     }
     if(method==='POST'&&['getVendorLuminaireItem','submitVendorLuminaireOffer'].includes(action)){

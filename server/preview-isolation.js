@@ -1,5 +1,8 @@
 const intendedProjectRef='mypofxuvupmrgjqeczmd';
 const blockedProjectRef='rxkzjdwldynxcsayvjbm';
+const verifiedPoolerHost='aws-0-ap-southeast-2.pooler.supabase.com';
+const poolerHostPattern=/^[a-z0-9-]+\.pooler\.supabase\.com$/;
+const directHostPattern=/^db\.[a-z0-9]{20}\.supabase\.co$/;
 
 export function parsePreviewDatabaseUrl(value) {
   const url=new URL(value.trim());
@@ -33,8 +36,8 @@ export function operationalPreviewFailures(env=process.env) {
     const url=parsePreviewDatabaseUrl(configured);
     if (!['postgres:','postgresql:'].includes(url.protocol)) failures.push('SUPABASE_PREVIEW_DATABASE_URL:invalid-protocol');
     if (configured.includes(blockedProjectRef)) failures.push('SUPABASE_PREVIEW_DATABASE_URL:blocked-project');
-    const pooler=/^[a-z0-9-]+\.pooler\.supabase\.com$/.test(url.hostname);
-    const direct=/^db\.[a-z0-9]{20}\.supabase\.co$/.test(url.hostname);
+    const pooler=poolerHostPattern.test(url.hostname);
+    const direct=directHostPattern.test(url.hostname);
     const username=decodeURIComponent(url.username);
     if (validRef&&!(url.hostname==='db.'+ref+'.supabase.co'||pooler&&username.endsWith('.'+ref))) {
       failures.push('SUPABASE_PREVIEW_DATABASE_URL:project-mismatch');
@@ -57,4 +60,31 @@ export function operationalPreviewFailures(env=process.env) {
 
 export function isOperationalPreview(env=process.env) {
   return operationalPreviewFailures(env).length===0;
+}
+
+export function previewDatabaseRuntimeFacts(env=process.env) {
+  const raw=env.SUPABASE_PREVIEW_DATABASE_URL||'';
+  const facts={
+    uriPresent:Boolean(raw),uriLength:raw.length,outerWhitespace:raw!==raw.trim(),containsWhitespace:/\s/.test(raw),
+    legacyUriPresent:Boolean(env.SUPABASE_DATABASE_URL),configuredRefMatchesReview:env.SUPABASE_PREVIEW_PROJECT_REF===intendedProjectRef,
+    preview:env.VERCEL_ENV==='preview',expectedBranch:env.VERCEL_GIT_COMMIT_REF==='supabase-consolidated'
+  };
+  try {
+    const url=parsePreviewDatabaseUrl(raw);
+    const host=url.hostname;
+    const pooler=poolerHostPattern.test(host);
+    const direct=directHostPattern.test(host);
+    const expectedDirect='db.'+intendedProjectRef+'.supabase.co';
+    const username=decodeURIComponent(url.username);
+    return {...facts,parseable:true,protocol:['postgres:','postgresql:'].includes(url.protocol)?url.protocol:'other',
+      port:url.port||'default',hostname:host===verifiedPoolerHost||host===expectedDirect?host:'withheld',
+      hostnameKind:pooler?'pooler':direct?'direct':host.endsWith('.supabase.co')?'other-supabase-co':
+        host.endsWith('.supabase.com')?'other-supabase-com':host?'other':'empty',
+      hostnameLength:host.length,hostnameAccepted:pooler||direct,hostnameMatchesLocal:host===verifiedPoolerHost,
+      usernameMatchesReviewedRef:username.endsWith('.'+intendedProjectRef),
+      projectRefMatches:host===('db.'+env.SUPABASE_PREVIEW_PROJECT_REF+'.supabase.co')||
+        pooler&&username.endsWith('.'+env.SUPABASE_PREVIEW_PROJECT_REF)};
+  } catch {
+    return {...facts,parseable:false};
+  }
 }
