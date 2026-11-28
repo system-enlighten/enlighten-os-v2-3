@@ -4238,7 +4238,7 @@ function ScheduleSpecSheetView({state,initialProjectId='',embedded=false}){
  const projects=orderedProjects(state.projects),defaultProject=projects.find(p=>!projectIsCompleted(p))??projects[0];
  const projectId=selectedProjectId??String(defaultProject?.id??''),project=projects.find(p=>String(p.id)===String(projectId));
  if(embedded)return <NativeScheduleSpecSheetView state={state} initialProjectId={initialProjectId} embedded/>;
- return <section style={{fontFamily:FONT_BODY}}><nav className="studio-worksheet-tabs" aria-label="Schedule and specification views" data-sheet-tabs>{[['quantities','Quantities'],['schedule','Schedule'],['spec','Spec Sheets']].map(([id,label])=><button type="button" key={id} aria-pressed={tab===id} onClick={()=>setTab(id)}>{label}</button>)}</nav><header className="studio-technical-heading"><h1 className="studio-page-heading">{tab==='quantities'?'Product Quantities':tab==='schedule'?'Luminaire Schedule':'Project Spec Sheets'}</h1></header>{project&&<h2 className="studio-worksheet-project">{project.name}</h2>}<ProjectStatusSelect projects={projects} aria-label="Schedule and specification project" style={{...inputStyle,width:'100%'}} value={projectId} onChange={e=>setProjectId(e.target.value)}><option value="">Select a project</option>{projects.map(p=><option key={p.id} value={p.id}>{p.no} · {p.name}</option>)}</ProjectStatusSelect><ProjectProductDocuments projectId={projectId} project={project} request={apiRequest} view={tab} canIssue={canAdministerTechnical(state.currentUser,projectId)}/></section>;
+ return <section style={{fontFamily:FONT_BODY}}><nav className="studio-worksheet-tabs" aria-label="Schedule and specification views" data-sheet-tabs>{[['quantities','Quantities'],['schedule','Luminaire Schedule | Product'],['spec','Specification Sheet']].map(([id,label])=><button type="button" key={id} aria-pressed={tab===id} onClick={()=>setTab(id)}>{label}</button>)}</nav><header className="studio-technical-heading"><h1 className="studio-page-heading">{tab==='quantities'?'Product Quantities':tab==='schedule'?'Luminaire Schedule | Product':'Specification Sheet'}</h1></header>{project&&<h2 className="studio-worksheet-project">{project.name}</h2>}<ProjectStatusSelect projects={projects} aria-label="Schedule and specification project" style={{...inputStyle,width:'100%'}} value={projectId} onChange={e=>setProjectId(e.target.value)}><option value="">Select a project</option>{projects.map(p=><option key={p.id} value={p.id}>{p.no} · {p.name}</option>)}</ProjectStatusSelect><ProjectProductDocuments projectId={projectId} project={project} request={apiRequest} view={tab} canIssue={canAdministerTechnical(state.currentUser,projectId)}/></section>;
 }
 
 function NativeScheduleSpecSheetView({state,initialProjectId='',embedded=false,scheduleOnly=false}){
@@ -7698,7 +7698,7 @@ const NAV = [
   { id: "timesheet", label: "Tasks", icon: Clock, group: "WORK IN HAND" },
   { id: "diary", label: "Diary", icon: FileText, group: "WORK IN HAND" },
   { id: "technicalTable", label: "Technical Table", icon: FileText, group: "DOCUMENTATION" },
-  { id: "scheduleSpec", label: "Luminaire Schedule | Product", icon: FileText, group: "DOCUMENTATION" },
+  { id: "scheduleSpec", label: "Schedule/Spec Sheet", icon: FileText, group: "DOCUMENTATION" },
   { id: "site", label: "Timeline", icon: Clock, group: "TIMELINE" },
   { id: "journal", label: "Journal", icon: FileText, group: "TIMELINE" },
   { id: "settings", label: "Team & Tasks", icon: Settings2, group: "ADMIN" },

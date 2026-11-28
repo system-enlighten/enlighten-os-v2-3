@@ -3,3 +3,5 @@
 .vendor-requirements{display:grid;gap:5px;line-height:1.5}.vendor-requirements strong{font-weight:600}
 
 .vendor-schedule .vendor-design-table button{font-size:12px;padding:7px 10px;background:#fff;color:#18344c;border:1px solid #60798c}.vendor-design-table{table-layout:fixed}.vendor-design-table td{overflow-wrap:anywhere}.vendor-design-table .vendor-requirements{white-space:normal}.vendor-design-table td:first-child img{display:block;margin:0 auto 5px}
+
+.vendor-product-actions{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:nowrap}.vendor-product-actions button{white-space:nowrap;flex-shrink:0}.vendor-schedule .vendor-design-table .vendor-unavailable-action{border-color:#a33b23;color:#a33b23}.vendor-unavailable-label{color:#a33b23}.vendor-design-table{min-width:1320px}.vendor-schedule .project-document-paper{margin-top:18px}

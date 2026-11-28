@@ -12,3 +12,5 @@
 @media(max-width:540px){.vendor-equivalent-grid{grid-template-columns:1fr}}
 
 .luminaire-document-heading{background:#fff;padding:22px 16px 15px;margin:0 0 14px}.luminaire-document-heading h2{overflow-wrap:anywhere}
+
+.project-product-documents{margin-top:14px}.project-document-paper{background:#fff;border:1px solid #ded8ca;padding:16px;margin-top:18px}.project-document-paper>.luminaire-document-heading{margin:0;padding:22px 5px 15px}.project-document-paper>.project-quantities-scroll{margin-top:0}.project-document-paper .project-document-tools{margin-bottom:10px}
