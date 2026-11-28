@@ -17,7 +17,7 @@ export function curatedAssessmentGroup(group,saved){
 }
 export function removeAssessmentOption(group,id){return {...group,selectedId:group.selectedId===id?'':group.selectedId,options:group.options.filter(o=>o.id!==id)}}
 export function availableCatalogOptions(group,curated){return group.catalogOptions.filter(o=>!curated.options.some(c=>c.id===o.id||norm(c.brand)===norm(o.brand)&&norm(c.article)===norm(o.article)));}
-export function assessmentGroups(data,products=[]){
+export function assessmentGroups(data,products=[],{includeMedia=true}={}){
  const h=(data.headers||[]).map(norm),groups=new Map(),warnings=[];
  const value=(r,names)=>{for(const n of names){const i=h.indexOf(norm(n));if(i>=0&&clean(r[i])&&clean(r[i])!=='<>')return clean(r[i])}return ''};
  (data.rows||[]).forEach((r,index)=>{
@@ -30,7 +30,7 @@ export function assessmentGroups(data,products=[]){
   if(!/^(?:\d+(?:\.\d+)?|\.\d+)\s*(?:mm|m)?$/i.test(raw)||Number(raw.replace(/\s*(mm|m)$/i,''))<=0){g.missingLengths++;warnings.push(`${code} · Output row ${index+1}: linear length needs review.`);return}
   const metres=value(r,['LENGTHINMETRE','LENGTHINMETERS','LENGTHINMETRES'])||(/m$/i.test(raw)&&!/mm$/i.test(raw));g.quantity+=Number(raw.replace(/\s*(mm|m)$/i,''))/(metres?1:1000);
  });
- const media=assessmentDesignMedia(data,products);
+ const media=includeMedia?assessmentDesignMedia(data,products):new Map();
  return {groups:[...groups.values()].map(g=>({...g,reference:media.get(norm(g.code))?.reference||null,fixture:media.get(norm(g.code))?.fixture||null,quantity:Number(g.quantity.toFixed(6)),circuits:[...g.circuits].filter(Boolean)})),warnings};
 }
 export function newAssessmentOption(id){return {id,brand:'',article:'',price:'',quantity:'',remarks:'',photo:null,ratings:[0,0,0,0]}}
