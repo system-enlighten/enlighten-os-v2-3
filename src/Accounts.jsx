@@ -309,7 +309,9 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
   const parties=useMemo(()=>partyLedger(page==='Party Ledger'?data?.records||[]:[]),[data,page]);
   const [bank,setBank]=useState('IDFC');
   const [reportView,setReportView]=useState('Overview');
-  const [showZeroBalances,setShowZeroBalances]=useState(false);
+  const [showZeroBalances,setShowZeroBalances]=useState(false),[trialHead,setTrialHead]=useState(''),[trialEdit,setTrialEdit]=useState(null),[trialDetail,setTrialDetail]=useState(null);
+  const trialLedgerRef=useRef(null);
+  useEffect(()=>{if(page==='Financial Reports'&&reportView==='Trial Balance'&&trialHead)trialLedgerRef.current?.scrollIntoView({block:'start',behavior:'smooth'});},[trialHead,page,reportView]);
   const printRef=useRef(null), saving=useRef(false);
   const invoiceToOpen=useRef(null);
   const [invoiceClosed,setInvoiceClosed]=useState(false);
@@ -851,6 +853,8 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
     {page==='Financial Reports'&&(()=>{
       const tabs=['Overview','Profit & Loss','Balance Sheet','Cash Flow','Trial Balance'];
       const trialRows=headRows.filter(row=>showZeroBalances||row.balance!==0);
+      const ledger=trialHead?reportRecords.flatMap(record=>{const postings=(record.postings||[]).filter(p=>p.head===trialHead);return postings.length?[{record,debit:total(postings,'debit'),credit:total(postings,'credit')}]:[]}).sort((a,b)=>String(a.record.date).localeCompare(String(b.record.date))):[];
+      let running=0;const ledgerRows=ledger.map(row=>({...row,balance:running+=row.debit-row.credit}));
       const profitRows=[
         ['Design revenue',-balance('Revenue')],['Direct costs',balance('Direct expense')],
         ['Gross profit',margin],['Operating expenses',balance('Expense')],['Net profit',surplus]
@@ -922,8 +926,14 @@ export default function Accounts({page,request,user,onNavigate,reconciliationBan
             <label><input type="checkbox" checked={showZeroBalances} onChange={e=>setShowZeroBalances(e.target.checked)}/> Show zero balances</label>
           </div>
           <Table columns={['Head','Type','Period debit balance','Period credit balance']} empty="No non-zero balances for this period." rows={trialRows.map(row=>({
-            key:row.name,cells:[row.name,row.type,row.balance>0?money(row.balance):'—',row.balance<0?money(-row.balance):'—']
+            key:row.name,cells:[<button type="button" className="trial-head-link" aria-expanded={trialHead===row.name} onClick={()=>{setTrialHead(h=>h===row.name?'':row.name);setTrialDetail(null)}}>{row.name}</button>,row.type,row.balance>0?money(row.balance):'—',row.balance<0?money(-row.balance):'—']
           }))}/>
+          {trialHead&&<section className="trial-ledger" ref={trialLedgerRef}><header className="financial-report-section-head"><div><h2>{trialHead}</h2><p>{reportStartDate||'All time'} · {reportEndDate} · {ledgerRows.length} journal entries</p></div><button type="button" onClick={()=>{setTrialHead('');setTrialDetail(null)}}>Close ledger</button></header>
+          <Table columns={['Date','Reference / narration','Party / project','Debit','Credit','Running balance','Action']} rows={ledgerRows.map(({record,debit,credit,balance})=>({key:record.id,cells:[record.date,<button type="button" className="trial-head-link" onClick={()=>setTrialDetail(record.id)}>{record.description||record.reference||record.number||record.kind}</button>,record.beneficiary||record.projectName||'—',debit?money(debit):'—',credit?money(credit):'—',money(balance),!readOnly&&record.kind==='transaction'&&record.deleteFingerprint?<button type="button" onClick={()=>setTrialEdit(record.id)}>Edit transaction</button>:<button onClick={()=>setTrialDetail(record.id)}>View entry</button>]}))} empty="No postings in this period."/>
+          <p><strong>Total debit {money(total(ledgerRows,'debit'))} · Total credit {money(total(ledgerRows,'credit'))} · Net {money(total(ledgerRows,'debit')-total(ledgerRows,'credit'))}</strong></p>
+          {trialDetail&&(()=>{const record=records.find(r=>r.id===trialDetail);return record&&<section className="trial-journal"><header className="financial-report-section-head"><h3>Journal entry · {record.date}</h3><button onClick={()=>setTrialDetail(null)}>Close entry</button></header><p>{record.description||record.reference||record.number||record.kind}</p><Table columns={['Account head','Debit','Credit']} rows={(record.postings||[]).map((p,i)=>({key:i,cells:[p.head,p.debit?money(p.debit):'—',p.credit?money(p.credit):'—']}))}/>{!readOnly&&record.kind==='transaction'&&record.deleteFingerprint?<button onClick={()=>setTrialEdit(record.id)}>Edit transaction</button>:<p>Source: {record.kind}. Review the originating accounting document to make permitted corrections.</p>}</section>})()}
+          </section>}
+          {trialEdit&&(()=>{const record=records.find(r=>r.id===trialEdit);return record&&<div className="trial-edit-overlay"><section className="trial-edit-panel" role="dialog" aria-modal="true" aria-label="Edit ledger transaction"><DesignTransactions key={record.id} initialEdit={record} onCloseEditor={()=>setTrialEdit(null)} records={records} projects={projects} heads={heads} request={request} onSaved={transactionSaved} readOnly={readOnly}/></section></div>})()}
         </>}
       </section>;
     })()}
