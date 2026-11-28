@@ -168,7 +168,7 @@ export default async function handler(req,res) {
     }
     if(action==='draftProductFromSpreadsheet'){
       if(method!=='POST')return send(405,{ok:false,error:{message:'AI import requires POST.'}});
-      const response=await fetchAppsScript(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(signRequest('getProductImportAccess',{},identity,secret)),signal:AbortSignal.timeout(60000)});
+      const response=await fetchAppsScript(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(signRequest(payload.invitationId?'getVendorScheduleAiAccess':'getProductImportAccess',payload.invitationId?{invitationId:payload.invitationId}:{},identity,secret)),signal:AbortSignal.timeout(60000)});
       let access;try{access=await response.json();}catch{throw Error('Apps Script access check failed. Update Code.gs and redeploy.');}
       if(!access.ok)return send(403,{ok:false,error:{message:access.error?.message||'Admin access required.'}});
       try{return send(200,{ok:true,data:await draftProductFromSheet(payload)});}catch(e){return send(502,{ok:false,error:{message:e.message}});}

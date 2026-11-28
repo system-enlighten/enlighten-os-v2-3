@@ -68,7 +68,7 @@ export function CatalogueSpecEditor({product,onSave,onCancel,onUpload,onAi,busy,
  {row('brand','Manufacturer','product',true)}{row('model','Model / Catalogue No.','product',true)}{row('family','Product family (optional)','product')}
  {sections.map(([title,fields])=><section key={title}><h4>{title}</h4>{fields.map(([key,label])=>row(key,label,key==='voltage'?'detail':'specs'))}{Object.entries(details).filter(([key])=>!classified.has(key)&&!['designIntent','customization','equivalents'].includes(key)).filter(([key])=>title==='Mechanical'?['trimColor','reflectorColor','dimensions','mounting','aiming','weight','ik','accessories'].includes(key):title==='Optical'?['r9','optics','ugr','sdcm','brightness'].includes(key):!['trimColor','reflectorColor','dimensions','mounting','aiming','weight','ik','accessories','r9','optics','ugr','sdcm','brightness'].includes(key)).map(([key,label])=>row(key,label,'detail'))}</section>)}
  <section><h4>Maintenance</h4>{row('maintenance','Maintenance factor (0–1)')}{row('lmf','LMF')}</section>
- <details><summary>Pricing and additional information</summary>{row('mrp','MRP')}{row('price','Price')}{row('currency','Currency')}{row('notes','Notes','product')}{row('brandLogoUrl','Brand logo URL','product')}</details>
+ <details><summary>Pricing and additional information</summary>{row('mrp','MRP')}{row('price','Price')}{row('currency','Currency')}{row('notes','Delivery lead time / notes','product')}{row('brandLogoUrl','Brand logo URL','product')}</details>
  </div><div className="catalogue-spec-assets">{assets.map(([key,label],i)=>{
   const target=i===0?'product':i===1?'specs':'detail';
   const url=(target==='product'?draft:target==='detail'?detail:specs)[key];
@@ -82,7 +82,7 @@ export function CatalogueSpecEditor({product,onSave,onCancel,onUpload,onAi,busy,
    const value=specs[key];
    const isLink=typeof value==='string'&&/^https?:\/\//i.test(value);
    return <div className="catalogue-spec-attachment" key={key}>
-    <label>{label}{onUpload&&<input type="file" accept={key==='ies'?'.ies':documentTypes} disabled={busy||!!loading} onChange={e=>{
+    <label>{label}{onUpload&&<input type="file" accept={key==='ies'?'.ies,.ldt':documentTypes} disabled={busy||!!loading} onChange={e=>{
      const file=e.target.files?.[0];
      e.target.value='';
      upload(file,key);

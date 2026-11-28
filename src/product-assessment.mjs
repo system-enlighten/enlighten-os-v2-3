@@ -4,7 +4,8 @@ export const ratingLabels=['Cutoff','LED Quality','Driver Quality','Build Qualit
 export const assessmentKey=(code,linear)=>norm(code)+'|'+(linear?'m':'pcs');
 const stableId=s=>{let n=2166136261;for(const c of s)n=Math.imul(n^c.charCodeAt(0),16777619);return 'catalog-'+(n>>>0).toString(36)};
 export function catalogOptionsForCode(code,products){
- const all=new Map();products.filter(p=>norm(p.fittingType)===norm(code)).forEach(f=>(f.products||[]).forEach((p,i)=>{
+ const all=new Map();const scoped=products.filter(p=>norm(p.fittingType)===norm(code));const vendorProductIds=new Set(scoped.filter(f=>String(f.id).startsWith('vendor-')).flatMap(f=>(f.products||[]).map(p=>p.id)));scoped.forEach(f=>(f.products||[]).forEach((p,i)=>{
+  if(!String(f.id).startsWith('vendor-')&&vendorProductIds.has(p.id))return;
   const id=stableId(String(f.id||norm(code))+'|'+String(p.id||p.brand+'|'+p.specs?.article+'|'+p.model||i));
   if(all.has(id))return;all.set(id,{...newAssessmentOption(id),fittingId:f.id,productId:p.id,brand:p.brand||'',article:p.specs?.article||p.model||'',price:Number.isFinite(Number(p.specs?.price))&&p.specs?.price!==null&&p.specs?.price!==undefined&&String(p.specs.price).trim()!==''?Number(p.specs.price):'',remarks:p.notes||'',photo:p.imageUrl?{url:p.imageUrl,id:'',driveFileId:'',label:[p.brand,p.model].filter(Boolean).join(' ')}:null,ratings:['cutoff','led','driver','build'].map(k=>Math.max(0,Math.min(5,Math.round(Number(p.ratings?.[k])||0))))});
  }));return [...all.values()];

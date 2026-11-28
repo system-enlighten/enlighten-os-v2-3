@@ -128,11 +128,12 @@ export default function LinearLightLineup({database,catalogue,onAddProduct,onEdi
   const expanded=expandIds(rawIds);
   const canonicalMapped=expanded.flatMap(id=>{
    const parts=id.split(':');
-   const base=parts[0],slot=parts[1];
+   const base=parts.slice(0,2).join(':');
+   const slot=parts[2];
    const canonicalBase=canonicalIds.get(base)||base;
    return slot!==undefined?[`${canonicalBase}:${slot}`,canonicalBase]:[canonicalBase];
   });
-  return [...new Set(canonicalMapped)].filter(id=>!layout?.deleted.includes(id.split(':')[0]));
+  return [...new Set(canonicalMapped)].filter(id=>!layout?.deleted.includes(id.split(':').slice(0,2).join(':')));
  };
  const references=groups.flatMap(g=>g.products.map((p,index)=>({...p,image:layout?.images?.[g.id+':'+index]||p.image,sourceGroup:g.id,key:g.id+':'+index,refKey:p.code+':'+(p.column??index),ids:layout?.references[g.id+':'+index]??allApplications.filter(a=>a.groupId===g.id).map(a=>a.id)})));
  const rows=applications.map(a=>{
@@ -149,7 +150,7 @@ export default function LinearLightLineup({database,catalogue,onAddProduct,onEdi
 
  const targetOptionsFor=(g,selectedIds=linkedIds)=>{
   const iconList=iconsFor(g.app),primary=primarySlot(g.app);
-  const checkedSlots=selectedIds.filter(id=>id.startsWith(g.id+':')).map(id=>Number(id.split(':')[1])).filter(Boolean);
+  const checkedSlots=selectedIds.filter(id=>id.startsWith(g.id+':')).map(id=>Number(id.split(':').at(-1))).filter(Boolean);
   const prioritizedSlots=[
    ...checkedSlots,
    ...iconList.map(([s])=>s).filter(s=>!checkedSlots.includes(s)),
@@ -344,7 +345,7 @@ export default function LinearLightLineup({database,catalogue,onAddProduct,onEdi
   </div>;
  })}{allProducts.filter(item=>memberships(item).includes(g.id)&&!g.products.some(p=>links.some(l=>(l.applicationId===g.id||l.applicationId===p.sourceGroup||l.applicationId.split(":")[0]===p.sourceGroup)&&l.referenceKey===p.refKey&&l.fittingId===item.fitting.id&&l.productId===item.product.id))).map(item=>{
   const itemAppIds=item.product.linearApplicationIds||[];
-  const linkedSlots=itemAppIds.filter(id=>id.startsWith(g.id+':')).map(id=>Number(id.split(':')[1])).filter(Boolean);
+  const linkedSlots=itemAppIds.filter(id=>id.startsWith(g.id+':')).map(id=>Number(id.split(':').at(-1))).filter(Boolean);
   const slotCodes=linkedSlots.map(slot=>iconCode(g.app,slot)).filter(Boolean);
   const productImage=productTileImage(item.product);
   const productName=item.product.specs?.article||item.product.model||item.product.family||'Product';
