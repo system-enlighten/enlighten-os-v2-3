@@ -1,7 +1,7 @@
 const fields=[
  ['Colour temperature',/^(CCT|COLOU?R(?: TEMPERATURE)?)$/i],
  ['CRI',/^CRI$/i],
- ['Beam angle / optics',/^(BEAM[ _|/-]*(?:ANGLE|DEG(?:REE)?S?)?(?:[ (°DEG)]*)?|OPTICS|BEAMANGLE|DISTRIBUTION)$/i],
+ ['Beam angle / spread',/^(BEAM[ _|/-]*(?:ANGLE|SPREAD|DEG(?:REE)?S?)?(?:[ (°DEG)]*)?|OPTICS|DISTRIBUTION)$/i],
  ['Wattage',/^WATTAGE$/i],
  ['IP rating',/^IP(?: RATING)?$/i],
  ['Control',/^CONTROL$/i],
@@ -27,7 +27,7 @@ export function designRequirements(data,group,related){
 }
 export function requirementSections(text){
  return String(text||'').split('\n').filter(Boolean).map(line=>{
-  const match=/^(Applications|Lighting performance \/ CMF|Illuminance|Colour temperature|CRI|Optics \/ beam angle|Beam angle \/ optics|Wattage|IP rating|Control): (.*)$/.exec(line);
+  const match=/^(Applications|Lighting performance \/ CMF|Illuminance|Colour temperature|CRI|Optics \/ beam angle|Beam angle \/ optics|Beam angle \/ spread|Wattage|IP rating|Control): (.*)$/.exec(line);
   return match?{label:match[1],values:match[2].split(' · ')}:{label:'',values:[line]};
  });
 }
