@@ -12,7 +12,7 @@
 ### 2. Vendor | Prepare and save offers
 
 1. Open the invitation link and sign in using the invited Google account.
-2. Choose a fitting and select **+ Add Manufacturer Product**.
+2. Choose a fitting and select **+ Add Spec Sheet**.
 3. The manufacturer variant specification opens directly. Enter the exact article or SKU that you are offering.
 4. Enter the manufacturer and model or family. Upload the catalogue or datasheet, then use the AI extraction option. Check extracted information against the manufacturer's source before saving. Complete any missing dimensions, optical data, electrical specifications, price, warranty and delivery lead time.
 5. Upload product images, dimensional drawings, test certificates, LM-80/TM-30 reports and IES/LDT files where available. Individual uploads are limited to 3 MB. Use a smaller excerpt or document link when supported.

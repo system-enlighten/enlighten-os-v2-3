@@ -17,9 +17,13 @@ function unique(values){
 export function designRequirements(data,group,related){
  const rows=group.sourceIndices.map(i=>data.rows[i]).filter(Boolean);
  const values=pattern=>unique(rows.flatMap(row=>data.headers.flatMap((header,i)=>pattern.test(clean(header))?[row[i]]:[])));
+ const column=pattern=>data.headers.findIndex(header=>pattern.test(clean(header)));
+ const surface=column(/^SURFACE$/i),mount=column(/^MOUNT(?:ING)?$/i);
+ const mounting=unique(rows.map(row=>[row[surface],row[mount]].map(clean).filter(value=>value&&value!=='<>').join(' ')));
  const sections=[
   ['Applications',unique([...values(/^APPLICATION$/i),...related.flatMap(row=>String(row.application||'').split(' / '))])],
   ['Lighting performance / CMF',unique(related.flatMap(row=>String(row.cmf||'').split(' / ')))],
+  ['Surface / mount',mounting],
   ['Illuminance',unique(related.flatMap(row=>String(row.illuminance||'').split(' / ')))],
   ...fields.map(([label,pattern])=>[label,values(pattern)]),
  ];
@@ -27,7 +31,7 @@ export function designRequirements(data,group,related){
 }
 export function requirementSections(text){
  return String(text||'').split('\n').filter(Boolean).map(line=>{
-  const match=/^(Applications|Lighting performance \/ CMF|Illuminance|Colour temperature|CRI|Optics \/ beam angle|Beam angle \/ optics|Beam angle \/ spread|Wattage|IP rating|Control): (.*)$/.exec(line);
+  const match=/^(Applications|Lighting performance \/ CMF|Illuminance|Surface \/ mount|Colour temperature|CRI|Optics \/ beam angle|Beam angle \/ optics|Beam angle \/ spread|Wattage|IP rating|Control): (.*)$/.exec(line);
   return match?{label:match[1],values:match[2].split(' · ')}:{label:'',values:[line]};
  });
 }

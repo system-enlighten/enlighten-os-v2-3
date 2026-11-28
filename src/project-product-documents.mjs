@@ -51,3 +51,23 @@ export function boqScheduleRows(quantities,products,assessment){
  });
 }
 export function boqCsv(rows,headers){const quote=v=>{let t=String(v??'');if(/^[\s]*[=+@-]/.test(t))t="'"+t;return '"'+t.replaceAll('"','""')+'"'};return [headers,...rows.map(r=>[r.serial,r.control,'',r.code,r.make,r.article,r.equivalents,r.quantity,r.unit])].map(row=>row.map(quote).join(',')).join('\r\n');}
+
+export const finalScheduleHeaders=['S. No.','Application','Fitting type','Product','Manufacturer','Article / SKU','Wattage','Colour temperature','Beam angle','Surface / mount','Control','Quantity','Unit','Specification'];
+const showValues=value=>Array.isArray(value)?value.filter(Boolean).join(' · '):String(value??'').trim();
+export function manufacturerDocuments(product={}){
+ const s=product.specs||{},d=s.specSheet||{};
+ const fields=[['Manufacturer datasheet',s.datasheet],['Dimensional drawing',s.diagramUrl],['IES / LDT photometric file',s.ies],['Test certificate',s.certificate],['LM-80 report',s.lm80],['TM-30 report',s.tm30],['Optical diagram',d.photometricUrl],['Certifications / symbols',d.symbolsUrl],['Control diagram',d.controlDiagramUrl],['Installation instructions',s.installationInstructions],['Maintenance document',s.maintenanceAttachmentUrl],['LMF document',s.lmfAttachmentUrl]];
+ return fields.filter(([,url])=>typeof url==='string'&&/^https:\/\/[^\s]+$/i.test(url)).map(([label,url])=>({label,url}));
+}
+export function finalScheduleRows(quantities,products,assessment){
+ const book=selectedProjectSpecSheets(quantities,products,assessment),selected=selectedAssessment(assessment);
+ return quantities.filter(g=>selected.has(g.id)).map((g,i)=>{
+  const option=selected.get(g.id),sheet=book.sheets.find(s=>s.sources.includes(g.id)),p=sheet?.product||{},s=p.specs||{},d=s.specSheet||{};
+  const mounts=[...new Set((g.rows||[]).map(r=>[outputValue(g.headers||[],r,['SURFACE']),outputValue(g.headers||[],r,['MOUNT','MOUNTING'])].filter(Boolean).join(' ')).filter(Boolean))];
+  return {id:g.id,serial:i+1,application:g.icon||g.fitting?.iconUrl||'',code:g.code,image:p.imageUrl||'',make:option.brand,article:option.article,power:showValues(s.power||d.energy),colour:showValues(s.colour),beam:showValues(s.distribution)||showValues(d.optics),mount:mounts.join(' · ')||showValues(d.mounting),control:showValues(s.control),quantity:option.quantity!==''&&option.quantity!=null?Number(option.quantity):g.quantity,unit:g.unit,missingLengths:g.missingLengths,sheetId:sheet?.id,documents:manufacturerDocuments(p)};
+ });
+}
+export function finalScheduleCsv(rows){
+ const quote=v=>{let t=String(v??'');if(/^[\s]*[=+@-]/.test(t))t="'"+t;return '"'+t.replaceAll('"','""')+'"'};
+ return [finalScheduleHeaders,...rows.map(r=>[r.serial,r.application,r.code,r.image,r.make,r.article,r.power,r.colour,r.beam,r.mount,r.control,r.quantity,r.unit,r.documents.map(d=>d.label+' '+d.url).join(' | ')])].map(row=>row.map(quote).join(',')).join('\r\n');
+}
