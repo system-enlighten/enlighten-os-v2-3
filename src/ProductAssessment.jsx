@@ -1,3 +1,4 @@
+import {recommendationApproved,recommendationCodes} from './recommendations.mjs';
 import {useTechnicalBackgroundRefresh} from './useTechnicalBackgroundRefresh.js';
 import {buildColumnTable} from './technical-column-logic.mjs';
 import ProductTypeEditor from './ProductTypeEditor.jsx';
@@ -30,7 +31,7 @@ export default function ProductAssessment({project,projectId,request,canEdit,onO
  const groups=model.groups.filter(g=>{
   const matchesSearch=!filter||[g.code,g.type,...g.catalogOptions.map(o=>o.brand+' '+o.article)].join(' ').toLowerCase().includes(filter.toLowerCase());
   const matchesReview=review==='all'||(review==='missing'?!g.registered:review==='selected'?!!savedGroup(g).selectedId:!savedGroup(g).selectedId);
-  return matchesSearch&&matchesReview;
+  return !recommendationApproved(assessment,g.id)&&(!recommendationCodes(data||{},g).length||assessment.groups[g.id]?.recommendation?.status==='declined')&&matchesSearch&&matchesReview;
  });
  const mutate=(g,fn)=>{setAssessment(a=>({...a,groups:{...a.groups,[g.id]:fn(linkedAssessmentGroup(g,a.groups[g.id]))}}));setDirty(true);setMessage('')};
  const change=(g,id,patch)=>mutate(g,old=>({...old,options:old.options.map(o=>o.id===id?{...o,...patch}:o)}));

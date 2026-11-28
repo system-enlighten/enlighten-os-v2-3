@@ -47,9 +47,10 @@ export function productTechnicalRows(rows,assessment){
 }
 
 export function linkedAssessmentGroup(group,saved){
+ if(saved?.recommendation?.status==="approved")return saved;
  const prior=saved?.options||[];let selectedId='';
  const options=group.catalogOptions.map(option=>{const old=prior.find(o=>o.id===option.id)||prior.find(o=>!o.id.startsWith('catalog-')&&norm(o.brand)===norm(option.brand)&&norm(o.article)===norm(option.article));if(old&&old.id===saved?.selectedId)selectedId=option.id;return {...option,quantity:'',remarks:old?.remarks??option.remarks,...(old?.review?{review:old.review}:{}),ratings:old?.ratings?.slice()||option.ratings.slice()};});
- return {options,selectedId};
+ return {options,selectedId,...(saved?.recommendation?{recommendation:saved.recommendation}:{})};
 }
 export function manufacturerSpecUrl(product){return /^https:\/\//i.test(product?.specs?.datasheet||'')?product.specs.datasheet:'';}
 
