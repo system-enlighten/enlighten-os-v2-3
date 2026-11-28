@@ -39,6 +39,9 @@ test('deployment gate requires the designated branch and a distinct isolated dat
   ]);
   const pooler='postgresql://postgres%2E'+ref+':fixture%40%2F%23%25@aws-0-ap-south-1.pooler.supabase.com:5432/postgres';
   assert.deepEqual(operationalPreviewFailures({...config,SUPABASE_PREVIEW_DATABASE_URL:pooler}),[]);
+  assert.deepEqual(operationalPreviewFailures({...config,SUPABASE_PREVIEW_DATABASE_URL:
+    ' '+pooler.replace('aws-0-ap-south-1.pooler.supabase.com','AWS-0-AP-SOUTH-1.POOLER.SUPABASE.COM.')+'\n'}),[]);
+  assert.deepEqual(operationalPreviewFailures({...config,SUPABASE_PREVIEW_DATABASE_URL:pooler.replace('aws-0','%61ws-0')}),[]);
   assert.deepEqual(operationalPreviewFailures({...config,SUPABASE_PREVIEW_DATABASE_URL:pooler+'?host=other'}),[
     'SUPABASE_PREVIEW_DATABASE_URL:connection-override-parameter'
   ]);

@@ -1,6 +1,15 @@
 const intendedProjectRef='mypofxuvupmrgjqeczmd';
 const blockedProjectRef='rxkzjdwldynxcsayvjbm';
 
+export function parsePreviewDatabaseUrl(value) {
+  const url=new URL(value.trim());
+  if (!['postgres:','postgresql:'].includes(url.protocol)) return url;
+  // PostgreSQL is a non-special WHATWG scheme, so normalize DNS spelling explicitly.
+  const host=decodeURIComponent(url.hostname).toLowerCase().replace(/\.$/,'');
+  if (/^[a-z0-9-]+(?:\.[a-z0-9-]+)*$/.test(host)) url.hostname=host;
+  return url;
+}
+
 export function operationalPreviewFailures(env=process.env) {
   const failures=[];
   if (env.VERCEL_ENV!=='preview') failures.push('VERCEL_ENV:not-preview');
@@ -21,7 +30,7 @@ export function operationalPreviewFailures(env=process.env) {
   const validRef=/^[a-z0-9]{20}$/.test(ref)&&ref!==blockedProjectRef;
   if (!validRef) failures.push('SUPABASE_PREVIEW_PROJECT_REF:invalid-or-blocked');
   try {
-    const url=new URL(configured);
+    const url=parsePreviewDatabaseUrl(configured);
     if (!['postgres:','postgresql:'].includes(url.protocol)) failures.push('SUPABASE_PREVIEW_DATABASE_URL:invalid-protocol');
     if (configured.includes(blockedProjectRef)) failures.push('SUPABASE_PREVIEW_DATABASE_URL:blocked-project');
     const pooler=/^[a-z0-9-]+\.pooler\.supabase\.com$/.test(url.hostname);
