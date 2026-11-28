@@ -1,3 +1,4 @@
+import {recommendationCodes} from './recommendations.mjs';
 import {parseOutputText} from './technical-output.mjs';
 const clean=v=>String(v??'').trim();
 const key=v=>clean(v).toUpperCase().replace(/\s+/g,'');
@@ -30,7 +31,7 @@ export function buildColumnTable(data,zones=[],products=[]){
  if(linear&&lengths.some(x=>x===null))warnings.push(`${g.cn}: missing or invalid linear length; quantity needs review.`);
  const heights=unique(r=>{const h=field(r,9)||read(r,['CLEARHEIGHT','CLEAR HEIGHT']),d=read(r,['DISTANCE']);const mount=[read(r,['SURFACE']),read(r,['MOUNT'])].filter(Boolean).join(' ');return [h,d&&d!==h?d:'',mount?`(${mount})`:''].filter(Boolean).join('\n')});
  const lighting=lightingClass({explicit:unique(r=>read(r,['LIGHTINGLAYER','LIGHTINGCATEGORY','LIGHTINGCLASS'])).join(' '),category:found.length===1?found[0].category:'',type:value(3),application:value(4)});
- const override=data.overrides?.[g.id]||{};return {...g,lighting:['Fill','Focused','Decorative','Joinery','Unclassified'].includes(override.lighting)?override.lighting:lighting,code:codes.join(' / '),icon:found.length===1?found[0].iconUrl:'',type:value(3),application:value(4),object:value(7)||unique(r=>/^\d+(?:\.\d+)?\s*[x×]\s*\d+/i.test(read(r,['LENGTH']))?read(r,['LENGTH']):'').join(' / '),cmf:Object.hasOwn(override,'cmf')?override.cmf:value(8),height:heights.join('\n/\n'),illuminance:value(10),linear,quantity:linear?lengths.map(n=>n===null?'[length missing]':`${Number(n.toFixed(4))} m`).join(' + '):`${g.rows.length} ${g.rows.length===1?'Pc':'Pcs'}`,override};
+ const override=data.overrides?.[g.id]||{};return {...g,recommendation:recommendationCodes(data,g).join(' / '),lighting:['Fill','Focused','Decorative','Joinery','Unclassified'].includes(override.lighting)?override.lighting:lighting,code:codes.join(' / '),icon:found.length===1?found[0].iconUrl:'',type:value(3),application:value(4),object:value(7)||unique(r=>/^\d+(?:\.\d+)?\s*[x×]\s*\d+/i.test(read(r,['LENGTH']))?read(r,['LENGTH']):'').join(' / '),cmf:Object.hasOwn(override,'cmf')?override.cmf:value(8),height:heights.join('\n/\n'),illuminance:value(10),linear,quantity:linear?lengths.map(n=>n===null?'[length missing]':`${Number(n.toFixed(4))} m`).join(' + '):`${g.rows.length} ${g.rows.length===1?'Pc':'Pcs'}`,override};
  }).sort((a,b)=>{const zoneOrder=cn=>(cn.match(/^[A-Z]+/)?.[0]||'').split('').reduce((n,c)=>n*26+c.charCodeAt(0)-64,0);return zoneOrder(a.cn)-zoneOrder(b.cn)||String(a.floor||'').localeCompare(String(b.floor||''),undefined,{numeric:true})||a.cn.localeCompare(b.cn,undefined,{numeric:true})});return {rows:result,warnings:[...new Set(warnings)]};
 }
 

@@ -1,6 +1,7 @@
 import {parseOutputText} from './technical-output.mjs';
 const key=value=>String(value??'').trim().toUpperCase().replace(/\s+/g,'');
 export const editableOutputFields={
+ recommendation:{label:'Strong Recommendation',headers:['STRONG_RECOMMENDATION','Strong Recommendation','Recommended Product','Recommended Product Code']},
  code:{label:'Product code',headers:['HOUSINGNUMBER','FITTINGTYPE','PRODUCTCODE']},
  application:{label:'Application',headers:['APPLICATION']},
  object:{label:'Object / size',headers:['OBJECT','OBJECTSIZE','SHAPE|DIA','SIZE']},
@@ -12,6 +13,7 @@ export const editableOutputFields={
  length:{label:'Length',headers:['LENGTHINMETRE','LENGTHINMETERS','LENGTH']}
 };
 function columnFor(data,rowIndex,field){
+ if(field==='recommendation')return data.headers.findIndex(h=>/^(STRONGRECOMMENDATION|RECOMMENDEDPRODUCT(?:CODE)?)$/.test(String(h).toUpperCase().replace(/[^A-Z]/g,'')));
  const rule=editableOutputFields[field];if(!rule)throw Error('This column is not editable.');const row=data.rows[rowIndex];
  for(const name of rule.headers)for(let i=0;i<data.headers.length;i++)if(key(data.headers[i])===key(name)&&String(row[i]??'').trim()&&!/^<>$/.test(String(row[i]).trim()))return i;
  if(field==='object'){const i=data.headers.findIndex(h=>key(h)==='LENGTH');if(i>=0&&/^\d+(?:\.\d+)?\s*[x×]\s*\d+/i.test(row[i]))return i;}

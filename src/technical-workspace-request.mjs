@@ -25,6 +25,7 @@ export function createTechnicalWorkspaceRequest(send){
   return send(action,payload,...rest).then(result=>{
    const read=savedReads[action];
    if(read)cache.set(keyFor(read,payload),Promise.resolve(result));
+   if(action==='saveTechnicalDocumentation')workspaceRequest.invalidate('getProductAssessment',payload);
    if(action==='saveTechnicalFitting')workspaceRequest.invalidate('listTechnicalFittings');
    if(['importTechnicalOutput','saveTechnicalWorkbook','createTechnicalWorkbook','copyTechnicalProjectWorkbook'].includes(action)){
     workspaceRequest.invalidate('getTechnicalDocumentation',payload);

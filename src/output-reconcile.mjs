@@ -1,5 +1,5 @@
 import {serializeTechnicalOutput} from './technical-editing.mjs';
-const norm=v=>String(v??'').trim().toUpperCase().replace(/\s+/g,'');
+const norm=v=>{const name=String(v??'').trim().toUpperCase().replace(/\s+/g,'');return /^(STRONG_?RECOMMENDATION|RECOMMENDEDPRODUCT(?:CODE)?)$/.test(name)?'STRONG_RECOMMENDATION':name;};
 const val=(d,r,name)=>String(r?.[d.headers.findIndex(h=>norm(h)===name)]??'');
 function columns(data){const map=new Map();data.headers.forEach((h,i)=>{const k=norm(h);if(map.has(k))throw Error(`Duplicate heading ${h}. Use unique column headings before comparing.`);map.set(k,i)});return map}
 export function compareOutput(system,drawing){
